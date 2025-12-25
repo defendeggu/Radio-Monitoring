@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radio Transcription Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+            padding: 30px;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: 600;
+        }
+
+        input[type="number"],
+        input[type="text"],
+        select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: border-color 0.3s;
+        }
+
+        input:focus,
+        select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .hint {
+            font-size: 12px;
+            color: #999;
+            margin-top: 5px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 15px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: #f0f0f0;
+            color: #333;
+        }
+
+        .btn-secondary:hover {
+            background: #e0e0e0;
+        }
+
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border: 1px solid #81c784;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #d32f2f;
+            border: 1px solid #e57373;
+        }
+
+        .transcription-result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f5f5f5;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .transcription-text {
+            background: white;
+            padding: 15px;
+            border-radius: 5px;
+            margin-top: 10px;
+            line-height: 1.6;
+        }
+
+        .metadata {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-top: 15px;
+            font-size: 14px;
+        }
+
+        .metadata-item {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        .metadata-label {
+            font-weight: 600;
+            color: #666;
+            font-size: 12px;
+            text-transform: uppercase;
+        }
+
+        .metadata-value {
+            color: #333;
+            margin-top: 5px;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255,255,255,.3);
+            border-radius: 50%;
+            border-top-color: #fff;
+            animation: spin 1s ease-in-out infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        .preset-buttons {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .preset-btn {
+            padding: 10px;
+            background: #f0f0f0;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            text-align: center;
+        }
+
+        .preset-btn:hover {
+            background: #e0e0e0;
+            border-color: #667eea;
+        }
+
+        .preset-btn-title {
+            font-weight: 600;
+            color: #333;
+        }
+
+        .preset-btn-freq {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📻 Radio Transcription Control Panel</h1>
+        <p class="subtitle">HackRF + faster-whisper + N8N</p>
+
+        <div class="preset-buttons">
+            <div class="preset-btn" onclick="setPreset(88500000, 'FM')">
+                <div class="preset-btn-title">FM Radio</div>
+                <div class="preset-btn-freq">88.5 MHz</div>
+            </div>
+            <div class="preset-btn" onclick="setPreset(162550000, 'FM')">
+                <div class="preset-btn-title">Marine VHF</div>
+                <div class="preset-btn-freq">162.55 MHz</div>
+            </div>
+            <div class="preset-btn" onclick="setPreset(144390000, 'FM')">
+                <div class="preset-btn-title">Amateur 2m</div>
+                <div class="preset-btn-freq">144.39 MHz</div>
+            </div>
+            <div class="preset-btn" onclick="setPreset(462562500, 'FM')">
+                <div class="preset-btn-title">FRS/GMRS</div>
+                <div class="preset-btn-freq">462.5625 MHz</div>
+            </div>
+        </div>
+
+        <form id="captureForm">
+            <div class="form-group">
+                <label for="frequency">Frequency (Hz)</label>
+                <input type="number" id="frequency" name="frequency" value="100000000" required>
+                <div class="hint">Example: 100000000 = 100 MHz</div>
+            </div>
+
+            <div class="form-group">
+                <label for="modulation">Modulation</label>
+                <select id="modulation" name="modulation">
+                    <option value="FM">FM (Frequency Modulation)</option>
+                    <option value="AM">AM (Amplitude Modulation)</option>
+                    <option value="USB">USB (Upper Sideband)</option>
+                    <option value="LSB">LSB (Lower Sideband)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="duration">Duration (seconds)</label>
+                <input type="number" id="duration" name="duration" value="30" min="5" max="300" required>
+                <div class="hint">Recording duration: 5-300 seconds</div>
+            </div>
+
+            <div class="form-group">
+                <label for="gain">RF Gain (dB)</label>
+                <input type="number" id="gain" name="gain" value="20" min="0" max="47" required>
+                <div class="hint">RF gain: 0-47 dB</div>
+            </div>
+
+            <div class="form-group">
+                <label for="language">Language (optional)</label>
+                <input type="text" id="language" name="language" placeholder="en">
+                <div class="hint">Leave empty for auto-detection (e.g., en, es, fr, de)</div>
+            </div>
+
+            <div class="button-group">
+                <button type="submit" class="btn-primary" id="startBtn">
+                    Start Recording & Transcription
+                </button>
+                <button type="button" class="btn-secondary" onclick="resetForm()">
+                    Reset
+                </button>
+            </div>
+        </form>
+
+        <div id="status" class="status"></div>
+        <div id="result" class="transcription-result"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('captureForm');
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+        const startBtn = document.getElementById('startBtn');
+
+        // N8N webhook URL - update this with your actual N8N webhook URL
+        const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/radio-transcription';
+
+        function setPreset(frequency, modulation) {
+            document.getElementById('frequency').value = frequency;
+            document.getElementById('modulation').value = modulation;
+        }
+
+        function showStatus(message, type) {
+            statusDiv.textContent = message;
+            statusDiv.className = 'status ' + type;
+            statusDiv.style.display = 'block';
+        }
+
+        function resetForm() {
+            form.reset();
+            statusDiv.style.display = 'none';
+            resultDiv.style.display = 'none';
+        }
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const formData = {
+                frequency: parseInt(document.getElementById('frequency').value),
+                modulation: document.getElementById('modulation').value,
+                duration: parseInt(document.getElementById('duration').value),
+                gain: parseInt(document.getElementById('gain').value),
+                language: document.getElementById('language').value || null
+            };
+
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<span class="loading"></span> Recording & Transcribing...';
+            resultDiv.style.display = 'none';
+
+            showStatus(`Starting capture on ${(formData.frequency / 1e6).toFixed(3)} MHz (${formData.modulation})...`, 'info');
+
+            try {
+                const response = await fetch(N8N_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.text) {
+                    showStatus('Transcription completed successfully!', 'success');
+                    displayResult(data);
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                showStatus('Error: ' + error.message, 'error');
+                console.error('Error:', error);
+            } finally {
+                startBtn.disabled = false;
+                startBtn.innerHTML = 'Start Recording & Transcription';
+            }
+        });
+
+        function displayResult(data) {
+            resultDiv.innerHTML = `
+                <h3>📝 Transcription Result</h3>
+                <div class="transcription-text">${data.text || 'No text detected'}</div>
+                <div class="metadata">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Language</div>
+                        <div class="metadata-value">${data.language || 'N/A'}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Duration</div>
+                        <div class="metadata-value">${data.duration ? data.duration.toFixed(2) + 's' : 'N/A'}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Frequency</div>
+                        <div class="metadata-value">${data.frequency ? (data.frequency / 1e6).toFixed(3) + ' MHz' : 'N/A'}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Modulation</div>
+                        <div class="metadata-value">${data.modulation || 'N/A'}</div>
+                    </div>
+                </div>
+            `;
+            resultDiv.style.display = 'block';
+        }
+    </script>
+</body>
+</html>
