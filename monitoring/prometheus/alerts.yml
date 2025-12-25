@@ -1,0 +1,79 @@
+groups:
+  - name: radio_transcription_alerts
+    interval: 30s
+    rules:
+      # API Health Alerts
+      - alert: APIDown
+        expr: up{job="radio-api"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Radio API is down"
+          description: "Radio API has been down for more than 1 minute"
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 10% for 5 minutes"
+
+      # Radio Operations Alerts
+      - alert: HighCaptureFailureRate
+        expr: rate(radio_captures_total{status="failure"}[5m]) / rate(radio_captures_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High radio capture failure rate"
+          description: "More than 20% of captures are failing"
+
+      - alert: SlowCapture
+        expr: histogram_quantile(0.95, rate(radio_capture_duration_seconds_bucket[5m])) > 120
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Radio captures are taking too long"
+          description: "95th percentile capture duration is over 2 minutes"
+
+      # Transcription Alerts
+      - alert: HighTranscriptionFailureRate
+        expr: rate(transcription_requests_total{status="failure"}[5m]) / rate(transcription_requests_total[5m]) > 0.2
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High transcription failure rate"
+          description: "More than 20% of transcriptions are failing"
+
+      - alert: SlowTranscription
+        expr: histogram_quantile(0.95, rate(transcription_duration_seconds_bucket[5m])) > 60
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Transcriptions are taking too long"
+          description: "95th percentile transcription duration is over 1 minute"
+
+      # Resource Alerts
+      - alert: HighMemoryUsage
+        expr: container_memory_usage_bytes{name="radio-api"} / container_spec_memory_limit_bytes{name="radio-api"} > 0.9
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High memory usage"
+          description: "Container is using over 90% of memory limit"
+
+      - alert: HighCPUUsage
+        expr: rate(container_cpu_usage_seconds_total{name="radio-api"}[5m]) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High CPU usage"
+          description: "Container CPU usage is above 80%"
