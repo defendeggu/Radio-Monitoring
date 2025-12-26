@@ -13,7 +13,7 @@
 
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
             min-height: 100vh;
             padding: 20px;
         }
@@ -65,7 +65,7 @@
         input:focus,
         select:focus {
             outline: none;
-            border-color: #667eea;
+            border-color: #4a5568;
         }
 
         .hint {
@@ -92,13 +92,13 @@
         }
 
         .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
             color: white;
         }
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+            box-shadow: 0 5px 20px rgba(74, 85, 104, 0.4);
         }
 
         .btn-primary:disabled {
@@ -216,7 +216,7 @@
 
         .preset-btn:hover {
             background: #e0e0e0;
-            border-color: #667eea;
+            border-color: #4a5568;
         }
 
         .preset-btn-title {
@@ -241,17 +241,21 @@
                 <div class="preset-btn-title">FM Radio</div>
                 <div class="preset-btn-freq">88.5 MHz</div>
             </div>
-            <div class="preset-btn" onclick="setPreset(162550000, 'FM')">
-                <div class="preset-btn-title">Marine VHF</div>
-                <div class="preset-btn-freq">162.55 MHz</div>
+            <div class="preset-btn" onclick="setPreset(118000000, 'AM')">
+                <div class="preset-btn-title">Flugfunk</div>
+                <div class="preset-btn-freq">118.00 MHz</div>
             </div>
-            <div class="preset-btn" onclick="setPreset(144390000, 'FM')">
+            <div class="preset-btn" onclick="setPreset(145500000, 'FM')">
                 <div class="preset-btn-title">Amateur 2m</div>
-                <div class="preset-btn-freq">144.39 MHz</div>
+                <div class="preset-btn-freq">145.500 MHz</div>
             </div>
-            <div class="preset-btn" onclick="setPreset(462562500, 'FM')">
-                <div class="preset-btn-title">FRS/GMRS</div>
-                <div class="preset-btn-freq">462.5625 MHz</div>
+            <div class="preset-btn" onclick="setPreset(433500000, 'FM')">
+                <div class="preset-btn-title">Amateur 70cm</div>
+                <div class="preset-btn-freq">433.50 MHz</div>
+            </div>
+            <div class="preset-btn" onclick="setPreset(446006250, 'FM')">
+                <div class="preset-btn-title">PMR</div>
+                <div class="preset-btn-freq">446.00625 MHz</div>
             </div>
         </div>
 
@@ -310,8 +314,8 @@
         const resultDiv = document.getElementById('result');
         const startBtn = document.getElementById('startBtn');
 
-        // N8N webhook URL - update this with your actual N8N webhook URL
-        const N8N_WEBHOOK_URL = 'http://localhost:5678/webhook/radio-transcription';
+        // API URL - direct connection to Flask API
+        const API_URL = 'http://localhost:5000/capture-and-transcribe';
 
         function setPreset(frequency, modulation) {
             document.getElementById('frequency').value = frequency;
@@ -348,7 +352,7 @@
             showStatus(`Starting capture on ${(formData.frequency / 1e6).toFixed(3)} MHz (${formData.modulation})...`, 'info');
 
             try {
-                const response = await fetch(N8N_WEBHOOK_URL, {
+                const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
