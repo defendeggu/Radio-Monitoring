@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 from typing import TypedDict, Any
 from flask import Flask, request, jsonify, Response
+from flask_cors import CORS
 from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter, Histogram, Gauge
 from radio_capture import HackRFCapture
@@ -44,6 +45,9 @@ class RecordingInfo(TypedDict):
 
 
 app = Flask(__name__)
+
+# Enable CORS for all routes
+CORS(app)
 
 # Initialize Prometheus metrics
 metrics = PrometheusMetrics(app, group_by='endpoint')
