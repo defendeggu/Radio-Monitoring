@@ -25,53 +25,54 @@ A complete professional radio monitoring system for capturing radio signals from
 - **Grafana Dashboards**: Professional monitoring and data visualization
 - **Database Browser**: Interactive dashboard to browse, search, and filter all captures
 - **Statistics Dashboard**: Real-time metrics and performance monitoring
+- **pgAdmin 4**: Full-featured PostgreSQL database management web interface
 - **Prometheus Metrics**: System performance and API metrics collection
 - **cAdvisor**: Container resource monitoring
 
 ## Architecture
 
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Web Interface  │     │     Grafana     │     │      N8N        │
-│   (HTML/JS)     │     │   Dashboards    │     │   Workflows     │
-│   Port 8080     │     │   Port 3000     │     │   Port 5679     │
-└────────┬────────┘     └────────┬────────┘     └────────┬────────┘
-         │                       │                       │
-         │              ┌────────┴────────┐             │
-         │              │                 │             │
-         │              ▼                 ▼             │
-         │      ┌──────────────┐  ┌──────────────┐    │
-         │      │  Prometheus  │  │  PostgreSQL  │    │
-         │      │  Port 9090   │  │  Port 5432   │    │
-         │      └──────┬───────┘  └──────┬───────┘    │
-         │             │                  │             │
-         └─────────────┼──────────────────┼─────────────┘
-                       │                  │
-                       ▼                  ▼
-              ┌─────────────────────────────────┐
-              │         Flask API               │
-              │         Port 5000               │
-              ├─────────────────────────────────┤
-              │  /capture-and-transcribe        │
-              │  /search (Database Search)      │
-              │  /stats (Analytics)             │
-              │  /captures/<id>                 │
-              ├─────────────────────────────────┤
-              │      Radio Capture              │◄─── HackRF Device
-              ├─────────────────────────────────┤
-              │    faster-whisper               │
-              │     Transcription               │
-              ├─────────────────────────────────┤
-              │   Database Service              │
-              │   (PostgreSQL Client)           │
-              └─────────────────────────────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │    cAdvisor     │
-              │   Port 8081     │
-              │ (Container Mon) │
-              └─────────────────┘
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│  Web Interface  │   │     Grafana     │   │     pgAdmin     │   │      N8N        │
+│   (HTML/JS)     │   │   Dashboards    │   │   DB Manager    │   │   Workflows     │
+│   Port 8080     │   │   Port 3000     │   │   Port 5050     │   │   Port 5679     │
+└────────┬────────┘   └────────┬────────┘   └────────┬────────┘   └────────┬────────┘
+         │                     │                      │                     │
+         │            ┌────────┴────────┬─────────────┘                     │
+         │            │                 │                                   │
+         │            ▼                 ▼                                   │
+         │    ┌──────────────┐  ┌──────────────┐                          │
+         │    │  Prometheus  │  │  PostgreSQL  │                          │
+         │    │  Port 9090   │  │  Port 5432   │                          │
+         │    └──────┬───────┘  └──────┬───────┘                          │
+         │           │                  │                                   │
+         └───────────┼──────────────────┼───────────────────────────────────┘
+                     │                  │
+                     ▼                  ▼
+            ┌─────────────────────────────────┐
+            │         Flask API               │
+            │         Port 5000               │
+            ├─────────────────────────────────┤
+            │  /capture-and-transcribe        │
+            │  /search (Database Search)      │
+            │  /stats (Analytics)             │
+            │  /captures/<id>                 │
+            ├─────────────────────────────────┤
+            │      Radio Capture              │◄─── HackRF Device
+            ├─────────────────────────────────┤
+            │    faster-whisper               │
+            │     Transcription               │
+            ├─────────────────────────────────┤
+            │   Database Service              │
+            │   (PostgreSQL Client)           │
+            └─────────────────────────────────┘
+                     │
+                     ▼
+            ┌─────────────────┐
+            │    cAdvisor     │
+            │   Port 8081     │
+            │ (Container Mon) │
+            └─────────────────┘
 ```
 
 ## Requirements
@@ -112,6 +113,7 @@ A complete professional radio monitoring system for capturing radio signals from
 5. **Access the interfaces**
    - Web Interface: http://localhost:8080
    - Grafana Dashboards: http://localhost:3000 (admin/admin)
+   - pgAdmin Database Manager: http://localhost:5050 (admin@admin.com/admin)
    - N8N Workflow: http://localhost:5679 (admin/admin)
    - API: http://localhost:5000
    - Prometheus: http://localhost:9090
@@ -774,6 +776,103 @@ ORDER BY created_at DESC
 LIMIT 20;
 ```
 
+## pgAdmin Database Management
+
+### Accessing pgAdmin
+
+Open http://localhost:5050 in your browser and log in with:
+- Email: `admin@admin.com`
+- Password: `admin`
+
+### Connecting to PostgreSQL Database
+
+**First-time setup:**
+
+1. In pgAdmin, right-click on **"Servers"** in the left sidebar
+2. Select **"Register" → "Server"**
+3. Configure the connection:
+
+**General Tab:**
+- Name: `Radio Monitoring Database`
+
+**Connection Tab:**
+- Host name/address: `radio-postgres`
+- Port: `5432`
+- Maintenance database: `radio_monitoring`
+- Username: `radio_user`
+- Password: `radio_password_change_in_production`
+- Save password: ✅ (check this)
+
+**Advanced Tab (optional):**
+- DB restriction: `radio_monitoring`
+
+4. Click **"Save"**
+
+### Using pgAdmin
+
+**Browse Data:**
+- Navigate to: Servers → Radio Monitoring Database → Databases → radio_monitoring → Schemas → public → Tables
+- Right-click on `captures` table → **"View/Edit Data" → "All Rows"**
+
+**Run SQL Queries:**
+- Right-click on `radio_monitoring` database → **"Query Tool"**
+- Execute custom SQL queries:
+
+```sql
+-- Get all captures from last 24 hours
+SELECT * FROM captures
+WHERE created_at > NOW() - INTERVAL '24 hours'
+ORDER BY created_at DESC;
+
+-- Get frequency statistics
+SELECT
+  ROUND(frequency::numeric / 1000000, 3) as freq_mhz,
+  modulation,
+  COUNT(*) as count
+FROM captures
+GROUP BY frequency, modulation
+ORDER BY count DESC;
+
+-- Search transcriptions
+SELECT
+  id,
+  created_at,
+  frequency,
+  transcription_text
+FROM captures
+WHERE transcription_text ILIKE '%weather%'
+LIMIT 10;
+```
+
+**Export Data:**
+- Select data in Query Tool results
+- Click **"Download as CSV"** icon
+- Or right-click table → **"Import/Export"** → Configure export options
+
+**Backup Database:**
+- Right-click on `radio_monitoring` database
+- Select **"Backup..."**
+- Choose format (Custom, Tar, Plain SQL)
+- Configure options and save
+
+**Restore Database:**
+- Right-click on database
+- Select **"Restore..."**
+- Choose backup file
+- Configure restore options
+
+### pgAdmin Features
+
+- ✅ Visual query builder
+- ✅ Schema visualization (ERD diagrams)
+- ✅ SQL syntax highlighting and auto-completion
+- ✅ Query history and favorites
+- ✅ Data import/export (CSV, JSON, etc.)
+- ✅ Database backup and restore
+- ✅ User and permission management
+- ✅ Performance monitoring and explain plans
+- ✅ Table statistics and analysis
+
 ## Legal Notice
 
 This software is intended for use with authorized radio frequencies only. Users are responsible for:
@@ -810,5 +909,6 @@ For issues and questions:
 - Whisper by OpenAI
 - N8N workflow automation platform
 - PostgreSQL database system
+- pgAdmin 4 by The pgAdmin Development Team
 - Grafana visualization platform
 - Prometheus monitoring system

@@ -7,9 +7,10 @@
 3. [Using the Web Interface](#using-the-web-interface)
 4. [Database Features](#database-features)
 5. [Monitoring with Grafana](#monitoring-with-grafana)
-6. [Understanding Results](#understanding-results)
-7. [Troubleshooting](#troubleshooting)
-8. [Best Practices](#best-practices)
+6. [Database Management with pgAdmin](#database-management-with-pgadmin)
+7. [Understanding Results](#understanding-results)
+8. [Troubleshooting](#troubleshooting)
+9. [Best Practices](#best-practices)
 
 ---
 
@@ -68,14 +69,17 @@ You should see services running on these ports:
 - **API Service**: Port 5000
 - **PostgreSQL Database**: Port 5432
 - **Grafana**: Port 3000
+- **pgAdmin**: Port 5050
 - **Prometheus**: Port 9090
 - **N8N**: Port 5678
+- **cAdvisor**: Port 8081
 
 ### Accessing the Interfaces
 
 Once started, open your web browser and navigate to:
 - **Main Control Panel**: http://localhost:8080
 - **Grafana Monitoring**: http://localhost:3000 (login: admin/admin)
+- **pgAdmin Database Manager**: http://localhost:5050 (login: admin@admin.com/admin)
 
 ---
 
@@ -906,6 +910,336 @@ Access Prometheus to view alert status:
 1. Go to http://localhost:9090
 2. Click "Alerts" in top menu
 3. View firing and pending alerts
+
+---
+
+## Database Management with pgAdmin
+
+### Introduction to pgAdmin
+
+pgAdmin 4 is a powerful, full-featured web-based database management tool for PostgreSQL. It provides a graphical interface to:
+- Browse and edit database tables
+- Execute SQL queries
+- Import and export data
+- Manage database backups
+- Monitor database performance
+- Visualize database schema
+
+### Accessing pgAdmin
+
+1. Open your web browser
+2. Navigate to **http://localhost:5050**
+3. Login with:
+   - **Email**: `admin@admin.com`
+   - **Password**: `admin`
+
+### First-Time Setup: Connecting to the Database
+
+When you first open pgAdmin, you need to register the PostgreSQL server:
+
+#### Step 1: Register Server
+
+1. In the left sidebar, right-click on **"Servers"**
+2. Select **"Register" → "Server..."**
+
+#### Step 2: General Configuration
+
+In the **"General"** tab:
+- **Name**: `Radio Monitoring Database`
+- **Server group**: Servers (default)
+- **Comments**: Radio transcription system database (optional)
+
+#### Step 3: Connection Configuration
+
+In the **"Connection"** tab:
+- **Host name/address**: `radio-postgres` (important: use this exact hostname, not localhost)
+- **Port**: `5432`
+- **Maintenance database**: `radio_monitoring`
+- **Username**: `radio_user`
+- **Password**: `radio_password_change_in_production`
+- **Save password**: ✅ Check this box
+
+#### Step 4: Advanced Settings (Optional)
+
+In the **"Advanced"** tab:
+- **DB restriction**: `radio_monitoring` (limits display to only this database)
+
+#### Step 5: Save
+
+Click the **"Save"** button to register the server.
+
+### Browsing Database Tables
+
+Once connected, you can browse all database tables:
+
+#### Navigating to Tables
+
+1. In the left sidebar, expand: **Servers** → **Radio Monitoring Database** → **Databases** → **radio_monitoring** → **Schemas** → **public** → **Tables**
+2. Click on **captures** to see the table structure
+
+#### Viewing Table Data
+
+**Method 1: View All Rows**
+1. Right-click on the **captures** table
+2. Select **"View/Edit Data" → "All Rows"**
+3. Browse all records in a spreadsheet-like interface
+
+**Method 2: View First 100 Rows**
+1. Right-click on the **captures** table
+2. Select **"View/Edit Data" → "First 100 Rows"**
+3. Useful for large tables to avoid loading too much data
+
+**Method 3: Filtered Rows**
+1. Right-click on the **captures** table
+2. Select **"View/Edit Data" → "Filtered Rows..."**
+3. Enter a WHERE clause (e.g., `modulation = 'FM'`)
+4. Click OK to view filtered results
+
+### Running SQL Queries
+
+pgAdmin provides a powerful Query Tool for executing custom SQL queries.
+
+#### Opening the Query Tool
+
+**Method 1:**
+- Right-click on **radio_monitoring** database
+- Select **"Query Tool"**
+
+**Method 2:**
+- Click on **radio_monitoring** database
+- Click the "Query Tool" icon in the toolbar (looks like a play button)
+
+#### Example Queries
+
+**Get all captures from today:**
+```sql
+SELECT
+    id,
+    created_at,
+    ROUND(frequency::numeric / 1000000, 3) as freq_mhz,
+    modulation,
+    transcription_text,
+    language
+FROM captures
+WHERE created_at::date = CURRENT_DATE
+ORDER BY created_at DESC;
+```
+
+**Search transcriptions for keywords:**
+```sql
+SELECT
+    id,
+    created_at,
+    frequency,
+    transcription_text
+FROM captures
+WHERE transcription_text ILIKE '%weather%'
+ORDER BY created_at DESC
+LIMIT 20;
+```
+
+**Get frequency statistics:**
+```sql
+SELECT
+    ROUND(frequency::numeric / 1000000, 3) as freq_mhz,
+    modulation,
+    COUNT(*) as capture_count,
+    AVG(duration) as avg_duration,
+    MAX(created_at) as last_capture
+FROM captures
+GROUP BY frequency, modulation
+ORDER BY capture_count DESC;
+```
+
+**Get captures by language:**
+```sql
+SELECT
+    language,
+    COUNT(*) as count,
+    AVG(language_confidence) as avg_confidence
+FROM captures
+WHERE language IS NOT NULL
+GROUP BY language
+ORDER BY count DESC;
+```
+
+**Find empty transcriptions:**
+```sql
+SELECT
+    id,
+    created_at,
+    frequency,
+    modulation,
+    duration
+FROM captures
+WHERE transcription_text = '' OR transcription_text IS NULL
+ORDER BY created_at DESC;
+```
+
+#### Query Tool Features
+
+- **Syntax Highlighting**: SQL keywords are color-coded
+- **Auto-completion**: Press Ctrl+Space for suggestions
+- **Execute**: Press F5 or click the Execute button (▶)
+- **Explain**: Analyze query performance
+- **Download Results**: Export to CSV/Excel
+- **Query History**: View previously executed queries
+
+### Exporting Data
+
+#### Method 1: Export from Query Results
+
+1. Run a query in the Query Tool
+2. Click the **"Download as CSV"** icon in the results toolbar
+3. Save the file to your computer
+
+#### Method 2: Export Entire Table
+
+1. Right-click on the **captures** table
+2. Select **"Import/Export..."**
+3. Configure export options:
+   - **Export**: Choose this option
+   - **Format**: CSV, Text, or Binary
+   - **Filename**: Choose destination file
+   - **Header**: Include column names
+   - **Delimiter**: Comma (,) or Tab
+   - **Quote**: Double quote (")
+   - **Escape**: Backslash (\)
+4. Click **"OK"** to export
+
+#### Method 3: Backup Database (Full Export)
+
+1. Right-click on **radio_monitoring** database
+2. Select **"Backup..."**
+3. Choose backup options:
+   - **Format**:
+     - **Custom**: Compressed, best for restore
+     - **Tar**: Archive format
+     - **Plain**: SQL text file (human-readable)
+   - **Filename**: Choose destination file
+   - **Compression**: 0-9 (9 = maximum compression)
+4. Click **"Backup"** button
+
+### Importing Data
+
+#### Restore from Backup
+
+1. Right-click on **radio_monitoring** database
+2. Select **"Restore..."**
+3. Choose backup file
+4. Configure restore options
+5. Click **"Restore"** button
+
+#### Import CSV into Table
+
+1. Right-click on target table
+2. Select **"Import/Export..."**
+3. Configure import options:
+   - **Import**: Choose this option
+   - **Filename**: Select CSV file
+   - **Format**: CSV
+   - **Header**: Check if CSV has column names
+   - **Delimiter**: Comma or appropriate delimiter
+4. Click **"OK"** to import
+
+### Database Administration
+
+#### Viewing Table Statistics
+
+1. Right-click on **captures** table
+2. Select **"Properties"**
+3. View tabs:
+   - **General**: Table name, owner, tablespace
+   - **Columns**: List of all columns with data types
+   - **Constraints**: Primary keys, foreign keys
+   - **Indexes**: Database indexes for performance
+   - **Triggers**: Automated database actions
+   - **Statistics**: Row count, table size, last vacuum
+
+#### Analyzing Query Performance
+
+1. Write your query in the Query Tool
+2. Click **"Explain"** button (instead of Execute)
+3. Click **"Explain Analyze"** for detailed execution plan
+4. Review:
+   - Execution time
+   - Rows scanned
+   - Index usage
+   - Performance bottlenecks
+
+#### Creating New Queries with Visual Builder
+
+1. In Query Tool, click **"Query" → "Graphical Query Builder"**
+2. Drag tables onto the canvas
+3. Select columns to include
+4. Define relationships between tables
+5. Add WHERE conditions
+6. pgAdmin generates SQL automatically
+
+### Best Practices for pgAdmin
+
+#### Security
+
+- **Change Default Password**: After first login, go to **File → Preferences → Paths** to change admin password
+- **Don't Share Sessions**: Always logout when done
+- **Use Read-Only Connections**: For browsing, create read-only database users
+
+#### Performance
+
+- **Limit Result Sets**: Always use LIMIT clause for large tables
+- **Use Filters**: Instead of loading all rows, filter in the query
+- **Close Idle Connections**: Right-click server → Disconnect when done
+- **Enable Query Timeout**: Set in **File → Preferences → Query Tool**
+
+#### Maintenance
+
+- **Regular Backups**: Schedule periodic database backups
+- **Monitor Table Size**: Check statistics to track database growth
+- **Vacuum Tables**: Periodically run `VACUUM ANALYZE` to optimize performance
+
+### Troubleshooting pgAdmin
+
+#### Cannot Connect to Database
+
+**Problem**: "Could not connect to server" error
+
+**Solutions**:
+1. Verify PostgreSQL container is running:
+   ```bash
+   docker ps | grep postgres
+   ```
+
+2. Check hostname is `radio-postgres` (not `localhost`)
+
+3. Verify credentials:
+   - Username: `radio_user`
+   - Password: `radio_password_change_in_production`
+   - Database: `radio_monitoring`
+
+4. Test connection from command line:
+   ```bash
+   docker exec radio-postgres psql -U radio_user -d radio_monitoring -c "SELECT 1;"
+   ```
+
+#### pgAdmin is Slow
+
+**Problem**: Queries take too long to execute
+
+**Solutions**:
+1. Add LIMIT clause to queries: `LIMIT 100`
+2. Filter data with WHERE clause before loading
+3. Create indexes on frequently searched columns
+4. Close unused query tool tabs
+
+#### Login Issues
+
+**Problem**: Forgot pgAdmin password
+
+**Solution**: Reset by restarting pgAdmin container:
+```bash
+docker restart pgadmin
+```
+Default credentials will be restored: admin@admin.com / admin
 
 ---
 

@@ -141,6 +141,25 @@ services:
     networks:
       - radio-network
 
+  # pgAdmin 4 for PostgreSQL management
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: pgadmin
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin-data:/var/lib/pgadmin
+    environment:
+      - PGADMIN_DEFAULT_EMAIL=admin@admin.com
+      - PGADMIN_DEFAULT_PASSWORD=admin
+      - PGADMIN_CONFIG_SERVER_MODE=False
+      - PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED=False
+    restart: unless-stopped
+    networks:
+      - radio-network
+    depends_on:
+      - postgres
+
 networks:
   radio-network:
     driver: bridge
@@ -150,3 +169,4 @@ volumes:
   prometheus-data:
   grafana-data:
   postgres-data:
+  pgadmin-data:

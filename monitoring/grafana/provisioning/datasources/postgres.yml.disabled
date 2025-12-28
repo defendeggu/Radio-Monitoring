@@ -2,7 +2,7 @@ apiVersion: 1
 
 datasources:
   - name: Radio PostgreSQL
-    type: postgres
+    type: grafana-postgresql-datasource
     access: proxy
     url: radio-postgres:5432
     database: radio_monitoring
