@@ -34,7 +34,7 @@ The Radio Transcription System is a complete application that allows you to:
 - Record and transcribe PMR/walkie-talkie communications
 
 **APRS Packet Decoding:**
-- Decode APRS position reports and messages on 144.8 MHz (NA), 144.39 MHz (JP), 145.175 MHz (EU)
+- Decode APRS position reports and messages on 144.8 MHz (EU), 144.39 MHz (NA), 144.66 MHz (JP), 145.175 MHz (AU)
 - Track amateur radio stations on an interactive map
 - Monitor APRS weather stations and telemetry
 - Search APRS messages by callsign, type, or content
@@ -118,18 +118,23 @@ Eight preset buttons for common frequencies:
 | **Amateur 70cm** | 433.50 MHz | FM | UHF amateur radio |
 | **PMR** | 446.00625 MHz | FM | Personal Mobile Radio / Walkie-talkies |
 
-**APRS Decoding Presets:**
+**APRS Decoding:**
 
-| Button | Frequency | Modulation | Use Case |
-|--------|-----------|------------|----------|
-| **APRS NA** | 144.800 MHz | FM | APRS in North America |
-| **APRS JP** | 144.390 MHz | FM | APRS in Japan |
-| **APRS EU** | 145.175 MHz | FM | APRS in Europe |
+| Button | Frequency/Region | Use Case |
+|--------|------------------|----------|
+| **APRS** | Packet Radio | Click to activate APRS mode, then select region below |
 
-**How to use presets:**
-- Simply click any preset button
-- The frequency and modulation fields will automatically fill
-- Adjust duration and gain if needed
+**APRS Regions (available in dropdown):**
+- **Europe**: 144.800 MHz (FM) - Default
+- **North America**: 144.390 MHz (FM)
+- **Japan**: 144.660 MHz (FM)
+- **Australia**: 145.175 MHz (FM)
+
+**How to use APRS:**
+- Click the **APRS** preset button
+- Select your region from the "APRS Region" dropdown
+- The frequency will automatically update based on region
+- Duration is set to 5 minutes (recommended for APRS)
 - Click "Start Recording & Transcription"
 
 #### 2. Manual Configuration Fields
@@ -177,7 +182,8 @@ Eight preset buttons for common frequencies:
   - Language field is visible and optional
   - Recommended duration: 30 seconds
 - **APRS Decode**: Decodes digital APRS packets (direwolf)
-  - Use for: APRS frequencies (144.8 MHz, 144.39 MHz, 145.175 MHz)
+  - Use for: APRS frequencies (EU: 144.8 MHz, NA: 144.39 MHz, JP: 144.66 MHz, AU: 145.175 MHz)
+  - APRS Region dropdown appears when selected
   - Language field is hidden (not applicable)
   - Recommended duration: 300 seconds (5 minutes) to capture more packets
 - Voice mode is selected by default
@@ -265,26 +271,33 @@ APRS (Automatic Packet Reporting System) is a digital communication protocol use
 
 #### Step-by-Step: Decoding APRS Packets
 
-1. **Click an APRS Preset**
-   - **APRS NA** (144.800 MHz) - North America
-   - **APRS JP** (144.390 MHz) - Japan
-   - **APRS EU** (145.175 MHz) - Europe
+1. **Click the APRS Preset Button**
+   - Click the **APRS** button labeled "Packet Radio"
    - The mode automatically switches to "APRS Decode"
    - Duration automatically sets to 300 seconds (5 minutes)
 
-2. **Adjust Duration (Optional)**
+2. **Select Your Region**
+   - A dropdown menu "APRS Region" appears
+   - Choose your region:
+     - **Europe** (144.800 MHz) - Default
+     - **North America** (144.390 MHz)
+     - **Japan** (144.660 MHz)
+     - **Australia** (145.175 MHz)
+   - Frequency updates automatically based on region
+
+3. **Adjust Duration (Optional)**
    - APRS packets are transmitted periodically (every few minutes)
    - Longer captures = more packets decoded
    - Recommended: 300-600 seconds for good coverage
    - Shorter captures may not catch any packets
 
-3. **Start Decoding**
+4. **Start Decoding**
    - Click "Start Recording & Transcription"
    - System captures radio signal using HackRF
    - Audio is processed by direwolf APRS decoder
    - All packets are saved to database
 
-4. **View APRS Results**
+5. **View APRS Results**
    - Packet count displayed in metadata
    - Table shows all decoded packets with:
      - **Time**: When packet was received
@@ -1799,9 +1812,10 @@ Modulation: FM
    - Solution: Try different times of day (more activity during daytime)
 
 2. **Wrong frequency for region**
-   - North America: 144.800 MHz
-   - Japan: 144.390 MHz
-   - Europe: 145.175 MHz
+   - Europe: 144.800 MHz
+   - North America: 144.390 MHz
+   - Japan: 144.660 MHz
+   - Australia: 145.175 MHz
    - Solution: Verify correct frequency for your location
 
 3. **Antenna not suitable for VHF**
