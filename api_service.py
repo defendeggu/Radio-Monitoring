@@ -15,6 +15,7 @@ from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter, Histogram, Gauge
 from radio_capture import HackRFCapture
 from transcription_service import TranscriptionService
+from aprs_decoder_service import APRSDecoder
 from database_service import get_database_service
 from dotenv import load_dotenv
 
@@ -83,6 +84,18 @@ transcription_duration = Histogram(
     buckets=[1, 5, 10, 30, 60, 120]
 )
 
+# APRS metrics
+aprs_decodes_total = Counter(
+    'aprs_decodes_total',
+    'Total APRS decode operations',
+    ['status']
+)
+
+aprs_packets_decoded = Counter(
+    'aprs_packets_decoded',
+    'Total APRS packets decoded'
+)
+
 # Configuration
 RECORDING_DIR = os.getenv('AUDIO_OUTPUT_DIR', './recordings')
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', 'base')
@@ -103,6 +116,18 @@ def get_transcription_service() -> TranscriptionService:
             compute_type=WHISPER_COMPUTE_TYPE
         )
     return transcription_service
+
+
+# Initialize APRS decoder
+aprs_decoder: APRSDecoder | None = None
+
+
+def get_aprs_decoder() -> APRSDecoder:
+    """Lazy load APRS decoder service"""
+    global aprs_decoder
+    if aprs_decoder is None:
+        aprs_decoder = APRSDecoder()
+    return aprs_decoder
 
 
 @app.route('/health', methods=['GET'])
@@ -227,7 +252,7 @@ def transcribe() -> Response | tuple[Response, int]:
 @app.route('/capture-and-transcribe', methods=['POST'])
 def capture_and_transcribe() -> Response | tuple[Response, int]:
     """
-    Capture radio signal and transcribe in one step
+    Capture radio signal and transcribe or decode APRS in one step
 
     Request body:
     {
@@ -236,7 +261,8 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         "duration": 30,
         "gain": 20,
         "sample_rate": 2000000,
-        "language": "en"  # optional
+        "mode": "voice",  # "voice" or "aprs" (optional, default: "voice")
+        "language": "en"  # optional (only for voice mode)
     }
     """
     try:
@@ -251,14 +277,19 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         duration = int(data.get('duration', 30))
         gain = int(data.get('gain', 20))
         sample_rate = int(data.get('sample_rate', 2000000))
+        mode = data.get('mode', 'voice')  # NEW: mode parameter
         language = data.get('language')
+
+        # Validate mode
+        if mode not in ['voice', 'aprs']:
+            return jsonify({'error': 'mode must be "voice" or "aprs"'}), 400
 
         # Generate output filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         audio_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.wav')
         json_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.json')
 
-        # Step 1: Capture
+        # Step 1: Capture (same for both modes)
         capture_start = time.time()
         capture_instance = HackRFCapture(
             frequency=frequency,
@@ -268,54 +299,121 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         )
         capture_instance.capture(duration, audio_file)
 
-        # Step 2: Transcribe
-        transcribe_start = time.time()
-        service = get_transcription_service()
-        transcription_result = service.transcribe_and_save(
-            audio_file,
-            json_file,
-            language
-        )
-        transcribe_duration = time.time() - transcribe_start
+        # Step 2: Process based on mode
+        if mode == 'aprs':
+            # APRS decoding
+            try:
+                decode_start = time.time()
+                decoder = get_aprs_decoder()
+                packets = decoder.decode(audio_file)
+                decode_duration = time.time() - decode_start
 
-        # Step 3: Save to database
-        try:
-            db = get_database_service()
-            file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+                # Save to database
+                db = get_database_service()
+                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
-            db.save_capture(
-                frequency=int(frequency),
-                modulation=modulation,
-                duration=duration,
-                gain=gain,
-                sample_rate=sample_rate,
-                audio_file_path=audio_file,
-                json_file_path=json_file,
-                file_size=file_size,
-                transcription_text=transcription_result.get('text'),
-                language=transcription_result.get('language'),
-                language_confidence=transcription_result.get('language_probability'),
-                segments=transcription_result.get('segments'),
-                transcription_duration=transcribe_duration,
-                metadata={
-                    'capture_timestamp': timestamp,
-                    'audio_duration': transcription_result.get('duration')
-                }
+                capture_id = db.save_capture(
+                    frequency=int(frequency),
+                    modulation=modulation,
+                    duration=duration,
+                    gain=gain,
+                    sample_rate=sample_rate,
+                    audio_file_path=audio_file,
+                    json_file_path=None,
+                    file_size=file_size,
+                    transcription_text=None,
+                    language=None,
+                    language_confidence=None,
+                    segments=None,
+                    transcription_duration=decode_duration,
+                    metadata={
+                        'mode': 'aprs',
+                        'packet_count': len(packets),
+                        'capture_timestamp': timestamp
+                    }
+                )
+
+                # Save APRS packets
+                if capture_id > 0:
+                    packet_ids = db.save_aprs_capture(capture_id, packets)
+                    print(f"Saved {len(packet_ids)} APRS packets to database")
+
+                # Metrics
+                aprs_decodes_total.labels(status='success').inc()
+                aprs_packets_decoded.inc(len(packets))
+
+                return jsonify({
+                    'status': 'success',
+                    'mode': 'aprs',
+                    'capture': {
+                        'id': capture_id,
+                        'audio_file': audio_file,
+                        'frequency': frequency,
+                        'modulation': modulation,
+                        'duration': duration
+                    },
+                    'aprs': {
+                        'packet_count': len(packets),
+                        'packets': packets
+                    },
+                    'timestamp': datetime.now().isoformat()
+                })
+
+            except Exception as e:
+                aprs_decodes_total.labels(status='error').inc()
+                return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
+
+        else:
+            # Voice transcription (existing logic)
+            transcribe_start = time.time()
+            service = get_transcription_service()
+            transcription_result = service.transcribe_and_save(
+                audio_file,
+                json_file,
+                language
             )
-        except Exception as db_error:
-            print(f"Warning: Could not save to database: {db_error}")
+            transcribe_duration = time.time() - transcribe_start
 
-        return jsonify({
-            'status': 'success',
-            'capture': {
-                'audio_file': audio_file,
-                'frequency': frequency,
-                'modulation': modulation,
-                'duration': duration
-            },
-            'transcription': transcription_result,
-            'timestamp': datetime.now().isoformat()
-        })
+            # Save to database
+            try:
+                db = get_database_service()
+                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+
+                db.save_capture(
+                    frequency=int(frequency),
+                    modulation=modulation,
+                    duration=duration,
+                    gain=gain,
+                    sample_rate=sample_rate,
+                    audio_file_path=audio_file,
+                    json_file_path=json_file,
+                    file_size=file_size,
+                    transcription_text=transcription_result.get('text'),
+                    language=transcription_result.get('language'),
+                    language_confidence=transcription_result.get('language_probability'),
+                    segments=transcription_result.get('segments'),
+                    transcription_duration=transcribe_duration,
+                    metadata={
+                        'mode': 'voice',
+                        'capture_timestamp': timestamp,
+                        'audio_duration': transcription_result.get('duration')
+                    }
+                )
+            except Exception as db_error:
+                print(f"Warning: Could not save to database: {db_error}")
+
+            return jsonify({
+                'status': 'success',
+                'mode': 'voice',
+                'capture': {
+                    'audio_file': audio_file,
+                    'frequency': frequency,
+                    'modulation': modulation,
+                    'duration': duration
+                },
+                'transcription': transcription_result,
+                'timestamp': datetime.now().isoformat()
+            })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -450,6 +548,124 @@ def get_frequency_stats() -> Response | tuple[Response, int]:
             'status': 'success',
             'frequencies': frequencies
         })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/aprs/search', methods=['GET'])
+def search_aprs() -> Response | tuple[Response, int]:
+    """
+    Search APRS messages in database
+
+    Query parameters:
+    - callsign: Filter by source callsign
+    - text: Full-text search in message text
+    - type: Filter by APRS type (position, message, weather, telemetry)
+    - start_date: Filter by start date (ISO format)
+    - end_date: Filter by end date (ISO format)
+    - limit: Maximum results (default 100)
+    - offset: Offset for pagination (default 0)
+    """
+    try:
+        db = get_database_service()
+
+        # Get query parameters
+        callsign = request.args.get('callsign')
+        text = request.args.get('text')
+        aprs_type = request.args.get('type')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+
+        # Convert dates if provided
+        start_dt = datetime.fromisoformat(start_date) if start_date else None
+        end_dt = datetime.fromisoformat(end_date) if end_date else None
+
+        # Search
+        results = db.search_aprs_messages(
+            callsign=callsign,
+            message_text=text,
+            aprs_type=aprs_type,
+            start_date=start_dt,
+            end_date=end_dt,
+            limit=limit,
+            offset=offset
+        )
+
+        return jsonify({
+            'status': 'success',
+            'count': len(results),
+            'results': results
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/aprs/stats', methods=['GET'])
+def get_aprs_stats() -> Response | tuple[Response, int]:
+    """Get APRS statistics"""
+    try:
+        db = get_database_service()
+        stats = db.get_aprs_statistics()
+
+        return jsonify({
+            'status': 'success',
+            'statistics': stats
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/aprs/map', methods=['GET'])
+def get_aprs_map_data() -> Response | tuple[Response, int]:
+    """
+    Get APRS position data for map display (GeoJSON format)
+
+    Returns recent APRS packets with position data in GeoJSON format
+    suitable for map visualization (Grafana, Leaflet, etc.)
+    """
+    try:
+        db = get_database_service()
+
+        # Get recent packets with position data (last 24 hours by default)
+        hours = request.args.get('hours', 24, type=int)
+
+        results = db.search_aprs_messages(
+            start_date=datetime.now().replace(hour=0, minute=0, second=0) if hours == 24 else None,
+            limit=1000
+        )
+
+        # Filter for packets with position data and convert to GeoJSON
+        features = []
+        for packet in results:
+            if packet.get('latitude') and packet.get('longitude'):
+                features.append({
+                    'type': 'Feature',
+                    'geometry': {
+                        'type': 'Point',
+                        'coordinates': [packet['longitude'], packet['latitude']]
+                    },
+                    'properties': {
+                        'callsign': packet['source_callsign'],
+                        'message': packet.get('message_text', ''),
+                        'type': packet.get('aprs_type', 'unknown'),
+                        'timestamp': packet['created_at'].isoformat() if hasattr(packet['created_at'], 'isoformat') else str(packet['created_at']),
+                        'altitude': packet.get('altitude_meters'),
+                        'speed': packet.get('speed_kmh'),
+                        'frequency': packet.get('frequency')
+                    }
+                })
+
+        geojson = {
+            'type': 'FeatureCollection',
+            'features': features
+        }
+
+        return jsonify(geojson)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

@@ -18,19 +18,30 @@
 
 The Radio Transcription System is a complete application that allows you to:
 - Capture radio signals from a HackRF One software-defined radio (SDR) device
-- Automatically transcribe speech from the captured audio
-- Store all captures in a PostgreSQL database with full-text search
-- Search and analyze historical captures
+- Automatically transcribe speech from the captured audio using AI
+- Decode APRS (Automatic Packet Reporting System) digital messages
+- Store all captures and APRS packets in a PostgreSQL database with full-text search
+- Search and analyze historical captures and APRS messages
+- Visualize APRS stations on interactive maps
 - Monitor system performance and track operations
 
 ### What You Can Do
 
+**Voice Transcription:**
 - Listen to FM radio stations and get text transcriptions
 - Monitor aviation communications (AM mode)
 - Capture amateur radio transmissions
 - Record and transcribe PMR/walkie-talkie communications
+
+**APRS Packet Decoding:**
+- Decode APRS position reports and messages on 144.8 MHz (NA), 144.39 MHz (JP), 145.175 MHz (EU)
+- Track amateur radio stations on an interactive map
+- Monitor APRS weather stations and telemetry
+- Search APRS messages by callsign, type, or content
+
+**Data Analysis:**
 - Search through all historical captures by text, frequency, or date
-- Analyze frequency usage and transcription statistics
+- Analyze frequency usage, language distribution, and APRS statistics
 - Track system performance through visual dashboards
 - Export and query capture data via REST API
 
@@ -95,7 +106,9 @@ The control panel consists of several sections:
 
 #### 1. Quick Preset Buttons (Top Section)
 
-Five preset buttons for common frequencies:
+Eight preset buttons for common frequencies:
+
+**Voice Transcription Presets:**
 
 | Button | Frequency | Modulation | Use Case |
 |--------|-----------|------------|----------|
@@ -104,6 +117,14 @@ Five preset buttons for common frequencies:
 | **Amateur 2m** | 145.500 MHz | FM | VHF amateur radio calling frequency |
 | **Amateur 70cm** | 433.50 MHz | FM | UHF amateur radio |
 | **PMR** | 446.00625 MHz | FM | Personal Mobile Radio / Walkie-talkies |
+
+**APRS Decoding Presets:**
+
+| Button | Frequency | Modulation | Use Case |
+|--------|-----------|------------|----------|
+| **APRS NA** | 144.800 MHz | FM | APRS in North America |
+| **APRS JP** | 144.390 MHz | FM | APRS in Japan |
+| **APRS EU** | 145.175 MHz | FM | APRS in Europe |
 
 **How to use presets:**
 - Simply click any preset button
@@ -148,6 +169,19 @@ Five preset buttons for common frequencies:
   - `es` - Spanish
   - `fr` - French
   - `it` - Italian
+- Note: This field is only shown in Voice Transcription mode
+
+**Processing Mode**
+- **Voice Transcription**: Converts speech to text using AI (faster-whisper)
+  - Use for: FM radio, aviation, amateur voice, PMR
+  - Language field is visible and optional
+  - Recommended duration: 30 seconds
+- **APRS Decode**: Decodes digital APRS packets (direwolf)
+  - Use for: APRS frequencies (144.8 MHz, 144.39 MHz, 145.175 MHz)
+  - Language field is hidden (not applicable)
+  - Recommended duration: 300 seconds (5 minutes) to capture more packets
+- Voice mode is selected by default
+- APRS presets automatically switch to APRS mode
 
 ### Step-by-Step: Making Your First Recording
 
@@ -214,6 +248,82 @@ After successful transcription, you'll see:
 - Clears all fields back to defaults
 - Hides status and result sections
 - Use this to start fresh
+
+---
+
+## APRS Packet Decoding
+
+### What is APRS?
+
+APRS (Automatic Packet Reporting System) is a digital communication protocol used by amateur radio operators to:
+- Share real-time position information (GPS coordinates)
+- Send text messages between stations
+- Broadcast weather station data
+- Report telemetry from vehicles, balloons, and remote sensors
+
+### Using APRS Mode
+
+#### Step-by-Step: Decoding APRS Packets
+
+1. **Click an APRS Preset**
+   - **APRS NA** (144.800 MHz) - North America
+   - **APRS JP** (144.390 MHz) - Japan
+   - **APRS EU** (145.175 MHz) - Europe
+   - The mode automatically switches to "APRS Decode"
+   - Duration automatically sets to 300 seconds (5 minutes)
+
+2. **Adjust Duration (Optional)**
+   - APRS packets are transmitted periodically (every few minutes)
+   - Longer captures = more packets decoded
+   - Recommended: 300-600 seconds for good coverage
+   - Shorter captures may not catch any packets
+
+3. **Start Decoding**
+   - Click "Start Recording & Transcription"
+   - System captures radio signal using HackRF
+   - Audio is processed by direwolf APRS decoder
+   - All packets are saved to database
+
+4. **View APRS Results**
+   - Packet count displayed in metadata
+   - Table shows all decoded packets with:
+     - **Time**: When packet was received
+     - **Callsign**: Source amateur radio callsign
+     - **Type**: position, message, weather, telemetry, status
+     - **Position**: GPS coordinates (if available)
+     - **Message**: Text content (if available)
+
+### Understanding APRS Results
+
+**No Packets Decoded**:
+- APRS activity is intermittent - try longer captures
+- Ensure correct frequency for your region
+- Check antenna is suitable for VHF (2m band)
+- Increase RF gain if signal is weak
+
+**Position Reports**:
+- Show latitude/longitude coordinates
+- Indicate station location on map
+- Can track mobile stations (vehicles, bicycles)
+
+**Message Types**:
+- **position**: GPS location with optional comment
+- **message**: Text message to another station
+- **weather**: Weather station data
+- **telemetry**: Sensor data (temperature, voltage, etc.)
+- **status**: Station status text
+
+### APRS Database Storage
+
+Every decoded APRS packet is stored with:
+- Source and destination callsigns
+- Message type and content
+- GPS coordinates (when available)
+- Path (digipeater route)
+- Raw packet data
+- Timestamp
+
+This enables powerful searches and analysis through the database and Grafana dashboards.
 
 ---
 
@@ -438,6 +548,112 @@ This helps you identify:
 - Which frequencies you monitor most often
 - When each frequency was last used
 - Which modulation types work with each frequency
+
+#### 5. APRS Message Search
+
+**Endpoint**: `GET /aprs/search`
+
+Search through all decoded APRS messages.
+
+**Query Parameters:**
+- `callsign` - Filter by source callsign (partial match, case-insensitive)
+- `text` - Full-text search in message text
+- `type` - Filter by APRS type (position, message, weather, telemetry, status)
+- `start_date` - Start date (ISO format)
+- `end_date` - End date (ISO format)
+- `limit` - Maximum results (default: 100)
+- `offset` - Offset for pagination (default: 0)
+
+**Examples:**
+
+Search for callsign:
+```bash
+curl "http://localhost:5000/aprs/search?callsign=N0CALL"
+```
+
+Find position reports:
+```bash
+curl "http://localhost:5000/aprs/search?type=position&limit=50"
+```
+
+Search messages containing text:
+```bash
+curl "http://localhost:5000/aprs/search?text=test"
+```
+
+Combine filters:
+```bash
+curl "http://localhost:5000/aprs/search?callsign=N0CALL&type=position&start_date=2025-12-28T00:00:00"
+```
+
+**Response Format:**
+```json
+{
+  "status": "success",
+  "count": 2,
+  "results": [
+    {
+      "id": 1,
+      "created_at": "Sun, 28 Dec 2025 18:30:15 GMT",
+      "source_callsign": "N0CALL",
+      "destination_callsign": "APRS",
+      "path": "WIDE1-1,WIDE2-2",
+      "latitude": 47.6062,
+      "longitude": -122.3321,
+      "message_text": "Test APRS packet",
+      "aprs_type": "position",
+      "frequency": 144800000,
+      "modulation": "FM"
+    }
+  ]
+}
+```
+
+#### 6. APRS Statistics
+
+**Endpoint**: `GET /aprs/stats`
+
+Get overall APRS statistics.
+
+**Example:**
+```bash
+curl "http://localhost:5000/aprs/stats"
+```
+
+**Response Format:**
+```json
+{
+  "status": "success",
+  "statistics": {
+    "total_packets": 25,
+    "unique_callsigns": 8,
+    "total_captures": 3,
+    "packets_with_position": 15,
+    "first_packet": "Sun, 28 Dec 2025 18:00:00 GMT",
+    "last_packet": "Sun, 28 Dec 2025 20:30:45 GMT"
+  }
+}
+```
+
+**Statistics Explained:**
+- `total_packets` - Total APRS packets decoded
+- `unique_callsigns` - Number of different stations heard
+- `total_captures` - Number of APRS capture sessions
+- `packets_with_position` - Packets containing GPS coordinates
+- `first_packet` / `last_packet` - Time range of APRS data
+
+#### 7. APRS Map Data (GeoJSON)
+
+**Endpoint**: `GET /aprs/map`
+
+Get APRS station positions in GeoJSON format for mapping applications.
+
+**Example:**
+```bash
+curl "http://localhost:5000/aprs/map"
+```
+
+Returns GeoJSON with recent APRS station positions (last 24 hours) for visualization on interactive maps.
 
 ### Using Database Search Features
 
@@ -811,6 +1027,12 @@ The system automatically tracks:
 - **Transcription Duration**: How long transcriptions take
 - **Success/Failure Rates**: Transcription success percentage
 
+#### 3a. APRS Decoding Metrics
+- **Total APRS Packets**: Number of APRS packets decoded
+- **Successful Decodes**: APRS decode operations that succeeded
+- **Unique Callsigns**: Number of different stations heard
+- **Packets with Position**: Number of packets containing GPS coordinates
+
 #### 4. Container Metrics
 - **CPU Usage**: Processing power consumption
 - **Memory Usage**: RAM utilization
@@ -910,6 +1132,61 @@ Access Prometheus to view alert status:
 1. Go to http://localhost:9090
 2. Click "Alerts" in top menu
 3. View firing and pending alerts
+
+### APRS Monitoring Dashboard
+
+A dedicated APRS dashboard is pre-configured at Grafana with comprehensive APRS packet analytics and visualization.
+
+**How to Access:**
+1. Go to http://localhost:3000 (Grafana)
+2. Login (admin/admin)
+3. Click "Dashboards" in left sidebar
+4. Select "APRS Monitoring Dashboard"
+
+**Dashboard Panels:**
+
+1. **Statistics Cards (Top Row)**
+   - Total APRS Packets decoded
+   - Successful Decodes count
+   - Unique Callsigns heard
+   - Packets with Position data
+
+2. **APRS Packets Timeline**
+   - Time series graph showing packet activity
+   - 5-minute buckets
+   - Visualizes when APRS activity occurs
+
+3. **APRS Message Types (Pie Chart)**
+   - Breakdown by type: position, message, weather, telemetry, status
+   - Shows distribution of packet types
+
+4. **Recent APRS Packets (Table)**
+   - Last 50 packets decoded
+   - Columns: Time, Callsign, Type, Position, Message
+   - Clickable and sortable
+
+5. **Top 15 Callsigns (Bar Chart)**
+   - Most active stations
+   - Packet count per callsign
+   - Horizontal bar chart for easy comparison
+
+6. **APRS Stations Map (Geomap)**
+   - Interactive map showing station positions
+   - Each marker represents an APRS station
+   - Most recent position for each callsign
+   - Pan and zoom to explore
+
+**Dashboard Features:**
+- Auto-refresh every 30 seconds
+- Default time range: Last 24 hours
+- Adjustable time range (top-right corner)
+- Direct PostgreSQL queries for APRS data
+
+**Using the Map:**
+- Zoom with mouse wheel or zoom controls
+- Click markers to see station details
+- Shows callsign, position, and message
+- Green markers indicate APRS stations
 
 ---
 
@@ -1511,6 +1788,84 @@ Modulation: FM
    ```bash
    docker exec radio-postgres psql -U radio_user -d radio_monitoring -c "VACUUM FULL"
    ```
+
+### Problem: No APRS Packets Decoded
+
+**Possible Causes & Solutions:**
+
+1. **APRS frequency has low activity**
+   - APRS packets are transmitted sporadically (every few minutes)
+   - Solution: Increase capture duration to 5-10 minutes (300-600 seconds)
+   - Solution: Try different times of day (more activity during daytime)
+
+2. **Wrong frequency for region**
+   - North America: 144.800 MHz
+   - Japan: 144.390 MHz
+   - Europe: 145.175 MHz
+   - Solution: Verify correct frequency for your location
+
+3. **Antenna not suitable for VHF**
+   - APRS uses 2m band (144-146 MHz)
+   - Solution: Use VHF antenna designed for 2m band
+   - Solution: Check antenna is connected properly
+
+4. **RF gain too low**
+   - Weak signals won't decode
+   - Solution: Increase gain to 30-40 dB
+   - Solution: Try different gain values
+
+5. **Direwolf decoding issues**
+   - Check API logs for direwolf errors:
+     ```bash
+     docker-compose logs radio-api | grep -i direwolf
+     ```
+   - Restart service if direwolf crashed:
+     ```bash
+     docker-compose restart radio-api
+     ```
+
+### Problem: APRS Map Shows No Stations
+
+**Solution:**
+1. **No packets with position data**
+   - Only position reports appear on map
+   - Other message types (messages, telemetry, weather) don't have coordinates
+   - Solution: Wait for position reports (may take longer captures)
+
+2. **Check if any packets were decoded**
+   - Verify APRS statistics:
+     ```bash
+     curl http://localhost:5000/aprs/stats
+     ```
+   - If total_packets is 0, refer to "No APRS Packets Decoded" above
+
+3. **Database query issue**
+   - Test APRS map endpoint:
+     ```bash
+     curl http://localhost:5000/aprs/map
+     ```
+   - Should return GeoJSON with features
+
+### Problem: APRS Dashboard Shows No Data
+
+**Solution:**
+1. **Make APRS captures first**
+   - Dashboard needs APRS data to display
+   - Click APRS preset button and capture for 5+ minutes
+
+2. **Verify APRS data in database**
+   - Check APRS statistics:
+     ```bash
+     curl http://localhost:5000/aprs/stats
+     ```
+
+3. **Refresh Grafana dashboard**
+   - Click refresh icon (top-right)
+   - Adjust time range to include when you made APRS captures
+
+4. **Check PostgreSQL data source**
+   - In Grafana: Configuration → Data Sources → PostgreSQL
+   - Click "Test" - should show "Database Connection OK"
 
 ---
 
