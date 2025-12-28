@@ -22,3 +22,7 @@ coverage[toml]==7.6.9
 # Monitoring
 prometheus-client==0.21.0
 prometheus-flask-exporter==0.23.1
+
+# Database
+psycopg2-binary==2.9.9
+sqlalchemy==2.0.23

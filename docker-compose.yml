@@ -1,4 +1,27 @@
 services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: radio-postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    environment:
+      - POSTGRES_DB=radio_monitoring
+      - POSTGRES_USER=radio_user
+      - POSTGRES_PASSWORD=radio_password_change_in_production
+      - POSTGRES_INITDB_ARGS=--encoding=UTF-8
+    restart: unless-stopped
+    networks:
+      - radio-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U radio_user -d radio_monitoring"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Flask API Service
   radio-api:
     build: .
@@ -17,9 +40,13 @@ services:
       - WHISPER_COMPUTE_TYPE=int8
       - AUDIO_OUTPUT_DIR=/app/recordings
       - API_PORT=5000
+      - DATABASE_URL=postgresql://radio_user:radio_password_change_in_production@postgres:5432/radio_monitoring
     restart: unless-stopped
     networks:
       - radio-network
+    depends_on:
+      postgres:
+        condition: service_healthy
 
   # N8N Workflow Automation
   n8n:
@@ -122,3 +149,4 @@ volumes:
   n8n-data:
   prometheus-data:
   grafana-data:
+  postgres-data:
