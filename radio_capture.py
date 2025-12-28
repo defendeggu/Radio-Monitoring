@@ -47,51 +47,56 @@ class HackRFCapture:
         print(f"  Output: {output_file}")
 
         try:
-            # Import HackRF library
-            try:
-                import hackrf
-            except ImportError:
-                print("WARNING: pyHackRF not available, using simulation mode")
-                self._simulate_capture(duration, output_file)
-                return
-
-            # Initialize HackRF
-            hrf = hackrf.HackRF()
-            hrf.sample_rate = self.sample_rate
-            hrf.center_freq = self.frequency
-            hrf.lna_gain = self.gain
-            hrf.vga_gain = self.gain
+            import subprocess
+            import tempfile
 
             # Calculate number of samples
             num_samples = int(duration * self.sample_rate)
-            samples = []
 
-            print("Recording...")
+            # Create temporary file for raw IQ samples
+            with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
+                raw_file = tmpfile.name
 
-            # Start receiving
-            hrf.start_rx()
+            try:
+                # Use hackrf_transfer command-line tool
+                print("Recording...")
+                cmd = [
+                    'hackrf_transfer',
+                    '-r', raw_file,
+                    '-f', str(int(self.frequency)),
+                    '-s', str(self.sample_rate),
+                    '-l', str(self.gain),
+                    '-g', str(self.gain),
+                    '-n', str(num_samples * 2)  # * 2 for IQ samples
+                ]
 
-            start_time = time.time()
-            while len(samples) < num_samples:
-                data = hrf.read_samples(num_samples - len(samples))
-                samples.extend(data)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=duration * 2 + 15)
 
-                if time.time() - start_time > duration + 5:
-                    break
+                if result.returncode != 0:
+                    raise RuntimeError(f"hackrf_transfer failed: {result.stderr}")
 
-            hrf.stop_rx()
-            hrf.close()
+                # Read raw IQ samples
+                iq_data = np.fromfile(raw_file, dtype=np.int8)
 
-            # Convert to numpy array
-            iq_samples = np.array(samples[:num_samples], dtype=np.complex64)
+                # Convert to complex IQ samples
+                iq_samples = iq_data[0::2] + 1j * iq_data[1::2]
+                iq_samples = iq_samples.astype(np.complex64) / 127.0
 
-            # Demodulate based on type
-            audio = self._demodulate(iq_samples)
+                # Trim to exact length
+                iq_samples = iq_samples[:num_samples]
 
-            # Save to WAV file
-            self._save_wav(audio, output_file)
+                # Demodulate based on type
+                audio = self._demodulate(iq_samples)
 
-            print(f"Capture complete: {output_file}")
+                # Save to WAV file
+                self._save_wav(audio, output_file)
+
+                print(f"Capture complete: {output_file}")
+
+            finally:
+                # Clean up temporary file
+                if os.path.exists(raw_file):
+                    os.unlink(raw_file)
 
         except Exception as e:
             print(f"Error during capture: {e}")
