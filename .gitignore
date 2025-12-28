@@ -13,3 +13,6 @@ recordings/
 models/
 .n8n/
 node_modules/
+
+# Claude Code files
+claude.md
