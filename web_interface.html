@@ -289,17 +289,9 @@
                 <div class="preset-btn-title">PMR</div>
                 <div class="preset-btn-freq">446.00625 MHz</div>
             </div>
-            <div class="preset-btn" onclick="setPresetAPRS(144800000, 'FM', '144.8 MHz (NA)')">
-                <div class="preset-btn-title">APRS NA</div>
-                <div class="preset-btn-freq">144.800 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPresetAPRS(144390000, 'FM', '144.39 MHz (JP)')">
-                <div class="preset-btn-title">APRS JP</div>
-                <div class="preset-btn-freq">144.390 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPresetAPRS(145175000, 'FM', '145.175 MHz (EU)')">
-                <div class="preset-btn-title">APRS EU</div>
-                <div class="preset-btn-freq">145.175 MHz</div>
+            <div class="preset-btn" onclick="setPresetAPRS()">
+                <div class="preset-btn-title">APRS</div>
+                <div class="preset-btn-freq">Packet Radio</div>
             </div>
         </div>
 
@@ -327,6 +319,17 @@
                     <option value="aprs">APRS Decode</option>
                 </select>
                 <div class="hint">Select processing type for captured audio</div>
+            </div>
+
+            <div class="form-group" id="aprsRegionGroup" style="display: none;">
+                <label for="aprsRegion">APRS Region</label>
+                <select id="aprsRegion" name="aprsRegion" onchange="updateAPRSFrequency()">
+                    <option value="144800000">Europe (144.800 MHz)</option>
+                    <option value="144390000">North America (144.390 MHz)</option>
+                    <option value="144660000">Japan (144.660 MHz)</option>
+                    <option value="145175000">Australia (145.175 MHz)</option>
+                </select>
+                <div class="hint">Select APRS frequency region</div>
             </div>
 
             <div class="form-group">
@@ -377,26 +380,37 @@
             toggleModeUI();
         }
 
-        function setPresetAPRS(frequency, modulation, label) {
-            document.getElementById('frequency').value = frequency;
-            document.getElementById('modulation').value = modulation;
+        function setPresetAPRS() {
             document.getElementById('mode').value = 'aprs';
+            document.getElementById('modulation').value = 'FM';
             document.getElementById('duration').value = 300;  // 5 minutes for APRS
             toggleModeUI();
+            updateAPRSFrequency();  // Set frequency from region dropdown
+        }
+
+        function updateAPRSFrequency() {
+            const region = document.getElementById('aprsRegion');
+            const frequency = region.value;
+            document.getElementById('frequency').value = frequency;
         }
 
         function toggleModeUI() {
             const mode = document.getElementById('mode').value;
             const languageGroup = document.getElementById('languageGroup');
+            const aprsRegionGroup = document.getElementById('aprsRegionGroup');
 
             if (mode === 'aprs') {
                 languageGroup.style.display = 'none';
+                aprsRegionGroup.style.display = 'block';
                 // Suggest longer duration for APRS
                 if (parseInt(document.getElementById('duration').value) < 60) {
                     document.getElementById('duration').value = 300;
                 }
+                // Set frequency from region dropdown
+                updateAPRSFrequency();
             } else {
                 languageGroup.style.display = 'block';
+                aprsRegionGroup.style.display = 'none';
             }
         }
 

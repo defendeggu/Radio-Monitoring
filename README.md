@@ -329,9 +329,10 @@ The web interface includes common frequency presets:
 - **PMR**: 446.00625 MHz (FM)
 
 **APRS Decoding:**
-- **APRS North America**: 144.800 MHz (FM)
-- **APRS Japan**: 144.390 MHz (FM)
-- **APRS Europe**: 145.175 MHz (FM)
+- **APRS Europe**: 144.800 MHz (FM) - Default
+- **APRS North America**: 144.390 MHz (FM)
+- **APRS Japan**: 144.660 MHz (FM)
+- **APRS Australia**: 145.175 MHz (FM)
 
 ## Modulation Types
 
