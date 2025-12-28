@@ -41,12 +41,17 @@ CREATE TABLE IF NOT EXISTS captures (
     error_message TEXT
 );
 
+-- Add mode column for APRS support
+ALTER TABLE captures ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'voice'
+    CHECK (mode IN ('voice', 'aprs'));
+
 -- Create indices for performance
 CREATE INDEX IF NOT EXISTS idx_captures_created_at ON captures(created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_captures_frequency ON captures(frequency);
 CREATE INDEX IF NOT EXISTS idx_captures_modulation ON captures(modulation);
 CREATE INDEX IF NOT EXISTS idx_captures_language ON captures(language);
 CREATE INDEX IF NOT EXISTS idx_captures_status ON captures(status);
+CREATE INDEX IF NOT EXISTS idx_captures_mode ON captures(mode);
 
 -- Full-text search index on transcription
 CREATE INDEX IF NOT EXISTS idx_transcription_text_gin ON captures USING gin(to_tsvector('english', COALESCE(transcription_text, '')));
@@ -56,6 +61,69 @@ CREATE INDEX IF NOT EXISTS idx_transcription_text_trgm ON captures USING gin(tra
 
 -- JSON indices for segments
 CREATE INDEX IF NOT EXISTS idx_segments_gin ON captures USING gin(segments);
+
+-- Create APRS messages table
+CREATE TABLE IF NOT EXISTS aprs_messages (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+
+    -- Link to parent capture
+    capture_id INTEGER NOT NULL REFERENCES captures(id) ON DELETE CASCADE,
+
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    decoded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+
+    -- Station identification
+    source_callsign VARCHAR(20) NOT NULL,
+    destination_callsign VARCHAR(20),
+    path VARCHAR(200),
+
+    -- Position data (nullable - not all APRS messages have position)
+    latitude DECIMAL(10, 7),
+    longitude DECIMAL(11, 7),
+    altitude_meters INTEGER,
+
+    -- Movement data
+    speed_kmh DECIMAL(6, 2),
+    course_degrees INTEGER CHECK (course_degrees >= 0 AND course_degrees < 360),
+
+    -- Message content
+    message_text TEXT,
+    symbol_table CHAR(1),
+    symbol_code CHAR(1),
+
+    -- Raw packet data
+    raw_packet TEXT NOT NULL,
+    aprs_type VARCHAR(50),
+
+    -- Parsed APRS data as JSON for extensibility
+    aprs_data JSONB,
+    weather_data JSONB,
+    telemetry_data JSONB,
+
+    -- Quality metrics
+    signal_strength INTEGER,
+    decode_confidence FLOAT
+);
+
+-- Indices for APRS messages
+CREATE INDEX IF NOT EXISTS idx_aprs_capture_id ON aprs_messages(capture_id);
+CREATE INDEX IF NOT EXISTS idx_aprs_source_callsign ON aprs_messages(source_callsign);
+CREATE INDEX IF NOT EXISTS idx_aprs_created_at ON aprs_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_aprs_type ON aprs_messages(aprs_type);
+
+-- Geospatial index for map queries
+CREATE INDEX IF NOT EXISTS idx_aprs_location ON aprs_messages USING GIST (
+    POINT(longitude, latitude)
+) WHERE latitude IS NOT NULL AND longitude IS NOT NULL;
+
+-- Full-text search on message text
+CREATE INDEX IF NOT EXISTS idx_aprs_message_text_gin ON aprs_messages
+    USING gin(to_tsvector('english', COALESCE(message_text, '')));
+
+-- JSONB queries
+CREATE INDEX IF NOT EXISTS idx_aprs_data_gin ON aprs_messages USING gin(aprs_data);
 
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
@@ -69,6 +137,12 @@ $$ language 'plpgsql';
 -- Create trigger to automatically update updated_at
 CREATE TRIGGER update_captures_updated_at
     BEFORE UPDATE ON captures
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create trigger for APRS messages updated_at
+CREATE TRIGGER update_aprs_messages_updated_at
+    BEFORE UPDATE ON aprs_messages
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -113,6 +187,18 @@ FROM captures
 GROUP BY frequency
 ORDER BY capture_count DESC;
 
+-- Create view for APRS statistics
+CREATE OR REPLACE VIEW aprs_statistics AS
+SELECT
+    COUNT(*) as total_packets,
+    COUNT(DISTINCT source_callsign) as unique_callsigns,
+    COUNT(DISTINCT capture_id) as total_captures,
+    COUNT(CASE WHEN latitude IS NOT NULL THEN 1 END) as packets_with_position,
+    DATE(created_at) as packet_date
+FROM aprs_messages
+GROUP BY DATE(created_at)
+ORDER BY packet_date DESC;
+
 -- Insert initial metadata
 INSERT INTO captures (
     frequency,
@@ -147,6 +233,7 @@ BEGIN
     RAISE NOTICE 'Radio Monitoring Database initialized successfully!';
     RAISE NOTICE 'Database: radio_monitoring';
     RAISE NOTICE 'User: radio_user';
-    RAISE NOTICE 'Tables created: captures';
-    RAISE NOTICE 'Views created: capture_statistics, recent_captures, frequency_usage';
+    RAISE NOTICE 'Tables created: captures, aprs_messages';
+    RAISE NOTICE 'Views created: capture_statistics, recent_captures, frequency_usage, aprs_statistics';
+    RAISE NOTICE 'APRS support: enabled';
 END $$;

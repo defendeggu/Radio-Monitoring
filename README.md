@@ -8,25 +8,30 @@ A complete professional radio monitoring system for capturing radio signals from
 - **Radio Capture**: Capture radio signals from HackRF with configurable frequency and modulation
 - **Multiple Modulation Support**: FM, AM, USB, LSB
 - **Speech-to-Text**: Automatic transcription using faster-whisper
-- **Web Interface**: Easy-to-use control panel for selecting frequency and modulation
+- **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
+- **Dual Processing Modes**: Voice transcription or APRS packet decoding from the same capture workflow
+- **Web Interface**: Easy-to-use control panel for selecting frequency, modulation, and processing mode
 - **N8N Integration**: Workflow automation for orchestrating capture and transcription
 - **REST API**: Flask-based API for programmatic access
 - **Docker Support**: Complete Docker setup for easy deployment
 
 ### Database & Analytics (NEW)
 - **PostgreSQL Database**: Permanent storage of all captures with full metadata
-- **Full-Text Search**: Search through all transcriptions with PostgreSQL full-text search
-- **Advanced Filtering**: Filter by frequency, modulation, language, date range
+- **Full-Text Search**: Search through all transcriptions and APRS messages with PostgreSQL full-text search
+- **APRS Message Storage**: Dedicated table for APRS packets with callsign, position, message data
+- **Geospatial Indexing**: Efficient queries for APRS station positions using PostGIS-compatible GIST indices
+- **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, date range
 - **Database API**: REST endpoints for searching and analyzing historical data
-- **Statistics & Analytics**: Frequency usage, language distribution, success rates
+- **Statistics & Analytics**: Frequency usage, language distribution, APRS statistics, success rates
 - **Data Migration**: Import existing JSON transcriptions into database
 
 ### Monitoring & Visualization (NEW)
 - **Grafana Dashboards**: Professional monitoring and data visualization
 - **Database Browser**: Interactive dashboard to browse, search, and filter all captures
+- **APRS Dashboard**: Dedicated dashboard with station map, packet statistics, and callsign analytics
 - **Statistics Dashboard**: Real-time metrics and performance monitoring
 - **pgAdmin 4**: Full-featured PostgreSQL database management web interface
-- **Prometheus Metrics**: System performance and API metrics collection
+- **Prometheus Metrics**: System performance, API metrics, and APRS decode statistics
 - **cAdvisor**: Container resource monitoring
 
 ## Architecture
@@ -55,16 +60,23 @@ A complete professional radio monitoring system for capturing radio signals from
             ├─────────────────────────────────┤
             │  /capture-and-transcribe        │
             │  /search (Database Search)      │
+            │  /aprs/search (APRS Search)     │
+            │  /aprs/stats (APRS Analytics)   │
+            │  /aprs/map (GeoJSON Map Data)   │
             │  /stats (Analytics)             │
             │  /captures/<id>                 │
             ├─────────────────────────────────┤
             │      Radio Capture              │◄─── HackRF Device
             ├─────────────────────────────────┤
-            │    faster-whisper               │
-            │     Transcription               │
+            │  Mode: Voice  │  Mode: APRS     │
+            │  ┌──────────┐ │ ┌─────────────┐ │
+            │  │ faster-  │ │ │  direwolf   │ │
+            │  │ whisper  │ │ │ APRS Decode │ │
+            │  └──────────┘ │ └─────────────┘ │
             ├─────────────────────────────────┤
             │   Database Service              │
             │   (PostgreSQL Client)           │
+            │   captures + aprs_messages      │
             └─────────────────────────────────┘
                      │
                      ▼
@@ -131,12 +143,15 @@ sudo apt-get install -y \
     libhackrf-dev \
     hackrf \
     build-essential \
-    python3-pip
+    python3-pip \
+    direwolf \
+    libasound2-dev \
+    cmake
 ```
 
 **macOS:**
 ```bash
-brew install hackrf
+brew install hackrf direwolf
 ```
 
 ### Python Dependencies
@@ -216,7 +231,7 @@ curl -X POST http://localhost:5000/transcribe \
   }'
 ```
 
-**Capture and transcribe:**
+**Capture and transcribe (Voice mode):**
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
@@ -225,8 +240,37 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
     "modulation": "FM",
     "duration": 30,
     "gain": 20,
-    "language": "en"
+    "language": "en",
+    "mode": "voice"
   }'
+```
+
+**Capture and decode APRS:**
+```bash
+curl -X POST http://localhost:5000/capture-and-transcribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency": 144800000,
+    "modulation": "FM",
+    "duration": 300,
+    "gain": 20,
+    "mode": "aprs"
+  }'
+```
+
+**Search APRS messages:**
+```bash
+curl -X GET "http://localhost:5000/aprs/search?callsign=N0CALL&limit=50"
+```
+
+**Get APRS statistics:**
+```bash
+curl -X GET "http://localhost:5000/aprs/stats"
+```
+
+**Get APRS map data (GeoJSON):**
+```bash
+curl -X GET "http://localhost:5000/aprs/map"
 ```
 
 ### N8N Workflow
@@ -277,10 +321,17 @@ GF_SECURITY_ADMIN_PASSWORD=admin # Change on first login
 
 The web interface includes common frequency presets:
 
+**Voice Transcription:**
 - **FM Radio**: 88.5 MHz (FM)
-- **Marine VHF**: 162.55 MHz (FM)
-- **Amateur 2m**: 144.39 MHz (FM)
-- **FRS/GMRS**: 462.5625 MHz (FM)
+- **Flugfunk (Aviation)**: 118.00 MHz (AM)
+- **Amateur 2m**: 145.500 MHz (FM)
+- **Amateur 70cm**: 433.50 MHz (FM)
+- **PMR**: 446.00625 MHz (FM)
+
+**APRS Decoding:**
+- **APRS North America**: 144.800 MHz (FM)
+- **APRS Japan**: 144.390 MHz (FM)
+- **APRS Europe**: 145.175 MHz (FM)
 
 ## Modulation Types
 

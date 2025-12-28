@@ -324,6 +324,213 @@ class DatabaseService:
             print(f"Error getting frequency usage: {e}")
             return []
 
+    def save_aprs_capture(
+        self,
+        capture_id: int,
+        packets: List[Dict[str, Any]]
+    ) -> List[int]:
+        """
+        Save multiple APRS packets linked to a capture
+
+        Args:
+            capture_id: Parent capture ID
+            packets: List of decoded APRS packets
+
+        Returns:
+            List of inserted packet IDs
+        """
+        if self.pool is None or not packets:
+            return []
+
+        query = """
+            INSERT INTO aprs_messages (
+                capture_id, source_callsign, destination_callsign, path,
+                latitude, longitude, altitude_meters, speed_kmh, course_degrees,
+                message_text, symbol_table, symbol_code, raw_packet, aprs_type,
+                aprs_data, decode_confidence
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            RETURNING id;
+        """
+
+        packet_ids = []
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    for packet in packets:
+                        cursor.execute(query, (
+                            capture_id,
+                            packet.get('source_callsign'),
+                            packet.get('destination_callsign'),
+                            packet.get('path'),
+                            packet.get('latitude'),
+                            packet.get('longitude'),
+                            packet.get('altitude'),
+                            packet.get('speed'),
+                            packet.get('course'),
+                            packet.get('message_text'),
+                            packet.get('symbol_table'),
+                            packet.get('symbol_code'),
+                            packet.get('raw_packet'),
+                            packet.get('aprs_type'),
+                            Json(packet.get('aprs_data', {})),
+                            packet.get('decode_confidence')
+                        ))
+                        result = cursor.fetchone()
+                        packet_ids.append(result[0])
+
+            print(f"Saved {len(packet_ids)} APRS packets to database")
+            return packet_ids
+        except Exception as e:
+            print(f"Error saving APRS packets: {e}")
+            return []
+
+    def search_aprs_messages(
+        self,
+        callsign: Optional[str] = None,
+        message_text: Optional[str] = None,
+        aprs_type: Optional[str] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Search APRS messages with various filters
+
+        Args:
+            callsign: Filter by source callsign
+            message_text: Full-text search in message text
+            aprs_type: Filter by APRS type
+            start_date: Filter by start date
+            end_date: Filter by end date
+            limit: Maximum results
+            offset: Offset for pagination
+
+        Returns:
+            List of matching APRS messages
+        """
+        if self.pool is None:
+            return []
+
+        conditions = []
+        params = []
+
+        if callsign:
+            conditions.append("source_callsign ILIKE %s")
+            params.append(f"%{callsign}%")
+
+        if message_text:
+            conditions.append("to_tsvector('english', message_text) @@ plainto_tsquery('english', %s)")
+            params.append(message_text)
+
+        if aprs_type:
+            conditions.append("aprs_type = %s")
+            params.append(aprs_type)
+
+        if start_date:
+            conditions.append("created_at >= %s")
+            params.append(start_date)
+
+        if end_date:
+            conditions.append("created_at <= %s")
+            params.append(end_date)
+
+        where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+        query = f"""
+            SELECT
+                am.id, am.uuid, am.created_at, am.capture_id,
+                am.source_callsign, am.destination_callsign, am.path,
+                am.latitude, am.longitude, am.altitude_meters,
+                am.speed_kmh, am.course_degrees,
+                am.message_text, am.symbol_table, am.symbol_code,
+                am.raw_packet, am.aprs_type, am.aprs_data,
+                c.frequency, c.modulation
+            FROM aprs_messages am
+            JOIN captures c ON am.capture_id = c.id
+            {where_clause}
+            ORDER BY am.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        params.extend([limit, offset])
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, params)
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error searching APRS messages: {e}")
+            return []
+
+    def get_aprs_statistics(self) -> Dict[str, Any]:
+        """
+        Get APRS statistics
+
+        Returns:
+            APRS statistics dictionary
+        """
+        if self.pool is None:
+            return {}
+
+        query = """
+            SELECT
+                COUNT(*) as total_packets,
+                COUNT(DISTINCT source_callsign) as unique_callsigns,
+                COUNT(DISTINCT capture_id) as total_captures,
+                COUNT(CASE WHEN latitude IS NOT NULL THEN 1 END) as packets_with_position,
+                MIN(created_at) as first_packet,
+                MAX(created_at) as last_packet
+            FROM aprs_messages
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query)
+                    result = cursor.fetchone()
+                    return dict(result) if result else {}
+        except Exception as e:
+            print(f"Error getting APRS statistics: {e}")
+            return {}
+
+    def get_aprs_by_capture_id(self, capture_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all APRS messages for a specific capture
+
+        Args:
+            capture_id: Capture ID
+
+        Returns:
+            List of APRS messages
+        """
+        if self.pool is None:
+            return []
+
+        query = """
+            SELECT
+                id, uuid, created_at, source_callsign, destination_callsign,
+                path, latitude, longitude, altitude_meters, speed_kmh, course_degrees,
+                message_text, symbol_table, symbol_code, raw_packet, aprs_type,
+                aprs_data
+            FROM aprs_messages
+            WHERE capture_id = %s
+            ORDER BY created_at ASC
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, (capture_id,))
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting APRS messages for capture: {e}")
+            return []
+
     def delete_old_captures(self, days_old: int = 30) -> int:
         """
         Delete captures older than specified days

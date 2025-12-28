@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
     hackrf \
     build-essential \
     git \
+    direwolf \
+    libasound2-dev \
+    cmake \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
@@ -21,9 +24,11 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY radio_capture.py .
 COPY transcription_service.py .
+COPY aprs_decoder_service.py .
 COPY api_service.py .
 COPY database_service.py .
 COPY migrate_json_to_db.py .
+COPY direwolf.conf .
 COPY .env.example .env
 
 # Create recordings directory

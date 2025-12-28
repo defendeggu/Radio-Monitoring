@@ -229,6 +229,38 @@
             color: #666;
             margin-top: 5px;
         }
+
+        .aprs-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .aprs-table th,
+        .aprs-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .aprs-table th {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .aprs-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .aprs-table tbody tr:last-child td {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
@@ -257,6 +289,18 @@
                 <div class="preset-btn-title">PMR</div>
                 <div class="preset-btn-freq">446.00625 MHz</div>
             </div>
+            <div class="preset-btn" onclick="setPresetAPRS(144800000, 'FM', '144.8 MHz (NA)')">
+                <div class="preset-btn-title">APRS NA</div>
+                <div class="preset-btn-freq">144.800 MHz</div>
+            </div>
+            <div class="preset-btn" onclick="setPresetAPRS(144390000, 'FM', '144.39 MHz (JP)')">
+                <div class="preset-btn-title">APRS JP</div>
+                <div class="preset-btn-freq">144.390 MHz</div>
+            </div>
+            <div class="preset-btn" onclick="setPresetAPRS(145175000, 'FM', '145.175 MHz (EU)')">
+                <div class="preset-btn-title">APRS EU</div>
+                <div class="preset-btn-freq">145.175 MHz</div>
+            </div>
         </div>
 
         <form id="captureForm">
@@ -277,6 +321,15 @@
             </div>
 
             <div class="form-group">
+                <label for="mode">Processing Mode</label>
+                <select id="mode" name="mode" onchange="toggleModeUI()">
+                    <option value="voice">Voice Transcription</option>
+                    <option value="aprs">APRS Decode</option>
+                </select>
+                <div class="hint">Select processing type for captured audio</div>
+            </div>
+
+            <div class="form-group">
                 <label for="duration">Duration (seconds)</label>
                 <input type="number" id="duration" name="duration" value="30" min="5" max="300" required>
                 <div class="hint">Recording duration: 5-300 seconds</div>
@@ -288,7 +341,7 @@
                 <div class="hint">RF gain: 0-47 dB</div>
             </div>
 
-            <div class="form-group">
+            <div class="form-group" id="languageGroup">
                 <label for="language">Language (optional)</label>
                 <input type="text" id="language" name="language" placeholder="en">
                 <div class="hint">Leave empty for auto-detection (e.g., en, es, fr, de)</div>
@@ -320,6 +373,31 @@
         function setPreset(frequency, modulation) {
             document.getElementById('frequency').value = frequency;
             document.getElementById('modulation').value = modulation;
+            document.getElementById('mode').value = 'voice';
+            toggleModeUI();
+        }
+
+        function setPresetAPRS(frequency, modulation, label) {
+            document.getElementById('frequency').value = frequency;
+            document.getElementById('modulation').value = modulation;
+            document.getElementById('mode').value = 'aprs';
+            document.getElementById('duration').value = 300;  // 5 minutes for APRS
+            toggleModeUI();
+        }
+
+        function toggleModeUI() {
+            const mode = document.getElementById('mode').value;
+            const languageGroup = document.getElementById('languageGroup');
+
+            if (mode === 'aprs') {
+                languageGroup.style.display = 'none';
+                // Suggest longer duration for APRS
+                if (parseInt(document.getElementById('duration').value) < 60) {
+                    document.getElementById('duration').value = 300;
+                }
+            } else {
+                languageGroup.style.display = 'block';
+            }
         }
 
         function showStatus(message, type) {
@@ -342,7 +420,8 @@
                 modulation: document.getElementById('modulation').value,
                 duration: parseInt(document.getElementById('duration').value),
                 gain: parseInt(document.getElementById('gain').value),
-                language: document.getElementById('language').value || null
+                language: document.getElementById('language').value || null,
+                mode: document.getElementById('mode').value
             };
 
             startBtn.disabled = true;
@@ -378,6 +457,14 @@
         });
 
         function displayResult(data) {
+            if (data.mode === 'aprs') {
+                displayAPRSResult(data);
+            } else {
+                displayTranscriptionResult(data);
+            }
+        }
+
+        function displayTranscriptionResult(data) {
             const transcription = data.transcription || data;
             const transcriptionText = transcription.text || '';
             const displayText = transcriptionText.trim() || 'No speech detected (silence or noise only)';
@@ -404,6 +491,67 @@
                     </div>
                 </div>
             `;
+            resultDiv.style.display = 'block';
+        }
+
+        function displayAPRSResult(data) {
+            const packets = data.aprs?.packets || [];
+            const packetCount = data.aprs?.packet_count || 0;
+
+            let displayHTML = `
+                <h3>📡 APRS Packets Decoded</h3>
+                <div class="metadata">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Packets Received</div>
+                        <div class="metadata-value">${packetCount}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Frequency</div>
+                        <div class="metadata-value">${(data.capture.frequency / 1e6).toFixed(3)} MHz</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Duration</div>
+                        <div class="metadata-value">${data.capture.duration}s</div>
+                    </div>
+                </div>
+            `;
+
+            if (packets.length === 0) {
+                displayHTML += `
+                    <div class="transcription-text">
+                        No APRS packets decoded. Ensure APRS activity on this frequency.
+                    </div>
+                `;
+            } else {
+                displayHTML += `
+                    <table class="aprs-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Callsign</th>
+                                <th>Type</th>
+                                <th>Position</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${packets.map(p => `
+                                <tr>
+                                    <td>${new Date(p.timestamp).toLocaleTimeString()}</td>
+                                    <td><strong>${p.source_callsign}</strong></td>
+                                    <td>${p.aprs_type}</td>
+                                    <td>${p.latitude && p.longitude ?
+                                        `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}` :
+                                        'N/A'}</td>
+                                    <td>${p.message_text || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            resultDiv.innerHTML = displayHTML;
             resultDiv.style.display = 'block';
         }
     </script>
