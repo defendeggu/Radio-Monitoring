@@ -933,40 +933,39 @@ pgAdmin 4 is a powerful, full-featured web-based database management tool for Po
    - **Email**: `admin@admin.com`
    - **Password**: `admin`
 
-### First-Time Setup: Connecting to the Database
+### Automatic Server Connection
 
-When you first open pgAdmin, you need to register the PostgreSQL server:
+**Good news! The PostgreSQL server is already configured for you.**
 
-#### Step 1: Register Server
+When you login to pgAdmin, the **"Radio Monitoring Database"** server is automatically registered and ready to use.
 
-1. In the left sidebar, right-click on **"Servers"**
-2. Select **"Register" → "Server..."**
+#### What You'll See:
 
-#### Step 2: General Configuration
+After logging in, look at the left sidebar:
+- **Servers** (expand this)
+  - **Radio Monitoring Database** ← This is automatically configured!
 
-In the **"General"** tab:
-- **Name**: `Radio Monitoring Database`
-- **Server group**: Servers (default)
-- **Comments**: Radio transcription system database (optional)
+#### Accessing the Database:
 
-#### Step 3: Connection Configuration
+Simply expand the server tree by clicking on each level:
 
-In the **"Connection"** tab:
-- **Host name/address**: `radio-postgres` (important: use this exact hostname, not localhost)
-- **Port**: `5432`
-- **Maintenance database**: `radio_monitoring`
-- **Username**: `radio_user`
-- **Password**: `radio_password_change_in_production`
-- **Save password**: ✅ Check this box
+1. Click on **"Radio Monitoring Database"** to expand it
+2. Click on **"Databases (1)"** to expand
+3. Click on **"radio_monitoring"** to expand
+4. Click on **"Schemas (1)"** to expand
+5. Click on **"public"** to expand
+6. Click on **"Tables"** to see all database tables
+7. Click on **"captures"** to see your radio captures table
 
-#### Step 4: Advanced Settings (Optional)
+**Pre-configured Connection Details:**
+- Server Name: Radio Monitoring Database
+- Host: radio-postgres
+- Port: 5432
+- Database: radio_monitoring
+- Username: radio_user
+- Password: Automatically loaded (no need to enter)
 
-In the **"Advanced"** tab:
-- **DB restriction**: `radio_monitoring` (limits display to only this database)
-
-#### Step 5: Save
-
-Click the **"Save"** button to register the server.
+**No manual setup required!** Just login and start browsing your data.
 
 ### Browsing Database Tables
 
@@ -1201,7 +1200,7 @@ ORDER BY created_at DESC;
 
 #### Cannot Connect to Database
 
-**Problem**: "Could not connect to server" error
+**Problem**: "Could not connect to server" error or server not appearing in pgAdmin
 
 **Solutions**:
 1. Verify PostgreSQL container is running:
@@ -1209,16 +1208,26 @@ ORDER BY created_at DESC;
    docker ps | grep postgres
    ```
 
-2. Check hostname is `radio-postgres` (not `localhost`)
+2. Restart pgAdmin to reload server configuration:
+   ```bash
+   docker restart pgadmin
+   ```
+   Wait 15 seconds, then refresh pgAdmin in your browser
 
-3. Verify credentials:
-   - Username: `radio_user`
-   - Password: `radio_password_change_in_production`
-   - Database: `radio_monitoring`
+3. Check if server configuration files are mounted correctly:
+   ```bash
+   docker exec pgadmin ls -la /pgadmin4/servers.json
+   docker exec pgadmin ls -la /pgpass
+   ```
 
-4. Test connection from command line:
+4. Test PostgreSQL connection from command line:
    ```bash
    docker exec radio-postgres psql -U radio_user -d radio_monitoring -c "SELECT 1;"
+   ```
+
+5. If server still doesn't appear, check pgAdmin logs:
+   ```bash
+   docker logs pgadmin --tail 50
    ```
 
 #### pgAdmin is Slow

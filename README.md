@@ -784,29 +784,21 @@ Open http://localhost:5050 in your browser and log in with:
 - Email: `admin@admin.com`
 - Password: `admin`
 
-### Connecting to PostgreSQL Database
+### Automatic PostgreSQL Connection
 
-**First-time setup:**
+**The PostgreSQL server is automatically registered!**
 
-1. In pgAdmin, right-click on **"Servers"** in the left sidebar
-2. Select **"Register" → "Server"**
-3. Configure the connection:
+After logging into pgAdmin, you'll see the **"Radio Monitoring Database"** server already configured in the left sidebar under **Servers**.
 
-**General Tab:**
-- Name: `Radio Monitoring Database`
+Simply expand the server tree:
+- **Servers** → **Radio Monitoring Database** → **Databases** → **radio_monitoring** → **Schemas** → **public** → **Tables**
 
-**Connection Tab:**
-- Host name/address: `radio-postgres`
+No manual configuration needed! The connection is pre-configured with:
+- Host: `radio-postgres`
 - Port: `5432`
-- Maintenance database: `radio_monitoring`
+- Database: `radio_monitoring`
 - Username: `radio_user`
-- Password: `radio_password_change_in_production`
-- Save password: ✅ (check this)
-
-**Advanced Tab (optional):**
-- DB restriction: `radio_monitoring`
-
-4. Click **"Save"**
+- Password: Automatically loaded from secure configuration
 
 ### Using pgAdmin
 
