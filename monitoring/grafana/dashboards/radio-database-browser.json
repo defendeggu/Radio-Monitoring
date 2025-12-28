@@ -1,13 +1,5 @@
 {
-  "annotations": {
-    "list": []
-  },
-  "editable": true,
-  "fiscalYearStartMonth": 0,
-  "graphTooltip": 0,
   "id": 5,
-  "links": [],
-  "liveNow": false,
   "panels": [
     {
       "datasource": {
@@ -22,16 +14,6 @@
               "type": "auto"
             },
             "inspect": false
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
           }
         },
         "overrides": [
@@ -44,34 +26,6 @@
               {
                 "id": "custom.width",
                 "value": 400
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "created_at"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 180
-              }
-            ]
-          },
-          {
-            "matcher": {
-              "id": "byName",
-              "options": "frequency_mhz"
-            },
-            "properties": [
-              {
-                "id": "custom.width",
-                "value": 120
-              },
-              {
-                "id": "unit",
-                "value": "MHz"
               }
             ]
           }
@@ -102,379 +56,23 @@
           }
         ]
       },
-      "pluginVersion": "10.0.0",
       "targets": [
         {
           "datasource": {
             "type": "grafana-postgresql-datasource",
             "uid": "ef8h95z5txslcf"
           },
-          "editorMode": "code",
           "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT \n  id,\n  created_at,\n  ROUND(frequency::numeric / 1000000, 3) as frequency_mhz,\n  modulation,\n  duration,\n  transcription_text,\n  language,\n  ROUND(language_confidence::numeric, 2) as lang_conf,\n  status\nFROM captures\nWHERE \n  ($Modulation = 'All' OR modulation = $Modulation)\n  AND ($Language = 'All' OR language = $Language)\n  AND created_at >= $__timeFrom()::timestamp\n  AND created_at <= $__timeTo()::timestamp\n  AND (\n    $SearchText = '' \n    OR transcription_text ILIKE '%' || $SearchText || '%'\n  )\nORDER BY created_at DESC\nLIMIT 100;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
+          "rawSql": "SELECT \n  id,\n  created_at,\n  ROUND(frequency::numeric / 1000000, 3) as frequency_mhz,\n  modulation,\n  duration,\n  transcription_text,\n  language,\n  ROUND(language_confidence::numeric, 2) as lang_conf,\n  status\nFROM captures\nWHERE \n  ('$Modulation' = 'All' OR modulation = '$Modulation')\n  AND ('$Language' = 'All' OR language = '$Language')\n  AND (\n    '$SearchText' = '' \n    OR transcription_text ILIKE '%$SearchText%'\n  )\nORDER BY created_at DESC\nLIMIT 100;",
+          "refId": "A"
         }
       ],
       "title": "Radio Captures Browser",
-      "transformations": [],
       "type": "table"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "ef8h95z5txslcf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "thresholds"
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 4,
-        "w": 6,
-        "x": 0,
-        "y": 20
-      },
-      "id": 2,
-      "options": {
-        "colorMode": "value",
-        "graphMode": "none",
-        "justifyMode": "auto",
-        "orientation": "auto",
-        "reduceOptions": {
-          "calcs": [
-            "lastNotNull"
-          ],
-          "fields": "",
-          "values": false
-        },
-        "textMode": "auto"
-      },
-      "pluginVersion": "10.0.0",
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "ef8h95z5txslcf"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT COUNT(*) as count\nFROM captures\nWHERE \n  ($Modulation = 'All' OR modulation = $Modulation)\n  AND ($Language = 'All' OR language = $Language)\n  AND created_at >= $__timeFrom()::timestamp\n  AND created_at <= $__timeTo()::timestamp\n  AND (\n    $SearchText = '' \n    OR transcription_text ILIKE '%' || $SearchText || '%'\n  );",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Total Results",
-      "type": "stat"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "ef8h95z5txslcf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 6,
-        "y": 20
-      },
-      "id": 3,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "values": [
-            "value"
-          ]
-        },
-        "pieType": "pie",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "ef8h95z5txslcf"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT \n  modulation,\n  COUNT(*) as count\nFROM captures\nWHERE \n  ($Modulation = 'All' OR modulation = $Modulation)\n  AND ($Language = 'All' OR language = $Language)\n  AND created_at >= $__timeFrom()::timestamp\n  AND created_at <= $__timeTo()::timestamp\n  AND (\n    $SearchText = '' \n    OR transcription_text ILIKE '%' || $SearchText || '%'\n  )\nGROUP BY modulation\nORDER BY count DESC;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Modulation Distribution",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "ef8h95z5txslcf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            }
-          },
-          "mappings": []
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 9,
-        "x": 15,
-        "y": 20
-      },
-      "id": 4,
-      "options": {
-        "legend": {
-          "displayMode": "table",
-          "placement": "right",
-          "showLegend": true,
-          "values": [
-            "value"
-          ]
-        },
-        "pieType": "donut",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "ef8h95z5txslcf"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT \n  COALESCE(language, 'Unknown') as language,\n  COUNT(*) as count\nFROM captures\nWHERE \n  ($Modulation = 'All' OR modulation = $Modulation)\n  AND ($Language = 'All' OR language = $Language)\n  AND created_at >= $__timeFrom()::timestamp\n  AND created_at <= $__timeTo()::timestamp\n  AND (\n    $SearchText = '' \n    OR transcription_text ILIKE '%' || $SearchText || '%'\n  )\nGROUP BY language\nORDER BY count DESC;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Language Distribution",
-      "type": "piechart"
-    },
-    {
-      "datasource": {
-        "type": "grafana-postgresql-datasource",
-        "uid": "ef8h95z5txslcf"
-      },
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "fillOpacity": 80,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "lineWidth": 1,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green",
-                "value": null
-              }
-            ]
-          }
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 6,
-        "x": 0,
-        "y": 24
-      },
-      "id": 5,
-      "options": {
-        "barRadius": 0,
-        "barWidth": 0.97,
-        "fullHighlight": false,
-        "groupWidth": 0.7,
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
-        },
-        "orientation": "horizontal",
-        "showValue": "auto",
-        "stacking": "none",
-        "tooltip": {
-          "mode": "single",
-          "sort": "none"
-        },
-        "xTickLabelRotation": 0,
-        "xTickLabelSpacing": 0
-      },
-      "targets": [
-        {
-          "datasource": {
-            "type": "grafana-postgresql-datasource",
-            "uid": "ef8h95z5txslcf"
-          },
-          "editorMode": "code",
-          "format": "table",
-          "rawQuery": true,
-          "rawSql": "SELECT \n  ROUND(frequency::numeric / 1000000, 3) || ' MHz' as frequency,\n  COUNT(*) as count\nFROM captures\nWHERE \n  ($Modulation = 'All' OR modulation = $Modulation)\n  AND ($Language = 'All' OR language = $Language)\n  AND created_at >= $__timeFrom()::timestamp\n  AND created_at <= $__timeTo()::timestamp\n  AND (\n    $SearchText = '' \n    OR transcription_text ILIKE '%' || $SearchText || '%'\n  )\nGROUP BY frequency\nORDER BY count DESC\nLIMIT 10;",
-          "refId": "A",
-          "sql": {
-            "columns": [
-              {
-                "parameters": [],
-                "type": "function"
-              }
-            ],
-            "groupBy": [
-              {
-                "property": {
-                  "type": "string"
-                },
-                "type": "groupBy"
-              }
-            ],
-            "limit": 50
-          }
-        }
-      ],
-      "title": "Top 10 Frequencies",
-      "type": "barchart"
     }
   ],
   "refresh": "",
   "schemaVersion": 38,
-  "style": "dark",
   "tags": [
     "database",
     "browser",
@@ -484,55 +82,70 @@
     "list": [
       {
         "current": {
-          "selected": false,
           "text": "All",
           "value": "All"
         },
-        "datasource": {
-          "type": "grafana-postgresql-datasource",
-          "uid": "ef8h95z5txslcf"
-        },
-        "definition": "SELECT DISTINCT modulation FROM captures UNION SELECT 'All' ORDER BY 1",
         "hide": 0,
         "includeAll": false,
         "label": "Modulation",
         "multi": false,
         "name": "Modulation",
-        "options": [],
-        "query": "SELECT DISTINCT modulation FROM captures UNION SELECT 'All' ORDER BY 1",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "All"
+          },
+          {
+            "text": "FM",
+            "value": "FM"
+          },
+          {
+            "text": "AM",
+            "value": "AM"
+          },
+          {
+            "text": "USB",
+            "value": "USB"
+          },
+          {
+            "text": "LSB",
+            "value": "LSB"
+          }
+        ],
+        "query": "All,FM,AM,USB,LSB",
+        "type": "custom"
       },
       {
         "current": {
-          "selected": false,
           "text": "All",
           "value": "All"
         },
-        "datasource": {
-          "type": "grafana-postgresql-datasource",
-          "uid": "ef8h95z5txslcf"
-        },
-        "definition": "SELECT DISTINCT COALESCE(language, 'Unknown') as language FROM captures UNION SELECT 'All' ORDER BY 1",
         "hide": 0,
         "includeAll": false,
         "label": "Language",
         "multi": false,
         "name": "Language",
-        "options": [],
-        "query": "SELECT DISTINCT COALESCE(language, 'Unknown') as language FROM captures UNION SELECT 'All' ORDER BY 1",
-        "refresh": 1,
-        "regex": "",
-        "skipUrlSync": false,
-        "sort": 0,
-        "type": "query"
+        "options": [
+          {
+            "selected": true,
+            "text": "All",
+            "value": "All"
+          },
+          {
+            "text": "de",
+            "value": "de"
+          },
+          {
+            "text": "en",
+            "value": "en"
+          }
+        ],
+        "query": "All,de,en",
+        "type": "custom"
       },
       {
         "current": {
-          "selected": false,
           "text": "",
           "value": ""
         },
@@ -541,25 +154,22 @@
         "name": "SearchText",
         "options": [
           {
-            "selected": true,
             "text": "",
             "value": ""
           }
         ],
         "query": "",
-        "skipUrlSync": false,
         "type": "textbox"
       }
     ]
   },
   "time": {
-    "from": "now-7d",
+    "from": "now-30d",
     "to": "now"
   },
   "timepicker": {},
   "timezone": "",
   "title": "Radio Captures Database Browser",
   "uid": "radio-db-browser",
-  "version": 1,
-  "weekStart": ""
+  "version": 2
 }
