@@ -5,10 +5,11 @@
 1. [Introduction](#introduction)
 2. [Getting Started](#getting-started)
 3. [Using the Web Interface](#using-the-web-interface)
-4. [Monitoring with Grafana](#monitoring-with-grafana)
-5. [Understanding Results](#understanding-results)
-6. [Troubleshooting](#troubleshooting)
-7. [Best Practices](#best-practices)
+4. [Database Features](#database-features)
+5. [Monitoring with Grafana](#monitoring-with-grafana)
+6. [Understanding Results](#understanding-results)
+7. [Troubleshooting](#troubleshooting)
+8. [Best Practices](#best-practices)
 
 ---
 
@@ -17,6 +18,8 @@
 The Radio Transcription System is a complete application that allows you to:
 - Capture radio signals from a HackRF One software-defined radio (SDR) device
 - Automatically transcribe speech from the captured audio
+- Store all captures in a PostgreSQL database with full-text search
+- Search and analyze historical captures
 - Monitor system performance and track operations
 
 ### What You Can Do
@@ -25,7 +28,10 @@ The Radio Transcription System is a complete application that allows you to:
 - Monitor aviation communications (AM mode)
 - Capture amateur radio transmissions
 - Record and transcribe PMR/walkie-talkie communications
+- Search through all historical captures by text, frequency, or date
+- Analyze frequency usage and transcription statistics
 - Track system performance through visual dashboards
+- Export and query capture data via REST API
 
 ---
 
@@ -60,6 +66,7 @@ docker-compose ps
 You should see services running on these ports:
 - **Web Interface**: Port 8080
 - **API Service**: Port 5000
+- **PostgreSQL Database**: Port 5432
 - **Grafana**: Port 3000
 - **Prometheus**: Port 9090
 - **N8N**: Port 5678
@@ -203,6 +210,546 @@ After successful transcription, you'll see:
 - Clears all fields back to defaults
 - Hides status and result sections
 - Use this to start fresh
+
+---
+
+## Database Features
+
+### Overview
+
+All radio captures are automatically stored in a PostgreSQL database with comprehensive metadata. This enables:
+- **Full-text search** through all transcriptions
+- **Historical analysis** of captures and frequencies
+- **Statistics and trends** over time
+- **Advanced filtering** by frequency, modulation, language, and date
+- **Data persistence** - captures are never lost
+
+### What Gets Stored
+
+Every capture automatically saves:
+- Audio file path and size
+- Recording parameters (frequency, modulation, duration, gain, sample rate)
+- Transcription text with language detection
+- Transcription segments with timestamps
+- Metadata (capture time, processing duration)
+- Unique identifiers (ID and UUID)
+
+### Database API Endpoints
+
+The system provides REST API endpoints for accessing the database. You can use these with `curl`, scripts, or programming languages.
+
+#### 1. Search Captures
+
+**Endpoint**: `GET /search`
+
+Search through all captures with various filters.
+
+**Query Parameters:**
+- `text` - Full-text search in transcriptions
+- `frequency` - Filter by exact frequency (Hz)
+- `modulation` - Filter by modulation type (FM, AM, USB, LSB)
+- `language` - Filter by detected language (en, de, es, etc.)
+- `start_date` - Start date (ISO format: 2025-12-28T00:00:00)
+- `end_date` - End date (ISO format)
+- `limit` - Maximum results (default: 100)
+- `offset` - Offset for pagination (default: 0)
+
+**Examples:**
+
+Search for captures containing "weather":
+```bash
+curl "http://localhost:5000/search?text=weather"
+```
+
+Find all FM captures:
+```bash
+curl "http://localhost:5000/search?modulation=FM&limit=20"
+```
+
+Search by frequency (100 MHz):
+```bash
+curl "http://localhost:5000/search?frequency=100000000"
+```
+
+Find German language captures:
+```bash
+curl "http://localhost:5000/search?language=de"
+```
+
+Search captures from today:
+```bash
+curl "http://localhost:5000/search?start_date=2025-12-28T00:00:00&end_date=2025-12-28T23:59:59"
+```
+
+Combine multiple filters:
+```bash
+curl "http://localhost:5000/search?modulation=AM&frequency=118000000&start_date=2025-12-28T00:00:00"
+```
+
+**Response Format:**
+```json
+{
+  "status": "success",
+  "count": 3,
+  "results": [
+    {
+      "id": 15,
+      "uuid": "38a12c6b-36d9-4521-9f60-e36f3b6816b4",
+      "created_at": "Sun, 28 Dec 2025 16:56:51 GMT",
+      "frequency": 100000000,
+      "modulation": "FM",
+      "duration": 2,
+      "gain": 20,
+      "audio_file_path": "/app/recordings/capture_20251228_165637.wav",
+      "transcription_text": "You",
+      "language": "en",
+      "language_confidence": 0.439,
+      "segments": [
+        {
+          "start": 0.0,
+          "end": 2.0,
+          "text": " You"
+        }
+      ],
+      "status": "completed"
+    }
+  ]
+}
+```
+
+#### 2. Get Single Capture
+
+**Endpoint**: `GET /captures/<id>`
+
+Retrieve complete details of a specific capture by ID.
+
+**Example:**
+```bash
+curl "http://localhost:5000/captures/15"
+```
+
+**Response Format:**
+```json
+{
+  "status": "success",
+  "capture": {
+    "id": 15,
+    "uuid": "38a12c6b-36d9-4521-9f60-e36f3b6816b4",
+    "created_at": "Sun, 28 Dec 2025 16:56:51 GMT",
+    "updated_at": "Sun, 28 Dec 2025 16:56:51 GMT",
+    "frequency": 100000000,
+    "modulation": "FM",
+    "duration": 2,
+    "gain": 20,
+    "sample_rate": 2000000,
+    "audio_file_path": "/app/recordings/capture_20251228_165637.wav",
+    "json_file_path": "/app/recordings/capture_20251228_165637.json",
+    "file_size": 64044,
+    "transcription_text": "You",
+    "language": "en",
+    "language_confidence": 0.439,
+    "transcription_duration": 13.895,
+    "segments": [...],
+    "metadata": {
+      "capture_timestamp": "20251228_165637",
+      "audio_duration": 2.0
+    },
+    "status": "completed"
+  }
+}
+```
+
+#### 3. Database Statistics
+
+**Endpoint**: `GET /stats`
+
+Get overall database statistics.
+
+**Example:**
+```bash
+curl "http://localhost:5000/stats"
+```
+
+**Response Format:**
+```json
+{
+  "status": "success",
+  "statistics": {
+    "total_captures": 14,
+    "successful_transcriptions": 2,
+    "failed_captures": 0,
+    "unique_frequencies": 1,
+    "unique_languages": 2,
+    "first_capture": "Sun, 28 Dec 2025 16:56:04 GMT",
+    "last_capture": "Sun, 28 Dec 2025 16:56:51 GMT"
+  }
+}
+```
+
+**Statistics Explained:**
+- `total_captures` - Total number of recordings in database
+- `successful_transcriptions` - Captures with transcribed text
+- `failed_captures` - Captures that failed
+- `unique_frequencies` - Number of different frequencies captured
+- `unique_languages` - Number of different languages detected
+- `first_capture` - Timestamp of oldest capture
+- `last_capture` - Timestamp of newest capture
+
+#### 4. Frequency Usage Statistics
+
+**Endpoint**: `GET /stats/frequencies`
+
+Get most frequently used frequencies with usage counts.
+
+**Query Parameters:**
+- `limit` - Number of results (default: 10)
+
+**Example:**
+```bash
+curl "http://localhost:5000/stats/frequencies?limit=5"
+```
+
+**Response Format:**
+```json
+{
+  "status": "success",
+  "frequencies": [
+    {
+      "frequency": 100000000,
+      "capture_count": 14,
+      "last_used": "Sun, 28 Dec 2025 16:56:51 GMT",
+      "modulations": ["FM"]
+    },
+    {
+      "frequency": 118000000,
+      "capture_count": 5,
+      "last_used": "Sun, 28 Dec 2025 14:30:22 GMT",
+      "modulations": ["AM"]
+    }
+  ]
+}
+```
+
+This helps you identify:
+- Which frequencies you monitor most often
+- When each frequency was last used
+- Which modulation types work with each frequency
+
+### Using Database Search Features
+
+#### Full-Text Search
+
+The database uses PostgreSQL's powerful full-text search engine to find text in transcriptions.
+
+**How it works:**
+- Searches across all transcribed text
+- Automatically handles word variations (stemming)
+- Case-insensitive
+- Ignores common words (stop words like "the", "a", "is")
+
+**Search Tips:**
+
+1. **Single word search:**
+   ```bash
+   curl "http://localhost:5000/search?text=weather"
+   ```
+   Finds all captures mentioning "weather"
+
+2. **Multiple words:**
+   ```bash
+   curl "http://localhost:5000/search?text=traffic+update"
+   ```
+   Finds captures with both "traffic" and "update"
+
+3. **Exact phrases:**
+   For exact phrase matching, use the text filter and review results
+
+4. **Language-specific search:**
+   ```bash
+   curl "http://localhost:5000/search?text=wetter&language=de"
+   ```
+   Search for "wetter" only in German transcriptions
+
+#### Date Range Queries
+
+Find captures within specific time periods.
+
+**Today's captures:**
+```bash
+TODAY=$(date -I)
+curl "http://localhost:5000/search?start_date=${TODAY}T00:00:00&end_date=${TODAY}T23:59:59"
+```
+
+**Last 7 days:**
+```bash
+START=$(date -I -d '7 days ago')
+END=$(date -I)
+curl "http://localhost:5000/search?start_date=${START}T00:00:00&end_date=${END}T23:59:59"
+```
+
+**Specific date:**
+```bash
+curl "http://localhost:5000/search?start_date=2025-12-25T00:00:00&end_date=2025-12-25T23:59:59"
+```
+
+#### Frequency Analysis
+
+Find all captures on a specific frequency to analyze activity:
+
+```bash
+# All 100 MHz FM captures
+curl "http://localhost:5000/search?frequency=100000000&modulation=FM"
+
+# Aviation band captures (118 MHz)
+curl "http://localhost:5000/search?frequency=118000000&modulation=AM"
+```
+
+#### Pagination
+
+For large result sets, use pagination:
+
+**First page (20 results):**
+```bash
+curl "http://localhost:5000/search?limit=20&offset=0"
+```
+
+**Second page:**
+```bash
+curl "http://localhost:5000/search?limit=20&offset=20"
+```
+
+**Third page:**
+```bash
+curl "http://localhost:5000/search?limit=20&offset=40"
+```
+
+### Database Views
+
+The database includes pre-built views for common queries:
+
+1. **capture_statistics** - Real-time statistics
+2. **recent_captures** - Last 100 captures
+3. **frequency_usage** - Frequency usage breakdown
+
+These power the `/stats` endpoints but can also be queried directly if you need database access.
+
+### Data Migration
+
+If you had captures before the database was added, you can migrate them.
+
+**Run Migration Script:**
+
+From the project directory:
+```bash
+docker exec radio-transcription-api python3 migrate_json_to_db.py
+```
+
+Or with custom recordings directory:
+```bash
+docker exec radio-transcription-api python3 migrate_json_to_db.py --recordings-dir /path/to/recordings
+```
+
+**What happens:**
+- Scans recordings directory for JSON files
+- Reads each transcription file
+- Imports data into database
+- Preserves original timestamps from filenames
+- Shows progress and summary
+
+**Migration Output:**
+```
+Starting migration...
+Recordings directory: ./recordings
+
+Found 13 JSON files to migrate
+✓ Migrated: capture_20251228_154752.json -> ID 2
+✓ Migrated: capture_20251226_002913.json -> ID 3
+...
+==================================================
+Migration Complete!
+==================================================
+Migrated: 13
+Skipped:  0
+Errors:   0
+Total:    13
+```
+
+**Note:** Migration is safe to run multiple times - it won't create duplicates.
+
+### Database Backup and Maintenance
+
+#### Backing Up the Database
+
+**Create a backup:**
+```bash
+docker exec radio-postgres pg_dump -U radio_user radio_monitoring > backup_$(date +%Y%m%d).sql
+```
+
+This creates a SQL file with all your data.
+
+**Restore from backup:**
+```bash
+cat backup_20251228.sql | docker exec -i radio-postgres psql -U radio_user -d radio_monitoring
+```
+
+#### Cleaning Old Captures
+
+The database includes a cleanup function to remove old captures:
+
+**Via Python:**
+```python
+from database_service import get_database_service
+db = get_database_service()
+deleted = db.delete_old_captures(days_old=30)  # Delete captures older than 30 days
+print(f"Deleted {deleted} old captures")
+```
+
+**Via SQL (advanced users):**
+```bash
+docker exec radio-postgres psql -U radio_user -d radio_monitoring -c \
+  "DELETE FROM captures WHERE created_at < NOW() - INTERVAL '30 days'"
+```
+
+#### Database Size
+
+**Check database size:**
+```bash
+docker exec radio-postgres psql -U radio_user -d radio_monitoring -c \
+  "SELECT pg_size_pretty(pg_database_size('radio_monitoring'))"
+```
+
+**Check table size:**
+```bash
+docker exec radio-postgres psql -U radio_user -d radio_monitoring -c \
+  "SELECT pg_size_pretty(pg_total_relation_size('captures'))"
+```
+
+### Programming with the Database API
+
+The database API can be accessed from any programming language. Here are examples:
+
+#### Python
+
+```python
+import requests
+import json
+
+# Search for captures
+response = requests.get('http://localhost:5000/search', params={
+    'modulation': 'FM',
+    'limit': 10
+})
+data = response.json()
+
+for capture in data['results']:
+    print(f"ID: {capture['id']}")
+    print(f"Frequency: {capture['frequency']/1e6} MHz")
+    print(f"Text: {capture['transcription_text']}")
+    print("---")
+
+# Get statistics
+stats = requests.get('http://localhost:5000/stats').json()
+print(f"Total captures: {stats['statistics']['total_captures']}")
+```
+
+#### Bash/Shell Script
+
+```bash
+#!/bin/bash
+
+# Get today's captures and save to file
+TODAY=$(date -I)
+curl -s "http://localhost:5000/search?start_date=${TODAY}T00:00:00" | \
+  jq -r '.results[] | "\(.created_at) - \(.frequency) Hz - \(.transcription_text)"' > today_captures.txt
+
+# Get statistics
+curl -s "http://localhost:5000/stats" | jq '.statistics'
+```
+
+#### JavaScript/Node.js
+
+```javascript
+const axios = require('axios');
+
+async function searchCaptures() {
+  const response = await axios.get('http://localhost:5000/search', {
+    params: {
+      modulation: 'AM',
+      frequency: 118000000
+    }
+  });
+
+  console.log(`Found ${response.data.count} captures`);
+  response.data.results.forEach(capture => {
+    console.log(`${capture.created_at}: ${capture.transcription_text}`);
+  });
+}
+
+searchCaptures();
+```
+
+### Advanced Database Features
+
+#### Full-Text Search with pg_trgm
+
+The database uses the `pg_trgm` extension for fuzzy text matching. This allows:
+- Finding similar words even with typos
+- Partial word matching
+- Fast text search on large datasets
+
+#### JSONB Storage
+
+Transcription segments and metadata are stored in JSONB format, allowing:
+- Flexible schema for future enhancements
+- Fast queries on nested data
+- Efficient storage of complex structures
+
+#### Automatic Timestamps
+
+Every capture automatically records:
+- `created_at` - When the capture was saved
+- `updated_at` - When the record was last modified
+- Both use UTC timezone for consistency
+
+#### UUID Support
+
+Every capture gets a unique UUID in addition to the sequential ID:
+- IDs are sequential: 1, 2, 3, 4...
+- UUIDs are globally unique: `38a12c6b-36d9-4521-9f60-e36f3b6816b4`
+- Use UUIDs for distributed systems or external references
+
+### Database Schema
+
+For advanced users, here's the database structure:
+
+**Captures Table:**
+- `id` (integer) - Primary key, auto-increment
+- `uuid` (UUID) - Unique identifier
+- `created_at` (timestamp) - Creation timestamp
+- `updated_at` (timestamp) - Last update timestamp
+- `frequency` (bigint) - Frequency in Hz
+- `modulation` (varchar) - FM, AM, USB, or LSB
+- `duration` (integer) - Recording duration in seconds
+- `gain` (integer) - RF gain (0-47 dB)
+- `sample_rate` (integer) - Sample rate in Hz
+- `audio_file_path` (varchar) - Path to audio file
+- `json_file_path` (varchar) - Path to JSON file
+- `file_size` (bigint) - File size in bytes
+- `transcription_text` (text) - Transcribed text
+- `language` (varchar) - Detected language code
+- `language_confidence` (float) - Language detection confidence
+- `transcription_duration` (float) - Processing time
+- `segments` (JSONB) - Transcription segments with timestamps
+- `metadata` (JSONB) - Additional metadata
+- `status` (varchar) - completed, failed, etc.
+
+**Indices:**
+- Primary key on `id`
+- Unique index on `uuid`
+- Index on `created_at` (descending, for recent queries)
+- Index on `frequency` (for frequency searches)
+- Full-text index on `transcription_text` (for text search)
+- Trigram index on `transcription_text` (for fuzzy search)
 
 ---
 
@@ -523,6 +1070,105 @@ Modulation: FM
    docker-compose logs -f api
    ```
 
+### Problem: Database Not Saving Captures
+
+**Solution:**
+1. Check if PostgreSQL container is running:
+   ```bash
+   docker-compose ps postgres
+   ```
+
+2. Verify database is healthy:
+   ```bash
+   docker exec radio-postgres pg_isready -U radio_user
+   ```
+
+3. Check API logs for database connection errors:
+   ```bash
+   docker-compose logs radio-api | grep -i database
+   ```
+
+4. Verify statistics endpoint works:
+   ```bash
+   curl http://localhost:5000/stats
+   ```
+
+5. If database is down, restart it:
+   ```bash
+   docker-compose restart postgres
+   docker-compose restart radio-api
+   ```
+
+### Problem: Search Returns No Results
+
+**Possible Causes:**
+
+1. **No captures in database yet**
+   - Solution: Make at least one capture first
+   - Verify: `curl http://localhost:5000/stats`
+
+2. **Search text uses stop words**
+   - Stop words like "a", "the", "is", "you" are ignored
+   - Solution: Use more meaningful search terms
+
+3. **Date range too narrow**
+   - Solution: Expand date range or remove date filter
+
+4. **Wrong filter combination**
+   - Solution: Try searching without filters first
+
+### Problem: Migration Script Fails
+
+**Solution:**
+1. Verify recordings directory exists:
+   ```bash
+   docker exec radio-transcription-api ls -la /app/recordings/
+   ```
+
+2. Check for JSON files:
+   ```bash
+   docker exec radio-transcription-api find /app/recordings -name "*.json"
+   ```
+
+3. Verify database is accessible:
+   ```bash
+   curl http://localhost:5000/stats
+   ```
+
+4. Check migration script output for specific errors
+
+5. Run migration with verbose output:
+   ```bash
+   docker exec radio-transcription-api python3 -u migrate_json_to_db.py
+   ```
+
+### Problem: Database Running Out of Space
+
+**Solution:**
+1. Check database size:
+   ```bash
+   docker exec radio-postgres psql -U radio_user -d radio_monitoring -c \
+     "SELECT pg_size_pretty(pg_database_size('radio_monitoring'))"
+   ```
+
+2. Delete old captures (older than 30 days):
+   ```bash
+   docker exec radio-postgres psql -U radio_user -d radio_monitoring -c \
+     "DELETE FROM captures WHERE created_at < NOW() - INTERVAL '30 days'"
+   ```
+
+3. Delete old audio files:
+   ```bash
+   cd /home/spia/my-project/recordings
+   find . -name "*.wav" -mtime +30 -delete
+   find . -name "*.json" -mtime +30 -delete
+   ```
+
+4. Vacuum database to reclaim space:
+   ```bash
+   docker exec radio-postgres psql -U radio_user -d radio_monitoring -c "VACUUM FULL"
+   ```
+
 ---
 
 ## Best Practices
@@ -585,6 +1231,39 @@ Modulation: FM
      ls -lh  # View files
      rm old_file.wav  # Delete specific files
      ```
+
+### For Database Management
+
+1. **Regular backups**
+   - Backup database weekly or daily:
+     ```bash
+     docker exec radio-postgres pg_dump -U radio_user radio_monitoring > backup_$(date +%Y%m%d).sql
+     ```
+   - Keep backups in a safe location
+   - Test restore process periodically
+
+2. **Monitor database size**
+   - Check size monthly:
+     ```bash
+     curl http://localhost:5000/stats
+     ```
+   - Delete old captures if space is limited
+   - Vacuum database after large deletions
+
+3. **Use search efficiently**
+   - Combine filters to narrow results
+   - Use date ranges for large datasets
+   - Leverage pagination for better performance
+
+4. **Optimize queries**
+   - Search by frequency or modulation for faster results
+   - Full-text search is indexed and fast
+   - Date range queries use indexed timestamps
+
+5. **Data retention policy**
+   - Decide how long to keep captures
+   - Set up automated cleanup scripts
+   - Balance disk space vs. historical data needs
 
 ### Legal and Ethical Considerations
 
@@ -651,6 +1330,7 @@ Modulation: FM
 |---------|-----|-------------|
 | Web Interface | http://localhost:8080 | None |
 | API | http://localhost:5000 | None |
+| PostgreSQL | localhost:5432 | radio_user/radio_password_change_in_production |
 | Grafana | http://localhost:3000 | admin/admin |
 | Prometheus | http://localhost:9090 | None |
 | N8N | http://localhost:5678 | admin/admin |
@@ -676,6 +1356,19 @@ docker-compose ps
 
 # Check HackRF
 hackrf_info
+
+# Database commands
+# - Get statistics
+curl http://localhost:5000/stats
+
+# - Search captures
+curl "http://localhost:5000/search?modulation=FM&limit=10"
+
+# - Migrate JSON files
+docker exec radio-transcription-api python3 migrate_json_to_db.py
+
+# - Backup database
+docker exec radio-postgres pg_dump -U radio_user radio_monitoring > backup.sql
 ```
 
 ---
@@ -752,4 +1445,13 @@ If you encounter issues not covered in this manual:
 **End of User Manual**
 
 *Last Updated: December 2025*
-*System Version: 1.0*
+*System Version: 2.0 - Now with PostgreSQL Database*
+
+**New in Version 2.0:**
+- PostgreSQL database for permanent storage
+- Full-text search across all captures
+- Advanced filtering by frequency, modulation, language, and date
+- Database statistics and analytics
+- REST API endpoints for programmatic access
+- Historical data migration from JSON files
+- Database backup and maintenance tools
