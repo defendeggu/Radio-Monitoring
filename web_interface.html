@@ -362,7 +362,7 @@
 
                 const data = await response.json();
 
-                if (response.ok && data.text) {
+                if (response.ok && data.status === 'success') {
                     showStatus('Transcription completed successfully!', 'success');
                     displayResult(data);
                 } else {
@@ -378,13 +378,17 @@
         });
 
         function displayResult(data) {
+            const transcription = data.transcription || data;
+            const transcriptionText = transcription.text || '';
+            const displayText = transcriptionText.trim() || 'No speech detected (silence or noise only)';
+
             resultDiv.innerHTML = `
                 <h3>📝 Transcription Result</h3>
-                <div class="transcription-text">${data.text || 'No text detected'}</div>
+                <div class="transcription-text">${displayText}</div>
                 <div class="metadata">
                     <div class="metadata-item">
                         <div class="metadata-label">Language</div>
-                        <div class="metadata-value">${data.language || 'N/A'}</div>
+                        <div class="metadata-value">${transcription.language || 'N/A'}</div>
                     </div>
                     <div class="metadata-item">
                         <div class="metadata-label">Duration</div>
