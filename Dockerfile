@@ -22,6 +22,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY radio_capture.py .
 COPY transcription_service.py .
 COPY api_service.py .
+COPY database_service.py .
+COPY migrate_json_to_db.py .
 COPY .env.example .env
 
 # Create recordings directory

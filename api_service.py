@@ -15,6 +15,7 @@ from prometheus_flask_exporter import PrometheusMetrics
 from prometheus_client import Counter, Histogram, Gauge
 from radio_capture import HackRFCapture
 from transcription_service import TranscriptionService
+from database_service import get_database_service
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -258,6 +259,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         json_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.json')
 
         # Step 1: Capture
+        capture_start = time.time()
         capture_instance = HackRFCapture(
             frequency=frequency,
             sample_rate=sample_rate,
@@ -267,12 +269,41 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         capture_instance.capture(duration, audio_file)
 
         # Step 2: Transcribe
+        transcribe_start = time.time()
         service = get_transcription_service()
         transcription_result = service.transcribe_and_save(
             audio_file,
             json_file,
             language
         )
+        transcribe_duration = time.time() - transcribe_start
+
+        # Step 3: Save to database
+        try:
+            db = get_database_service()
+            file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+
+            db.save_capture(
+                frequency=int(frequency),
+                modulation=modulation,
+                duration=duration,
+                gain=gain,
+                sample_rate=sample_rate,
+                audio_file_path=audio_file,
+                json_file_path=json_file,
+                file_size=file_size,
+                transcription_text=transcription_result.get('text'),
+                language=transcription_result.get('language'),
+                language_confidence=transcription_result.get('language_probability'),
+                segments=transcription_result.get('segments'),
+                transcription_duration=transcribe_duration,
+                metadata={
+                    'capture_timestamp': timestamp,
+                    'audio_duration': transcription_result.get('duration')
+                }
+            )
+        except Exception as db_error:
+            print(f"Warning: Could not save to database: {db_error}")
 
         return jsonify({
             'status': 'success',
@@ -313,6 +344,112 @@ def list_recordings() -> Response | tuple[Response, int]:
         files.sort(key=lambda x: x['created'], reverse=True)
 
         return jsonify({'recordings': files})
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/search', methods=['GET'])
+def search_captures() -> Response | tuple[Response, int]:
+    """
+    Search captures in database
+
+    Query parameters:
+    - text: Full-text search query
+    - frequency: Filter by frequency
+    - modulation: Filter by modulation (FM, AM, USB, LSB)
+    - language: Filter by language
+    - start_date: Filter by start date (ISO format)
+    - end_date: Filter by end date (ISO format)
+    - limit: Maximum results (default 100)
+    - offset: Offset for pagination (default 0)
+    """
+    try:
+        db = get_database_service()
+
+        # Get query parameters
+        text_query = request.args.get('text')
+        frequency = request.args.get('frequency', type=int)
+        modulation = request.args.get('modulation')
+        language = request.args.get('language')
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+
+        # Convert dates if provided
+        start_dt = datetime.fromisoformat(start_date) if start_date else None
+        end_dt = datetime.fromisoformat(end_date) if end_date else None
+
+        # Search
+        results = db.search_captures(
+            text_query=text_query,
+            frequency=frequency,
+            modulation=modulation,
+            language=language,
+            start_date=start_dt,
+            end_date=end_dt,
+            limit=limit,
+            offset=offset
+        )
+
+        return jsonify({
+            'status': 'success',
+            'count': len(results),
+            'results': results
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/captures/<int:capture_id>', methods=['GET'])
+def get_capture(capture_id: int) -> Response | tuple[Response, int]:
+    """Get a single capture by ID"""
+    try:
+        db = get_database_service()
+        result = db.get_capture_by_id(capture_id)
+
+        if result is None:
+            return jsonify({'error': 'Capture not found'}), 404
+
+        return jsonify({
+            'status': 'success',
+            'capture': result
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stats', methods=['GET'])
+def get_statistics() -> Response | tuple[Response, int]:
+    """Get database statistics"""
+    try:
+        db = get_database_service()
+        stats = db.get_statistics()
+
+        return jsonify({
+            'status': 'success',
+            'statistics': stats
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stats/frequencies', methods=['GET'])
+def get_frequency_stats() -> Response | tuple[Response, int]:
+    """Get frequency usage statistics"""
+    try:
+        db = get_database_service()
+        limit = request.args.get('limit', 10, type=int)
+        frequencies = db.get_frequency_usage(limit=limit)
+
+        return jsonify({
+            'status': 'success',
+            'frequencies': frequencies
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500
