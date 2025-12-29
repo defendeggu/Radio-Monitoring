@@ -9,29 +9,32 @@ A complete professional radio monitoring system for capturing radio signals from
 - **Multiple Modulation Support**: FM, AM, USB, LSB
 - **Speech-to-Text**: Automatic transcription using faster-whisper
 - **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
-- **Dual Processing Modes**: Voice transcription or APRS packet decoding from the same capture workflow
-- **Web Interface**: Easy-to-use control panel for selecting frequency, modulation, and processing mode
+- **POCSAG Pager Decoding**: Decode POCSAG pager messages (512, 1200, 2400 baud) using multimon-ng
+- **Triple Processing Modes**: Voice transcription, APRS packet decoding, or POCSAG pager decoding from the same capture workflow
+- **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, and POCSAG
 - **N8N Integration**: Workflow automation for orchestrating capture and transcription
 - **REST API**: Flask-based API for programmatic access
 - **Docker Support**: Complete Docker setup for easy deployment
 
 ### Database & Analytics (NEW)
 - **PostgreSQL Database**: Permanent storage of all captures with full metadata
-- **Full-Text Search**: Search through all transcriptions and APRS messages with PostgreSQL full-text search
+- **Full-Text Search**: Search through all transcriptions, APRS, and POCSAG messages with PostgreSQL full-text search
 - **APRS Message Storage**: Dedicated table for APRS packets with callsign, position, message data
+- **POCSAG Message Storage**: Dedicated table for POCSAG pager messages with address, function code, message type, and baud rate
 - **Geospatial Indexing**: Efficient queries for APRS station positions using PostGIS-compatible GIST indices
-- **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, date range
+- **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, message type, date range
 - **Database API**: REST endpoints for searching and analyzing historical data
-- **Statistics & Analytics**: Frequency usage, language distribution, APRS statistics, success rates
+- **Statistics & Analytics**: Frequency usage, language distribution, APRS statistics, POCSAG statistics, success rates
 - **Data Migration**: Import existing JSON transcriptions into database
 
 ### Monitoring & Visualization (NEW)
 - **Grafana Dashboards**: Professional monitoring and data visualization
 - **Database Browser**: Interactive dashboard to browse, search, and filter all captures
 - **APRS Dashboard**: Dedicated dashboard with station map, packet statistics, and callsign analytics
+- **POCSAG Dashboard**: Dedicated dashboard with pager address analytics, message type distribution, baud rate statistics, and timeline visualization
 - **Statistics Dashboard**: Real-time metrics and performance monitoring
 - **pgAdmin 4**: Full-featured PostgreSQL database management web interface
-- **Prometheus Metrics**: System performance, API metrics, and APRS decode statistics
+- **Prometheus Metrics**: System performance, API metrics, APRS decode statistics, and POCSAG decode statistics
 - **cAdvisor**: Container resource monitoring
 
 ## Architecture
@@ -63,20 +66,24 @@ A complete professional radio monitoring system for capturing radio signals from
             │  /aprs/search (APRS Search)     │
             │  /aprs/stats (APRS Analytics)   │
             │  /aprs/map (GeoJSON Map Data)   │
+            │  /pocsag/search (POCSAG Search) │
+            │  /pocsag/stats (POCSAG Stats)   │
+            │  /pocsag/messages (Recent Msgs) │
             │  /stats (Analytics)             │
             │  /captures/<id>                 │
             ├─────────────────────────────────┤
             │      Radio Capture              │◄─── HackRF Device
             ├─────────────────────────────────┤
-            │  Mode: Voice  │  Mode: APRS     │
-            │  ┌──────────┐ │ ┌─────────────┐ │
-            │  │ faster-  │ │ │  direwolf   │ │
-            │  │ whisper  │ │ │ APRS Decode │ │
-            │  └──────────┘ │ └─────────────┘ │
+            │ Voice Mode │ APRS Mode │POCSAG │
+            │ ┌────────┐ │┌────────┐│┌──────┐│
+            │ │faster- │ ││direwolf││multi-││
+            │ │whisper │ ││  APRS  ││mon-ng││
+            │ └────────┘ │└────────┘│└──────┘│
             ├─────────────────────────────────┤
             │   Database Service              │
             │   (PostgreSQL Client)           │
             │   captures + aprs_messages      │
+            │            + pocsag_messages    │
             └─────────────────────────────────┘
                      │
                      ▼
@@ -145,13 +152,14 @@ sudo apt-get install -y \
     build-essential \
     python3-pip \
     direwolf \
+    multimon-ng \
     libasound2-dev \
     cmake
 ```
 
 **macOS:**
 ```bash
-brew install hackrf direwolf
+brew install hackrf direwolf multimon-ng
 ```
 
 ### Python Dependencies
@@ -273,6 +281,34 @@ curl -X GET "http://localhost:5000/aprs/stats"
 curl -X GET "http://localhost:5000/aprs/map"
 ```
 
+**Capture and decode POCSAG:**
+```bash
+curl -X POST http://localhost:5000/capture-and-transcribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency": 147325000,
+    "modulation": "FM",
+    "duration": 300,
+    "gain": 20,
+    "mode": "pocsag"
+  }'
+```
+
+**Search POCSAG messages:**
+```bash
+curl -X GET "http://localhost:5000/pocsag/search?address=1234567&limit=50"
+```
+
+**Get POCSAG statistics:**
+```bash
+curl -X GET "http://localhost:5000/pocsag/stats"
+```
+
+**Get recent POCSAG messages:**
+```bash
+curl -X GET "http://localhost:5000/pocsag/messages?limit=20"
+```
+
 ### N8N Workflow
 
 1. Access N8N at http://localhost:5678
@@ -333,6 +369,15 @@ The web interface includes common frequency presets:
 - **APRS North America**: 144.390 MHz (FM)
 - **APRS Japan**: 144.660 MHz (FM)
 - **APRS Australia**: 145.175 MHz (FM)
+
+**POCSAG Pager Decoding:**
+- **Switzerland**: 147.325 MHz (FM) - Primary Swiss pager frequency
+- **Preset 2**: 466.075 MHz (FM)
+- **Preset 3**: 439.9875 MHz (FM)
+- **Preset 4**: 161.425 MHz (FM)
+- **Custom**: Enter your own frequency
+
+Note: POCSAG frequency presets can be customized in `web_interface.html`. Consult your local frequency allocation guides for active pager frequencies in your region.
 
 ## Modulation Types
 
@@ -407,8 +452,11 @@ The API can be integrated with:
 .
 ├── radio_capture.py           # HackRF capture service
 ├── transcription_service.py   # faster-whisper transcription
+├── aprs_decoder_service.py    # APRS decoder using direwolf
+├── pocsag_decoder_service.py  # POCSAG decoder using multimon-ng
 ├── api_service.py             # Flask REST API with database integration
-├── web_interface.html         # Web control panel
+├── database_service.py        # PostgreSQL database client
+├── web_interface.html         # Web control panel (tabbed: Voice/APRS/POCSAG)
 ├── database/
 │   ├── init.sql              # PostgreSQL database schema
 │   └── migrations/           # Database migration scripts
@@ -416,7 +464,9 @@ The API can be integrated with:
 │   ├── grafana/
 │   │   ├── dashboards/       # Grafana dashboard JSON files
 │   │   │   ├── radio-database-browser.json
-│   │   │   └── database-statistics.json
+│   │   │   ├── database-statistics.json
+│   │   │   ├── aprs-dashboard.json
+│   │   │   └── pocsag-dashboard.json
 │   │   └── provisioning/     # Auto-provisioning configs
 │   │       └── datasources/
 │   │           └── postgres.yml

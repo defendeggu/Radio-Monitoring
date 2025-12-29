@@ -16,6 +16,7 @@ from prometheus_client import Counter, Histogram, Gauge
 from radio_capture import HackRFCapture
 from transcription_service import TranscriptionService
 from aprs_decoder_service import APRSDecoder
+from pocsag_decoder_service import POCSAGDecoder
 from database_service import get_database_service
 from dotenv import load_dotenv
 
@@ -96,6 +97,18 @@ aprs_packets_decoded = Counter(
     'Total APRS packets decoded'
 )
 
+# POCSAG metrics
+pocsag_decodes_total = Counter(
+    'pocsag_decodes_total',
+    'Total POCSAG decode operations',
+    ['status']
+)
+
+pocsag_messages_decoded = Counter(
+    'pocsag_messages_decoded',
+    'Total POCSAG messages decoded'
+)
+
 # Configuration
 RECORDING_DIR = os.getenv('AUDIO_OUTPUT_DIR', './recordings')
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', 'base')
@@ -128,6 +141,18 @@ def get_aprs_decoder() -> APRSDecoder:
     if aprs_decoder is None:
         aprs_decoder = APRSDecoder()
     return aprs_decoder
+
+
+# Initialize POCSAG decoder
+pocsag_decoder: POCSAGDecoder | None = None
+
+
+def get_pocsag_decoder() -> POCSAGDecoder:
+    """Lazy load POCSAG decoder service"""
+    global pocsag_decoder
+    if pocsag_decoder is None:
+        pocsag_decoder = POCSAGDecoder()
+    return pocsag_decoder
 
 
 @app.route('/health', methods=['GET'])
@@ -281,8 +306,8 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         language = data.get('language')
 
         # Validate mode
-        if mode not in ['voice', 'aprs']:
-            return jsonify({'error': 'mode must be "voice" or "aprs"'}), 400
+        if mode not in ['voice', 'aprs', 'pocsag']:
+            return jsonify({'error': 'mode must be "voice", "aprs", or "pocsag"'}), 400
 
         # Generate output filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
@@ -362,6 +387,69 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             except Exception as e:
                 aprs_decodes_total.labels(status='error').inc()
                 return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
+
+        elif mode == 'pocsag':
+            # POCSAG decoding
+            try:
+                decode_start = time.time()
+                decoder = get_pocsag_decoder()
+                messages = decoder.decode(audio_file)
+                decode_duration = time.time() - decode_start
+
+                # Save to database
+                db = get_database_service()
+                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+
+                capture_id = db.save_capture(
+                    frequency=int(frequency),
+                    modulation=modulation,
+                    duration=duration,
+                    gain=gain,
+                    sample_rate=sample_rate,
+                    audio_file_path=audio_file,
+                    json_file_path=None,
+                    file_size=file_size,
+                    transcription_text=None,
+                    language=None,
+                    language_confidence=None,
+                    segments=None,
+                    transcription_duration=decode_duration,
+                    metadata={
+                        'mode': 'pocsag',
+                        'message_count': len(messages),
+                        'capture_timestamp': timestamp
+                    }
+                )
+
+                # Save POCSAG messages
+                if capture_id > 0:
+                    message_ids = db.save_pocsag_capture(capture_id, messages)
+                    print(f"Saved {len(message_ids)} POCSAG messages to database")
+
+                # Metrics
+                pocsag_decodes_total.labels(status='success').inc()
+                pocsag_messages_decoded.inc(len(messages))
+
+                return jsonify({
+                    'status': 'success',
+                    'mode': 'pocsag',
+                    'capture': {
+                        'id': capture_id,
+                        'audio_file': audio_file,
+                        'frequency': frequency,
+                        'modulation': modulation,
+                        'duration': duration
+                    },
+                    'pocsag': {
+                        'message_count': len(messages),
+                        'messages': messages
+                    },
+                    'timestamp': datetime.now().isoformat()
+                })
+
+            except Exception as e:
+                pocsag_decodes_total.labels(status='error').inc()
+                return jsonify({'error': f'POCSAG decode error: {str(e)}'}), 500
 
         else:
             # Voice transcription (existing logic)
@@ -666,6 +754,102 @@ def get_aprs_map_data() -> Response | tuple[Response, int]:
         }
 
         return jsonify(geojson)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/pocsag/search', methods=['GET'])
+def search_pocsag() -> Response | tuple[Response, int]:
+    """
+    Search POCSAG messages in database
+
+    Query parameters:
+    - address: Filter by pager address
+    - text: Full-text search in message text
+    - type: Filter by message type (alphanumeric, numeric, tone)
+    - baud: Filter by baud rate (512, 1200, 2400)
+    - start_date: Filter by start date (ISO format)
+    - end_date: Filter by end date (ISO format)
+    - limit: Maximum results (default 100)
+    - offset: Offset for pagination (default 0)
+    """
+    try:
+        db = get_database_service()
+
+        # Get query parameters
+        address = request.args.get('address', type=int)
+        text = request.args.get('text')
+        message_type = request.args.get('type')
+        baud_rate = request.args.get('baud', type=int)
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        limit = request.args.get('limit', 100, type=int)
+        offset = request.args.get('offset', 0, type=int)
+
+        # Convert dates if provided
+        start_dt = datetime.fromisoformat(start_date) if start_date else None
+        end_dt = datetime.fromisoformat(end_date) if end_date else None
+
+        # Search
+        results = db.search_pocsag_messages(
+            address=address,
+            message_text=text,
+            message_type=message_type,
+            baud_rate=baud_rate,
+            start_date=start_dt,
+            end_date=end_dt,
+            limit=limit,
+            offset=offset
+        )
+
+        return jsonify({
+            'status': 'success',
+            'count': len(results),
+            'results': results
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/pocsag/stats', methods=['GET'])
+def get_pocsag_stats() -> Response | tuple[Response, int]:
+    """Get POCSAG statistics"""
+    try:
+        db = get_database_service()
+        stats = db.get_pocsag_statistics()
+
+        return jsonify({
+            'status': 'success',
+            'statistics': stats
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/pocsag/messages', methods=['GET'])
+def get_pocsag_messages() -> Response | tuple[Response, int]:
+    """
+    Get recent POCSAG messages
+
+    Query parameters:
+    - limit: Maximum results (default 50)
+    - offset: Offset for pagination (default 0)
+    """
+    try:
+        db = get_database_service()
+        limit = request.args.get('limit', 50, type=int)
+        offset = request.args.get('offset', 0, type=int)
+
+        results = db.search_pocsag_messages(limit=limit, offset=offset)
+
+        return jsonify({
+            'status': 'success',
+            'count': len(results),
+            'messages': results
+        })
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

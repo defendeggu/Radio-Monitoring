@@ -41,9 +41,9 @@ CREATE TABLE IF NOT EXISTS captures (
     error_message TEXT
 );
 
--- Add mode column for APRS support
+-- Add mode column for APRS and POCSAG support
 ALTER TABLE captures ADD COLUMN IF NOT EXISTS mode VARCHAR(20) DEFAULT 'voice'
-    CHECK (mode IN ('voice', 'aprs'));
+    CHECK (mode IN ('voice', 'aprs', 'pocsag'));
 
 -- Create indices for performance
 CREATE INDEX IF NOT EXISTS idx_captures_created_at ON captures(created_at DESC);
@@ -125,6 +125,50 @@ CREATE INDEX IF NOT EXISTS idx_aprs_message_text_gin ON aprs_messages
 -- JSONB queries
 CREATE INDEX IF NOT EXISTS idx_aprs_data_gin ON aprs_messages USING gin(aprs_data);
 
+-- Create POCSAG messages table
+CREATE TABLE IF NOT EXISTS pocsag_messages (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+
+    -- Link to parent capture
+    capture_id INTEGER NOT NULL REFERENCES captures(id) ON DELETE CASCADE,
+
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    decoded_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+
+    -- POCSAG message data
+    address BIGINT NOT NULL CHECK (address >= 0),
+    function_code INTEGER NOT NULL CHECK (function_code >= 0 AND function_code <= 3),
+    message_type VARCHAR(20) NOT NULL CHECK (message_type IN ('alphanumeric', 'numeric', 'tone')),
+    message_text TEXT,
+    baud_rate INTEGER NOT NULL CHECK (baud_rate IN (512, 1200, 2400)),
+
+    -- Raw packet data
+    raw_packet TEXT NOT NULL,
+
+    -- Extended data as JSON for future extensibility
+    pocsag_data JSONB,
+
+    -- Quality metrics
+    signal_strength INTEGER,
+    decode_confidence FLOAT
+);
+
+-- Indices for POCSAG messages
+CREATE INDEX IF NOT EXISTS idx_pocsag_capture_id ON pocsag_messages(capture_id);
+CREATE INDEX IF NOT EXISTS idx_pocsag_address ON pocsag_messages(address);
+CREATE INDEX IF NOT EXISTS idx_pocsag_created_at ON pocsag_messages(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_pocsag_message_type ON pocsag_messages(message_type);
+CREATE INDEX IF NOT EXISTS idx_pocsag_baud_rate ON pocsag_messages(baud_rate);
+
+-- Full-text search on message text
+CREATE INDEX IF NOT EXISTS idx_pocsag_message_text_gin ON pocsag_messages
+    USING gin(to_tsvector('english', COALESCE(message_text, '')));
+
+-- JSONB queries
+CREATE INDEX IF NOT EXISTS idx_pocsag_data_gin ON pocsag_messages USING gin(pocsag_data);
+
 -- Create function to update updated_at timestamp
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -143,6 +187,12 @@ CREATE TRIGGER update_captures_updated_at
 -- Create trigger for APRS messages updated_at
 CREATE TRIGGER update_aprs_messages_updated_at
     BEFORE UPDATE ON aprs_messages
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Create trigger for POCSAG messages updated_at
+CREATE TRIGGER update_pocsag_messages_updated_at
+    BEFORE UPDATE ON pocsag_messages
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
@@ -199,6 +249,23 @@ FROM aprs_messages
 GROUP BY DATE(created_at)
 ORDER BY packet_date DESC;
 
+-- Create view for POCSAG statistics
+CREATE OR REPLACE VIEW pocsag_statistics AS
+SELECT
+    COUNT(*) as total_messages,
+    COUNT(DISTINCT address) as unique_addresses,
+    COUNT(DISTINCT capture_id) as total_captures,
+    COUNT(CASE WHEN message_type = 'alphanumeric' THEN 1 END) as alphanumeric_messages,
+    COUNT(CASE WHEN message_type = 'numeric' THEN 1 END) as numeric_messages,
+    COUNT(CASE WHEN message_type = 'tone' THEN 1 END) as tone_messages,
+    COUNT(CASE WHEN baud_rate = 512 THEN 1 END) as messages_512,
+    COUNT(CASE WHEN baud_rate = 1200 THEN 1 END) as messages_1200,
+    COUNT(CASE WHEN baud_rate = 2400 THEN 1 END) as messages_2400,
+    DATE(created_at) as message_date
+FROM pocsag_messages
+GROUP BY DATE(created_at)
+ORDER BY message_date DESC;
+
 -- Insert initial metadata
 INSERT INTO captures (
     frequency,
@@ -233,7 +300,8 @@ BEGIN
     RAISE NOTICE 'Radio Monitoring Database initialized successfully!';
     RAISE NOTICE 'Database: radio_monitoring';
     RAISE NOTICE 'User: radio_user';
-    RAISE NOTICE 'Tables created: captures, aprs_messages';
-    RAISE NOTICE 'Views created: capture_statistics, recent_captures, frequency_usage, aprs_statistics';
+    RAISE NOTICE 'Tables created: captures, aprs_messages, pocsag_messages';
+    RAISE NOTICE 'Views created: capture_statistics, recent_captures, frequency_usage, aprs_statistics, pocsag_statistics';
     RAISE NOTICE 'APRS support: enabled';
+    RAISE NOTICE 'POCSAG support: enabled';
 END $$;

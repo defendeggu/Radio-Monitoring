@@ -261,224 +261,475 @@
         .aprs-table tbody tr:last-child td {
             border-bottom: none;
         }
+
+        .nav-tabs {
+            display: flex;
+            gap: 0;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #ddd;
+        }
+
+        .nav-tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: #f0f0f0;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+            border-bottom: 3px solid transparent;
+        }
+
+        .nav-tab:hover {
+            background: #e0e0e0;
+            color: #333;
+        }
+
+        .nav-tab.active {
+            background: white;
+            color: #4a5568;
+            border-bottom: 3px solid #4a5568;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .pocsag-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            background: white;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        .pocsag-table th,
+        .pocsag-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .pocsag-table th {
+            background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+            color: white;
+            font-weight: 600;
+            font-size: 14px;
+            text-transform: uppercase;
+        }
+
+        .pocsag-table tbody tr:hover {
+            background-color: #f5f5f5;
+        }
+
+        .pocsag-table tbody tr:last-child td {
+            border-bottom: none;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>📻 Radio Transcription Control Panel</h1>
-        <p class="subtitle">HackRF + faster-whisper + N8N</p>
+        <h1>📻 Radio Monitoring Control Panel</h1>
+        <p class="subtitle">HackRF + faster-whisper + APRS + POCSAG</p>
 
-        <div class="preset-buttons">
-            <div class="preset-btn" onclick="setPreset(88500000, 'FM')">
-                <div class="preset-btn-title">FM Radio</div>
-                <div class="preset-btn-freq">88.5 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPreset(118000000, 'AM')">
-                <div class="preset-btn-title">Flugfunk</div>
-                <div class="preset-btn-freq">118.00 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPreset(145500000, 'FM')">
-                <div class="preset-btn-title">Amateur 2m</div>
-                <div class="preset-btn-freq">145.500 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPreset(433500000, 'FM')">
-                <div class="preset-btn-title">Amateur 70cm</div>
-                <div class="preset-btn-freq">433.50 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPreset(446006250, 'FM')">
-                <div class="preset-btn-title">PMR</div>
-                <div class="preset-btn-freq">446.00625 MHz</div>
-            </div>
-            <div class="preset-btn" onclick="setPresetAPRS()">
-                <div class="preset-btn-title">APRS</div>
-                <div class="preset-btn-freq">Packet Radio</div>
-            </div>
+        <div class="nav-tabs">
+            <button class="nav-tab active" onclick="switchTab('voice')">🎤 Voice Transcription</button>
+            <button class="nav-tab" onclick="switchTab('aprs')">📡 APRS</button>
+            <button class="nav-tab" onclick="switchTab('pocsag')">📟 POCSAG</button>
         </div>
 
-        <form id="captureForm">
-            <div class="form-group">
-                <label for="frequency">Frequency (Hz)</label>
-                <input type="number" id="frequency" name="frequency" value="100000000" required>
-                <div class="hint">Example: 100000000 = 100 MHz</div>
+        <!-- Voice Transcription Tab -->
+        <div id="voiceTab" class="tab-content active">
+            <div class="preset-buttons">
+                <div class="preset-btn" onclick="setPreset(88500000, 'FM')">
+                    <div class="preset-btn-title">FM Radio</div>
+                    <div class="preset-btn-freq">88.5 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPreset(118000000, 'AM')">
+                    <div class="preset-btn-title">Flugfunk</div>
+                    <div class="preset-btn-freq">118.00 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPreset(145500000, 'FM')">
+                    <div class="preset-btn-title">Amateur 2m</div>
+                    <div class="preset-btn-freq">145.500 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPreset(433500000, 'FM')">
+                    <div class="preset-btn-title">Amateur 70cm</div>
+                    <div class="preset-btn-freq">433.50 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPreset(446006250, 'FM')">
+                    <div class="preset-btn-title">PMR</div>
+                    <div class="preset-btn-freq">446.00625 MHz</div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="modulation">Modulation</label>
-                <select id="modulation" name="modulation">
-                    <option value="FM">FM (Frequency Modulation)</option>
-                    <option value="AM">AM (Amplitude Modulation)</option>
-                    <option value="USB">USB (Upper Sideband)</option>
-                    <option value="LSB">LSB (Lower Sideband)</option>
-                </select>
+            <form id="voiceForm">
+                <div class="form-group">
+                    <label for="voiceFrequency">Frequency (Hz)</label>
+                    <input type="number" id="voiceFrequency" name="frequency" value="100000000" required>
+                    <div class="hint">Example: 100000000 = 100 MHz</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="voiceModulation">Modulation</label>
+                    <select id="voiceModulation" name="modulation">
+                        <option value="FM">FM (Frequency Modulation)</option>
+                        <option value="AM">AM (Amplitude Modulation)</option>
+                        <option value="USB">USB (Upper Sideband)</option>
+                        <option value="LSB">LSB (Lower Sideband)</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
+                    <label for="voiceDuration">Duration (seconds)</label>
+                    <input type="number" id="voiceDuration" name="duration" value="30" min="5" max="300" required>
+                    <div class="hint">Recording duration: 5-300 seconds</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="voiceGain">RF Gain (dB)</label>
+                    <input type="number" id="voiceGain" name="gain" value="20" min="0" max="47" required>
+                    <div class="hint">RF gain: 0-47 dB</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="voiceLanguage">Language (optional)</label>
+                    <input type="text" id="voiceLanguage" name="language" placeholder="en">
+                    <div class="hint">Leave empty for auto-detection (e.g., en, es, fr, de)</div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">
+                        Start Recording & Transcription
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="resetVoiceForm()">
+                        Reset
+                    </button>
+                </div>
+            </form>
+
+            <div id="voiceStatus" class="status"></div>
+            <div id="voiceResult" class="transcription-result"></div>
+        </div>
+
+        <!-- APRS Tab -->
+        <div id="aprsTab" class="tab-content">
+            <div class="preset-buttons">
+                <div class="preset-btn" onclick="setAPRSRegion('144800000')">
+                    <div class="preset-btn-title">Europe</div>
+                    <div class="preset-btn-freq">144.800 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setAPRSRegion('144390000')">
+                    <div class="preset-btn-title">North America</div>
+                    <div class="preset-btn-freq">144.390 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setAPRSRegion('144660000')">
+                    <div class="preset-btn-title">Japan</div>
+                    <div class="preset-btn-freq">144.660 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setAPRSRegion('145175000')">
+                    <div class="preset-btn-title">Australia</div>
+                    <div class="preset-btn-freq">145.175 MHz</div>
+                </div>
             </div>
 
-            <div class="form-group">
-                <label for="mode">Processing Mode</label>
-                <select id="mode" name="mode" onchange="toggleModeUI()">
-                    <option value="voice">Voice Transcription</option>
-                    <option value="aprs">APRS Decode</option>
-                </select>
-                <div class="hint">Select processing type for captured audio</div>
+            <form id="aprsForm">
+                <div class="form-group">
+                    <label for="aprsFrequency">Frequency (Hz)</label>
+                    <input type="number" id="aprsFrequency" name="frequency" value="144800000" required>
+                    <div class="hint">APRS frequency for selected region</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="aprsDuration">Duration (seconds)</label>
+                    <input type="number" id="aprsDuration" name="duration" value="300" min="60" max="300" required>
+                    <div class="hint">Recommended: 300s for APRS packet capture</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="aprsGain">RF Gain (dB)</label>
+                    <input type="number" id="aprsGain" name="gain" value="20" min="0" max="47" required>
+                    <div class="hint">RF gain: 0-47 dB</div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">
+                        Start APRS Capture
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="resetAPRSForm()">
+                        Reset
+                    </button>
+                </div>
+            </form>
+
+            <div id="aprsStatus" class="status"></div>
+            <div id="aprsResult" class="transcription-result"></div>
+        </div>
+
+        <!-- POCSAG Tab -->
+        <div id="pocsagTab" class="tab-content">
+            <div class="preset-buttons">
+                <div class="preset-btn" onclick="setPOCSAGFrequency('147325000')">
+                    <div class="preset-btn-title">Switzerland</div>
+                    <div class="preset-btn-freq">147.325 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPOCSAGFrequency('466075000')">
+                    <div class="preset-btn-title">Preset 2</div>
+                    <div class="preset-btn-freq">466.075 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPOCSAGFrequency('439987500')">
+                    <div class="preset-btn-title">Preset 3</div>
+                    <div class="preset-btn-freq">439.9875 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setPOCSAGFrequency('161425000')">
+                    <div class="preset-btn-title">Preset 4</div>
+                    <div class="preset-btn-freq">161.425 MHz</div>
+                </div>
             </div>
 
-            <div class="form-group" id="aprsRegionGroup" style="display: none;">
-                <label for="aprsRegion">APRS Region</label>
-                <select id="aprsRegion" name="aprsRegion" onchange="updateAPRSFrequency()">
-                    <option value="144800000">Europe (144.800 MHz)</option>
-                    <option value="144390000">North America (144.390 MHz)</option>
-                    <option value="144660000">Japan (144.660 MHz)</option>
-                    <option value="145175000">Australia (145.175 MHz)</option>
-                </select>
-                <div class="hint">Select APRS frequency region</div>
-            </div>
+            <form id="pocsagForm">
+                <div class="form-group">
+                    <label for="pocsagFrequency">Frequency (Hz)</label>
+                    <input type="number" id="pocsagFrequency" name="frequency" value="147325000" required>
+                    <div class="hint">POCSAG pager frequency</div>
+                </div>
 
-            <div class="form-group">
-                <label for="duration">Duration (seconds)</label>
-                <input type="number" id="duration" name="duration" value="30" min="5" max="300" required>
-                <div class="hint">Recording duration: 5-300 seconds</div>
-            </div>
+                <div class="form-group">
+                    <label for="pocsagDuration">Duration (seconds)</label>
+                    <input type="number" id="pocsagDuration" name="duration" value="300" min="60" max="300" required>
+                    <div class="hint">Recommended: 300s for POCSAG message capture</div>
+                </div>
 
-            <div class="form-group">
-                <label for="gain">RF Gain (dB)</label>
-                <input type="number" id="gain" name="gain" value="20" min="0" max="47" required>
-                <div class="hint">RF gain: 0-47 dB</div>
-            </div>
+                <div class="form-group">
+                    <label for="pocsagGain">RF Gain (dB)</label>
+                    <input type="number" id="pocsagGain" name="gain" value="20" min="0" max="47" required>
+                    <div class="hint">RF gain: 0-47 dB</div>
+                </div>
 
-            <div class="form-group" id="languageGroup">
-                <label for="language">Language (optional)</label>
-                <input type="text" id="language" name="language" placeholder="en">
-                <div class="hint">Leave empty for auto-detection (e.g., en, es, fr, de)</div>
-            </div>
+                <div class="button-group">
+                    <button type="submit" class="btn-primary">
+                        Start POCSAG Capture
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="resetPOCSAGForm()">
+                        Reset
+                    </button>
+                </div>
+            </form>
 
-            <div class="button-group">
-                <button type="submit" class="btn-primary" id="startBtn">
-                    Start Recording & Transcription
-                </button>
-                <button type="button" class="btn-secondary" onclick="resetForm()">
-                    Reset
-                </button>
-            </div>
-        </form>
-
-        <div id="status" class="status"></div>
-        <div id="result" class="transcription-result"></div>
+            <div id="pocsagStatus" class="status"></div>
+            <div id="pocsagResult" class="transcription-result"></div>
+        </div>
     </div>
 
     <script>
-        const form = document.getElementById('captureForm');
-        const statusDiv = document.getElementById('status');
-        const resultDiv = document.getElementById('result');
-        const startBtn = document.getElementById('startBtn');
-
         // API URL - direct connection to Flask API
         const API_URL = 'http://localhost:5000/capture-and-transcribe';
 
+        // Tab switching
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            // Deactivate all nav buttons
+            document.querySelectorAll('.nav-tab').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected tab
+            document.getElementById(tabName + 'Tab').classList.add('active');
+            // Activate corresponding nav button
+            event.target.classList.add('active');
+        }
+
+        // Voice Tab Functions
         function setPreset(frequency, modulation) {
-            document.getElementById('frequency').value = frequency;
-            document.getElementById('modulation').value = modulation;
-            document.getElementById('mode').value = 'voice';
-            toggleModeUI();
+            document.getElementById('voiceFrequency').value = frequency;
+            document.getElementById('voiceModulation').value = modulation;
         }
 
-        function setPresetAPRS() {
-            document.getElementById('mode').value = 'aprs';
-            document.getElementById('modulation').value = 'FM';
-            document.getElementById('duration').value = 300;  // 5 minutes for APRS
-            toggleModeUI();
-            updateAPRSFrequency();  // Set frequency from region dropdown
+        function resetVoiceForm() {
+            document.getElementById('voiceForm').reset();
+            document.getElementById('voiceStatus').style.display = 'none';
+            document.getElementById('voiceResult').style.display = 'none';
         }
 
-        function updateAPRSFrequency() {
-            const region = document.getElementById('aprsRegion');
-            const frequency = region.value;
-            document.getElementById('frequency').value = frequency;
-        }
-
-        function toggleModeUI() {
-            const mode = document.getElementById('mode').value;
-            const languageGroup = document.getElementById('languageGroup');
-            const aprsRegionGroup = document.getElementById('aprsRegionGroup');
-
-            if (mode === 'aprs') {
-                languageGroup.style.display = 'none';
-                aprsRegionGroup.style.display = 'block';
-                // Suggest longer duration for APRS
-                if (parseInt(document.getElementById('duration').value) < 60) {
-                    document.getElementById('duration').value = 300;
-                }
-                // Set frequency from region dropdown
-                updateAPRSFrequency();
-            } else {
-                languageGroup.style.display = 'block';
-                aprsRegionGroup.style.display = 'none';
-            }
-        }
-
-        function showStatus(message, type) {
-            statusDiv.textContent = message;
-            statusDiv.className = 'status ' + type;
-            statusDiv.style.display = 'block';
-        }
-
-        function resetForm() {
-            form.reset();
-            statusDiv.style.display = 'none';
-            resultDiv.style.display = 'none';
-        }
-
-        form.addEventListener('submit', async (e) => {
+        document.getElementById('voiceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            const statusDiv = document.getElementById('voiceStatus');
+            const resultDiv = document.getElementById('voiceResult');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
 
             const formData = {
-                frequency: parseInt(document.getElementById('frequency').value),
-                modulation: document.getElementById('modulation').value,
-                duration: parseInt(document.getElementById('duration').value),
-                gain: parseInt(document.getElementById('gain').value),
-                language: document.getElementById('language').value || null,
-                mode: document.getElementById('mode').value
+                frequency: parseInt(document.getElementById('voiceFrequency').value),
+                modulation: document.getElementById('voiceModulation').value,
+                duration: parseInt(document.getElementById('voiceDuration').value),
+                gain: parseInt(document.getElementById('voiceGain').value),
+                language: document.getElementById('voiceLanguage').value || null,
+                mode: 'voice'
             };
 
-            startBtn.disabled = true;
-            startBtn.innerHTML = '<span class="loading"></span> Recording & Transcribing...';
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Recording & Transcribing...';
             resultDiv.style.display = 'none';
 
-            showStatus(`Starting capture on ${(formData.frequency / 1e6).toFixed(3)} MHz (${formData.modulation})...`, 'info');
+            statusDiv.textContent = `Starting capture on ${(formData.frequency / 1e6).toFixed(3)} MHz...`;
+            statusDiv.className = 'status info';
+            statusDiv.style.display = 'block';
 
             try {
                 const response = await fetch(API_URL, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
+                    headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData)
                 });
 
                 const data = await response.json();
 
                 if (response.ok && data.status === 'success') {
-                    showStatus('Transcription completed successfully!', 'success');
-                    displayResult(data);
+                    statusDiv.textContent = 'Transcription completed successfully!';
+                    statusDiv.className = 'status success';
+                    displayTranscriptionResult(data, resultDiv);
                 } else {
                     throw new Error(data.error || 'Unknown error occurred');
                 }
             } catch (error) {
-                showStatus('Error: ' + error.message, 'error');
+                statusDiv.textContent = 'Error: ' + error.message;
+                statusDiv.className = 'status error';
                 console.error('Error:', error);
             } finally {
-                startBtn.disabled = false;
-                startBtn.innerHTML = 'Start Recording & Transcription';
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Start Recording & Transcription';
             }
         });
 
-        function displayResult(data) {
-            if (data.mode === 'aprs') {
-                displayAPRSResult(data);
-            } else {
-                displayTranscriptionResult(data);
-            }
+        // APRS Tab Functions
+        function setAPRSRegion(frequency) {
+            document.getElementById('aprsFrequency').value = frequency;
         }
 
-        function displayTranscriptionResult(data) {
+        function resetAPRSForm() {
+            document.getElementById('aprsForm').reset();
+            document.getElementById('aprsStatus').style.display = 'none';
+            document.getElementById('aprsResult').style.display = 'none';
+        }
+
+        document.getElementById('aprsForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('aprsStatus');
+            const resultDiv = document.getElementById('aprsResult');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+
+            const formData = {
+                frequency: parseInt(document.getElementById('aprsFrequency').value),
+                modulation: 'FM',
+                duration: parseInt(document.getElementById('aprsDuration').value),
+                gain: parseInt(document.getElementById('aprsGain').value),
+                mode: 'aprs'
+            };
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Capturing APRS...';
+            resultDiv.style.display = 'none';
+
+            statusDiv.textContent = `Starting APRS capture on ${(formData.frequency / 1e6).toFixed(3)} MHz...`;
+            statusDiv.className = 'status info';
+            statusDiv.style.display = 'block';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    statusDiv.textContent = 'APRS capture completed successfully!';
+                    statusDiv.className = 'status success';
+                    displayAPRSResult(data, resultDiv);
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                statusDiv.textContent = 'Error: ' + error.message;
+                statusDiv.className = 'status error';
+                console.error('Error:', error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Start APRS Capture';
+            }
+        });
+
+        // POCSAG Tab Functions
+        function setPOCSAGFrequency(frequency) {
+            document.getElementById('pocsagFrequency').value = frequency;
+        }
+
+        function resetPOCSAGForm() {
+            document.getElementById('pocsagForm').reset();
+            document.getElementById('pocsagStatus').style.display = 'none';
+            document.getElementById('pocsagResult').style.display = 'none';
+        }
+
+        document.getElementById('pocsagForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const statusDiv = document.getElementById('pocsagStatus');
+            const resultDiv = document.getElementById('pocsagResult');
+            const submitBtn = e.target.querySelector('button[type="submit"]');
+
+            const formData = {
+                frequency: parseInt(document.getElementById('pocsagFrequency').value),
+                modulation: 'FM',
+                duration: parseInt(document.getElementById('pocsagDuration').value),
+                gain: parseInt(document.getElementById('pocsagGain').value),
+                mode: 'pocsag'
+            };
+
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="loading"></span> Capturing POCSAG...';
+            resultDiv.style.display = 'none';
+
+            statusDiv.textContent = `Starting POCSAG capture on ${(formData.frequency / 1e6).toFixed(3)} MHz...`;
+            statusDiv.className = 'status info';
+            statusDiv.style.display = 'block';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (response.ok && data.status === 'success') {
+                    statusDiv.textContent = 'POCSAG capture completed successfully!';
+                    statusDiv.className = 'status success';
+                    displayPOCSAGResult(data, resultDiv);
+                } else {
+                    throw new Error(data.error || 'Unknown error occurred');
+                }
+            } catch (error) {
+                statusDiv.textContent = 'Error: ' + error.message;
+                statusDiv.className = 'status error';
+                console.error('Error:', error);
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Start POCSAG Capture';
+            }
+        });
+
+        // Display Functions
+        function displayTranscriptionResult(data, resultDiv) {
             const transcription = data.transcription || data;
             const transcriptionText = transcription.text || '';
             const displayText = transcriptionText.trim() || 'No speech detected (silence or noise only)';
@@ -508,7 +759,7 @@
             resultDiv.style.display = 'block';
         }
 
-        function displayAPRSResult(data) {
+        function displayAPRSResult(data, resultDiv) {
             const packets = data.aprs?.packets || [];
             const packetCount = data.aprs?.packet_count || 0;
 
@@ -558,6 +809,65 @@
                                         `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}` :
                                         'N/A'}</td>
                                     <td>${p.message_text || '-'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            }
+
+            resultDiv.innerHTML = displayHTML;
+            resultDiv.style.display = 'block';
+        }
+
+        function displayPOCSAGResult(data, resultDiv) {
+            const messages = data.pocsag?.messages || [];
+            const messageCount = data.pocsag?.message_count || 0;
+
+            let displayHTML = `
+                <h3>📟 POCSAG Messages Decoded</h3>
+                <div class="metadata">
+                    <div class="metadata-item">
+                        <div class="metadata-label">Messages Received</div>
+                        <div class="metadata-value">${messageCount}</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Frequency</div>
+                        <div class="metadata-value">${(data.capture.frequency / 1e6).toFixed(3)} MHz</div>
+                    </div>
+                    <div class="metadata-item">
+                        <div class="metadata-label">Duration</div>
+                        <div class="metadata-value">${data.capture.duration}s</div>
+                    </div>
+                </div>
+            `;
+
+            if (messages.length === 0) {
+                displayHTML += `
+                    <div class="transcription-text">
+                        No POCSAG messages decoded. Ensure POCSAG pager activity on this frequency.
+                    </div>
+                `;
+            } else {
+                displayHTML += `
+                    <table class="pocsag-table">
+                        <thead>
+                            <tr>
+                                <th>Time</th>
+                                <th>Address</th>
+                                <th>Type</th>
+                                <th>Baud</th>
+                                <th>Message</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${messages.map(m => `
+                                <tr>
+                                    <td>${new Date(m.timestamp).toLocaleTimeString()}</td>
+                                    <td><strong>${m.address}</strong></td>
+                                    <td>${m.message_type}</td>
+                                    <td>${m.baud_rate}</td>
+                                    <td>${m.message_text || '<em>Tone Only</em>'}</td>
                                 </tr>
                             `).join('')}
                         </tbody>
