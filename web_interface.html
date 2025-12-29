@@ -343,6 +343,7 @@
             <button class="nav-tab active" onclick="switchTab('voice')">🎤 Voice Transcription</button>
             <button class="nav-tab" onclick="switchTab('aprs')">📡 APRS</button>
             <button class="nav-tab" onclick="switchTab('pocsag')">📟 POCSAG</button>
+            <button class="nav-tab" onclick="switchTab('repeater')">📻 Repeater Scan</button>
         </div>
 
         <!-- Voice Transcription Tab -->
@@ -525,6 +526,122 @@
 
             <div id="pocsagStatus" class="status"></div>
             <div id="pocsagResult" class="transcription-result"></div>
+        </div>
+
+        <!-- Repeater Scan Tab -->
+        <div id="repeaterTab" class="tab-content">
+            <div class="preset-buttons">
+                <div class="preset-btn" onclick="setRepeaterPreset('2m', null)">
+                    <div class="preset-btn-title">All 2m FM</div>
+                    <div class="preset-btn-freq">144-146 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setRepeaterPreset('70cm', null)">
+                    <div class="preset-btn-title">All 70cm FM</div>
+                    <div class="preset-btn-freq">430-440 MHz</div>
+                </div>
+                <div class="preset-btn" onclick="setRepeaterPreset('2m', 'ZH')">
+                    <div class="preset-btn-title">Zürich 2m</div>
+                    <div class="preset-btn-freq">Canton ZH</div>
+                </div>
+                <div class="preset-btn" onclick="setRepeaterPreset('2m', 'BE')">
+                    <div class="preset-btn-title">Bern 2m</div>
+                    <div class="preset-btn-freq">Canton BE</div>
+                </div>
+            </div>
+
+            <form id="repeaterForm">
+                <div class="form-group">
+                    <label for="repeaterBand">Band</label>
+                    <select id="repeaterBand" name="band">
+                        <option value="">All Bands</option>
+                        <option value="2m" selected>2m (144-146 MHz)</option>
+                        <option value="70cm">70cm (430-440 MHz)</option>
+                        <option value="23cm">23cm (1240-1300 MHz)</option>
+                    </select>
+                    <div class="hint">Select band to scan</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="repeaterCanton">Canton (optional)</label>
+                    <select id="repeaterCanton" name="canton">
+                        <option value="">All Cantons</option>
+                        <option value="ZH">Zürich (ZH)</option>
+                        <option value="BE">Bern (BE)</option>
+                        <option value="LU">Luzern (LU)</option>
+                        <option value="UR">Uri (UR)</option>
+                        <option value="SG">St. Gallen (SG)</option>
+                        <option value="GR">Graubünden (GR)</option>
+                        <option value="VD">Vaud (VD)</option>
+                        <option value="VS">Valais (VS)</option>
+                        <option value="TI">Ticino (TI)</option>
+                        <option value="BS">Basel-Stadt (BS)</option>
+                        <option value="SO">Solothurn (SO)</option>
+                    </select>
+                    <div class="hint">Optional: Filter by Swiss canton</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="repeaterDuration">Duration per Repeater (seconds)</label>
+                    <input type="number" id="repeaterDuration" name="duration" value="120" min="30" max="300" step="30" required>
+                    <div class="hint">30-300s per repeater (recommended: 120s)</div>
+                </div>
+
+                <div class="form-group">
+                    <label for="repeaterGain">RF Gain (dB)</label>
+                    <input type="number" id="repeaterGain" name="gain" value="20" min="0" max="47" required>
+                    <div class="hint">RF gain: 0-47 dB</div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-primary" id="repeaterStartBtn">
+                        Start Repeater Scan
+                    </button>
+                    <button type="button" class="btn-secondary" onclick="resetRepeaterForm()">
+                        Reset
+                    </button>
+                </div>
+            </form>
+
+            <div id="repeaterStatus" class="status"></div>
+
+            <!-- Progress section -->
+            <div id="repeaterProgress" style="display: none; margin-top: 20px; padding: 20px; background: #f8f9fa; border-radius: 8px;">
+                <h3 style="margin-top: 0;">Scan Progress</h3>
+                <div style="margin-bottom: 10px;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                        <span id="progressRepeater">Repeater 0/0</span>
+                        <span id="progressCallsign">-</span>
+                    </div>
+                    <div style="background: #ddd; height: 25px; border-radius: 4px; overflow: hidden;">
+                        <div id="progressBar" style="background: linear-gradient(90deg, #4CAF50, #45a049); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                <div style="font-size: 0.9em; color: #666; margin-top: 10px;">
+                    <div>⏱️ Elapsed: <span id="progressElapsed">0s</span> | Remaining: <span id="progressRemaining">-</span></div>
+                    <div>✅ Scanned: <span id="progressScanned">0</span> | 📡 Active: <span id="progressActive">0</span></div>
+                </div>
+            </div>
+
+            <!-- Results table -->
+            <div id="repeaterResults" style="display: none; margin-top: 20px;">
+                <h3>Scan Results</h3>
+                <div style="overflow-x: auto;">
+                    <table style="width: 100%; border-collapse: collapse; font-size: 0.9em;">
+                        <thead>
+                            <tr style="background: #f0f0f0;">
+                                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Callsign</th>
+                                <th style="padding: 8px; text-align: left; border-bottom: 2px solid #ddd;">Frequency</th>
+                                <th style="padding: 8px; text-align: center; border-bottom: 2px solid #ddd;">Status</th>
+                                <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Transmissions</th>
+                                <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Activity %</th>
+                                <th style="padding: 8px; text-align: right; border-bottom: 2px solid #ddd;">Signal (dB)</th>
+                            </tr>
+                        </thead>
+                        <tbody id="repeaterResultsBody">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -878,6 +995,203 @@
             resultDiv.innerHTML = displayHTML;
             resultDiv.style.display = 'block';
         }
+
+        // =====================================================================
+        // Repeater Scan Functions
+        // =====================================================================
+
+        let currentScanSession = null;
+        let progressPollInterval = null;
+
+        function setRepeaterPreset(band, canton) {
+            document.getElementById('repeaterBand').value = band || '';
+            document.getElementById('repeaterCanton').value = canton || '';
+        }
+
+        function resetRepeaterForm() {
+            document.getElementById('repeaterForm').reset();
+            document.getElementById('repeaterBand').value = '2m';
+        }
+
+        // Handle repeater scan form submission
+        document.getElementById('repeaterForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+
+            const formData = {
+                duration_per_repeater: parseInt(document.getElementById('repeaterDuration').value),
+                gain: parseInt(document.getElementById('repeaterGain').value)
+            };
+
+            const band = document.getElementById('repeaterBand').value;
+            const canton = document.getElementById('repeaterCanton').value;
+
+            if (band) formData.band = band;
+            if (canton) formData.canton = canton;
+
+            const statusDiv = document.getElementById('repeaterStatus');
+            const progressDiv = document.getElementById('repeaterProgress');
+            const resultsDiv = document.getElementById('repeaterResults');
+            const startBtn = document.getElementById('repeaterStartBtn');
+
+            // Disable button and show status
+            startBtn.disabled = true;
+            statusDiv.innerHTML = `<div class="status-loading">🔍 Initializing scan...</div>`;
+            statusDiv.style.display = 'block';
+            progressDiv.style.display = 'none';
+            resultsDiv.style.display = 'none';
+
+            try {
+                const response = await fetch('http://localhost:5000/scan-repeaters', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(formData)
+                });
+
+                const data = await response.json();
+
+                if (data.status === 'success') {
+                    currentScanSession = data.session_id;
+
+                    statusDiv.innerHTML = `
+                        <div class="status-success">
+                            ✅ Scan started!<br>
+                            Session ID: ${data.session_id}<br>
+                            Repeaters to scan: ${data.repeaters_count}<br>
+                            Estimated duration: ${Math.floor(data.estimated_duration_seconds / 60)} minutes
+                        </div>
+                    `;
+
+                    // Show progress section
+                    progressDiv.style.display = 'block';
+                    resultsDiv.style.display = 'block';
+
+                    // Start polling for progress
+                    startProgressPolling(data.session_id);
+                } else {
+                    statusDiv.innerHTML = `<div class="status-error">❌ Error: ${data.message || 'Failed to start scan'}</div>`;
+                    startBtn.disabled = false;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `<div class="status-error">❌ Error: ${error.message}</div>`;
+                startBtn.disabled = false;
+            }
+        });
+
+        function startProgressPolling(sessionId) {
+            // Clear any existing interval
+            if (progressPollInterval) {
+                clearInterval(progressPollInterval);
+            }
+
+            // Poll every 2 seconds
+            progressPollInterval = setInterval(async () => {
+                try {
+                    const response = await fetch(`http://localhost:5000/scan-repeaters/${sessionId}/progress`);
+                    const data = await response.json();
+
+                    if (data.status === 'in_progress') {
+                        updateProgress(data.progress);
+                        updateResults(data.results);
+                    } else if (data.status === 'completed') {
+                        updateProgress(data.progress);
+                        updateResults(data.results);
+                        stopProgressPolling('completed');
+                    } else if (data.status === 'failed') {
+                        stopProgressPolling('failed', data.error);
+                    }
+                } catch (error) {
+                    console.error('Error polling progress:', error);
+                }
+            }, 2000);
+        }
+
+        function stopProgressPolling(status, error) {
+            if (progressPollInterval) {
+                clearInterval(progressPollInterval);
+                progressPollInterval = null;
+            }
+
+            const statusDiv = document.getElementById('repeaterStatus');
+            const startBtn = document.getElementById('repeaterStartBtn');
+
+            if (status === 'completed') {
+                statusDiv.innerHTML = `<div class="status-success">✅ Scan completed!</div>`;
+            } else if (status === 'failed') {
+                statusDiv.innerHTML = `<div class="status-error">❌ Scan failed: ${error}</div>`;
+            }
+
+            startBtn.disabled = false;
+            currentScanSession = null;
+        }
+
+        function updateProgress(progress) {
+            if (!progress) return;
+
+            const percent = progress.total_repeaters > 0 ?
+                (progress.current_repeater / progress.total_repeaters) * 100 : 0;
+
+            document.getElementById('progressBar').style.width = `${percent}%`;
+            document.getElementById('progressRepeater').textContent =
+                `Repeater ${progress.current_repeater}/${progress.total_repeaters}`;
+            document.getElementById('progressCallsign').textContent =
+                progress.current_callsign || '-';
+            document.getElementById('progressElapsed').textContent =
+                `${progress.elapsed_seconds}s`;
+            document.getElementById('progressRemaining').textContent =
+                progress.estimated_remaining_seconds > 0 ?
+                `${progress.estimated_remaining_seconds}s` : 'Calculating...';
+            document.getElementById('progressScanned').textContent =
+                progress.repeaters_scanned || 0;
+            document.getElementById('progressActive').textContent =
+                progress.repeaters_with_activity || 0;
+        }
+
+        function updateResults(results) {
+            if (!results || results.length === 0) return;
+
+            const tbody = document.getElementById('repeaterResultsBody');
+            tbody.innerHTML = results.map(result => {
+                const activity = result.activity || {};
+                const hasActivity = activity.carrier_detected;
+                const statusIcon = hasActivity ? '🟢' : '⚫';
+                const statusText = hasActivity ? 'Active' : 'Quiet';
+                const rowStyle = hasActivity ? 'background: #e8f5e9;' : '';
+
+                return `
+                    <tr style="${rowStyle}">
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                            <strong>${result.callsign}</strong>
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee;">
+                            ${(result.frequency / 1e6).toFixed(4)} MHz
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: center;">
+                            ${statusIcon} ${statusText}
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                            ${activity.transmission_count || 0}
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                            ${activity.activity_percentage ?
+                                activity.activity_percentage.toFixed(1) + '%' : '0%'}
+                        </td>
+                        <td style="padding: 8px; border-bottom: 1px solid #eee; text-align: right;">
+                            ${activity.average_signal_strength ?
+                                activity.average_signal_strength.toFixed(1) + ' dB' : '-'}
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        // Clean up interval on page unload
+        window.addEventListener('beforeunload', () => {
+            if (progressPollInterval) {
+                clearInterval(progressPollInterval);
+            }
+        });
     </script>
 </body>
 </html>

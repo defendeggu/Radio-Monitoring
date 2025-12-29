@@ -7,8 +7,9 @@ Provides REST API endpoints for N8N integration
 import os
 import json
 import time
+import threading
 from datetime import datetime
-from typing import TypedDict, Any
+from typing import TypedDict, Any, Dict, Optional
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from prometheus_flask_exporter import PrometheusMetrics
@@ -18,6 +19,7 @@ from transcription_service import TranscriptionService
 from aprs_decoder_service import APRSDecoder
 from pocsag_decoder_service import POCSAGDecoder
 from database_service import get_database_service
+from repeater_activity_analyzer import RepeaterActivityAnalyzer
 from dotenv import load_dotenv
 
 # Load environment variables
@@ -109,11 +111,51 @@ pocsag_messages_decoded = Counter(
     'Total POCSAG messages decoded'
 )
 
+# Repeater scanning metrics
+repeater_scans_total = Counter(
+    'repeater_scans_total',
+    'Total repeater scan sessions',
+    ['status']
+)
+
+repeater_scans_duration = Histogram(
+    'repeater_scans_duration_seconds',
+    'Repeater scan duration per repeater',
+    buckets=[30, 60, 120, 180, 240, 300]
+)
+
+repeater_activity_detected = Counter(
+    'repeater_activity_detected_total',
+    'Total repeaters with detected activity',
+    ['band', 'canton']
+)
+
+repeater_transmissions_total = Counter(
+    'repeater_transmissions_total',
+    'Total transmissions detected across all repeaters'
+)
+
+repeater_activity_percentage = Histogram(
+    'repeater_activity_percentage',
+    'Activity percentage distribution',
+    buckets=[0, 1, 5, 10, 20, 30, 50, 75, 100]
+)
+
+repeater_scan_progress = Gauge(
+    'repeater_scan_progress',
+    'Current scan progress (0-100)',
+    ['session_id']
+)
+
 # Configuration
 RECORDING_DIR = os.getenv('AUDIO_OUTPUT_DIR', './recordings')
 WHISPER_MODEL = os.getenv('WHISPER_MODEL', 'base')
 WHISPER_DEVICE = os.getenv('WHISPER_DEVICE', 'cpu')
 WHISPER_COMPUTE_TYPE = os.getenv('WHISPER_COMPUTE_TYPE', 'int8')
+
+# Repeater scan sessions tracking
+scan_sessions: Dict[int, Dict[str, Any]] = {}
+scan_sessions_lock = threading.Lock()
 
 # Initialize transcription service
 transcription_service: TranscriptionService | None = None
@@ -849,6 +891,459 @@ def get_pocsag_messages() -> Response | tuple[Response, int]:
             'status': 'success',
             'count': len(results),
             'messages': results
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ============================================================================
+# Repeater Scanning Endpoints
+# ============================================================================
+
+def _scan_repeaters_worker(
+    session_id: int,
+    repeaters: list,
+    scan_duration: int,
+    sample_rate: int,
+    gain: int
+) -> None:
+    """
+    Background worker thread for scanning repeaters.
+
+    Args:
+        session_id: Scan session ID
+        repeaters: List of repeater dictionaries
+        scan_duration: Duration to scan each repeater (seconds)
+        sample_rate: IQ sample rate
+        gain: RF gain
+    """
+    db = get_database_service()
+    analyzer = RepeaterActivityAnalyzer(sample_rate=sample_rate)
+
+    results = []
+    repeaters_scanned = 0
+    repeaters_with_activity = 0
+
+    try:
+        for idx, repeater in enumerate(repeaters):
+            # Update progress
+            with scan_sessions_lock:
+                if session_id in scan_sessions:
+                    scan_sessions[session_id]['current_index'] = idx
+                    scan_sessions[session_id]['current_repeater'] = repeater['callsign']
+                    scan_sessions[session_id]['elapsed_time'] = time.time() - scan_sessions[session_id]['start_time']
+
+            frequency = repeater['output_frequency']
+            callsign = repeater['callsign']
+
+            print(f"Scanning repeater {idx+1}/{len(repeaters)}: {callsign} ({frequency/1e6:.4f} MHz)")
+
+            try:
+                # Generate output filename for IQ samples
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                iq_file = os.path.join(RECORDING_DIR, f'repeater_scan_{callsign}_{timestamp}.iq')
+
+                # Capture IQ samples
+                scan_start_time = datetime.now()
+                capture_instance = HackRFCapture(
+                    frequency=frequency,
+                    sample_rate=sample_rate,
+                    gain=gain,
+                    modulation='FM'
+                )
+
+                # Capture to IQ file (complex64 format)
+                capture_instance.capture_iq(scan_duration, iq_file)
+
+                # Create capture record
+                capture_id = db.save_capture(
+                    frequency=frequency,
+                    modulation='FM',
+                    duration=scan_duration,
+                    gain=gain,
+                    audio_file_path=iq_file,
+                    sample_rate=sample_rate,
+                    metadata={'type': 'repeater_scan', 'session_id': session_id}
+                )
+
+                # Analyze IQ samples
+                metrics = analyzer.analyze_iq_file(iq_file)
+                scan_end_time = datetime.now()
+
+                # Save activity results
+                activity_id = db.save_repeater_activity(
+                    capture_id=capture_id,
+                    repeater_id=repeater['id'],
+                    frequency=frequency,
+                    scan_start_time=scan_start_time,
+                    scan_end_time=scan_end_time,
+                    metrics=metrics.to_dict()
+                )
+
+                repeaters_scanned += 1
+                if metrics.carrier_detected:
+                    repeaters_with_activity += 1
+
+                # Record Prometheus metrics
+                repeater_scans_duration.observe(scan_duration)
+                repeater_activity_percentage.observe(metrics.activity_percentage)
+                repeater_transmissions_total.inc(metrics.transmission_count)
+
+                if metrics.carrier_detected:
+                    band = repeater.get('band', 'unknown')
+                    canton = repeater.get('canton', 'unknown')
+                    repeater_activity_detected.labels(band=band, canton=canton).inc()
+
+                result = {
+                    'repeater_id': repeater['id'],
+                    'callsign': callsign,
+                    'frequency': frequency,
+                    'activity': metrics.to_dict()
+                }
+                results.append(result)
+
+                # Update session with partial results
+                with scan_sessions_lock:
+                    if session_id in scan_sessions:
+                        scan_sessions[session_id]['results'] = results
+                        scan_sessions[session_id]['repeaters_scanned'] = repeaters_scanned
+                        scan_sessions[session_id]['repeaters_with_activity'] = repeaters_with_activity
+
+                # Clean up IQ file to save space (optional - comment out to keep)
+                # os.remove(iq_file)
+
+            except Exception as e:
+                print(f"Error scanning {callsign}: {e}")
+                results.append({
+                    'repeater_id': repeater['id'],
+                    'callsign': callsign,
+                    'frequency': frequency,
+                    'error': str(e)
+                })
+
+        # Mark session as completed
+        with scan_sessions_lock:
+            if session_id in scan_sessions:
+                scan_sessions[session_id]['status'] = 'completed'
+                scan_sessions[session_id]['end_time'] = time.time()
+                scan_sessions[session_id]['results'] = results
+
+        # Update database
+        db.update_scan_session(
+            session_id=session_id,
+            status='completed',
+            repeaters_scanned=repeaters_scanned,
+            repeaters_with_activity=repeaters_with_activity
+        )
+
+        # Record completion metrics
+        repeater_scans_total.labels(status='completed').inc()
+
+        print(f"Scan session {session_id} completed: {repeaters_scanned} scanned, {repeaters_with_activity} with activity")
+
+    except Exception as e:
+        print(f"Scan session {session_id} failed: {e}")
+        with scan_sessions_lock:
+            if session_id in scan_sessions:
+                scan_sessions[session_id]['status'] = 'failed'
+                scan_sessions[session_id]['error'] = str(e)
+
+        db.update_scan_session(
+            session_id=session_id,
+            status='failed',
+            metadata={'error': str(e)}
+        )
+
+        # Record failure metrics
+        repeater_scans_total.labels(status='failed').inc()
+
+
+@app.route('/scan-repeaters', methods=['POST'])
+def scan_repeaters() -> Response | tuple[Response, int]:
+    """
+    Start a repeater activity scan.
+
+    Request body:
+    {
+        "duration_per_repeater": 120,    // Seconds (default: 120)
+        "band": "2m",                     // optional: "2m", "70cm", "all"
+        "canton": "ZH",                   // optional: Filter by canton
+        "repeater_ids": [1, 2, 3],       // optional: Specific repeater IDs
+        "sample_rate": 2000000,           // optional: IQ sample rate
+        "gain": 20                        // optional: RF gain
+    }
+
+    Response:
+    {
+        "status": "success",
+        "session_id": 1,
+        "message": "Scan started",
+        "repeaters_count": 10,
+        "estimated_duration_seconds": 1200
+    }
+    """
+    try:
+        data = request.get_json() or {}
+
+        # Parse parameters
+        duration_per_repeater = data.get('duration_per_repeater', 120)
+        band = data.get('band')
+        canton = data.get('canton')
+        repeater_ids = data.get('repeater_ids')
+        sample_rate = data.get('sample_rate', 2000000)
+        gain = data.get('gain', 20)
+
+        db = get_database_service()
+
+        # Get repeaters to scan
+        if repeater_ids:
+            # Specific repeaters by ID
+            repeaters = []
+            for rid in repeater_ids:
+                repeater = db.get_repeater_by_id(rid)
+                if repeater:
+                    repeaters.append(repeater)
+        else:
+            # Filter by band/canton
+            repeaters = db.get_repeaters(
+                band=band,
+                canton=canton,
+                mode='FM',
+                status='active'
+            )
+
+        if not repeaters:
+            return jsonify({
+                'status': 'error',
+                'message': 'No repeaters found matching criteria'
+            }), 404
+
+        # Create scan session in database
+        session_id = db.create_scan_session(
+            scan_duration_per_repeater=duration_per_repeater,
+            metadata={
+                'band': band,
+                'canton': canton,
+                'repeater_count': len(repeaters),
+                'sample_rate': sample_rate,
+                'gain': gain
+            }
+        )
+
+        if not session_id:
+            return jsonify({
+                'status': 'error',
+                'message': 'Failed to create scan session'
+            }), 500
+
+        # Initialize session tracking
+        with scan_sessions_lock:
+            scan_sessions[session_id] = {
+                'status': 'in_progress',
+                'start_time': time.time(),
+                'repeaters_total': len(repeaters),
+                'repeaters_scanned': 0,
+                'repeaters_with_activity': 0,
+                'current_index': 0,
+                'current_repeater': None,
+                'elapsed_time': 0,
+                'results': []
+            }
+
+        # Start background scan thread
+        scan_thread = threading.Thread(
+            target=_scan_repeaters_worker,
+            args=(session_id, repeaters, duration_per_repeater, sample_rate, gain),
+            daemon=True
+        )
+        scan_thread.start()
+
+        estimated_duration = len(repeaters) * duration_per_repeater
+
+        return jsonify({
+            'status': 'success',
+            'session_id': session_id,
+            'message': 'Scan started',
+            'repeaters_count': len(repeaters),
+            'estimated_duration_seconds': estimated_duration
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/scan-repeaters/<int:session_id>/progress', methods=['GET'])
+def get_scan_progress(session_id: int) -> Response | tuple[Response, int]:
+    """
+    Get progress of a repeater scan session.
+
+    Response:
+    {
+        "status": "in_progress",
+        "session_id": 1,
+        "progress": {
+            "current_repeater": 5,
+            "total_repeaters": 10,
+            "current_callsign": "HB9AB",
+            "elapsed_seconds": 600,
+            "estimated_remaining_seconds": 600,
+            "repeaters_scanned": 4,
+            "repeaters_with_activity": 2
+        },
+        "results": [...]  // Partial or complete results
+    }
+    """
+    try:
+        with scan_sessions_lock:
+            if session_id not in scan_sessions:
+                return jsonify({
+                    'status': 'error',
+                    'message': 'Scan session not found'
+                }), 404
+
+            session = scan_sessions[session_id].copy()
+
+        # Calculate progress
+        current = session.get('current_index', 0)
+        total = session.get('repeaters_total', 0)
+        elapsed = session.get('elapsed_time', 0)
+
+        # Estimate remaining time
+        if current > 0 and elapsed > 0:
+            avg_time_per_repeater = elapsed / current
+            remaining_repeaters = total - current
+            estimated_remaining = int(avg_time_per_repeater * remaining_repeaters)
+        else:
+            estimated_remaining = 0
+
+        response = {
+            'status': session.get('status', 'unknown'),
+            'session_id': session_id,
+            'progress': {
+                'current_repeater': current + 1,  # 1-indexed for display
+                'total_repeaters': total,
+                'current_callsign': session.get('current_repeater'),
+                'elapsed_seconds': int(elapsed),
+                'estimated_remaining_seconds': estimated_remaining,
+                'repeaters_scanned': session.get('repeaters_scanned', 0),
+                'repeaters_with_activity': session.get('repeaters_with_activity', 0)
+            },
+            'results': session.get('results', [])
+        }
+
+        if session.get('status') == 'failed':
+            response['error'] = session.get('error')
+
+        return jsonify(response)
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/scan-repeaters/<int:session_id>', methods=['GET'])
+def get_scan_session_details(session_id: int) -> Response | tuple[Response, int]:
+    """
+    Get complete details of a scan session from database.
+
+    Response:
+    {
+        "status": "success",
+        "session": {...}
+    }
+    """
+    try:
+        db = get_database_service()
+        session = db.get_scan_session(session_id)
+
+        if not session:
+            return jsonify({
+                'status': 'error',
+                'message': 'Scan session not found'
+            }), 404
+
+        return jsonify({
+            'status': 'success',
+            'session': session
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/repeaters', methods=['GET'])
+def get_repeaters_endpoint() -> Response | tuple[Response, int]:
+    """
+    Get list of repeaters with optional filters.
+
+    Query parameters:
+    - band: Filter by band (2m, 70cm, 23cm)
+    - canton: Filter by canton (ZH, BE, etc.)
+    - mode: Filter by mode (FM, DMR, etc.) - default: FM
+    - status: Filter by status (active, inactive, testing) - default: active
+    - limit: Maximum results (default 1000)
+
+    Response:
+    {
+        "status": "success",
+        "count": 10,
+        "repeaters": [...]
+    }
+    """
+    try:
+        db = get_database_service()
+
+        # Get query parameters
+        band = request.args.get('band')
+        canton = request.args.get('canton')
+        mode = request.args.get('mode', 'FM')
+        status = request.args.get('status', 'active')
+        limit = request.args.get('limit', 1000, type=int)
+
+        repeaters = db.get_repeaters(
+            band=band,
+            canton=canton,
+            mode=mode,
+            status=status,
+            limit=limit
+        )
+
+        return jsonify({
+            'status': 'success',
+            'count': len(repeaters),
+            'repeaters': repeaters
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/repeater-activity/summary', methods=['GET'])
+def get_repeater_activity_summary_endpoint() -> Response | tuple[Response, int]:
+    """
+    Get summary of most active repeaters.
+
+    Query parameters:
+    - hours: Time window in hours (default 24)
+    - limit: Maximum results (default 10)
+
+    Response:
+    {
+        "status": "success",
+        "summary": [...]
+    }
+    """
+    try:
+        db = get_database_service()
+
+        hours = request.args.get('hours', 24, type=int)
+        limit = request.args.get('limit', 10, type=int)
+
+        summary = db.get_repeater_activity_summary(hours=hours, limit=limit)
+
+        return jsonify({
+            'status': 'success',
+            'summary': summary
         })
 
     except Exception as e:

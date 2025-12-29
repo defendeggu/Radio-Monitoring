@@ -1,0 +1,12 @@
+callsign,frequency_mhz,offset_mhz,tone,mode,band,location,canton,status
+HB9GR,144.6450,0.6,,FM,2m,Weisshorn Arosa,GR,active
+HB9ZRH,145.5750,-0.6,,FM,2m,Uetliberg,ZH,active
+HB9MM,145.6000,-0.6,67.0,FM,2m,Les Pléiades,VD,active
+HB9LU,145.6000,-0.6,71.9,FM,2m,Luzern,LU,active
+HB9BS,145.6000,-0.6,71.9,FM,2m,Schoenenbuch,BS,active
+HB9DD,145.6000,-0.6,103.5,FM,2m,Motto Rotondo,TI,active
+HB9EI,145.6000,-0.6,,FM,2m,Airolo,TI,active
+HB9F,438.2125,-7.6,,FM,70cm,Schilthorn,BE,active
+HB9CF,438.2250,-7.6,,FM,70cm,Andermatt,UR,active
+HB9DR,438.2250,-7.6,,FM,70cm,St. Gallen,SG,active
+HB9BA,438.2250,-7.6,,FM,70cm,Weissenstein,SO,active

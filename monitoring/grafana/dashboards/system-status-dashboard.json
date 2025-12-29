@@ -605,6 +605,57 @@
     },
     {
       "datasource": "Prometheus",
+      "description": "Total repeater scans completed",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "orange",
+                "value": null
+              }
+            ]
+          },
+          "unit": "short"
+        }
+      },
+      "gridPos": {
+        "h": 4,
+        "w": 3,
+        "x": 12,
+        "y": 16
+      },
+      "id": 16,
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "orientation": "auto",
+        "reduceOptions": {
+          "values": false,
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "textMode": "auto"
+      },
+      "pluginVersion": "9.0.0",
+      "targets": [
+        {
+          "expr": "repeater_scans_total",
+          "refId": "A"
+        }
+      ],
+      "title": "Repeater Scans",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
       "description": "Capture success rate",
       "fieldConfig": {
         "defaults": {
@@ -636,8 +687,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 12,
+        "w": 3,
+        "x": 15,
         "y": 16
       },
       "id": 10,
@@ -686,8 +737,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 16,
+        "w": 3,
+        "x": 18,
         "y": 16
       },
       "id": 11,
@@ -747,8 +798,8 @@
       },
       "gridPos": {
         "h": 4,
-        "w": 4,
-        "x": 20,
+        "w": 3,
+        "x": 21,
         "y": 16
       },
       "id": 12,
@@ -982,6 +1033,11 @@
           "expr": "increase(pocsag_decodes_total{status=\"success\"}[1h])",
           "refId": "C",
           "legendFormat": "POCSAG Decodes"
+        },
+        {
+          "expr": "increase(repeater_scans_total{status=\"completed\"}[1h])",
+          "refId": "D",
+          "legendFormat": "Repeater Scans"
         }
       ],
       "title": "Activity Timeline (Hourly)",

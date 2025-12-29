@@ -10,8 +10,9 @@ A complete professional radio monitoring system for capturing radio signals from
 - **Speech-to-Text**: Automatic transcription using faster-whisper
 - **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
 - **POCSAG Pager Decoding**: Decode POCSAG pager messages (512, 1200, 2400 baud) using multimon-ng
-- **Triple Processing Modes**: Voice transcription, APRS packet decoding, or POCSAG pager decoding from the same capture workflow
-- **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, and POCSAG
+- **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters (NEW)
+- **Quad Processing Modes**: Voice transcription, APRS packet decoding, POCSAG pager decoding, or Repeater Activity scanning
+- **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, and Repeater Scan
 - **N8N Integration**: Workflow automation for orchestrating capture and transcription
 - **REST API**: Flask-based API for programmatic access
 - **Docker Support**: Complete Docker setup for easy deployment
@@ -21,20 +22,24 @@ A complete professional radio monitoring system for capturing radio signals from
 - **Full-Text Search**: Search through all transcriptions, APRS, and POCSAG messages with PostgreSQL full-text search
 - **APRS Message Storage**: Dedicated table for APRS packets with callsign, position, message data
 - **POCSAG Message Storage**: Dedicated table for POCSAG pager messages with address, function code, message type, and baud rate
+- **Repeater Database**: Swiss FM repeater directory with frequency, offset, tone, location, canton
+- **Activity Tracking**: Historical repeater activity records with transmission counts, signal strength, activity percentages
+- **Scan Session Management**: Track multi-repeater scan sessions with progress and results
 - **Geospatial Indexing**: Efficient queries for APRS station positions using PostGIS-compatible GIST indices
-- **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, message type, date range
+- **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, band, canton, date range
 - **Database API**: REST endpoints for searching and analyzing historical data
-- **Statistics & Analytics**: Frequency usage, language distribution, APRS statistics, POCSAG statistics, success rates
-- **Data Migration**: Import existing JSON transcriptions into database
+- **Statistics & Analytics**: Frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends, success rates
+- **Data Migration**: Import existing JSON transcriptions and repeater CSV data into database
 
 ### Monitoring & Visualization (NEW)
 - **Grafana Dashboards**: Professional monitoring and data visualization
 - **Database Browser**: Interactive dashboard to browse, search, and filter all captures
 - **APRS Dashboard**: Dedicated dashboard with station map, packet statistics, and callsign analytics
 - **POCSAG Dashboard**: Dedicated dashboard with pager address analytics, message type distribution, baud rate statistics, and timeline visualization
+- **Repeater Activity Dashboard**: Dedicated dashboard showing most active repeaters, activity trends by band/canton, scan statistics, and signal quality metrics (NEW)
 - **Statistics Dashboard**: Real-time metrics and performance monitoring
 - **pgAdmin 4**: Full-featured PostgreSQL database management web interface
-- **Prometheus Metrics**: System performance, API metrics, APRS decode statistics, and POCSAG decode statistics
+- **Prometheus Metrics**: System performance, API metrics, APRS decode statistics, POCSAG decode statistics, and repeater scan metrics
 - **cAdvisor**: Container resource monitoring
 
 ## Architecture
@@ -69,21 +74,26 @@ A complete professional radio monitoring system for capturing radio signals from
             │  /pocsag/search (POCSAG Search) │
             │  /pocsag/stats (POCSAG Stats)   │
             │  /pocsag/messages (Recent Msgs) │
+            │  /scan-repeaters (Start Scan)   │
+            │  /scan-repeaters/<id>/progress  │
+            │  /repeaters (List Repeaters)    │
+            │  /repeater-activity/summary     │
             │  /stats (Analytics)             │
             │  /captures/<id>                 │
             ├─────────────────────────────────┤
             │      Radio Capture              │◄─── HackRF Device
             ├─────────────────────────────────┤
-            │ Voice Mode │ APRS Mode │POCSAG │
-            │ ┌────────┐ │┌────────┐│┌──────┐│
-            │ │faster- │ ││direwolf││multi-││
-            │ │whisper │ ││  APRS  ││mon-ng││
-            │ └────────┘ │└────────┘│└──────┘│
+            │ Voice  │ APRS  │POCSAG │Repeater│
+            │┌──────┐│┌─────┐│┌─────┐│┌──────┐│
+            ││faster││direwolf│multi-││Activity│
+            ││whisper│  APRS  │mon-ng││Analyzer│
+            │└──────┘│└─────┘│└─────┘│└──────┘│
             ├─────────────────────────────────┤
             │   Database Service              │
             │   (PostgreSQL Client)           │
             │   captures + aprs_messages      │
-            │            + pocsag_messages    │
+            │   + pocsag_messages + repeaters │
+            │   + repeater_activity + sessions│
             └─────────────────────────────────┘
                      │
                      ▼
@@ -291,12 +301,37 @@ pip install -r requirements.txt
 
 ### Web Interface
 
+**Voice/APRS/POCSAG Modes:**
 1. Open http://localhost:8080 in your browser
 2. Use preset buttons or enter custom frequency
 3. Select modulation type (FM, AM, USB, LSB)
 4. Set recording duration and gain
 5. Click "Start Recording & Transcription"
 6. Wait for the transcription to complete
+
+**Repeater Activity Scanning (NEW):**
+1. Open http://localhost:8080 and click the "📻 Repeater Scan" tab
+2. Select band (2m, 70cm) and optionally filter by canton (ZH, BE, etc.)
+3. Set scan duration per repeater (30-300s, recommended: 120s)
+4. Click "Start Repeater Scan"
+5. Watch real-time progress as each repeater is scanned
+6. View results table showing:
+   - Active/Quiet status (🟢/⚫)
+   - Transmission count
+   - Activity percentage
+   - Signal strength (dB)
+7. Analyze historical data in Grafana Repeater Activity Dashboard
+
+**Importing Repeater Data:**
+```bash
+# Import from CSV (recommended)
+docker exec radio-transcription-api python /app/scripts/import_repeaters_csv.py /app/scripts/example_repeaters.csv
+
+# Or from host machine (if secrets are configured)
+python scripts/import_repeaters_csv.py scripts/my_repeaters.csv
+```
+
+See `scripts/README.md` for CSV format and detailed instructions.
 
 ### Command Line
 
@@ -409,6 +444,33 @@ curl -X GET "http://localhost:5000/pocsag/stats"
 **Get recent POCSAG messages:**
 ```bash
 curl -X GET "http://localhost:5000/pocsag/messages?limit=20"
+```
+
+**Start repeater activity scan:**
+```bash
+curl -X POST http://localhost:5000/scan-repeaters \
+  -H "Content-Type: application/json" \
+  -d '{
+    "duration_per_repeater": 120,
+    "band": "2m",
+    "canton": "ZH",
+    "gain": 20
+  }'
+```
+
+**Get scan progress:**
+```bash
+curl -X GET "http://localhost:5000/scan-repeaters/1/progress"
+```
+
+**List available repeaters:**
+```bash
+curl -X GET "http://localhost:5000/repeaters?band=2m&canton=ZH"
+```
+
+**Get repeater activity summary:**
+```bash
+curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10"
 ```
 
 ### N8N Workflow
@@ -552,36 +614,42 @@ The API can be integrated with:
 
 ```
 .
-├── radio_capture.py           # HackRF capture service
-├── transcription_service.py   # faster-whisper transcription
-├── aprs_decoder_service.py    # APRS decoder using direwolf
-├── pocsag_decoder_service.py  # POCSAG decoder using multimon-ng
-├── api_service.py             # Flask REST API with database integration
-├── database_service.py        # PostgreSQL database client
-├── web_interface.html         # Web control panel (tabbed: Voice/APRS/POCSAG)
+├── radio_capture.py                 # HackRF capture service
+├── transcription_service.py         # faster-whisper transcription
+├── aprs_decoder_service.py          # APRS decoder using direwolf
+├── pocsag_decoder_service.py        # POCSAG decoder using multimon-ng
+├── repeater_activity_analyzer.py    # Repeater activity signal processing (NEW)
+├── api_service.py                   # Flask REST API with database integration
+├── database_service.py              # PostgreSQL database client
+├── web_interface.html               # Web control panel (tabbed: Voice/APRS/POCSAG/Repeater)
 ├── database/
-│   ├── init.sql              # PostgreSQL database schema
-│   └── migrations/           # Database migration scripts
+│   ├── init.sql                    # PostgreSQL database schema
+│   └── migrations/                 # Database migration scripts
+├── scripts/
+│   ├── import_repeaters_csv.py     # CSV import tool for repeater data (NEW)
+│   ├── example_repeaters.csv       # Example Swiss repeater data (NEW)
+│   └── README.md                   # Script documentation (NEW)
 ├── monitoring/
 │   ├── grafana/
-│   │   ├── dashboards/       # Grafana dashboard JSON files
+│   │   ├── dashboards/             # Grafana dashboard JSON files
 │   │   │   ├── radio-database-browser.json
 │   │   │   ├── database-statistics.json
 │   │   │   ├── aprs-dashboard.json
-│   │   │   └── pocsag-dashboard.json
-│   │   └── provisioning/     # Auto-provisioning configs
+│   │   │   ├── pocsag-dashboard.json
+│   │   │   └── repeater-activity-dashboard.json  # Repeater monitoring (NEW)
+│   │   └── provisioning/           # Auto-provisioning configs
 │   │       └── datasources/
 │   │           └── postgres.yml
 │   └── prometheus/
-│       └── prometheus.yml    # Prometheus configuration
-├── n8n-workflow.json          # N8N workflow definition
-├── requirements.txt           # Python dependencies
-├── Dockerfile                 # Docker image definition
-├── docker-compose.yml         # Docker Compose with all services
-├── .env.example               # Environment variables template
-├── .gitignore                # Git ignore rules
-├── README.md                  # This file
-└── USER_MANUAL.md            # Complete user documentation
+│       └── prometheus.yml          # Prometheus configuration
+├── n8n-workflow.json                # N8N workflow definition
+├── requirements.txt                 # Python dependencies
+├── Dockerfile                       # Docker image definition
+├── docker-compose.yml               # Docker Compose with all services
+├── .env.example                     # Environment variables template
+├── .gitignore                      # Git ignore rules
+├── README.md                        # This file
+└── USER_MANUAL.md                  # Complete user documentation
 ```
 
 ## API Reference
@@ -862,6 +930,13 @@ All radio captures are permanently stored in a PostgreSQL database with:
 - Automatic timestamps (created_at, updated_at)
 - UUID support for distributed systems
 
+**Repeater Monitoring Tables:**
+- **repeaters**: Master directory of Swiss FM repeaters with frequency, offset, tone, location, canton
+- **repeater_activity**: Historical activity records with transmission counts, signal strength, activity percentages
+- **repeater_scan_sessions**: Track multi-repeater scan sessions with progress and statistics
+- Optimized indexes for band, canton, status, and frequency-based queries
+- Pre-computed statistics views for quick dashboard updates
+
 ### Full-Text Search
 
 The database supports powerful text search capabilities:
@@ -957,6 +1032,49 @@ Open http://localhost:3000 in your browser and log in with:
 - Top 10 most active frequencies
 - Language distribution
 - Failed captures count
+
+#### Repeater Activity Dashboard (NEW)
+**URL**: http://localhost:3000/d/repeater-activity/repeater-activity-monitoring
+
+**Features:**
+- Monitor Swiss FM repeater activity in real-time
+- Track transmission counts and signal quality
+- View activity trends by band (2m, 70cm) and canton
+- Analyze scan performance and coverage
+
+**Panels:**
+- **Most Active Repeaters (24h)**: Table showing repeaters with highest activity percentages
+- **Scan Rate**: Time-series graph of scan operations per minute
+- **Activity by Band**: Pie chart showing activity distribution across 2m and 70cm bands
+- **Recent Scans (7 days)**: Detailed table of the last 100 scan results with signal strength data
+
+**Usage:**
+1. Run repeater scans from the Web Interface Repeater Scan tab
+2. View real-time updates as scans complete (30s refresh interval)
+3. Click on repeater callsigns to drill down into specific activity
+4. Use time range selector to analyze historical trends
+5. Monitor signal strength patterns to identify propagation conditions
+
+**Example Queries:**
+```sql
+-- Top 10 active repeaters in last 24 hours
+SELECT
+  r.callsign,
+  r.output_frequency / 1000000.0 AS frequency_mhz,
+  r.band,
+  r.location_name,
+  r.canton,
+  AVG(ra.activity_percentage) AS avg_activity_pct,
+  SUM(ra.transmission_count) AS total_transmissions,
+  COUNT(ra.id) AS scan_count,
+  MAX(ra.created_at) AS last_scan
+FROM repeaters r
+LEFT JOIN repeater_activity ra ON r.id = ra.repeater_id
+WHERE ra.created_at > NOW() - INTERVAL '24 hours'
+GROUP BY r.id
+ORDER BY avg_activity_pct DESC NULLS LAST
+LIMIT 20;
+```
 
 ### Creating Custom Dashboards
 
