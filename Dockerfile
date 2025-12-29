@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y \
     build-essential \
     git \
     direwolf \
+    multimon-ng \
     libasound2-dev \
     cmake \
     && rm -rf /var/lib/apt/lists/*
@@ -25,6 +26,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY radio_capture.py .
 COPY transcription_service.py .
 COPY aprs_decoder_service.py .
+COPY pocsag_decoder_service.py .
 COPY api_service.py .
 COPY database_service.py .
 COPY migrate_json_to_db.py .

@@ -531,6 +531,210 @@ class DatabaseService:
             print(f"Error getting APRS messages for capture: {e}")
             return []
 
+    def save_pocsag_capture(
+        self,
+        capture_id: int,
+        messages: List[Dict[str, Any]]
+    ) -> List[int]:
+        """
+        Save multiple POCSAG messages linked to a capture
+
+        Args:
+            capture_id: Parent capture ID
+            messages: List of decoded POCSAG messages
+
+        Returns:
+            List of inserted message IDs
+        """
+        if self.pool is None or not messages:
+            return []
+
+        query = """
+            INSERT INTO pocsag_messages (
+                capture_id, address, function_code, message_type,
+                message_text, baud_rate, raw_packet, pocsag_data,
+                decode_confidence
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            RETURNING id;
+        """
+
+        message_ids = []
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    for msg in messages:
+                        cursor.execute(query, (
+                            capture_id,
+                            msg.get('address'),
+                            msg.get('function_code'),
+                            msg.get('message_type'),
+                            msg.get('message_text'),
+                            msg.get('baud_rate'),
+                            msg.get('raw_line'),  # Note: renamed to raw_packet in DB
+                            Json(msg.get('pocsag_data', {})),
+                            msg.get('decode_confidence')
+                        ))
+                        result = cursor.fetchone()
+                        message_ids.append(result[0])
+
+            print(f"Saved {len(message_ids)} POCSAG messages to database")
+            return message_ids
+        except Exception as e:
+            print(f"Error saving POCSAG messages: {e}")
+            return []
+
+    def search_pocsag_messages(
+        self,
+        address: Optional[int] = None,
+        message_text: Optional[str] = None,
+        message_type: Optional[str] = None,
+        baud_rate: Optional[int] = None,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        limit: int = 100,
+        offset: int = 0
+    ) -> List[Dict[str, Any]]:
+        """
+        Search POCSAG messages with various filters
+
+        Args:
+            address: Filter by pager address
+            message_text: Full-text search in message text
+            message_type: Filter by message type (alphanumeric, numeric, tone)
+            baud_rate: Filter by baud rate (512, 1200, 2400)
+            start_date: Filter by start date
+            end_date: Filter by end date
+            limit: Maximum results
+            offset: Offset for pagination
+
+        Returns:
+            List of matching POCSAG messages
+        """
+        if self.pool is None:
+            return []
+
+        conditions = []
+        params = []
+
+        if address is not None:
+            conditions.append("address = %s")
+            params.append(address)
+
+        if message_text:
+            conditions.append("to_tsvector('english', message_text) @@ plainto_tsquery('english', %s)")
+            params.append(message_text)
+
+        if message_type:
+            conditions.append("message_type = %s")
+            params.append(message_type)
+
+        if baud_rate is not None:
+            conditions.append("baud_rate = %s")
+            params.append(baud_rate)
+
+        if start_date:
+            conditions.append("created_at >= %s")
+            params.append(start_date)
+
+        if end_date:
+            conditions.append("created_at <= %s")
+            params.append(end_date)
+
+        where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+        query = f"""
+            SELECT
+                pm.id, pm.uuid, pm.created_at, pm.capture_id,
+                pm.address, pm.function_code, pm.message_type,
+                pm.message_text, pm.baud_rate, pm.raw_packet,
+                pm.pocsag_data,
+                c.frequency, c.modulation
+            FROM pocsag_messages pm
+            JOIN captures c ON pm.capture_id = c.id
+            {where_clause}
+            ORDER BY pm.created_at DESC
+            LIMIT %s OFFSET %s
+        """
+        params.extend([limit, offset])
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, params)
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error searching POCSAG messages: {e}")
+            return []
+
+    def get_pocsag_statistics(self) -> Dict[str, Any]:
+        """
+        Get POCSAG statistics
+
+        Returns:
+            POCSAG statistics dictionary
+        """
+        if self.pool is None:
+            return {}
+
+        query = """
+            SELECT
+                COUNT(*) as total_messages,
+                COUNT(DISTINCT address) as unique_addresses,
+                COUNT(DISTINCT capture_id) as total_captures,
+                COUNT(CASE WHEN message_type = 'alphanumeric' THEN 1 END) as alphanumeric_messages,
+                COUNT(CASE WHEN message_type = 'numeric' THEN 1 END) as numeric_messages,
+                COUNT(CASE WHEN message_type = 'tone' THEN 1 END) as tone_messages,
+                MIN(created_at) as first_message,
+                MAX(created_at) as last_message
+            FROM pocsag_messages
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query)
+                    result = cursor.fetchone()
+                    return dict(result) if result else {}
+        except Exception as e:
+            print(f"Error getting POCSAG statistics: {e}")
+            return {}
+
+    def get_pocsag_by_capture_id(self, capture_id: int) -> List[Dict[str, Any]]:
+        """
+        Get all POCSAG messages for a specific capture
+
+        Args:
+            capture_id: Capture ID
+
+        Returns:
+            List of POCSAG messages
+        """
+        if self.pool is None:
+            return []
+
+        query = """
+            SELECT
+                id, uuid, created_at, address, function_code,
+                message_type, message_text, baud_rate, raw_packet,
+                pocsag_data
+            FROM pocsag_messages
+            WHERE capture_id = %s
+            ORDER BY created_at ASC
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, (capture_id,))
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting POCSAG messages for capture: {e}")
+            return []
+
     def delete_old_captures(self, days_old: int = 30) -> int:
         """
         Delete captures older than specified days

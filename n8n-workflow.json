@@ -38,6 +38,10 @@
             {
               "name": "language",
               "value": "={{ $json.body.language || '' }}"
+            },
+            {
+              "name": "mode",
+              "value": "={{ $json.body.mode || 'voice' }}"
             }
           ]
         },
@@ -54,7 +58,7 @@
         "url": "http://localhost:5000/capture-and-transcribe",
         "authentication": "none",
         "requestMethod": "POST",
-        "bodyParametersJson": "={{ JSON.stringify({\n  frequency: $json.frequency,\n  modulation: $json.modulation,\n  duration: $json.duration,\n  gain: $json.gain,\n  language: $json.language\n}) }}",
+        "bodyParametersJson": "={{ JSON.stringify({\n  frequency: $json.frequency,\n  modulation: $json.modulation,\n  duration: $json.duration,\n  gain: $json.gain,\n  language: $json.language,\n  mode: $json.mode\n}) }}",
         "options": {
           "timeout": 120000
         }

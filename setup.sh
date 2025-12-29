@@ -30,7 +30,11 @@ sudo apt-get install -y \
     hackrf \
     build-essential \
     python3-pip \
-    python3-venv
+    python3-venv \
+    direwolf \
+    multimon-ng \
+    libasound2-dev \
+    cmake
 
 # Create virtual environment
 echo ""

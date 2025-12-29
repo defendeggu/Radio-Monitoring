@@ -20,9 +20,10 @@ The Radio Transcription System is a complete application that allows you to:
 - Capture radio signals from a HackRF One software-defined radio (SDR) device
 - Automatically transcribe speech from the captured audio using AI
 - Decode APRS (Automatic Packet Reporting System) digital messages
-- Store all captures and APRS packets in a PostgreSQL database with full-text search
-- Search and analyze historical captures and APRS messages
-- Visualize APRS stations on interactive maps
+- Decode POCSAG pager messages (512, 1200, 2400 baud)
+- Store all captures, APRS packets, and POCSAG messages in a PostgreSQL database with full-text search
+- Search and analyze historical captures, APRS messages, and pager traffic
+- Visualize APRS stations on interactive maps and POCSAG statistics
 - Monitor system performance and track operations
 
 ### What You Can Do
@@ -39,9 +40,16 @@ The Radio Transcription System is a complete application that allows you to:
 - Monitor APRS weather stations and telemetry
 - Search APRS messages by callsign, type, or content
 
+**POCSAG Pager Decoding:**
+- Decode POCSAG pager messages on 147.325 MHz (Switzerland) and other pager frequencies
+- Monitor alphanumeric, numeric, and tone-only pager messages
+- Track message statistics by address, baud rate, and message type
+- Search historical pager messages by address or content
+- Analyze pager traffic patterns and frequency usage
+
 **Data Analysis:**
 - Search through all historical captures by text, frequency, or date
-- Analyze frequency usage, language distribution, and APRS statistics
+- Analyze frequency usage, language distribution, APRS statistics, and POCSAG statistics
 - Track system performance through visual dashboards
 - Export and query capture data via REST API
 
