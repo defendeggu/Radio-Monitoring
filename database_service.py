@@ -9,10 +9,52 @@ import json
 from datetime import datetime
 from typing import Optional, Dict, List, Any
 from contextlib import contextmanager
+from pathlib import Path
 
 import psycopg2
 from psycopg2.extras import RealDictCursor, Json
 from psycopg2.pool import SimpleConnectionPool
+
+
+def read_secret(secret_name: str) -> Optional[str]:
+    """
+    Read a Docker secret from /run/secrets/ or return None
+
+    Args:
+        secret_name: Name of the secret file
+
+    Returns:
+        Secret value or None if not found
+    """
+    secret_path = Path(f'/run/secrets/{secret_name}')
+    if secret_path.exists():
+        return secret_path.read_text().strip()
+    return None
+
+
+def get_database_url() -> str:
+    """
+    Construct database URL from environment variables or Docker secrets
+
+    Returns:
+        PostgreSQL connection URL
+    """
+    # Try to read from Docker secrets first
+    postgres_user = read_secret('postgres_user')
+    postgres_password = read_secret('postgres_password')
+    postgres_db = read_secret('postgres_db')
+    postgres_host = os.getenv('POSTGRES_HOST', 'postgres')
+    postgres_port = os.getenv('POSTGRES_PORT', '5432')
+
+    # If secrets are available, construct URL from secrets
+    if postgres_user and postgres_password and postgres_db:
+        return f'postgresql://{postgres_user}:{postgres_password}@{postgres_host}:{postgres_port}/{postgres_db}'
+
+    # Fall back to DATABASE_URL environment variable
+    return os.getenv(
+        'DATABASE_URL',
+        'postgresql://radio_user:radio_password_change_in_production@postgres:5432/radio_monitoring'
+    )
 
 
 class DatabaseService:
@@ -23,10 +65,7 @@ class DatabaseService:
         Args:
             database_url: PostgreSQL connection URL
         """
-        self.database_url = database_url or os.getenv(
-            'DATABASE_URL',
-            'postgresql://radio_user:radio_password_change_in_production@postgres:5432/radio_monitoring'
-        )
+        self.database_url = database_url or get_database_url()
 
         # Initialize connection pool
         try:

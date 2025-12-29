@@ -112,31 +112,133 @@ A complete professional radio monitoring system for capturing radio signals from
    cd /home/spia/my-project
    ```
 
-2. **Configure environment** (optional)
+2. **Setup Secrets** (Required for first-time setup)
+   ```bash
+   ./setup-secrets.sh
+   ```
+   This script generates secure passwords for all services. Save the displayed credentials!
+
+3. **Configure environment** (optional)
    ```bash
    cp .env.example .env
    # Edit .env to customize settings
    ```
 
-3. **Connect HackRF device**
+4. **Connect HackRF device**
    ```bash
    # Verify HackRF is detected
    hackrf_info
    ```
 
-4. **Start the services**
+5. **Start the services**
    ```bash
    docker-compose up -d
    ```
 
-5. **Access the interfaces**
+6. **Access the interfaces**
    - Web Interface: http://localhost:8080
-   - Grafana Dashboards: http://localhost:3000 (admin/admin)
-   - pgAdmin Database Manager: http://localhost:5050 (admin@admin.com/admin)
-   - N8N Workflow: http://localhost:5679 (admin/admin)
+   - Grafana Dashboards: http://localhost:3000 (credentials from setup-secrets.sh)
+   - pgAdmin Database Manager: http://localhost:5050 (credentials from setup-secrets.sh)
+   - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
    - API: http://localhost:5000
    - Prometheus: http://localhost:9090
    - cAdvisor: http://localhost:8081
+
+## Secrets Management
+
+This project uses **Docker Secrets** for secure credential management, similar to Kubernetes Secrets.
+
+### 🔐 Why Docker Secrets?
+
+- **Security**: Passwords are stored in separate files, not in docker-compose.yml
+- **Git-safe**: Secret files are automatically excluded from version control
+- **Kubernetes-like**: Familiar pattern if you're used to K8s
+- **Auditable**: Easy to track which services use which secrets
+
+### Quick Setup
+
+Run the setup script to generate all required secrets:
+
+```bash
+./setup-secrets.sh
+```
+
+This creates:
+- Strong random passwords for all services
+- Secret files in the `secrets/` directory
+- Proper file permissions (600 - owner read/write only)
+
+**⚠️ Important**: Save the displayed credentials to your password manager!
+
+### Secret Files
+
+All secrets are stored in `secrets/*.txt` files:
+
+```
+secrets/
+├── postgres_user.txt
+├── postgres_password.txt
+├── postgres_db.txt
+├── grafana_admin_user.txt
+├── grafana_admin_password.txt
+├── n8n_basic_auth_user.txt
+├── n8n_basic_auth_password.txt
+├── pgadmin_email.txt
+└── pgadmin_password.txt
+```
+
+### How It Works
+
+Docker mounts secret files into containers at `/run/secrets/`:
+
+```yaml
+services:
+  postgres:
+    secrets:
+      - postgres_password
+    environment:
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+```
+
+The application reads secrets automatically:
+
+```python
+def read_secret(secret_name: str) -> Optional[str]:
+    secret_path = Path(f'/run/secrets/{secret_name}')
+    if secret_path.exists():
+        return secret_path.read_text().strip()
+    return None
+```
+
+### Viewing Your Credentials
+
+```bash
+# PostgreSQL
+cat secrets/postgres_password.txt
+
+# Grafana
+cat secrets/grafana_admin_password.txt
+
+# N8N
+cat secrets/n8n_basic_auth_password.txt
+
+# pgAdmin
+cat secrets/pgadmin_password.txt
+```
+
+### Changing Passwords
+
+1. Update the secret file:
+   ```bash
+   echo "new_strong_password" > secrets/postgres_password.txt
+   ```
+
+2. Restart the service:
+   ```bash
+   docker compose restart postgres
+   ```
+
+For more details, see [`secrets/README.md`](secrets/README.md).
 
 ## Manual Installation
 
