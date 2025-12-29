@@ -256,27 +256,31 @@
       "fieldConfig": {
         "defaults": {
           "color": {"mode": "thresholds"},
-          "custom": {"align": "auto", "displayMode": "auto"},
+          "custom": {"align": "auto", "displayMode": "auto", "filterable": true},
           "mappings": [],
           "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}]}
         },
         "overrides": [
-          {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.width", "value": 150}]},
-          {"matcher": {"id": "byName", "options": "Address"}, "properties": [{"id": "custom.width", "value": 100}]}
+          {"matcher": {"id": "byName", "options": "Time"}, "properties": [{"id": "custom.width", "value": 180}]},
+          {"matcher": {"id": "byName", "options": "Address"}, "properties": [{"id": "custom.width", "value": 120}]},
+          {"matcher": {"id": "byName", "options": "Type"}, "properties": [{"id": "custom.width", "value": 120}]},
+          {"matcher": {"id": "byName", "options": "Baud"}, "properties": [{"id": "custom.width", "value": 80}]},
+          {"matcher": {"id": "byName", "options": "Function"}, "properties": [{"id": "custom.width", "value": 90}]}
         ]
       },
-      "gridPos": {"h": 8, "w": 8, "x": 16, "y": 12},
+      "gridPos": {"h": 10, "w": 24, "x": 0, "y": 20},
       "id": 9,
       "options": {
         "footer": {"fields": "", "reducer": ["sum"], "show": false},
-        "showHeader": true
+        "showHeader": true,
+        "sortBy": [{"desc": true, "displayName": "Time"}]
       },
       "targets": [{
-        "rawSql": "SELECT created_at as \"Time\", address as \"Address\", message_type as \"Type\", baud_rate as \"Baud\", message_text as \"Message\" FROM pocsag_messages ORDER BY created_at DESC LIMIT 50",
+        "rawSql": "SELECT created_at as \"Time\", address as \"Address\", message_type as \"Type\", function_code as \"Function\", baud_rate as \"Baud\", CASE WHEN message_text IS NULL OR message_text = '' THEN '(Tone Only)' ELSE message_text END as \"Message\" FROM pocsag_messages ORDER BY created_at DESC LIMIT 100",
         "format": "table",
         "refId": "A"
       }],
-      "title": "Recent Messages",
+      "title": "POCSAG Messages",
       "type": "table"
     }
   ],
