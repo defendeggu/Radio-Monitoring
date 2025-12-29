@@ -14,5 +14,9 @@ models/
 .n8n/
 node_modules/
 
+# Secrets - NEVER commit actual secret files!
+secrets/*.txt
+!secrets/.gitkeep
+
 # Claude Code files
 claude.md
