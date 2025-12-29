@@ -805,6 +805,423 @@ class DatabaseService:
             print(f"Error deleting old captures: {e}")
             return 0
 
+    # =========================================================================
+    # Repeater Activity Methods
+    # =========================================================================
+
+    def get_repeaters(
+        self,
+        band: Optional[str] = None,
+        canton: Optional[str] = None,
+        status: str = 'active',
+        mode: str = 'FM',
+        limit: int = 1000
+    ) -> List[Dict[str, Any]]:
+        """
+        Get repeaters with optional filters.
+
+        Args:
+            band: Filter by band (2m, 70cm, 23cm)
+            canton: Filter by Swiss canton (ZH, BE, GR, etc.)
+            status: Filter by status (active, inactive, testing)
+            mode: Filter by mode (FM, DMR, D-STAR, etc.)
+            limit: Maximum results
+
+        Returns:
+            List of repeater dictionaries
+        """
+        if self.pool is None:
+            return []
+
+        conditions = []
+        params = []
+
+        if mode:
+            conditions.append("mode = %s")
+            params.append(mode)
+
+        if status:
+            conditions.append("status = %s")
+            params.append(status)
+
+        if band:
+            conditions.append("band = %s")
+            params.append(band)
+
+        if canton:
+            conditions.append("canton = %s")
+            params.append(canton.upper())
+
+        where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+        query = f"""
+            SELECT
+                id, uuid, created_at, updated_at,
+                callsign, name, output_frequency, input_frequency,
+                offset_mhz, ctcss_tone, modulation, mode, band,
+                latitude, longitude, elevation_meters,
+                canton, location_name, status, metadata
+            FROM repeaters
+            {where_clause}
+            ORDER BY band, output_frequency
+            LIMIT %s
+        """
+        params.append(limit)
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, params)
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting repeaters: {e}")
+            return []
+
+    def get_repeater_by_id(self, repeater_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get a single repeater by ID.
+
+        Args:
+            repeater_id: Repeater ID
+
+        Returns:
+            Repeater data or None
+        """
+        if self.pool is None:
+            return None
+
+        query = """
+            SELECT
+                id, uuid, created_at, updated_at,
+                callsign, name, output_frequency, input_frequency,
+                offset_mhz, ctcss_tone, modulation, mode, band,
+                latitude, longitude, elevation_meters,
+                canton, location_name, status, metadata
+            FROM repeaters
+            WHERE id = %s
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, (repeater_id,))
+                    result = cursor.fetchone()
+                    return dict(result) if result else None
+        except Exception as e:
+            print(f"Error getting repeater: {e}")
+            return None
+
+    def save_repeater_activity(
+        self,
+        capture_id: int,
+        repeater_id: int,
+        frequency: int,
+        scan_start_time: datetime,
+        scan_end_time: datetime,
+        metrics: Dict[str, Any]
+    ) -> Optional[int]:
+        """
+        Save repeater activity analysis results.
+
+        Args:
+            capture_id: Parent capture ID
+            repeater_id: Repeater ID
+            frequency: Frequency in Hz
+            scan_start_time: Scan start timestamp
+            scan_end_time: Scan end timestamp
+            metrics: ActivityMetrics dictionary from analyzer
+
+        Returns:
+            Activity record ID or None
+        """
+        if self.pool is None:
+            return None
+
+        scan_duration = int((scan_end_time - scan_start_time).total_seconds())
+
+        query = """
+            INSERT INTO repeater_activity (
+                capture_id, repeater_id, frequency,
+                scan_start_time, scan_end_time, scan_duration_seconds,
+                carrier_detected, transmission_count,
+                total_active_seconds, activity_percentage,
+                average_signal_strength, peak_signal_strength, noise_floor,
+                transmissions, analysis_data
+            ) VALUES (
+                %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s
+            )
+            RETURNING id;
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(query, (
+                        capture_id,
+                        repeater_id,
+                        frequency,
+                        scan_start_time,
+                        scan_end_time,
+                        scan_duration,
+                        metrics.get('carrier_detected', False),
+                        metrics.get('transmission_count', 0),
+                        metrics.get('total_active_seconds', 0),
+                        metrics.get('activity_percentage', 0),
+                        metrics.get('average_signal_strength'),
+                        metrics.get('peak_signal_strength'),
+                        metrics.get('noise_floor'),
+                        Json(metrics.get('transmissions', [])),
+                        Json(metrics)
+                    ))
+                    result = cursor.fetchone()
+                    activity_id = result[0]
+                    print(f"Saved repeater activity with ID: {activity_id}")
+                    return activity_id
+        except Exception as e:
+            print(f"Error saving repeater activity: {e}")
+            return None
+
+    def create_scan_session(
+        self,
+        scan_duration_per_repeater: int,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> Optional[int]:
+        """
+        Create a new repeater scan session.
+
+        Args:
+            scan_duration_per_repeater: Duration per repeater in seconds
+            metadata: Optional metadata dictionary
+
+        Returns:
+            Session ID or None
+        """
+        if self.pool is None:
+            return None
+
+        query = """
+            INSERT INTO repeater_scan_sessions (
+                scan_duration_per_repeater,
+                scan_start_time,
+                status,
+                metadata
+            ) VALUES (
+                %s, %s, %s, %s
+            )
+            RETURNING id;
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(query, (
+                        scan_duration_per_repeater,
+                        datetime.now(),
+                        'in_progress',
+                        Json(metadata) if metadata else None
+                    ))
+                    result = cursor.fetchone()
+                    session_id = result[0]
+                    print(f"Created scan session with ID: {session_id}")
+                    return session_id
+        except Exception as e:
+            print(f"Error creating scan session: {e}")
+            return None
+
+    def update_scan_session(
+        self,
+        session_id: int,
+        status: Optional[str] = None,
+        repeaters_scanned: Optional[int] = None,
+        repeaters_with_activity: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """
+        Update a scan session.
+
+        Args:
+            session_id: Session ID
+            status: New status (in_progress, completed, failed, cancelled)
+            repeaters_scanned: Number of repeaters scanned
+            repeaters_with_activity: Number with detected activity
+            metadata: Updated metadata
+
+        Returns:
+            True if successful
+        """
+        if self.pool is None:
+            return False
+
+        updates = []
+        params = []
+
+        if status:
+            updates.append("status = %s")
+            params.append(status)
+
+            if status in ['completed', 'failed', 'cancelled']:
+                updates.append("scan_end_time = %s")
+                params.append(datetime.now())
+
+        if repeaters_scanned is not None:
+            updates.append("repeaters_scanned = %s")
+            params.append(repeaters_scanned)
+
+        if repeaters_with_activity is not None:
+            updates.append("repeaters_with_activity = %s")
+            params.append(repeaters_with_activity)
+
+        if metadata is not None:
+            updates.append("metadata = %s")
+            params.append(Json(metadata))
+
+        if not updates:
+            return False
+
+        query = f"""
+            UPDATE repeater_scan_sessions
+            SET {', '.join(updates)}
+            WHERE id = %s
+        """
+        params.append(session_id)
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(query, params)
+                    success = cursor.rowcount > 0
+                    if success:
+                        print(f"Updated scan session {session_id}")
+                    return success
+        except Exception as e:
+            print(f"Error updating scan session: {e}")
+            return False
+
+    def get_scan_session(self, session_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get scan session details.
+
+        Args:
+            session_id: Session ID
+
+        Returns:
+            Session data or None
+        """
+        if self.pool is None:
+            return None
+
+        query = """
+            SELECT
+                id, uuid, created_at,
+                scan_duration_per_repeater,
+                repeaters_scanned, repeaters_with_activity,
+                scan_start_time, scan_end_time,
+                total_duration_seconds, status, metadata
+            FROM repeater_scan_sessions
+            WHERE id = %s
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, (session_id,))
+                    result = cursor.fetchone()
+                    return dict(result) if result else None
+        except Exception as e:
+            print(f"Error getting scan session: {e}")
+            return None
+
+    def get_repeater_activity_summary(
+        self,
+        hours: int = 24,
+        limit: int = 10
+    ) -> List[Dict[str, Any]]:
+        """
+        Get summary of most active repeaters.
+
+        Args:
+            hours: Time window in hours
+            limit: Maximum results
+
+        Returns:
+            List of repeater activity summaries
+        """
+        if self.pool is None:
+            return []
+
+        query = """
+            SELECT
+                r.id,
+                r.callsign,
+                r.output_frequency / 1000000.0 as frequency_mhz,
+                r.band,
+                r.location_name,
+                r.canton,
+                COUNT(ra.id) as scan_count,
+                AVG(ra.activity_percentage) as avg_activity_percentage,
+                SUM(ra.transmission_count) as total_transmissions,
+                MAX(ra.created_at) as last_scan
+            FROM repeaters r
+            JOIN repeater_activity ra ON r.id = ra.repeater_id
+            WHERE ra.created_at > NOW() - INTERVAL '%s hours'
+            GROUP BY r.id
+            ORDER BY avg_activity_percentage DESC
+            LIMIT %s
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, (hours, limit))
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting activity summary: {e}")
+            return []
+
+    def get_repeater_activity_by_capture(
+        self,
+        capture_id: int
+    ) -> List[Dict[str, Any]]:
+        """
+        Get all repeater activity for a specific capture.
+
+        Args:
+            capture_id: Capture ID
+
+        Returns:
+            List of activity records
+        """
+        if self.pool is None:
+            return []
+
+        query = """
+            SELECT
+                ra.id, ra.uuid, ra.created_at,
+                ra.repeater_id, ra.frequency,
+                ra.scan_start_time, ra.scan_end_time, ra.scan_duration_seconds,
+                ra.carrier_detected, ra.transmission_count,
+                ra.total_active_seconds, ra.activity_percentage,
+                ra.average_signal_strength, ra.peak_signal_strength, ra.noise_floor,
+                ra.transmissions, ra.analysis_data,
+                r.callsign, r.location_name, r.band
+            FROM repeater_activity ra
+            JOIN repeaters r ON ra.repeater_id = r.id
+            WHERE ra.capture_id = %s
+            ORDER BY ra.created_at ASC
+        """
+
+        try:
+            with self.get_connection() as conn:
+                with conn.cursor(cursor_factory=RealDictCursor) as cursor:
+                    cursor.execute(query, (capture_id,))
+                    results = cursor.fetchall()
+                    return [dict(row) for row in results]
+        except Exception as e:
+            print(f"Error getting repeater activity for capture: {e}")
+            return []
+
     def close(self):
         """Close all database connections"""
         if self.pool:

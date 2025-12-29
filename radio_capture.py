@@ -103,6 +103,74 @@ class HackRFCapture:
             print("Falling back to simulation mode")
             self._simulate_capture(duration, output_file)
 
+    def capture_iq(self, duration: int, output_file: str) -> None:
+        """
+        Capture raw IQ samples and save as complex64 binary file
+
+        Args:
+            duration: Recording duration in seconds
+            output_file: Output IQ file path (complex64 format)
+        """
+        print(f"Starting IQ capture:")
+        print(f"  Frequency: {self.frequency/1e6:.3f} MHz")
+        print(f"  Duration: {duration}s")
+        print(f"  Output: {output_file}")
+
+        try:
+            import subprocess
+            import tempfile
+
+            # Calculate number of samples
+            num_samples = int(duration * self.sample_rate)
+
+            # Create temporary file for raw IQ samples
+            with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
+                raw_file = tmpfile.name
+
+            try:
+                # Use hackrf_transfer command-line tool
+                print("Recording IQ samples...")
+                cmd = [
+                    'hackrf_transfer',
+                    '-r', raw_file,
+                    '-f', str(int(self.frequency)),
+                    '-s', str(self.sample_rate),
+                    '-l', str(self.gain),
+                    '-g', str(self.gain),
+                    '-n', str(num_samples * 2)  # * 2 for IQ samples
+                ]
+
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=duration * 2 + 15)
+
+                if result.returncode != 0:
+                    raise RuntimeError(f"hackrf_transfer failed: {result.stderr}")
+
+                # Read raw IQ samples
+                iq_data = np.fromfile(raw_file, dtype=np.int8)
+
+                # Convert to complex IQ samples (complex64 format)
+                iq_samples = iq_data[0::2] + 1j * iq_data[1::2]
+                iq_samples = iq_samples.astype(np.complex64) / 127.0
+
+                # Ensure output directory exists
+                os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+
+                # Save IQ samples as complex64
+                iq_samples.tofile(output_file)
+
+                print(f"IQ capture complete: {output_file}")
+                print(f"  Samples: {len(iq_samples)}")
+                print(f"  File size: {os.path.getsize(output_file) / 1024 / 1024:.1f} MB")
+
+            finally:
+                # Clean up temporary file
+                if os.path.exists(raw_file):
+                    os.unlink(raw_file)
+
+        except Exception as e:
+            print(f"Error during IQ capture: {e}")
+            raise
+
     def _demodulate(self, iq_samples: NDArray[np.complex64]) -> NDArray[np.float64]:
         """Demodulate IQ samples based on modulation type"""
 

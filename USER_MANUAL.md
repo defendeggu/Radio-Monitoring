@@ -9,6 +9,7 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 - **Voice Transcription**: Sprache von Radiosendern in Text umwandeln
 - **APRS Decoding**: Digitale Funkpakete von Amateurfunkern empfangen und anzeigen
 - **POCSAG Decoding**: Pager-Nachrichten dekodieren
+- **Repeater Activity Monitoring**: Schweizer FM-Repeater auf Aktivität überwachen (NEU)
 - **Datenanalyse**: Alle Aufnahmen durchsuchen und visualisieren
 
 ---
@@ -31,10 +32,11 @@ docker compose up -d
 
 ### Tabs oben
 
-Das Web-Interface hat 3 Tabs:
+Das Web-Interface hat 4 Tabs:
 - **🎤 Voice Transcription** - Sprache aufnehmen und transkribieren
 - **📡 APRS** - APRS-Pakete empfangen
 - **📟 POCSAG** - Pager-Nachrichten empfangen
+- **📻 Repeater Scan** - FM-Repeater-Aktivität überwachen (NEU)
 
 ### Voice Transcription verwenden
 
@@ -99,6 +101,56 @@ Das Web-Interface hat 3 Tabs:
    - Tabelle mit Pager-Nachrichten
    - Spalten: Time, Address, Type, Baud, Message
 
+### Repeater Scan verwenden (NEU)
+
+1. **Klicke auf den Tab "Repeater Scan"**
+
+2. **Band & Region wählen:**
+   - **Band**: 2m (144-146 MHz) oder 70cm (430-440 MHz)
+   - **Canton**: Optional - Filter nach Kanton (ZH, BE, GR, etc.)
+   - **Preset-Buttons** verfügbar: "All 2m", "All 70cm", "Zürich 2m", "Bern 2m"
+
+3. **Scan-Parameter einstellen:**
+   - **Duration per Repeater**: 30-300 Sekunden (Empfohlen: 120s)
+   - **RF Gain**: 20 dB standardmäßig
+   - Längere Dauer = präzisere Messungen
+
+4. **"Start Repeater Scan" klicken**
+
+5. **Live-Fortschritt beobachten:**
+   - Progress Bar zeigt aktuellen Fortschritt
+   - Zeigt welcher Repeater gerade gescannt wird
+   - Geschätzte verbleibende Zeit (ETA)
+   - Live-Tabelle mit Zwischenergebnissen
+
+6. **Ergebnis:**
+   - **Tabelle mit Repeater-Aktivität:**
+     - **Status**: 🟢 Aktiv (Transmissionen erkannt) / ⚫ Ruhig (keine Aktivität)
+     - **Callsign**: Repeater-Rufzeichen (z.B. HB9GR)
+     - **Frequency**: Ausgabefrequenz in MHz
+     - **Transmissions**: Anzahl erkannter Funkvorgänge
+     - **Activity %**: Prozentsatz der Zeit mit Aktivität
+     - **Signal (dB)**: Durchschnittliche Signalstärke
+
+7. **Daten analysieren:**
+   - In Grafana "Repeater Activity Dashboard" öffnen
+   - Historische Trends ansehen
+   - Aktivste Repeater identifizieren
+
+**Tipps:**
+- **Scan dauert lange:** 10 Repeater × 120s = 20 Minuten
+- **Selektiv scannen:** Band/Canton-Filter nutzen um Zeit zu sparen
+- **Beste Resultate:** Scans zu aktiven Zeiten (Wochenende, Abend)
+- **Keine Aktivität?** Normal - viele Repeater sind selten genutzt
+
+**Repeater-Daten importieren:**
+```bash
+# CSV mit Repeater-Liste importieren
+docker exec radio-transcription-api python /app/scripts/import_repeaters_csv.py /app/scripts/example_repeaters.csv
+```
+
+Siehe `scripts/README.md` für CSV-Format.
+
 ---
 
 ## 📊 Grafana Dashboards
@@ -128,7 +180,15 @@ Das Web-Interface hat 3 Tabs:
    - Baud-Rate Verteilung (512, 1200, 2400)
    - Timeline der letzten 24 Stunden
 
-3. **System Performance**
+3. **Repeater Activity Dashboard** (NEU)
+   - Aktivste Repeater der letzten 24 Stunden
+   - Scan-Rate (Anzahl Scans pro Minute)
+   - Aktivität nach Band (2m vs 70cm)
+   - Letzte 100 Scan-Ergebnisse mit Signalstärke
+   - Aktivitäts-Trends nach Canton
+   - Auto-Refresh alle 30 Sekunden
+
+4. **System Performance**
    - API Requests
    - Erfolgsrate
    - CPU & Memory Usage
@@ -171,6 +231,9 @@ Das Web-Interface hat 3 Tabs:
    - **captures** - Alle Voice-Aufnahmen
    - **aprs_messages** - APRS-Pakete
    - **pocsag_messages** - POCSAG-Nachrichten
+   - **repeaters** - Schweizer FM-Repeater Verzeichnis (NEU)
+   - **repeater_activity** - Repeater-Aktivitäts-Messungen (NEU)
+   - **repeater_scan_sessions** - Scan-Sitzungen (NEU)
 
 3. **Daten ansehen:**
    - Rechtsklick auf Tabelle → "View/Edit Data" → "All Rows"
@@ -195,6 +258,16 @@ WHERE source_callsign = 'N0CALL';
 -- POCSAG-Nachrichten einer Adresse
 SELECT * FROM pocsag_messages
 WHERE address = 1234567;
+
+-- Aktivste Repeater im Kanton Zürich
+SELECT r.callsign, r.output_frequency / 1000000.0 AS freq_mhz,
+       AVG(ra.activity_percentage) AS avg_activity
+FROM repeaters r
+JOIN repeater_activity ra ON r.id = ra.repeater_id
+WHERE r.canton = 'ZH'
+GROUP BY r.id
+ORDER BY avg_activity DESC
+LIMIT 10;
 ```
 
 **Tipps:**
@@ -345,6 +418,6 @@ Siehe **README.md** für:
 
 ---
 
-**Version:** 3.0
+**Version:** 4.0
 **Letztes Update:** Dezember 2025
-**Features:** Voice, APRS, POCSAG, Secrets Management
+**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, Secrets Management

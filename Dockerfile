@@ -29,9 +29,11 @@ COPY aprs_decoder_service.py .
 COPY pocsag_decoder_service.py .
 COPY api_service.py .
 COPY database_service.py .
+COPY repeater_activity_analyzer.py .
 COPY migrate_json_to_db.py .
 COPY direwolf.conf .
 COPY .env.example .env
+COPY scripts/ scripts/
 
 # Create recordings directory
 RUN mkdir -p recordings

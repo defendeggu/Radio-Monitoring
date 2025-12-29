@@ -196,6 +196,136 @@ CREATE TRIGGER update_pocsag_messages_updated_at
     FOR EACH ROW
     EXECUTE FUNCTION update_updated_at_column();
 
+-- ============================================================================
+-- REPEATER MONITORING TABLES
+-- ============================================================================
+
+-- Table for Swiss amateur radio repeaters
+CREATE TABLE IF NOT EXISTS repeaters (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+
+    -- Repeater identification
+    callsign VARCHAR(20) NOT NULL,
+    name VARCHAR(100),
+
+    -- Technical parameters
+    output_frequency BIGINT NOT NULL CHECK (output_frequency > 0),  -- Hz
+    input_frequency BIGINT NOT NULL CHECK (input_frequency > 0),    -- Hz
+    offset_mhz DECIMAL(6,4),           -- e.g., -0.6 for 600kHz shift
+    ctcss_tone DECIMAL(5,1),           -- e.g., 123.0 Hz
+    modulation VARCHAR(20) DEFAULT 'FM',
+
+    -- Repeater type (for filtering)
+    mode VARCHAR(20) NOT NULL CHECK (mode IN ('FM', 'DMR', 'D-STAR', 'Fusion', 'P25', 'C4FM')),
+    band VARCHAR(10) CHECK (band IN ('2m', '70cm', '23cm')),
+
+    -- Location data
+    latitude DECIMAL(10, 7),
+    longitude DECIMAL(11, 7),
+    elevation_meters INTEGER,
+    canton VARCHAR(2),  -- e.g., 'ZH', 'BE', 'GE'
+    location_name VARCHAR(100),
+
+    -- Status
+    status VARCHAR(20) DEFAULT 'active' CHECK (status IN ('active', 'inactive', 'testing')),
+
+    -- Metadata
+    metadata JSONB
+);
+
+-- Indices for repeaters
+CREATE INDEX IF NOT EXISTS idx_repeaters_mode ON repeaters(mode);
+CREATE INDEX IF NOT EXISTS idx_repeaters_band ON repeaters(band);
+CREATE INDEX IF NOT EXISTS idx_repeaters_status ON repeaters(status);
+CREATE INDEX IF NOT EXISTS idx_repeaters_canton ON repeaters(canton);
+CREATE INDEX IF NOT EXISTS idx_repeaters_callsign ON repeaters(callsign);
+CREATE INDEX IF NOT EXISTS idx_repeaters_output_frequency ON repeaters(output_frequency);
+
+-- Table for repeater activity scan results
+CREATE TABLE IF NOT EXISTS repeater_activity (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+
+    -- Links to parent tables
+    capture_id INTEGER NOT NULL REFERENCES captures(id) ON DELETE CASCADE,
+    repeater_id INTEGER REFERENCES repeaters(id) ON DELETE SET NULL,
+
+    -- Timestamps
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+    scan_start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    scan_end_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    scan_duration_seconds INTEGER NOT NULL CHECK (scan_duration_seconds > 0),
+
+    -- Frequency (denormalized for queries when repeater deleted)
+    frequency BIGINT NOT NULL CHECK (frequency > 0),
+
+    -- Activity metrics
+    carrier_detected BOOLEAN NOT NULL DEFAULT FALSE,
+    transmission_count INTEGER NOT NULL DEFAULT 0 CHECK (transmission_count >= 0),
+    total_active_seconds DECIMAL(10, 2) NOT NULL DEFAULT 0 CHECK (total_active_seconds >= 0),
+    activity_percentage DECIMAL(5, 2) NOT NULL DEFAULT 0 CHECK (activity_percentage >= 0 AND activity_percentage <= 100),
+
+    -- Signal quality metrics
+    average_signal_strength DECIMAL(8, 2),  -- RMS power in dB
+    peak_signal_strength DECIMAL(8, 2),
+    noise_floor DECIMAL(8, 2),
+
+    -- Transmission details (JSON array)
+    transmissions JSONB,  -- [{start_offset: 12.5, duration: 3.2, avg_strength: -45, peak_strength: -42}, ...]
+
+    -- Raw analysis data
+    analysis_data JSONB
+);
+
+-- Indices for repeater_activity
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_capture_id ON repeater_activity(capture_id);
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_repeater_id ON repeater_activity(repeater_id);
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_created_at ON repeater_activity(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_frequency ON repeater_activity(frequency);
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_carrier ON repeater_activity(carrier_detected);
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_scan_start ON repeater_activity(scan_start_time DESC);
+
+-- JSONB indices for repeater_activity
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_transmissions_gin ON repeater_activity USING gin(transmissions);
+CREATE INDEX IF NOT EXISTS idx_repeater_activity_analysis_gin ON repeater_activity USING gin(analysis_data);
+
+-- Table for tracking full repeater scan sessions
+CREATE TABLE IF NOT EXISTS repeater_scan_sessions (
+    id SERIAL PRIMARY KEY,
+    uuid UUID DEFAULT uuid_generate_v4() UNIQUE NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW() NOT NULL,
+
+    -- Scan parameters
+    scan_duration_per_repeater INTEGER NOT NULL CHECK (scan_duration_per_repeater > 0),  -- seconds
+    repeaters_scanned INTEGER NOT NULL DEFAULT 0 CHECK (repeaters_scanned >= 0),
+    repeaters_with_activity INTEGER NOT NULL DEFAULT 0 CHECK (repeaters_with_activity >= 0),
+
+    -- Time tracking
+    scan_start_time TIMESTAMP WITH TIME ZONE NOT NULL,
+    scan_end_time TIMESTAMP WITH TIME ZONE,
+    total_duration_seconds INTEGER CHECK (total_duration_seconds >= 0),
+
+    -- Status
+    status VARCHAR(20) DEFAULT 'in_progress' CHECK (status IN ('in_progress', 'completed', 'failed', 'cancelled')),
+
+    -- Metadata
+    metadata JSONB
+);
+
+-- Indices for repeater_scan_sessions
+CREATE INDEX IF NOT EXISTS idx_scan_sessions_created_at ON repeater_scan_sessions(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_scan_sessions_status ON repeater_scan_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_scan_sessions_scan_start ON repeater_scan_sessions(scan_start_time DESC);
+
+-- Create triggers for updated_at on repeaters
+CREATE TRIGGER update_repeaters_updated_at
+    BEFORE UPDATE ON repeaters
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
 -- Create view for statistics
 CREATE OR REPLACE VIEW capture_statistics AS
 SELECT
@@ -265,6 +395,20 @@ SELECT
 FROM pocsag_messages
 GROUP BY DATE(created_at)
 ORDER BY message_date DESC;
+
+-- Create view for repeater activity statistics
+CREATE OR REPLACE VIEW repeater_activity_statistics AS
+SELECT
+    COUNT(DISTINCT ra.repeater_id) as total_repeaters_scanned,
+    COUNT(DISTINCT CASE WHEN ra.carrier_detected THEN ra.repeater_id END) as repeaters_with_activity,
+    COUNT(*) as total_scans,
+    SUM(ra.transmission_count) as total_transmissions,
+    AVG(ra.activity_percentage) as avg_activity_percentage,
+    AVG(ra.average_signal_strength) as avg_signal_strength,
+    DATE(ra.created_at) as scan_date
+FROM repeater_activity ra
+GROUP BY DATE(ra.created_at)
+ORDER BY scan_date DESC;
 
 -- Insert initial metadata
 INSERT INTO captures (
