@@ -23,8 +23,8 @@ docker compose up -d
 
 **Wichtige URLs:**
 - **Web-Interface**: http://localhost:8080 (Hauptsteuerung)
-- **Grafana**: http://localhost:3000 (Dashboards & Visualisierung)
-- **pgAdmin**: http://localhost:5050 (Datenbank-Browser)
+- **Kibana**: http://localhost:5601 (Dashboards & Visualisierung)
+- **Elasticsearch**: http://localhost:9200 (Datenbank API)
 
 ---
 
@@ -133,7 +133,7 @@ Das Web-Interface hat 4 Tabs:
      - **Signal (dB)**: Durchschnittliche Signalstärke
 
 7. **Daten analysieren:**
-   - In Grafana "Repeater Activity Dashboard" öffnen
+   - In Kibana "Repeater Activity Dashboard" öffnen
    - Historische Trends ansehen
    - Aktivste Repeater identifizieren
 
@@ -153,142 +153,195 @@ Siehe `scripts/README.md` für CSV-Format.
 
 ---
 
-## 📊 Grafana Dashboards
+## 📊 Kibana Dashboards
 
-**Zugriff:** http://localhost:3000
+**Zugriff:** http://localhost:5601
 
-**Login:**
-- Credentials wurden beim Setup generiert
-- Siehe `cat secrets/grafana_admin_password.txt`
+**Login:** Keine Authentifizierung erforderlich (für Produktion X-Pack Security aktivieren)
 
-### Was zeigt Grafana?
+### Was zeigt Kibana?
 
-**Verfügbare Dashboards:**
+**Verfügbare Funktionen:**
 
-1. **APRS Dashboard**
-   - Anzahl empfangener APRS-Pakete
-   - Top 15 aktivste Callsigns
-   - Timeline: Wann wurden Pakete empfangen?
-   - Karte mit APRS-Stationen
-   - Nachrichtentypen (Position, Message, Weather, etc.)
+1. **Discover** (Radio Captures Explorer)
+   - Volltext-Suche in allen Transkriptionen
+   - Filter nach Modulation, Frequenz, Sprache
+   - Zeitbasierte Filterung (15m, 1h, 24h, 7d, 30d)
+   - Real-time Updates mit Auto-Refresh
 
-2. **POCSAG Dashboard**
-   - Anzahl POCSAG-Nachrichten
-   - Eindeutige Pager-Adressen
-   - Top 15 Adressen
-   - Nachrichtentypen (Alphanumeric, Numeric, Tone)
-   - Baud-Rate Verteilung (512, 1200, 2400)
-   - Timeline der letzten 24 Stunden
+2. **APRS Dashboard**
+   - Total APRS Packets: Gesamtanzahl empfangener Pakete
+   - Unique Callsigns: Anzahl eindeutiger Rufzeichen
+   - Top 15 Callsigns: Aktivste Stationen (Balkendiagramm)
+   - APRS Stations Map: Geo-Karte mit Stationspositionen
+   - Message Types: Verteilung der Pakettypen (Pie Chart)
+   - APRS Timeline: Pakete über Zeit (Liniendiagramm)
+   - Recent Packets Table: Letzte 50 APRS-Nachrichten
 
-3. **Repeater Activity Dashboard** (NEU)
-   - Aktivste Repeater der letzten 24 Stunden
-   - Scan-Rate (Anzahl Scans pro Minute)
-   - Aktivität nach Band (2m vs 70cm)
-   - Letzte 100 Scan-Ergebnisse mit Signalstärke
-   - Aktivitäts-Trends nach Canton
-   - Auto-Refresh alle 30 Sekunden
+3. **POCSAG Dashboard**
+   - Total Messages: Gesamtanzahl POCSAG-Nachrichten
+   - Unique Addresses: Eindeutige Pager-Adressen
+   - Top 15 Addresses: Aktivste Adressen
+   - Message Types: Nachrichtentypen-Verteilung
+   - Baud Rates: Verteilung (512, 1200, 2400 Baud)
+   - Timeline: Nachrichten der letzten 24h
 
-4. **System Performance**
-   - API Requests
-   - Erfolgsrate
-   - CPU & Memory Usage
+4. **Repeater Activity Dashboard**
+   - Most Active Repeaters (24h): Tabelle mit avg. Activity %
+   - Activity by Band: 2m vs 70cm Verteilung (Pie Chart)
+   - Scan Rate: Scan-Operationen über Zeit
+   - Recent Scans: Letzte 100 Scan-Ergebnisse mit Signalstärke
 
-### Dashboard nutzen
+5. **System Metrics** (Metricbeat)
+   - Container CPU & Memory Usage
+   - System Performance
+   - Docker Statistiken
+
+### Kibana nutzen
 
 **Navigation:**
-- Links: Menü für Dashboard-Auswahl
-- Oben rechts: Zeitbereich auswählen (z.B. "Last 24 hours")
-- Auto-Refresh aktivieren für Live-Updates
+- Links: Hauptmenü (Discover, Dashboard, Visualize, Dev Tools)
+- Oben rechts: Zeitbereich auswählen (Quick Select: Last 15 minutes, Last 24 hours, etc.)
+- Auto-Refresh aktivieren (z.B. alle 30s)
 
-**Panels:**
-- Klicke auf Panel-Titel → "View" für Vollbild
+**Suchen in Discover:**
+- Suchfeld nutzen: `transcription: "amateur"` oder `modulation: "FM"`
+- Filter hinzufügen: "Add filter" → Feld → Wert
+- Felder aus der Sidebar hinzufügen/entfernen
+
+**Dashboard-Funktionen:**
+- Klick auf Visualisierung für Drilldown
 - Zeitbereich mit Maus ziehen für Zoom
-- Mouse-over auf Graphen für Details
+- Filter durch Klick auf Diagrammelemente
+- Dashboards mit "Share" exportieren
 
 **Tipps:**
-- Dashboards aktualisieren sich automatisch alle 30 Sekunden
-- Zeitbereich anpassen um historische Daten zu sehen
-- Bei "No Data" → Erst Captures machen, dann Dashboard aktualisieren
+- Index Pattern erstellen: Kibana → Stack Management → Index Patterns → Create
+- Dashboards refreshen sich automatisch (wenn Auto-Refresh aktiviert)
+- Bei "No Data" → Erst Captures machen, Index Pattern prüfen
+- Zeitbereich erweitern wenn keine Daten angezeigt werden
 
 ---
 
-## 🗄️ pgAdmin - Datenbank Browser
+## 🗄️ Kibana Dev Tools - Elasticsearch Konsole
 
-**Zugriff:** http://localhost:5050
+**Zugriff:** http://localhost:5601/app/dev_tools#/console
 
-**Login:**
-- Credentials wurden beim Setup generiert
-- Siehe `cat secrets/pgadmin_password.txt`
+**Login:** Keine Authentifizierung erforderlich
 
-### Daten ansehen
+### Indices ansehen
 
-**Server ist bereits konfiguriert:**
+**Verfügbare Indices:**
+- **radio-captures-YYYY.MM.DD** - Voice-Aufnahmen (täglich)
+- **radio-aprs-YYYY.MM.DD** - APRS-Pakete
+- **radio-pocsag-YYYY.MM.DD** - POCSAG-Nachrichten
+- **radio-repeater-activity-YYYY.MM.DD** - Repeater-Aktivität
+- **radio-metrics-YYYY.MM.DD** - System-Metriken
 
-1. **Links in der Sidebar:**
-   - Servers → Radio Monitoring Database → Databases → radio_monitoring → Schemas → public → Tables
-
-2. **Tabellen:**
-   - **captures** - Alle Voice-Aufnahmen
-   - **aprs_messages** - APRS-Pakete
-   - **pocsag_messages** - POCSAG-Nachrichten
-   - **repeaters** - Schweizer FM-Repeater Verzeichnis (NEU)
-   - **repeater_activity** - Repeater-Aktivitäts-Messungen (NEU)
-   - **repeater_scan_sessions** - Scan-Sitzungen (NEU)
-
-3. **Daten ansehen:**
-   - Rechtsklick auf Tabelle → "View/Edit Data" → "All Rows"
-   - Zeigt alle Einträge wie in Excel
+**Indices auflisten:**
+```json
+GET /_cat/indices/radio-*?v
+```
 
 ### Einfache Suchen
 
-**Query Tool öffnen:**
-- Rechtsklick auf "radio_monitoring" → "Query Tool"
+**Dev Tools Konsole öffnen:**
+- Kibana → Dev Tools (linkes Menü)
 
 **Beispiel-Abfragen:**
 
-```sql
--- Alle Aufnahmen von heute
-SELECT * FROM captures
-WHERE created_at::date = CURRENT_DATE;
+```json
+// Alle Aufnahmen von heute
+POST /radio-captures-*/_search
+{
+  "query": {
+    "range": {
+      "@timestamp": {
+        "gte": "now/d"
+      }
+    }
+  },
+  "size": 100
+}
 
--- APRS-Pakete eines bestimmten Callsigns
-SELECT * FROM aprs_messages
-WHERE source_callsign = 'N0CALL';
+// APRS-Pakete eines bestimmten Callsigns
+POST /radio-aprs-*/_search
+{
+  "query": {
+    "term": {
+      "source_callsign": "N0CALL"
+    }
+  }
+}
 
--- POCSAG-Nachrichten einer Adresse
-SELECT * FROM pocsag_messages
-WHERE address = 1234567;
+// POCSAG-Nachrichten einer Adresse
+POST /radio-pocsag-*/_search
+{
+  "query": {
+    "term": {
+      "address": 1234567
+    }
+  }
+}
 
--- Aktivste Repeater im Kanton Zürich
-SELECT r.callsign, r.output_frequency / 1000000.0 AS freq_mhz,
-       AVG(ra.activity_percentage) AS avg_activity
-FROM repeaters r
-JOIN repeater_activity ra ON r.id = ra.repeater_id
-WHERE r.canton = 'ZH'
-GROUP BY r.id
-ORDER BY avg_activity DESC
-LIMIT 10;
+// Aktivste Repeater mit Aggregation
+POST /radio-repeater-activity-*/_search
+{
+  "size": 0,
+  "query": {
+    "range": {
+      "@timestamp": {"gte": "now-24h"}
+    }
+  },
+  "aggs": {
+    "by_repeater": {
+      "terms": {
+        "field": "repeater_callsign",
+        "size": 10,
+        "order": {"avg_activity": "desc"}
+      },
+      "aggs": {
+        "avg_activity": {
+          "avg": {"field": "activity_percentage"}
+        }
+      }
+    }
+  }
+}
 ```
 
 **Tipps:**
-- Query schreiben → F5 drücken zum Ausführen
-- "Download as CSV" für Export
-- Nicht vergessen: Nach Suchen mit `LIMIT 100` die Ergebnisse begrenzen
+- Query schreiben → Grüner Pfeil (▶) klicken zum Ausführen
+- Strg+Enter für schnelles Ausführen
+- Auto-Completion mit Strg+Space
+- Ergebnisse werden rechts angezeigt
 
 ### Daten exportieren
 
-**CSV Export:**
-1. Rechtsklick auf Tabelle → "Import/Export..."
-2. "Export" wählen
-3. Format: CSV
-4. Dateinamen eingeben
-5. "OK" klicken
+**JSON Export:**
+```json
+// Scroll API für große Datenmengen
+POST /radio-captures-*/_search?scroll=5m
+{
+  "size": 1000,
+  "query": {"match_all": {}}
+}
+```
 
-**Datenbank-Backup:**
-1. Rechtsklick auf "radio_monitoring" → "Backup..."
-2. Format: "Custom" (komprimiert)
-3. Dateinamen eingeben
-4. "Backup" klicken
+**Index-Snapshot (Backup):**
+```json
+// Snapshot Repository konfigurieren
+PUT /_snapshot/radio_backup
+{
+  "type": "fs",
+  "settings": {
+    "location": "/usr/share/elasticsearch/backup"
+  }
+}
+
+// Snapshot erstellen
+PUT /_snapshot/radio_backup/snapshot_1?wait_for_completion=true
+```
 
 ---
 
@@ -319,15 +372,18 @@ hackrf_info
 docker compose restart
 ```
 
-### Grafana zeigt keine Daten
+### Kibana zeigt keine Daten
 
 **Ursachen:**
 - Noch keine Captures gemacht
 - Zeitbereich falsch gewählt
+- Index Pattern noch nicht erstellt
 
 **Lösungen:**
 - Erst Aufnahmen machen
 - Zeitbereich auf "Last 24 hours" setzen
+- Index Pattern prüfen: Kibana → Stack Management → Index Patterns
+- Index Pattern erstellen für `radio-captures-*`, `radio-aprs-*`, etc.
 - Dashboard refreshen (Reload-Button oben rechts)
 
 ### Keine APRS-Pakete
@@ -392,17 +448,16 @@ hackrf_info
 
 ### Zugangsdaten
 
-**Grafana:** http://localhost:3000
+**Kibana:** http://localhost:5601
+- Keine Authentifizierung erforderlich
+
+**N8N:** http://localhost:5679
 ```bash
-cat secrets/grafana_admin_user.txt
-cat secrets/grafana_admin_password.txt
+cat secrets/n8n_basic_auth_user.txt
+cat secrets/n8n_basic_auth_password.txt
 ```
 
-**pgAdmin:** http://localhost:5050
-```bash
-cat secrets/pgadmin_email.txt
-cat secrets/pgadmin_password.txt
-```
+**Hinweis:** Für Produktion X-Pack Security für Elasticsearch/Kibana aktivieren
 
 ---
 
