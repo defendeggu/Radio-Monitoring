@@ -12,15 +12,17 @@ from datetime import datetime
 from typing import TypedDict, Any, Dict, Optional
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from prometheus_flask_exporter import PrometheusMetrics
-from prometheus_client import Counter, Histogram, Gauge
-from radio_capture import HackRFCapture
+from sdr_hardware import get_sdr_instance, detect_sdr, SDRType
 from transcription_service import TranscriptionService
 from aprs_decoder_service import APRSDecoder
 from pocsag_decoder_service import POCSAGDecoder
-from database_service import get_database_service
+from elasticsearch_service import get_elasticsearch_service
 from repeater_activity_analyzer import RepeaterActivityAnalyzer
 from dotenv import load_dotenv
+
+# Prometheus metrics removed - replaced by Metricbeat
+# from prometheus_flask_exporter import PrometheusMetrics
+# from prometheus_client import Counter, Histogram, Gauge
 
 # Load environment variables
 load_dotenv()
@@ -54,98 +56,25 @@ app = Flask(__name__)
 # Enable CORS for all routes
 CORS(app)
 
-# Initialize Prometheus metrics
-metrics = PrometheusMetrics(app, group_by='endpoint')
+# Prometheus metrics removed - replaced by Metricbeat for system/container metrics
+# Application metrics now tracked in Elasticsearch via elasticsearch_service.py
+# metrics = PrometheusMetrics(app, group_by='endpoint')
+# radio_captures_total = Counter(...)
+# radio_capture_duration = Histogram(...)
+# transcription_requests_total = Counter(...)
+# transcription_duration = Histogram(...)
+# aprs_decodes_total = Counter(...)
+# aprs_packets_decoded = Counter(...)
 
-# Custom Prometheus metrics
-radio_captures_total = Counter(
-    'radio_captures_total',
-    'Total radio captures',
-    ['modulation', 'status']
-)
-
-radio_capture_duration = Histogram(
-    'radio_capture_duration_seconds',
-    'Radio capture duration in seconds',
-    buckets=[1, 5, 10, 30, 60, 120, 300]
-)
-
-radio_simulation_mode = Gauge(
-    'radio_simulation_mode',
-    'Whether in simulation mode (1) or real hardware (0)'
-)
-
-transcription_requests_total = Counter(
-    'transcription_requests_total',
-    'Total transcription requests',
-    ['status']
-)
-
-transcription_duration = Histogram(
-    'transcription_duration_seconds',
-    'Transcription duration in seconds',
-    buckets=[1, 5, 10, 30, 60, 120]
-)
-
-# APRS metrics
-aprs_decodes_total = Counter(
-    'aprs_decodes_total',
-    'Total APRS decode operations',
-    ['status']
-)
-
-aprs_packets_decoded = Counter(
-    'aprs_packets_decoded',
-    'Total APRS packets decoded'
-)
-
-# POCSAG metrics
-pocsag_decodes_total = Counter(
-    'pocsag_decodes_total',
-    'Total POCSAG decode operations',
-    ['status']
-)
-
-pocsag_messages_decoded = Counter(
-    'pocsag_messages_decoded',
-    'Total POCSAG messages decoded'
-)
-
-# Repeater scanning metrics
-repeater_scans_total = Counter(
-    'repeater_scans_total',
-    'Total repeater scan sessions',
-    ['status']
-)
-
-repeater_scans_duration = Histogram(
-    'repeater_scans_duration_seconds',
-    'Repeater scan duration per repeater',
-    buckets=[30, 60, 120, 180, 240, 300]
-)
-
-repeater_activity_detected = Counter(
-    'repeater_activity_detected_total',
-    'Total repeaters with detected activity',
-    ['band', 'canton']
-)
-
-repeater_transmissions_total = Counter(
-    'repeater_transmissions_total',
-    'Total transmissions detected across all repeaters'
-)
-
-repeater_activity_percentage = Histogram(
-    'repeater_activity_percentage',
-    'Activity percentage distribution',
-    buckets=[0, 1, 5, 10, 20, 30, 50, 75, 100]
-)
-
-repeater_scan_progress = Gauge(
-    'repeater_scan_progress',
-    'Current scan progress (0-100)',
-    ['session_id']
-)
+# POCSAG and Repeater metrics removed - replaced by Metricbeat
+# pocsag_decodes_total = Counter(...)
+# pocsag_messages_decoded = Counter(...)
+# repeater_scans_total = Counter(...)
+# repeater_scans_duration = Histogram(...)
+# repeater_activity_detected = Counter(...)
+# repeater_transmissions_total = Counter(...)
+# repeater_activity_percentage = Histogram(...)
+# repeater_scan_progress = Gauge(...)
 
 # Configuration
 RECORDING_DIR = os.getenv('AUDIO_OUTPUT_DIR', './recordings')
@@ -207,6 +136,44 @@ def health() -> Response:
     })
 
 
+@app.route('/sdr/detect', methods=['GET'])
+def detect_sdr_hardware() -> Response | tuple[Response, int]:
+    """
+    Detect available SDR hardware and return capabilities
+
+    Returns:
+        JSON response with SDR type and frequency range
+    """
+    try:
+        sdr_type = detect_sdr()
+
+        if sdr_type == SDRType.UNKNOWN:
+            return jsonify({
+                'error': 'No SDR hardware detected',
+                'message': 'Please connect HackRF One or RTL-SDR device'
+            }), 404
+
+        # Create temporary instance to get capabilities
+        instance = get_sdr_instance(frequency=100_000_000, sdr_type=sdr_type)
+        min_freq, max_freq = instance.get_frequency_range()
+        max_rate = instance.get_max_sample_rate()
+
+        return jsonify({
+            'type': sdr_type.value,
+            'frequency_range': {
+                'min_hz': min_freq,
+                'max_hz': max_freq,
+                'min_mhz': min_freq / 1e6,
+                'max_mhz': max_freq / 1e6
+            },
+            'max_sample_rate_hz': max_rate,
+            'max_sample_rate_mhz': max_rate / 1e6
+        })
+
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/capture', methods=['POST'])
 def capture() -> Response | tuple[Response, int]:
     """
@@ -238,17 +205,16 @@ def capture() -> Response | tuple[Response, int]:
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         output_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.wav')
 
-        # Create capture instance
-        capture_instance = HackRFCapture(
+        # Create capture instance (auto-detect SDR hardware)
+        capture_instance = get_sdr_instance(
             frequency=frequency,
             sample_rate=sample_rate,
-            gain=gain,
-            modulation=modulation
+            gain=gain
         )
 
         # Perform capture with metrics
         start_time = time.time()
-        capture_instance.capture(duration, output_file)
+        capture_instance.capture_audio(duration, output_file, modulation)
         capture_duration_seconds = time.time() - start_time
 
         # Record metrics
@@ -358,13 +324,12 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
         # Step 1: Capture (same for both modes)
         capture_start = time.time()
-        capture_instance = HackRFCapture(
+        capture_instance = get_sdr_instance(
             frequency=frequency,
             sample_rate=sample_rate,
-            gain=gain,
-            modulation=modulation
+            gain=gain
         )
-        capture_instance.capture(duration, audio_file)
+        capture_instance.capture_audio(duration, audio_file, modulation)
 
         # Step 2: Process based on mode
         if mode == 'aprs':
@@ -376,7 +341,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 decode_duration = time.time() - decode_start
 
                 # Save to database
-                db = get_database_service()
+                es = get_elasticsearch_service()
                 file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
                 capture_id = db.save_capture(
@@ -439,7 +404,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 decode_duration = time.time() - decode_start
 
                 # Save to database
-                db = get_database_service()
+                es = get_elasticsearch_service()
                 file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
                 capture_id = db.save_capture(
@@ -506,7 +471,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
             # Save to database
             try:
-                db = get_database_service()
+                es = get_elasticsearch_service()
                 file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
                 db.save_capture(
@@ -593,7 +558,7 @@ def search_captures() -> Response | tuple[Response, int]:
     - offset: Offset for pagination (default 0)
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         # Get query parameters
         text_query = request.args.get('text')
@@ -635,7 +600,7 @@ def search_captures() -> Response | tuple[Response, int]:
 def get_capture(capture_id: int) -> Response | tuple[Response, int]:
     """Get a single capture by ID"""
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         result = db.get_capture_by_id(capture_id)
 
         if result is None:
@@ -654,7 +619,7 @@ def get_capture(capture_id: int) -> Response | tuple[Response, int]:
 def get_statistics() -> Response | tuple[Response, int]:
     """Get database statistics"""
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         stats = db.get_statistics()
 
         return jsonify({
@@ -670,7 +635,7 @@ def get_statistics() -> Response | tuple[Response, int]:
 def get_frequency_stats() -> Response | tuple[Response, int]:
     """Get frequency usage statistics"""
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         limit = request.args.get('limit', 10, type=int)
         frequencies = db.get_frequency_usage(limit=limit)
 
@@ -698,7 +663,7 @@ def search_aprs() -> Response | tuple[Response, int]:
     - offset: Offset for pagination (default 0)
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         # Get query parameters
         callsign = request.args.get('callsign')
@@ -738,7 +703,7 @@ def search_aprs() -> Response | tuple[Response, int]:
 def get_aprs_stats() -> Response | tuple[Response, int]:
     """Get APRS statistics"""
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         stats = db.get_aprs_statistics()
 
         return jsonify({
@@ -759,7 +724,7 @@ def get_aprs_map_data() -> Response | tuple[Response, int]:
     suitable for map visualization (Grafana, Leaflet, etc.)
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         # Get recent packets with position data (last 24 hours by default)
         hours = request.args.get('hours', 24, type=int)
@@ -817,7 +782,7 @@ def search_pocsag() -> Response | tuple[Response, int]:
     - offset: Offset for pagination (default 0)
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         # Get query parameters
         address = request.args.get('address', type=int)
@@ -859,7 +824,7 @@ def search_pocsag() -> Response | tuple[Response, int]:
 def get_pocsag_stats() -> Response | tuple[Response, int]:
     """Get POCSAG statistics"""
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         stats = db.get_pocsag_statistics()
 
         return jsonify({
@@ -881,7 +846,7 @@ def get_pocsag_messages() -> Response | tuple[Response, int]:
     - offset: Offset for pagination (default 0)
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
 
@@ -918,7 +883,7 @@ def _scan_repeaters_worker(
         sample_rate: IQ sample rate
         gain: RF gain
     """
-    db = get_database_service()
+    es = get_elasticsearch_service()
     analyzer = RepeaterActivityAnalyzer(sample_rate=sample_rate)
 
     results = []
@@ -946,11 +911,10 @@ def _scan_repeaters_worker(
 
                 # Capture IQ samples
                 scan_start_time = datetime.now()
-                capture_instance = HackRFCapture(
+                capture_instance = get_sdr_instance(
                     frequency=frequency,
                     sample_rate=sample_rate,
-                    gain=gain,
-                    modulation='FM'
+                    gain=gain
                 )
 
                 # Capture to IQ file (complex64 format)
@@ -1094,7 +1058,7 @@ def scan_repeaters() -> Response | tuple[Response, int]:
         sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
 
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         # Get repeaters to scan
         if repeater_ids:
@@ -1253,7 +1217,7 @@ def get_scan_session_details(session_id: int) -> Response | tuple[Response, int]
     }
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
         session = db.get_scan_session(session_id)
 
         if not session:
@@ -1291,7 +1255,7 @@ def get_repeaters_endpoint() -> Response | tuple[Response, int]:
     }
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         # Get query parameters
         band = request.args.get('band')
@@ -1334,7 +1298,7 @@ def get_repeater_activity_summary_endpoint() -> Response | tuple[Response, int]:
     }
     """
     try:
-        db = get_database_service()
+        es = get_elasticsearch_service()
 
         hours = request.args.get('hours', 24, type=int)
         limit = request.args.get('limit', 10, type=int)

@@ -338,6 +338,9 @@
     <div class="container">
         <h1>📻 Radio Monitoring Control Panel</h1>
         <p class="subtitle">HackRF + faster-whisper + APRS + POCSAG</p>
+        <div id="sdr-indicator" style="text-align: center; padding: 8px; margin-bottom: 20px; background: #e3f2fd; border-radius: 8px; color: #1976d2; font-weight: 600; font-size: 14px;">
+            🔍 Detecting SDR hardware...
+        </div>
 
         <div class="nav-tabs">
             <button class="nav-tab active" onclick="switchTab('voice')">🎤 Voice Transcription</button>
@@ -1192,6 +1195,120 @@
                 clearInterval(progressPollInterval);
             }
         });
+
+        // =====================================================================
+        // SDR Detection and Frequency Validation
+        // =====================================================================
+
+        // Global storage for SDR capabilities
+        window.sdrType = null;
+        window.sdrFrequencyRange = null;
+        window.sdrMaxSampleRate = null;
+
+        // Detect available SDR hardware on page load
+        async function detectSDR() {
+            const indicator = document.getElementById('sdr-indicator');
+
+            try {
+                const response = await fetch('http://localhost:5000/sdr/detect', {
+                    method: 'GET',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    // Store SDR capabilities globally
+                    window.sdrType = data.type;
+                    window.sdrFrequencyRange = data.frequency_range;
+                    window.sdrMaxSampleRate = data.max_sample_rate_hz;
+
+                    // Update indicator with success styling
+                    const sdrName = data.type.toUpperCase();
+                    const freqRange = `${data.frequency_range.min_mhz.toFixed(1)}-${data.frequency_range.max_mhz.toFixed(0)} MHz`;
+
+                    indicator.textContent = `✅ SDR: ${sdrName} (${freqRange})`;
+                    indicator.style.background = '#e8f5e9';
+                    indicator.style.color = '#388e3c';
+
+                    console.log('SDR detected:', data);
+                } else {
+                    // No SDR detected
+                    indicator.textContent = `⚠️ No SDR hardware detected - Please connect HackRF or RTL-SDR`;
+                    indicator.style.background = '#ffebee';
+                    indicator.style.color = '#d32f2f';
+
+                    console.warn('No SDR detected:', data);
+                }
+            } catch (error) {
+                // Connection error
+                indicator.textContent = `❌ Cannot connect to API server (localhost:5000)`;
+                indicator.style.background = '#ffebee';
+                indicator.style.color = '#d32f2f';
+
+                console.error('SDR detection error:', error);
+            }
+        }
+
+        // Validate frequency against detected SDR capabilities
+        function validateFrequency(frequency) {
+            // Skip validation if no SDR detected yet
+            if (!window.sdrFrequencyRange) {
+                return true;
+            }
+
+            const min = window.sdrFrequencyRange.min_hz;
+            const max = window.sdrFrequencyRange.max_hz;
+
+            if (frequency < min || frequency > max) {
+                const freqMHz = (frequency / 1e6).toFixed(3);
+                const minMHz = (min / 1e6).toFixed(1);
+                const maxMHz = (max / 1e6).toFixed(0);
+
+                alert(
+                    `⚠️ Frequency ${freqMHz} MHz is out of range for ${window.sdrType.toUpperCase()}.\n\n` +
+                    `Valid range: ${minMHz} - ${maxMHz} MHz\n\n` +
+                    `Please adjust the frequency to be within the supported range.`
+                );
+                return false;
+            }
+
+            return true;
+        }
+
+        // Hook validation into voice form submission
+        const originalVoiceSubmit = document.getElementById('voiceForm').onsubmit;
+        document.getElementById('voiceForm').addEventListener('submit', (e) => {
+            const frequency = parseInt(document.getElementById('voiceFrequency').value);
+            if (!validateFrequency(frequency)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // Hook validation into APRS form submission
+        document.getElementById('aprsForm').addEventListener('submit', (e) => {
+            const frequency = parseInt(document.getElementById('aprsFrequency').value);
+            if (!validateFrequency(frequency)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // Hook validation into POCSAG form submission
+        document.getElementById('pocsagForm').addEventListener('submit', (e) => {
+            const frequency = parseInt(document.getElementById('pocsagFrequency').value);
+            if (!validateFrequency(frequency)) {
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return false;
+            }
+        }, true);
+
+        // Detect SDR on page load
+        window.addEventListener('DOMContentLoaded', detectSDR);
     </script>
 </body>
 </html>

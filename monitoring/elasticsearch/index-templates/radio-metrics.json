@@ -1,0 +1,60 @@
+{
+  "index_patterns": ["radio-metrics-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "radio-ilm-policy",
+      "index.lifecycle.rollover_alias": "radio-metrics"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "metric_name": {
+          "type": "keyword"
+        },
+        "metric_type": {
+          "type": "keyword"
+        },
+        "value": {
+          "type": "double"
+        },
+        "labels": {
+          "properties": {
+            "status": {
+              "type": "keyword"
+            },
+            "modulation": {
+              "type": "keyword"
+            },
+            "band": {
+              "type": "keyword"
+            },
+            "sdr_type": {
+              "type": "keyword"
+            },
+            "endpoint": {
+              "type": "keyword"
+            },
+            "method": {
+              "type": "keyword"
+            }
+          }
+        },
+        "host": {
+          "type": "keyword"
+        },
+        "service": {
+          "type": "keyword"
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Index template for system and application metrics (replaces Prometheus)"
+  }
+}

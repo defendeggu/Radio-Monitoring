@@ -1,11 +1,13 @@
 # Radio Message Transcription System
 
-A complete professional radio monitoring system for capturing radio signals from HackRF, transcribing them using faster-whisper, with PostgreSQL database storage, full-text search, and Grafana analytics dashboards.
+A complete professional radio monitoring system for capturing radio signals from **HackRF One** or **RTL-SDR** with automatic hardware detection, transcribing them using faster-whisper, with PostgreSQL database storage, full-text search, and Grafana analytics dashboards.
 
 ## Features
 
 ### Core Capabilities
-- **Radio Capture**: Capture radio signals from HackRF with configurable frequency and modulation
+- **Dual SDR Support**: Automatic detection and support for HackRF One and RTL-SDR devices
+- **Radio Capture**: Capture radio signals with configurable frequency and modulation
+- **Hardware Abstraction**: Transparent hardware switching with frequency range validation
 - **Multiple Modulation Support**: FM, AM, USB, LSB
 - **Speech-to-Text**: Automatic transcription using faster-whisper
 - **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
@@ -81,7 +83,8 @@ A complete professional radio monitoring system for capturing radio signals from
             │  /stats (Analytics)             │
             │  /captures/<id>                 │
             ├─────────────────────────────────┤
-            │      Radio Capture              │◄─── HackRF Device
+            │      Radio Capture              │◄─── HackRF One / RTL-SDR
+            │   (Hardware Abstraction Layer)  │     (Auto-detection)
             ├─────────────────────────────────┤
             │ Voice  │ APRS  │POCSAG │Repeater│
             │┌──────┐│┌─────┐│┌─────┐│┌──────┐│
@@ -107,9 +110,49 @@ A complete professional radio monitoring system for capturing radio signals from
 ## Requirements
 
 ### Hardware
-- HackRF One SDR device
+
+**SDR Device (one of the following):**
+
+The system supports both HackRF One and RTL-SDR with **automatic hardware detection**. Choose based on your frequency coverage needs:
+
+| Feature | HackRF One | RTL-SDR |
+|---------|------------|---------|
+| **Frequency Range** | 1 MHz - 6 GHz | 24 MHz - 1.766 GHz |
+| **TX Capability** | Yes (transmit) | No (receive-only) |
+| **Max Sample Rate** | 20 MHz | 3.2 MHz |
+| **Price** | ~$300 USD | ~$25 USD |
+| **Best For** | Full-spectrum monitoring, HF/VHF/UHF/microwave | Budget VHF/UHF monitoring (FM radio, APRS, aviation) |
+| **Limitations** | Higher cost | Cannot receive HF (<24 MHz) or microwave (>1.766 GHz) |
+
+**Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies)
+**Recommended for advanced users:** HackRF One (full spectrum coverage, higher performance)
+
+**Additional Hardware:**
 - USB cable
 - Computer with USB port
+- Appropriate antenna for target frequencies
+
+### Hardware Detection
+
+The system automatically detects which SDR is connected:
+- Prefers HackRF if both are connected (better specs)
+- Validates frequency range at runtime
+- Shows detected device in web interface
+- Prevents invalid captures for device limitations
+
+### Frequency Coverage Examples
+
+**HackRF One can receive:**
+- ✅ HF bands (1-30 MHz): Shortwave, amateur HF
+- ✅ VHF (30-300 MHz): FM radio, aviation, APRS, amateur 2m
+- ✅ UHF (300-3000 MHz): Amateur 70cm, PMR, POCSAG pagers
+- ✅ Microwave (>3 GHz): Satellite, radar, WiFi, 23cm amateur
+
+**RTL-SDR can receive:**
+- ❌ HF bands (<24 MHz): Not supported
+- ✅ VHF (24-300 MHz): FM radio (88-108 MHz), aviation (118-137 MHz), APRS (144.8 MHz), amateur 2m
+- ✅ UHF (300-1766 MHz): Amateur 70cm (430-440 MHz), PMR (446 MHz), POCSAG pagers (147 MHz)
+- ❌ Microwave (>1.766 GHz): Not supported
 
 ### Software
 - Docker and Docker Compose (recommended)
@@ -134,10 +177,13 @@ A complete professional radio monitoring system for capturing radio signals from
    # Edit .env to customize settings
    ```
 
-4. **Connect HackRF device**
+4. **Connect SDR device**
    ```bash
-   # Verify HackRF is detected
+   # Verify HackRF One is detected
    hackrf_info
+
+   # OR verify RTL-SDR is detected
+   rtl_test -t
    ```
 
 5. **Start the services**
@@ -261,6 +307,8 @@ sudo apt-get install -y \
     libusb-1.0-0-dev \
     libhackrf-dev \
     hackrf \
+    rtl-sdr \
+    librtlsdr-dev \
     build-essential \
     python3-pip \
     direwolf \
@@ -271,7 +319,7 @@ sudo apt-get install -y \
 
 **macOS:**
 ```bash
-brew install hackrf direwolf multimon-ng
+brew install hackrf rtl-sdr direwolf multimon-ng
 ```
 
 ### Python Dependencies
@@ -337,12 +385,15 @@ See `scripts/README.md` for CSV format and detailed instructions.
 
 **Capture radio signal:**
 ```bash
-python radio_capture.py \
-    --frequency 100000000 \
-    --modulation FM \
-    --duration 30 \
-    --gain 20 \
-    --output recordings/capture.wav
+# The sdr_hardware.py module automatically detects HackRF or RTL-SDR
+# Use via API service (recommended) or import in Python scripts
+
+# Example using Python API:
+from sdr_hardware import get_sdr_instance
+
+# Auto-detect hardware and capture
+capture = get_sdr_instance(frequency=100_000_000, sample_rate=2_000_000, gain=20)
+capture.capture_audio(duration=30, output_file='recordings/capture.wav', modulation='FM')
 ```
 
 **Transcribe audio:**
@@ -552,20 +603,56 @@ Note: POCSAG frequency presets can be customized in `web_interface.html`. Consul
 
 ## Troubleshooting
 
-### HackRF Not Detected
+### SDR Hardware Not Detected
 
+**Check HackRF One:**
 ```bash
-# Check if device is connected
+# Verify HackRF is connected
 hackrf_info
 
-# Check USB permissions (Linux)
+# Should output: "Serial number: 0x..."
+# If not found, check USB connection and permissions
+```
+
+**Check RTL-SDR:**
+```bash
+# Verify RTL-SDR is connected
+rtl_test -t
+
+# Should output: "Found Rafael Micro R820T tuner" or similar
+# Press Ctrl+C to stop the test
+```
+
+**Fix USB Permissions (Linux):**
+```bash
+# Add user to plugdev group
 sudo usermod -a -G plugdev $USER
+
 # Log out and back in
 
 # Reload udev rules
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
+
+**Check in Web Interface:**
+- Open http://localhost:8080
+- Look for SDR indicator at top of page
+- Should show: "✅ SDR: HACKRF (1.0-6000 MHz)" or "✅ SDR: RTLSDR (24.0-1766 MHz)"
+- If red error message, SDR not detected
+
+### Frequency Out of Range Error
+
+**Error:** "Frequency X MHz is out of range for RTL-SDR"
+
+**Solution:**
+- RTL-SDR only supports 24-1766 MHz
+- For frequencies outside this range, use HackRF One
+- Or choose a different frequency within RTL-SDR range
+
+**Common Workarounds:**
+- HF shortwave (<24 MHz): Requires HackRF One or upconverter for RTL-SDR
+- Microwave (>1.766 GHz): Requires HackRF One
 
 ### No Audio Captured
 
@@ -614,7 +701,7 @@ The API can be integrated with:
 
 ```
 .
-├── radio_capture.py                 # HackRF capture service
+├── sdr_hardware.py                  # SDR hardware abstraction (HackRF + RTL-SDR)
 ├── transcription_service.py         # faster-whisper transcription
 ├── aprs_decoder_service.py          # APRS decoder using direwolf
 ├── pocsag_decoder_service.py        # POCSAG decoder using multimon-ng
@@ -757,6 +844,48 @@ List all captured recordings.
   ]
 }
 ```
+
+### GET /sdr/detect
+Detect connected SDR hardware and return capabilities.
+
+**Response (HackRF detected):**
+```json
+{
+  "type": "hackrf",
+  "frequency_range": {
+    "min_hz": 1000000,
+    "max_hz": 6000000000,
+    "min_mhz": 1.0,
+    "max_mhz": 6000.0
+  },
+  "max_sample_rate_hz": 20000000,
+  "max_sample_rate_mhz": 20.0
+}
+```
+
+**Response (RTL-SDR detected):**
+```json
+{
+  "type": "rtlsdr",
+  "frequency_range": {
+    "min_hz": 24000000,
+    "max_hz": 1766000000,
+    "min_mhz": 24.0,
+    "max_mhz": 1766.0
+  },
+  "max_sample_rate_hz": 3200000,
+  "max_sample_rate_mhz": 3.2
+}
+```
+
+**Response (No SDR detected):**
+```json
+{
+  "error": "No SDR hardware detected",
+  "message": "Please connect HackRF One or RTL-SDR device"
+}
+```
+Status: 404
 
 ### GET /health
 Health check endpoint.
@@ -1211,6 +1340,7 @@ For issues and questions:
 - Check the Troubleshooting section
 - Review complete USER_MANUAL.md for detailed documentation
 - Review HackRF documentation: https://hackrf.readthedocs.io/
+- Review RTL-SDR documentation: https://www.rtl-sdr.com/about-rtl-sdr/
 - Review faster-whisper documentation: https://github.com/guillaumekln/faster-whisper
 - Review N8N documentation: https://docs.n8n.io/
 - Review Grafana documentation: https://grafana.com/docs/
@@ -1219,6 +1349,7 @@ For issues and questions:
 ## Acknowledgments
 
 - HackRF One by Great Scott Gadgets
+- RTL-SDR project and community
 - faster-whisper by Guillaume Klein
 - Whisper by OpenAI
 - N8N workflow automation platform

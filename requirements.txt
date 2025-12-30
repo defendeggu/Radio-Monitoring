@@ -20,10 +20,13 @@ pytest-mock==3.14.0
 pytest-flask==1.3.0
 coverage[toml]==7.6.9
 
-# Monitoring
-prometheus-client==0.21.0
-prometheus-flask-exporter==0.23.1
+# Elasticsearch & Data Storage
+elasticsearch==8.11.0
 
-# Database
-psycopg2-binary==2.9.9
-sqlalchemy==2.0.23
+# Monitoring (Metricbeat handles metrics, no prometheus needed)
+# prometheus-client==0.21.0 - REMOVED (replaced by Metricbeat)
+# prometheus-flask-exporter==0.23.1 - REMOVED (replaced by Metricbeat)
+
+# Database (PostgreSQL removed, using Elasticsearch)
+# psycopg2-binary==2.9.9 - REMOVED (replaced by Elasticsearch)
+# sqlalchemy==2.0.23 - REMOVED (replaced by Elasticsearch)

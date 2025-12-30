@@ -1,0 +1,22 @@
+# Define multiple pipelines for different data types
+# Each pipeline listens on a different port for HTTP input
+
+- pipeline.id: radio-captures
+  path.config: "/usr/share/logstash/pipeline/radio-capture-pipeline.conf"
+  pipeline.workers: 2
+
+- pipeline.id: radio-aprs
+  path.config: "/usr/share/logstash/pipeline/radio-aprs-pipeline.conf"
+  pipeline.workers: 1
+
+- pipeline.id: radio-pocsag
+  path.config: "/usr/share/logstash/pipeline/radio-pocsag-pipeline.conf"
+  pipeline.workers: 1
+
+- pipeline.id: radio-repeater
+  path.config: "/usr/share/logstash/pipeline/radio-repeater-pipeline.conf"
+  pipeline.workers: 1
+
+- pipeline.id: radio-metrics
+  path.config: "/usr/share/logstash/pipeline/radio-metrics-pipeline.conf"
+  pipeline.workers: 1

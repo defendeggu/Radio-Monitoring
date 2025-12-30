@@ -1,0 +1,56 @@
+{
+  "index_patterns": ["radio-pocsag-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "radio-ilm-policy",
+      "index.lifecycle.rollover_alias": "radio-pocsag"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "capture_id": {
+          "type": "keyword"
+        },
+        "address": {
+          "type": "long"
+        },
+        "message_type": {
+          "type": "keyword"
+        },
+        "function_code": {
+          "type": "integer"
+        },
+        "baud_rate": {
+          "type": "integer"
+        },
+        "message_text": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 512
+            }
+          }
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Index template for POCSAG pager messages"
+  }
+}
