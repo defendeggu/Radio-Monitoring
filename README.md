@@ -1,6 +1,6 @@
 # Radio Message Transcription System
 
-A complete professional radio monitoring system for capturing radio signals from **HackRF One** or **RTL-SDR** with automatic hardware detection, transcribing them using faster-whisper, with PostgreSQL database storage, full-text search, and Grafana analytics dashboards.
+A complete professional radio monitoring system for capturing radio signals from **HackRF One** or **RTL-SDR** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
 
 ## Features
 
@@ -19,57 +19,72 @@ A complete professional radio monitoring system for capturing radio signals from
 - **REST API**: Flask-based API for programmatic access
 - **Docker Support**: Complete Docker setup for easy deployment
 
-### Database & Analytics (NEW)
-- **PostgreSQL Database**: Permanent storage of all captures with full metadata
-- **Full-Text Search**: Search through all transcriptions, APRS, and POCSAG messages with PostgreSQL full-text search
-- **APRS Message Storage**: Dedicated table for APRS packets with callsign, position, message data
-- **POCSAG Message Storage**: Dedicated table for POCSAG pager messages with address, function code, message type, and baud rate
-- **Repeater Database**: Swiss FM repeater directory with frequency, offset, tone, location, canton
-- **Activity Tracking**: Historical repeater activity records with transmission counts, signal strength, activity percentages
-- **Scan Session Management**: Track multi-repeater scan sessions with progress and results
-- **Geospatial Indexing**: Efficient queries for APRS station positions using PostGIS-compatible GIST indices
+### Data Storage & Analytics (ELK Stack)
+- **Elasticsearch**: Time-series data storage with daily indices for all captures, APRS, POCSAG, and repeater activity
+- **Full-Text Search**: Advanced multi-language search (English, German, French, Spanish) with analyzers and stemming
+- **APRS Message Storage**: Dedicated index for APRS packets with callsign, geo-point position, message data
+- **POCSAG Message Storage**: Dedicated index for POCSAG pager messages with address, function code, message type, and baud rate
+- **Repeater Activity Storage**: Time-series index for repeater scans with transmission counts, signal strength, activity percentages
+- **Geospatial Queries**: Native geo_point mapping for APRS station positions with map visualization support
 - **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, band, canton, date range
-- **Database API**: REST endpoints for searching and analyzing historical data
-- **Statistics & Analytics**: Frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends, success rates
-- **Data Migration**: Import existing JSON transcriptions and repeater CSV data into database
+- **Index Lifecycle Management**: Automatic data retention with hot/warm/cold/delete phases (configurable retention period)
+- **REST API**: Logstash HTTP input endpoints for data ingestion with multi-pipeline architecture
+- **Statistics & Analytics**: Real-time aggregations for frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends
+- **Data Migration**: Bulk import from PostgreSQL to Elasticsearch with schema transformation
 
-### Monitoring & Visualization (NEW)
-- **Grafana Dashboards**: Professional monitoring and data visualization
-- **Database Browser**: Interactive dashboard to browse, search, and filter all captures
-- **APRS Dashboard**: Dedicated dashboard with station map, packet statistics, and callsign analytics
+### Monitoring & Visualization (ELK Stack)
+- **Kibana Dashboards**: Professional data visualization and analytics platform
+- **Captures Dashboard**: Interactive dashboard to browse, search, and filter all radio captures with full-text search
+- **APRS Dashboard**: Dedicated dashboard with geospatial map, packet statistics, callsign analytics, and message timeline
 - **POCSAG Dashboard**: Dedicated dashboard with pager address analytics, message type distribution, baud rate statistics, and timeline visualization
-- **Repeater Activity Dashboard**: Dedicated dashboard showing most active repeaters, activity trends by band/canton, scan statistics, and signal quality metrics (NEW)
-- **Statistics Dashboard**: Real-time metrics and performance monitoring
-- **pgAdmin 4**: Full-featured PostgreSQL database management web interface
-- **Prometheus Metrics**: System performance, API metrics, APRS decode statistics, POCSAG decode statistics, and repeater scan metrics
-- **cAdvisor**: Container resource monitoring
+- **Repeater Activity Dashboard**: Dashboard showing most active repeaters, activity trends by band/canton, scan statistics, and signal quality metrics
+- **System Metrics Dashboard**: Real-time system performance monitoring powered by Metricbeat
+- **Kibana Dev Tools**: Console for direct Elasticsearch queries and index management
+- **Metricbeat**: Automated system and container metrics collection (replaces Prometheus + cAdvisor)
+- **Logstash Pipelines**: Data ingestion and transformation with 5 dedicated pipelines (captures, APRS, POCSAG, repeater activity, metrics)
 
 ## Architecture
 
 ```
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  Web Interface  │   │     Grafana     │   │     pgAdmin     │   │      N8N        │
-│   (HTML/JS)     │   │   Dashboards    │   │   DB Manager    │   │   Workflows     │
-│   Port 8080     │   │   Port 3000     │   │   Port 5050     │   │   Port 5679     │
-└────────┬────────┘   └────────┬────────┘   └────────┬────────┘   └────────┬────────┘
-         │                     │                      │                     │
-         │            ┌────────┴────────┬─────────────┘                     │
-         │            │                 │                                   │
-         │            ▼                 ▼                                   │
-         │    ┌──────────────┐  ┌──────────────┐                          │
-         │    │  Prometheus  │  │  PostgreSQL  │                          │
-         │    │  Port 9090   │  │  Port 5432   │                          │
-         │    └──────┬───────┘  └──────┬───────┘                          │
-         │           │                  │                                   │
-         └───────────┼──────────────────┼───────────────────────────────────┘
-                     │                  │
-                     ▼                  ▼
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│  Web Interface  │   │     Kibana      │   │      N8N        │
+│   (HTML/JS)     │   │   Dashboards    │   │   Workflows     │
+│   Port 8080     │   │   Port 5601     │   │   Port 5679     │
+└────────┬────────┘   └────────┬────────┘   └────────┬────────┘
+         │                     │                      │
+         │            ┌────────┴────────┐             │
+         │            │                 │             │
+         │            ▼                 ▼             │
+         │    ┌──────────────┐  ┌──────────────┐     │
+         │    │Elasticsearch │  │   Logstash   │     │
+         │    │  Port 9200   │  │ Ports 9600-  │     │
+         │    │              │  │      9604    │     │
+         │    │ Time-Series  │  │              │     │
+         │    │   Indices:   │  │  5 Pipelines:│     │
+         │    │  - captures  │  │  - captures  │     │
+         │    │  - aprs      │  │  - aprs      │     │
+         │    │  - pocsag    │  │  - pocsag    │     │
+         │    │  - repeater  │  │  - repeater  │     │
+         │    │  - metrics   │  │  - metrics   │     │
+         │    └──────┬───────┘  └──────▲───────┘     │
+         │           │                  │             │
+         │           │                  │             │
+         │           ▼                  │             │
+         │    ┌──────────────┐          │             │
+         │    │  Metricbeat  │──────────┘             │
+         │    │ (Container + │                        │
+         │    │System Metrics│                        │
+         │    └──────────────┘                        │
+         │                                             │
+         └─────────────────────────────────────────────┘
+                     │
+                     ▼
             ┌─────────────────────────────────┐
             │         Flask API               │
             │         Port 5000               │
             ├─────────────────────────────────┤
             │  /capture-and-transcribe        │
-            │  /search (Database Search)      │
+            │  /search (ES Full-Text Search)  │
             │  /aprs/search (APRS Search)     │
             │  /aprs/stats (APRS Analytics)   │
             │  /aprs/map (GeoJSON Map Data)   │
@@ -81,7 +96,7 @@ A complete professional radio monitoring system for capturing radio signals from
             │  /repeaters (List Repeaters)    │
             │  /repeater-activity/summary     │
             │  /stats (Analytics)             │
-            │  /captures/<id>                 │
+            │  /sdr/detect (Hardware Info)    │
             ├─────────────────────────────────┤
             │      Radio Capture              │◄─── HackRF One / RTL-SDR
             │   (Hardware Abstraction Layer)  │     (Auto-detection)
@@ -92,19 +107,10 @@ A complete professional radio monitoring system for capturing radio signals from
             ││whisper│  APRS  │mon-ng││Analyzer│
             │└──────┘│└─────┘│└─────┘│└──────┘│
             ├─────────────────────────────────┤
-            │   Database Service              │
-            │   (PostgreSQL Client)           │
-            │   captures + aprs_messages      │
-            │   + pocsag_messages + repeaters │
-            │   + repeater_activity + sessions│
+            │  Elasticsearch Service          │
+            │  (ES Python Client)             │
+            │  Index to Logstash → ES         │
             └─────────────────────────────────┘
-                     │
-                     ▼
-            ┌─────────────────┐
-            │    cAdvisor     │
-            │   Port 8081     │
-            │ (Container Mon) │
-            └─────────────────┘
 ```
 
 ## Requirements
@@ -188,17 +194,16 @@ The system automatically detects which SDR is connected:
 
 5. **Start the services**
    ```bash
-   docker-compose up -d
+   docker-compose -f docker-compose.elk.yml up -d
    ```
 
 6. **Access the interfaces**
    - Web Interface: http://localhost:8080
-   - Grafana Dashboards: http://localhost:3000 (credentials from setup-secrets.sh)
-   - pgAdmin Database Manager: http://localhost:5050 (credentials from setup-secrets.sh)
+   - Kibana Dashboards: http://localhost:5601
+   - Elasticsearch API: http://localhost:9200
+   - Logstash Pipelines: http://localhost:9600-9604
    - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
    - API: http://localhost:5000
-   - Prometheus: http://localhost:9090
-   - cAdvisor: http://localhost:8081
 
 ## Secrets Management
 
@@ -232,16 +237,11 @@ All secrets are stored in `secrets/*.txt` files:
 
 ```
 secrets/
-├── postgres_user.txt
-├── postgres_password.txt
-├── postgres_db.txt
-├── grafana_admin_user.txt
-├── grafana_admin_password.txt
 ├── n8n_basic_auth_user.txt
-├── n8n_basic_auth_password.txt
-├── pgadmin_email.txt
-└── pgadmin_password.txt
+└── n8n_basic_auth_password.txt
 ```
+
+**Note**: The ELK stack (Elasticsearch, Logstash, Kibana) in this fork runs without authentication for simplicity. For production deployments, enable X-Pack Security.
 
 ### How It Works
 
@@ -269,29 +269,20 @@ def read_secret(secret_name: str) -> Optional[str]:
 ### Viewing Your Credentials
 
 ```bash
-# PostgreSQL
-cat secrets/postgres_password.txt
-
-# Grafana
-cat secrets/grafana_admin_password.txt
-
 # N8N
 cat secrets/n8n_basic_auth_password.txt
-
-# pgAdmin
-cat secrets/pgadmin_password.txt
 ```
 
 ### Changing Passwords
 
 1. Update the secret file:
    ```bash
-   echo "new_strong_password" > secrets/postgres_password.txt
+   echo "new_strong_password" > secrets/n8n_basic_auth_password.txt
    ```
 
 2. Restart the service:
    ```bash
-   docker compose restart postgres
+   docker compose -f docker-compose.elk.yml restart n8n
    ```
 
 For more details, see [`secrets/README.md`](secrets/README.md).
@@ -368,7 +359,7 @@ pip install -r requirements.txt
    - Transmission count
    - Activity percentage
    - Signal strength (dB)
-7. Analyze historical data in Grafana Repeater Activity Dashboard
+7. Analyze historical data in Kibana Repeater Activity Dashboard
 
 **Importing Repeater Data:**
 ```bash
@@ -553,19 +544,12 @@ WHISPER_COMPUTE_TYPE=int8        # int8, int16, float16, float32
 RECORDING_DURATION=30            # seconds
 AUDIO_OUTPUT_DIR=./recordings
 
-# Database Configuration
-POSTGRES_HOST=radio-postgres     # PostgreSQL host
-POSTGRES_PORT=5432               # PostgreSQL port
-POSTGRES_DB=radio_monitoring     # Database name
-POSTGRES_USER=radio_user         # Database user
-POSTGRES_PASSWORD=radio_password_change_in_production
+# Elasticsearch Configuration
+ELASTICSEARCH_HOSTS=http://elasticsearch:9200  # Elasticsearch cluster hosts (comma-separated)
+LOGSTASH_HOST=http://logstash:9600            # Logstash HTTP input endpoint
 
 # N8N Webhook
 N8N_WEBHOOK_URL=http://localhost:5678/webhook/radio-transcription
-
-# Grafana Configuration
-GF_SECURITY_ADMIN_USER=admin     # Grafana admin username
-GF_SECURITY_ADMIN_PASSWORD=admin # Change on first login
 ```
 
 ### Frequency Presets
@@ -705,34 +689,44 @@ The API can be integrated with:
 ├── transcription_service.py         # faster-whisper transcription
 ├── aprs_decoder_service.py          # APRS decoder using direwolf
 ├── pocsag_decoder_service.py        # POCSAG decoder using multimon-ng
-├── repeater_activity_analyzer.py    # Repeater activity signal processing (NEW)
-├── api_service.py                   # Flask REST API with database integration
-├── database_service.py              # PostgreSQL database client
+├── repeater_activity_analyzer.py    # Repeater activity signal processing
+├── api_service.py                   # Flask REST API with Elasticsearch integration
+├── elasticsearch_service.py         # Elasticsearch client and indexing service
 ├── web_interface.html               # Web control panel (tabbed: Voice/APRS/POCSAG/Repeater)
-├── database/
-│   ├── init.sql                    # PostgreSQL database schema
-│   └── migrations/                 # Database migration scripts
 ├── scripts/
-│   ├── import_repeaters_csv.py     # CSV import tool for repeater data (NEW)
-│   ├── example_repeaters.csv       # Example Swiss repeater data (NEW)
-│   └── README.md                   # Script documentation (NEW)
+│   ├── import_repeaters_csv.py     # CSV import tool for repeater data
+│   ├── migrate_pg_to_elasticsearch.py  # PostgreSQL to Elasticsearch migration script
+│   ├── example_repeaters.csv       # Example Swiss repeater data
+│   └── README.md                   # Script documentation
 ├── monitoring/
-│   ├── grafana/
-│   │   ├── dashboards/             # Grafana dashboard JSON files
-│   │   │   ├── radio-database-browser.json
-│   │   │   ├── database-statistics.json
-│   │   │   ├── aprs-dashboard.json
-│   │   │   ├── pocsag-dashboard.json
-│   │   │   └── repeater-activity-dashboard.json  # Repeater monitoring (NEW)
-│   │   └── provisioning/           # Auto-provisioning configs
-│   │       └── datasources/
-│   │           └── postgres.yml
-│   └── prometheus/
-│       └── prometheus.yml          # Prometheus configuration
+│   ├── elasticsearch/
+│   │   ├── index-templates/        # Index templates for data types
+│   │   │   ├── radio-captures.json
+│   │   │   ├── radio-aprs.json
+│   │   │   ├── radio-pocsag.json
+│   │   │   ├── radio-repeater-activity.json
+│   │   │   └── radio-metrics.json
+│   │   └── ilm-policies/           # Index Lifecycle Management policies
+│   │       └── radio-ilm-policy.json
+│   ├── logstash/
+│   │   ├── pipelines/              # Logstash pipeline configurations
+│   │   │   ├── radio-capture-pipeline.conf
+│   │   │   ├── radio-aprs-pipeline.conf
+│   │   │   ├── radio-pocsag-pipeline.conf
+│   │   │   ├── radio-repeater-pipeline.conf
+│   │   │   └── radio-metrics-pipeline.conf
+│   │   └── config/
+│   │       └── logstash.yml
+│   ├── kibana/
+│   │   ├── config/
+│   │   │   └── kibana.yml
+│   │   └── dashboards/             # Kibana dashboard exports (ndjson format)
+│   └── metricbeat/
+│       └── metricbeat.yml          # Container metrics configuration
 ├── n8n-workflow.json                # N8N workflow definition
 ├── requirements.txt                 # Python dependencies
 ├── Dockerfile                       # Docker image definition
-├── docker-compose.yml               # Docker Compose with all services
+├── docker-compose.elk.yml           # Docker Compose with ELK stack
 ├── .env.example                     # Environment variables template
 ├── .gitignore                      # Git ignore rules
 ├── README.md                        # This file
@@ -1049,22 +1043,28 @@ Get detailed information about a specific capture.
 
 ## Database Features
 
-### PostgreSQL Storage
+### Elasticsearch Storage
 
-All radio captures are permanently stored in a PostgreSQL database with:
-- Full metadata (frequency, modulation, duration, gain, sample rate)
-- Complete transcription text and segments
+All radio data is stored in Elasticsearch time-series indices with:
+- Full metadata (frequency, modulation, duration, gain, sample rate, SDR type)
+- Complete transcription text with multi-language analyzers
 - Language detection with confidence scores
-- JSONB fields for flexible metadata storage
-- Automatic timestamps (created_at, updated_at)
-- UUID support for distributed systems
+- Flexible JSON document structure
+- Automatic @timestamp field for time-series queries
+- UUID-based document IDs (_id field)
 
-**Repeater Monitoring Tables:**
-- **repeaters**: Master directory of Swiss FM repeaters with frequency, offset, tone, location, canton
-- **repeater_activity**: Historical activity records with transmission counts, signal strength, activity percentages
-- **repeater_scan_sessions**: Track multi-repeater scan sessions with progress and statistics
-- Optimized indexes for band, canton, status, and frequency-based queries
-- Pre-computed statistics views for quick dashboard updates
+**Daily Index Patterns:**
+- **radio-captures-YYYY.MM.DD**: Voice transcription captures
+- **radio-aprs-YYYY.MM.DD**: APRS packet messages with geo_point positions
+- **radio-pocsag-YYYY.MM.DD**: POCSAG pager messages
+- **radio-repeater-activity-YYYY.MM.DD**: Repeater activity records with nested transmissions
+- **radio-metrics-YYYY.MM.DD**: System and application metrics
+
+**Index Features:**
+- Optimized mappings for each data type
+- Index Lifecycle Management (ILM) for automatic retention
+- Keyword + text multi-fields for flexible querying
+- Geo-spatial indexing for APRS positions
 
 ### Full-Text Search
 
@@ -1107,214 +1107,264 @@ for json_file in recordings/*.json; do
 done
 ```
 
-### Database Backup
+### Data Backup and Export
 
-**Backup database:**
+**Export data from Elasticsearch:**
 ```bash
-docker exec radio-postgres pg_dump -U radio_user radio_monitoring > backup.sql
+# Export all captures from last 30 days
+curl -X GET "localhost:9200/radio-captures-*/_search?pretty&size=10000" \
+  -H 'Content-Type: application/json' \
+  -d '{"query": {"range": {"@timestamp": {"gte": "now-30d"}}}}' \
+  > captures_backup.json
+
+# Export APRS data
+curl -X GET "localhost:9200/radio-aprs-*/_search?pretty&size=10000" > aprs_backup.json
 ```
 
-**Restore database:**
+**Snapshot and Restore (recommended for large datasets):**
 ```bash
-docker exec -i radio-postgres psql -U radio_user radio_monitoring < backup.sql
+# Configure snapshot repository
+curl -X PUT "localhost:9200/_snapshot/radio_backup" \
+  -H 'Content-Type: application/json' \
+  -d '{"type": "fs", "settings": {"location": "/usr/share/elasticsearch/backup"}}'
+
+# Create snapshot
+curl -X PUT "localhost:9200/_snapshot/radio_backup/snapshot_1?wait_for_completion=true"
+
+# Restore snapshot
+curl -X POST "localhost:9200/_snapshot/radio_backup/snapshot_1/_restore"
 ```
 
-## Grafana Dashboards
+## Kibana Dashboards
 
-### Accessing Grafana
+### Accessing Kibana
 
-Open http://localhost:3000 in your browser and log in with:
-- Username: `admin`
-- Password: `admin` (change on first login)
+Open http://localhost:5601 in your browser. No authentication is required by default (enable X-Pack Security for production).
 
 ### Available Dashboards
 
-#### Radio Captures Database Browser
-**URL**: http://localhost:3000/d/radio-db-browser/radio-captures-database-browser
+**Note**: Kibana dashboards are created using the Discover, Visualize, and Dashboard features. The following dashboards mirror the functionality from the original Grafana implementation:
+
+#### Radio Captures Explorer
+**Access**: Kibana → Discover → Index Pattern: `radio-captures-*`
 
 **Features:**
-- View all captures in an interactive table
-- Sort by any column (timestamp, frequency, language, etc.)
+- View all captures with full-text search across transcriptions
 - Filter by modulation type (FM, AM, USB, LSB)
 - Filter by detected language (en, de, es, etc.)
-- Full-text search in transcriptions
-- Real-time updates as new captures are added
+- Filter by frequency range
+- Time-based filtering (last 15m, 1h, 24h, 7d, 30d, custom)
+- Sort by any field (@timestamp, frequency, language, etc.)
+- Real-time updates with auto-refresh
 
 **Usage:**
-1. Use the **Modulation** dropdown to filter by signal type
-2. Use the **Language** dropdown to filter by detected language
-3. Use the **Search Text** field to search transcription content
-4. Click column headers to sort
-5. Results auto-refresh when filters change
+1. Use the search bar for full-text queries: `transcription: "amateur"` or `modulation: "FM"`
+2. Use filters to narrow results (Add filter → field → value)
+3. Click on time range selector to change time window
+4. Enable auto-refresh for real-time monitoring
 
-#### Database Statistics Dashboard
-**URL**: http://localhost:3000/d/radio-stats/radio-statistics
+#### APRS Monitoring Dashboard
+**Access**: Kibana → Dashboard → APRS Activity
 
-**Panels:**
-- Total captures count
-- Successful transcriptions count
-- Capture success rate gauge
-- Transcription success rate gauge
-- Captures over time graph
-- Distribution by modulation type (pie chart)
-- Captures per hour (bar chart)
-- Top 10 most active frequencies
-- Language distribution
-- Failed captures count
-
-#### Repeater Activity Dashboard (NEW)
-**URL**: http://localhost:3000/d/repeater-activity/repeater-activity-monitoring
-
-**Features:**
-- Monitor Swiss FM repeater activity in real-time
-- Track transmission counts and signal quality
-- View activity trends by band (2m, 70cm) and canton
-- Analyze scan performance and coverage
-
-**Panels:**
-- **Most Active Repeaters (24h)**: Table showing repeaters with highest activity percentages
-- **Scan Rate**: Time-series graph of scan operations per minute
-- **Activity by Band**: Pie chart showing activity distribution across 2m and 70cm bands
-- **Recent Scans (7 days)**: Detailed table of the last 100 scan results with signal strength data
+**Visualizations:**
+- **Total APRS Packets**: Metric showing total packet count
+- **Unique Callsigns**: Metric showing distinct source callsigns
+- **Packets with Position**: Count of packets with geo-location data
+- **APRS Timeline**: Line chart of packets over time (5-minute buckets)
+- **Message Types**: Pie chart showing distribution of APRS packet types
+- **Top 15 Callsigns**: Horizontal bar chart of most active stations
+- **APRS Stations Map**: Coordinate map showing station positions (geo_point visualization)
+- **Recent Packets Table**: Data table of latest 50 APRS messages
 
 **Usage:**
-1. Run repeater scans from the Web Interface Repeater Scan tab
-2. View real-time updates as scans complete (30s refresh interval)
-3. Click on repeater callsigns to drill down into specific activity
-4. Use time range selector to analyze historical trends
-5. Monitor signal strength patterns to identify propagation conditions
+1. Use time picker to select time range (last 24h default)
+2. Click on map markers to view station details
+3. Filter by clicking on pie chart segments or bar chart elements
+4. Dashboards auto-refresh every 30 seconds
 
-**Example Queries:**
-```sql
--- Top 10 active repeaters in last 24 hours
-SELECT
-  r.callsign,
-  r.output_frequency / 1000000.0 AS frequency_mhz,
-  r.band,
-  r.location_name,
-  r.canton,
-  AVG(ra.activity_percentage) AS avg_activity_pct,
-  SUM(ra.transmission_count) AS total_transmissions,
-  COUNT(ra.id) AS scan_count,
-  MAX(ra.created_at) AS last_scan
-FROM repeaters r
-LEFT JOIN repeater_activity ra ON r.id = ra.repeater_id
-WHERE ra.created_at > NOW() - INTERVAL '24 hours'
-GROUP BY r.id
-ORDER BY avg_activity_pct DESC NULLS LAST
-LIMIT 20;
+#### Repeater Activity Dashboard
+**Access**: Kibana → Dashboard → Repeater Activity Monitoring
+
+**Visualizations:**
+- **Most Active Repeaters (24h)**: Data table aggregated by callsign with avg activity percentage
+- **Activity by Band**: Pie chart showing 2m vs 70cm activity distribution
+- **Scan Rate**: Line chart showing scan operations over time
+- **Recent Scans**: Data table of last 100 repeater activity records
+
+**Aggregation Examples (Kibana Dev Tools):**
+```json
+POST /radio-repeater-activity-*/_search
+{
+  "size": 0,
+  "query": {
+    "bool": {
+      "must": [
+        {"range": {"@timestamp": {"gte": "now-24h"}}},
+        {"term": {"carrier_detected": true}}
+      ]
+    }
+  },
+  "aggs": {
+    "by_repeater": {
+      "terms": {
+        "field": "repeater_callsign",
+        "size": 10,
+        "order": {"avg_activity": "desc"}
+      },
+      "aggs": {
+        "avg_activity": {"avg": {"field": "activity_percentage"}},
+        "total_transmissions": {"sum": {"field": "transmission_count"}}
+      }
+    }
+  }
+}
 ```
 
 ### Creating Custom Dashboards
 
-You can create your own dashboards using the PostgreSQL datasource:
+Create custom visualizations and dashboards in Kibana:
 
-1. Click **+ → Dashboard** in Grafana
-2. Add a new panel
-3. Select **Radio PostgreSQL** as datasource
-4. Write custom SQL queries:
+1. Go to **Kibana → Visualize → Create visualization**
+2. Select visualization type (Line, Bar, Pie, Data Table, Metric, Map, etc.)
+3. Choose index pattern (`radio-captures-*`, `radio-aprs-*`, etc.)
+4. Configure metrics and buckets/aggregations
+5. Save visualization and add to dashboard
 
-```sql
--- Example: Recent FM captures
-SELECT
-  created_at,
-  ROUND(frequency::numeric / 1000000, 3) as frequency_mhz,
-  transcription_text,
-  language
-FROM captures
-WHERE modulation = 'FM'
-ORDER BY created_at DESC
-LIMIT 20;
+**Example Aggregation - Recent FM Captures:**
+```json
+POST /radio-captures-*/_search
+{
+  "size": 20,
+  "query": {
+    "bool": {
+      "must": [
+        {"term": {"modulation": "FM"}},
+        {"range": {"@timestamp": {"gte": "now-24h"}}}
+      ]
+    }
+  },
+  "sort": [{"@timestamp": "desc"}],
+  "_source": ["@timestamp", "frequency_mhz", "transcription", "detected_language"]
+}
 ```
 
-## pgAdmin Database Management
+## Kibana Dev Tools
 
-### Accessing pgAdmin
+### Accessing Dev Tools
 
-Open http://localhost:5050 in your browser and log in with:
-- Email: `admin@admin.com`
-- Password: `admin`
+Open Kibana → Dev Tools (http://localhost:5601/app/dev_tools#/console) for direct Elasticsearch API access.
 
-### Automatic PostgreSQL Connection
+### Using the Console
 
-**The PostgreSQL server is automatically registered!**
+**Browse Indices:**
+```json
+# List all radio indices
+GET /_cat/indices/radio-*?v
 
-After logging into pgAdmin, you'll see the **"Radio Monitoring Database"** server already configured in the left sidebar under **Servers**.
+# View index mapping
+GET /radio-captures-*/_mapping
 
-Simply expand the server tree:
-- **Servers** → **Radio Monitoring Database** → **Databases** → **radio_monitoring** → **Schemas** → **public** → **Tables**
+# Count documents
+GET /radio-captures-*/_count
+```
 
-No manual configuration needed! The connection is pre-configured with:
-- Host: `radio-postgres`
-- Port: `5432`
-- Database: `radio_monitoring`
-- Username: `radio_user`
-- Password: Automatically loaded from secure configuration
+**Run Queries:**
+```json
+# Get all captures from last 24 hours
+POST /radio-captures-*/_search
+{
+  "query": {
+    "range": {
+      "@timestamp": {
+        "gte": "now-24h"
+      }
+    }
+  },
+  "sort": [{"@timestamp": "desc"}],
+  "size": 100
+}
 
-### Using pgAdmin
+# Get frequency statistics
+POST /radio-captures-*/_search
+{
+  "size": 0,
+  "aggs": {
+    "by_frequency": {
+      "terms": {
+        "field": "frequency_mhz",
+        "size": 20,
+        "order": {"_count": "desc"}
+      },
+      "aggs": {
+        "by_modulation": {
+          "terms": {"field": "modulation"}
+        }
+      }
+    }
+  }
+}
 
-**Browse Data:**
-- Navigate to: Servers → Radio Monitoring Database → Databases → radio_monitoring → Schemas → public → Tables
-- Right-click on `captures` table → **"View/Edit Data" → "All Rows"**
-
-**Run SQL Queries:**
-- Right-click on `radio_monitoring` database → **"Query Tool"**
-- Execute custom SQL queries:
-
-```sql
--- Get all captures from last 24 hours
-SELECT * FROM captures
-WHERE created_at > NOW() - INTERVAL '24 hours'
-ORDER BY created_at DESC;
-
--- Get frequency statistics
-SELECT
-  ROUND(frequency::numeric / 1000000, 3) as freq_mhz,
-  modulation,
-  COUNT(*) as count
-FROM captures
-GROUP BY frequency, modulation
-ORDER BY count DESC;
-
--- Search transcriptions
-SELECT
-  id,
-  created_at,
-  frequency,
-  transcription_text
-FROM captures
-WHERE transcription_text ILIKE '%weather%'
-LIMIT 10;
+# Full-text search in transcriptions
+POST /radio-captures-*/_search
+{
+  "query": {
+    "multi_match": {
+      "query": "weather",
+      "fields": ["transcription", "transcription.english", "transcription.german"]
+    }
+  },
+  "highlight": {
+    "fields": {
+      "transcription": {}
+    }
+  },
+  "size": 10
+}
 ```
 
 **Export Data:**
-- Select data in Query Tool results
-- Click **"Download as CSV"** icon
-- Or right-click table → **"Import/Export"** → Configure export options
+```json
+# Export to JSON (use scroll API for large datasets)
+POST /radio-captures-*/_search?scroll=5m
+{
+  "size": 1000,
+  "query": {"match_all": {}}
+}
 
-**Backup Database:**
-- Right-click on `radio_monitoring` database
-- Select **"Backup..."**
-- Choose format (Custom, Tar, Plain SQL)
-- Configure options and save
+# Then use the scroll_id to get next batch
+POST /_search/scroll
+{
+  "scroll": "5m",
+  "scroll_id": "<scroll_id_from_previous_response>"
+}
+```
 
-**Restore Database:**
-- Right-click on database
-- Select **"Restore..."**
-- Choose backup file
-- Configure restore options
+**Index Management:**
+```json
+# View index stats
+GET /radio-captures-*/_stats
 
-### pgAdmin Features
+# Delete old indices
+DELETE /radio-captures-2024.01.*
 
-- ✅ Visual query builder
-- ✅ Schema visualization (ERD diagrams)
-- ✅ SQL syntax highlighting and auto-completion
-- ✅ Query history and favorites
-- ✅ Data import/export (CSV, JSON, etc.)
-- ✅ Database backup and restore
-- ✅ User and permission management
-- ✅ Performance monitoring and explain plans
-- ✅ Table statistics and analysis
+# Reindex data
+POST /_reindex
+{
+  "source": {"index": "radio-captures-2025.01.01"},
+  "dest": {"index": "radio-captures-reindexed"}
+}
+```
+
+### Kibana Features
+
+- ✅ Discover: Interactive log exploration with full-text search
+- ✅ Visualize: Create charts, graphs, maps, and metrics
+- ✅ Dashboard: Combine visualizations into comprehensive dashboards
+- ✅ Dev Tools: Console for direct Elasticsearch API access
+- ✅ Index Management: Lifecycle policies, rollover, and retention
+- ✅ Canvas: Pixel-perfect data presentations
+- ✅ Maps: Geospatial visualization for APRS positions
+- ✅ Alerting: Set up alerts based on query conditions (requires X-Pack)
 
 ## Legal Notice
 
@@ -1343,8 +1393,9 @@ For issues and questions:
 - Review RTL-SDR documentation: https://www.rtl-sdr.com/about-rtl-sdr/
 - Review faster-whisper documentation: https://github.com/guillaumekln/faster-whisper
 - Review N8N documentation: https://docs.n8n.io/
-- Review Grafana documentation: https://grafana.com/docs/
-- Review PostgreSQL documentation: https://www.postgresql.org/docs/
+- Review Elasticsearch documentation: https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
+- Review Kibana documentation: https://www.elastic.co/guide/en/kibana/current/index.html
+- Review Logstash documentation: https://www.elastic.co/guide/en/logstash/current/index.html
 
 ## Acknowledgments
 
@@ -1353,7 +1404,7 @@ For issues and questions:
 - faster-whisper by Guillaume Klein
 - Whisper by OpenAI
 - N8N workflow automation platform
-- PostgreSQL database system
-- pgAdmin 4 by The pgAdmin Development Team
-- Grafana visualization platform
-- Prometheus monitoring system
+- Elasticsearch by Elastic
+- Logstash by Elastic
+- Kibana by Elastic
+- Metricbeat by Elastic
