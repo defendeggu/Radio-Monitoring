@@ -22,6 +22,18 @@ metricbeat.modules:
   period: 15s
   enabled: true
 
+# Elasticsearch Cluster Metrics
+- module: elasticsearch
+  metricsets:
+    - cluster_stats
+    - index
+    - index_summary
+    - node
+    - node_stats
+  period: 30s
+  hosts: ["http://elasticsearch:9200"]
+  enabled: true
+
 # System Metrics
 - module: system
   metricsets:

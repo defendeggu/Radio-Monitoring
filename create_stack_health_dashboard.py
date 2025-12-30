@@ -292,9 +292,9 @@ def main():
 
     # Elasticsearch Metrics
     create_metric_viz("health-es-indices", "Active Indices", "metricbeat-pattern",
-                     "elasticsearch.cluster.stats.indices.count", "max")
+                     "elasticsearch.cluster.stats.indices.total", "max")
     create_metric_viz("health-es-shards", "Active Shards", "metricbeat-pattern",
-                     "elasticsearch.cluster.stats.indices.shards.total", "max")
+                     "elasticsearch.cluster.stats.indices.shards.count", "max")
 
     # System Metrics (from Metricbeat)
     create_timeseries_viz("health-cpu-usage", "CPU Usage %", "metricbeat-pattern",
