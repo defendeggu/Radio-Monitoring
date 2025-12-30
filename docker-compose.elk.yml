@@ -1,0 +1,165 @@
+version: '3.8'
+
+services:
+  # ===========================================================================
+  # Elasticsearch - Data Storage
+  # ===========================================================================
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
+    container_name: radio-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./monitoring/elasticsearch/index-templates:/usr/share/elasticsearch/index-templates:ro
+      - ./monitoring/elasticsearch/ilm-policies:/usr/share/elasticsearch/ilm-policies:ro
+    ports:
+      - "9200:9200"
+    networks:
+      - radio-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Logstash - Data Ingestion Pipelines
+  # ===========================================================================
+  logstash:
+    image: docker.elastic.co/logstash/logstash:8.11.3
+    container_name: radio-logstash
+    volumes:
+      - ./monitoring/logstash/pipelines:/usr/share/logstash/pipeline:ro
+      - ./monitoring/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - ./monitoring/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+    ports:
+      - "9600:9600"  # radio-captures pipeline
+      - "9601:9601"  # radio-aprs pipeline
+      - "9602:9602"  # radio-pocsag pipeline
+      - "9603:9603"  # radio-repeater pipeline
+      - "9604:9604"  # radio-metrics pipeline
+    environment:
+      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+    networks:
+      - radio-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Kibana - Visualization & Dashboards
+  # ===========================================================================
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.3
+    container_name: radio-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=radio-kibana
+    volumes:
+      - ./monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+    ports:
+      - "5601:5601"
+    networks:
+      - radio-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+
+  # ===========================================================================
+  # Metricbeat - Container & System Metrics
+  # ===========================================================================
+  metricbeat:
+    image: docker.elastic.co/beats/metricbeat:8.11.3
+    container_name: radio-metricbeat
+    user: root
+    volumes:
+      - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
+      - /proc:/hostfs/proc:ro
+      - /:/hostfs:ro
+    command: ["--strict.perms=false", "-system.hostfs=/hostfs"]
+    networks:
+      - radio-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      kibana:
+        condition: service_healthy
+
+  # ===========================================================================
+  # Radio Transcription API
+  # ===========================================================================
+  radio-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: radio-transcription-api
+    privileged: true
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - ./captures:/app/captures
+      - ./recordings:/app/recordings
+    ports:
+      - "5000:5000"
+    networks:
+      - radio-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - LOGSTASH_HOST=http://logstash:9600
+      - LOGSTASH_APRS_HOST=http://logstash:9601
+      - LOGSTASH_POCSAG_HOST=http://logstash:9602
+      - LOGSTASH_REPEATER_HOST=http://logstash:9603
+      - LOGSTASH_METRICS_HOST=http://logstash:9604
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Web Interface
+  # ===========================================================================
+  web-interface:
+    image: nginx:alpine
+    container_name: radio-web-interface
+    volumes:
+      - ./web_interface.html:/usr/share/nginx/html/index.html:ro
+    ports:
+      - "8080:80"
+    networks:
+      - radio-network
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+    driver: local
+
+networks:
+  radio-network:
+    driver: bridge

@@ -1,0 +1,76 @@
+# Metricbeat Configuration for Radio Monitoring System
+# Replaces cAdvisor + Prometheus for container and system metrics
+
+metricbeat.config.modules:
+  path: ${path.config}/modules.d/*.yml
+  reload.enabled: false
+
+# System Metrics
+metricbeat.modules:
+
+# Docker Container Metrics (replaces cAdvisor)
+- module: docker
+  metricsets:
+    - "container"
+    - "cpu"
+    - "diskio"
+    - "healthcheck"
+    - "info"
+    - "memory"
+    - "network"
+  hosts: ["unix:///var/run/docker.sock"]
+  period: 15s
+  enabled: true
+
+# System Metrics
+- module: system
+  metricsets:
+    - cpu
+    - load
+    - memory
+    - network
+    - process
+    - process_summary
+    - filesystem
+  enabled: true
+  period: 30s
+  processes: ['.*']
+  cpu.metrics: ["percentages", "normalized_percentages"]
+  core.metrics: ["percentages"]
+
+# Process-level Metrics
+- module: system
+  metricsets:
+    - process
+  period: 30s
+  process.include_top_n:
+    by_cpu: 5
+    by_memory: 5
+
+# Elasticsearch Output
+output.elasticsearch:
+  hosts: ["http://elasticsearch:9200"]
+  index: "metricbeat-%{+yyyy.MM.dd}"
+
+# Index Template
+setup.template.name: "metricbeat"
+setup.template.pattern: "metricbeat-*"
+setup.template.settings:
+  index.number_of_shards: 1
+  index.number_of_replicas: 1
+  index.lifecycle.name: "radio-ilm-policy"
+
+# Kibana Dashboards
+setup.kibana:
+  host: "http://kibana:5601"
+
+# Logging
+logging.level: info
+logging.to_files: false
+logging.to_syslog: false
+
+# Processors
+processors:
+  - add_cloud_metadata: ~
+  - add_docker_metadata: ~
+  - add_host_metadata: ~

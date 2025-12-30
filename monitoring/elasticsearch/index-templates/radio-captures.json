@@ -1,0 +1,111 @@
+{
+  "index_patterns": ["radio-captures-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 3,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "radio-ilm-policy",
+      "index.lifecycle.rollover_alias": "radio-captures",
+      "analysis": {
+        "analyzer": {
+          "multilingual_analyzer": {
+            "type": "standard",
+            "stopwords": "_none_"
+          }
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        },
+        "duration_seconds": {
+          "type": "integer"
+        },
+        "modulation": {
+          "type": "keyword"
+        },
+        "sample_rate": {
+          "type": "integer"
+        },
+        "rf_gain": {
+          "type": "integer"
+        },
+        "sdr_type": {
+          "type": "keyword"
+        },
+        "transcription": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            },
+            "english": {
+              "type": "text",
+              "analyzer": "english"
+            },
+            "german": {
+              "type": "text",
+              "analyzer": "german"
+            },
+            "french": {
+              "type": "text",
+              "analyzer": "french"
+            },
+            "spanish": {
+              "type": "text",
+              "analyzer": "spanish"
+            }
+          },
+          "analyzer": "multilingual_analyzer"
+        },
+        "detected_language": {
+          "type": "keyword"
+        },
+        "confidence_score": {
+          "type": "float"
+        },
+        "audio_file": {
+          "type": "keyword"
+        },
+        "status": {
+          "type": "keyword"
+        },
+        "segments": {
+          "type": "nested",
+          "properties": {
+            "start": {
+              "type": "float"
+            },
+            "end": {
+              "type": "float"
+            },
+            "text": {
+              "type": "text"
+            }
+          }
+        },
+        "metadata": {
+          "type": "object",
+          "enabled": false
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Index template for radio voice transcriptions with multilingual full-text search"
+  }
+}

@@ -1,10 +1,12 @@
 FROM python:3.11-slim
 
-# Install system dependencies
+# Install system dependencies (HackRF + RTL-SDR)
 RUN apt-get update && apt-get install -y \
     libusb-1.0-0-dev \
     libhackrf-dev \
     hackrf \
+    rtl-sdr \
+    librtlsdr-dev \
     build-essential \
     git \
     direwolf \
@@ -23,14 +25,13 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
-COPY radio_capture.py .
+COPY sdr_hardware.py .
 COPY transcription_service.py .
 COPY aprs_decoder_service.py .
 COPY pocsag_decoder_service.py .
 COPY api_service.py .
-COPY database_service.py .
+COPY elasticsearch_service.py .
 COPY repeater_activity_analyzer.py .
-COPY migrate_json_to_db.py .
 COPY direwolf.conf .
 COPY .env.example .env
 COPY scripts/ scripts/

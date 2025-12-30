@@ -1,0 +1,69 @@
+{
+  "index_patterns": ["radio-aprs-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "radio-ilm-policy",
+      "index.lifecycle.rollover_alias": "radio-aprs"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "capture_id": {
+          "type": "keyword"
+        },
+        "source_callsign": {
+          "type": "keyword"
+        },
+        "destination_callsign": {
+          "type": "keyword"
+        },
+        "packet_type": {
+          "type": "keyword"
+        },
+        "position": {
+          "type": "geo_point"
+        },
+        "latitude": {
+          "type": "float"
+        },
+        "longitude": {
+          "type": "float"
+        },
+        "altitude": {
+          "type": "float"
+        },
+        "message_text": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 256
+            }
+          }
+        },
+        "raw_packet": {
+          "type": "text",
+          "index": false
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Index template for APRS packets with geospatial support"
+  }
+}

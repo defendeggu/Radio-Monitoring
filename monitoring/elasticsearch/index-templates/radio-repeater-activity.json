@@ -1,0 +1,90 @@
+{
+  "index_patterns": ["radio-repeater-activity-*"],
+  "template": {
+    "settings": {
+      "number_of_shards": 2,
+      "number_of_replicas": 1,
+      "index.lifecycle.name": "radio-ilm-policy",
+      "index.lifecycle.rollover_alias": "radio-repeater-activity"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "repeater_id": {
+          "type": "keyword"
+        },
+        "repeater_callsign": {
+          "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        },
+        "band": {
+          "type": "keyword"
+        },
+        "canton": {
+          "type": "keyword"
+        },
+        "location_name": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            }
+          }
+        },
+        "carrier_detected": {
+          "type": "boolean"
+        },
+        "transmission_count": {
+          "type": "integer"
+        },
+        "activity_percentage": {
+          "type": "float"
+        },
+        "average_signal_strength": {
+          "type": "float"
+        },
+        "noise_floor": {
+          "type": "float"
+        },
+        "scan_duration_seconds": {
+          "type": "integer"
+        },
+        "transmissions": {
+          "type": "nested",
+          "properties": {
+            "start_offset": {
+              "type": "float"
+            },
+            "duration": {
+              "type": "float"
+            },
+            "avg_strength": {
+              "type": "float"
+            },
+            "peak_strength": {
+              "type": "float"
+            }
+          }
+        }
+      }
+    }
+  },
+  "priority": 100,
+  "version": 1,
+  "_meta": {
+    "description": "Index template for repeater activity monitoring data"
+  }
+}
