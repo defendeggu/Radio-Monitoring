@@ -9,6 +9,7 @@ import json
 import time
 import threading
 from datetime import datetime
+import uuid
 from typing import TypedDict, Any, Dict, Optional
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
@@ -344,31 +345,39 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 es = get_elasticsearch_service()
                 file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
-                capture_id = db.save_capture(
-                    frequency=int(frequency),
-                    modulation=modulation,
-                    duration=duration,
-                    gain=gain,
-                    sample_rate=sample_rate,
-                    audio_file_path=audio_file,
-                    json_file_path=None,
-                    file_size=file_size,
-                    transcription_text=None,
-                    language=None,
-                    language_confidence=None,
-                    segments=None,
-                    transcription_duration=decode_duration,
-                    metadata={
-                        'mode': 'aprs',
+                # Index capture to Elasticsearch
+                capture_uuid = str(uuid.uuid4())
+                capture_doc = {
+                    'uuid': capture_uuid,
+                    'created_at': datetime.utcnow().isoformat(),
+                    'frequency': int(frequency),
+                    'modulation': modulation,
+                    'duration_seconds': duration,
+                    'rf_gain': gain,
+                    'sample_rate': sample_rate,
+                    'audio_file': audio_file,
+                    'file_size': file_size,
+                    'sdr_type': detect_sdr().value,
+                    'mode': 'aprs',
+                    'transcription_duration': decode_duration,
+                    'metadata': {
                         'packet_count': len(packets),
                         'capture_timestamp': timestamp
                     }
-                )
+                }
+                capture_id = es.index_capture(capture_doc)
 
-                # Save APRS packets
-                if capture_id > 0:
-                    packet_ids = db.save_aprs_capture(capture_id, packets)
-                    print(f"Saved {len(packet_ids)} APRS packets to database")
+                # Index APRS packets
+                for packet in packets:
+                    packet_doc = {
+                        'uuid': str(uuid.uuid4()),
+                        'capture_id': capture_uuid,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'frequency': int(frequency),
+                        **packet
+                    }
+                    es.index_aprs(packet_doc)
+                print(f"Indexed {len(packets)} APRS packets to Elasticsearch")
 
                 # Metrics
                 aprs_decodes_total.labels(status='success').inc()
@@ -407,31 +416,39 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 es = get_elasticsearch_service()
                 file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
-                capture_id = db.save_capture(
-                    frequency=int(frequency),
-                    modulation=modulation,
-                    duration=duration,
-                    gain=gain,
-                    sample_rate=sample_rate,
-                    audio_file_path=audio_file,
-                    json_file_path=None,
-                    file_size=file_size,
-                    transcription_text=None,
-                    language=None,
-                    language_confidence=None,
-                    segments=None,
-                    transcription_duration=decode_duration,
-                    metadata={
-                        'mode': 'pocsag',
+                # Index capture to Elasticsearch
+                capture_uuid = str(uuid.uuid4())
+                capture_doc = {
+                    'uuid': capture_uuid,
+                    'created_at': datetime.utcnow().isoformat(),
+                    'frequency': int(frequency),
+                    'modulation': modulation,
+                    'duration_seconds': duration,
+                    'rf_gain': gain,
+                    'sample_rate': sample_rate,
+                    'audio_file': audio_file,
+                    'file_size': file_size,
+                    'sdr_type': detect_sdr().value,
+                    'mode': 'pocsag',
+                    'transcription_duration': decode_duration,
+                    'metadata': {
                         'message_count': len(messages),
                         'capture_timestamp': timestamp
                     }
-                )
+                }
+                capture_id = es.index_capture(capture_doc)
 
-                # Save POCSAG messages
-                if capture_id > 0:
-                    message_ids = db.save_pocsag_capture(capture_id, messages)
-                    print(f"Saved {len(message_ids)} POCSAG messages to database")
+                # Index POCSAG messages
+                for message in messages:
+                    message_doc = {
+                        'uuid': str(uuid.uuid4()),
+                        'capture_id': capture_uuid,
+                        'timestamp': datetime.utcnow().isoformat(),
+                        'frequency': int(frequency),
+                        **message
+                    }
+                    es.index_pocsag(message_doc)
+                print(f"Indexed {len(messages)} POCSAG messages to Elasticsearch")
 
                 # Metrics
                 pocsag_decodes_total.labels(status='success').inc()
@@ -469,33 +486,37 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             )
             transcribe_duration = time.time() - transcribe_start
 
-            # Save to database
+            # Save to Elasticsearch
             try:
                 es = get_elasticsearch_service()
                 file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
 
-                db.save_capture(
-                    frequency=int(frequency),
-                    modulation=modulation,
-                    duration=duration,
-                    gain=gain,
-                    sample_rate=sample_rate,
-                    audio_file_path=audio_file,
-                    json_file_path=json_file,
-                    file_size=file_size,
-                    transcription_text=transcription_result.get('text'),
-                    language=transcription_result.get('language'),
-                    language_confidence=transcription_result.get('language_probability'),
-                    segments=transcription_result.get('segments'),
-                    transcription_duration=transcribe_duration,
-                    metadata={
-                        'mode': 'voice',
+                capture_doc = {
+                    'uuid': str(uuid.uuid4()),
+                    'created_at': datetime.utcnow().isoformat(),
+                    'frequency': int(frequency),
+                    'modulation': modulation,
+                    'duration_seconds': duration,
+                    'rf_gain': gain,
+                    'sample_rate': sample_rate,
+                    'audio_file': audio_file,
+                    'json_file': json_file,
+                    'file_size': file_size,
+                    'sdr_type': detect_sdr().value,
+                    'transcription': transcription_result.get('text'),
+                    'detected_language': transcription_result.get('language'),
+                    'confidence_score': transcription_result.get('language_probability'),
+                    'segments': transcription_result.get('segments'),
+                    'transcription_duration': transcribe_duration,
+                    'mode': 'voice',
+                    'metadata': {
                         'capture_timestamp': timestamp,
                         'audio_duration': transcription_result.get('duration')
                     }
-                )
-            except Exception as db_error:
-                print(f"Warning: Could not save to database: {db_error}")
+                }
+                es.index_capture(capture_doc)
+            except Exception as es_error:
+                print(f"Warning: Could not index to Elasticsearch: {es_error}")
 
             return jsonify({
                 'status': 'success',
@@ -575,7 +596,7 @@ def search_captures() -> Response | tuple[Response, int]:
         end_dt = datetime.fromisoformat(end_date) if end_date else None
 
         # Search
-        results = db.search_captures(
+        results = es.search_captures(
             text_query=text_query,
             frequency=frequency,
             modulation=modulation,
@@ -601,7 +622,7 @@ def get_capture(capture_id: int) -> Response | tuple[Response, int]:
     """Get a single capture by ID"""
     try:
         es = get_elasticsearch_service()
-        result = db.get_capture_by_id(capture_id)
+        result = es.get_capture_by_id(capture_id)
 
         if result is None:
             return jsonify({'error': 'Capture not found'}), 404
@@ -620,7 +641,7 @@ def get_statistics() -> Response | tuple[Response, int]:
     """Get database statistics"""
     try:
         es = get_elasticsearch_service()
-        stats = db.get_statistics()
+        stats = es.get_overall_stats()
 
         return jsonify({
             'status': 'success',
@@ -637,7 +658,7 @@ def get_frequency_stats() -> Response | tuple[Response, int]:
     try:
         es = get_elasticsearch_service()
         limit = request.args.get('limit', 10, type=int)
-        frequencies = db.get_frequency_usage(limit=limit)
+        frequencies = es.get_frequency_usage(limit=limit)
 
         return jsonify({
             'status': 'success',
@@ -679,7 +700,7 @@ def search_aprs() -> Response | tuple[Response, int]:
         end_dt = datetime.fromisoformat(end_date) if end_date else None
 
         # Search
-        results = db.search_aprs_messages(
+        results = es.search_aprs(
             callsign=callsign,
             message_text=text,
             aprs_type=aprs_type,
@@ -704,7 +725,7 @@ def get_aprs_stats() -> Response | tuple[Response, int]:
     """Get APRS statistics"""
     try:
         es = get_elasticsearch_service()
-        stats = db.get_aprs_statistics()
+        stats = es.get_aprs_stats()
 
         return jsonify({
             'status': 'success',
@@ -729,7 +750,7 @@ def get_aprs_map_data() -> Response | tuple[Response, int]:
         # Get recent packets with position data (last 24 hours by default)
         hours = request.args.get('hours', 24, type=int)
 
-        results = db.search_aprs_messages(
+        results = es.search_aprs(
             start_date=datetime.now().replace(hour=0, minute=0, second=0) if hours == 24 else None,
             limit=1000
         )
@@ -799,7 +820,7 @@ def search_pocsag() -> Response | tuple[Response, int]:
         end_dt = datetime.fromisoformat(end_date) if end_date else None
 
         # Search
-        results = db.search_pocsag_messages(
+        results = es.search_pocsag(
             address=address,
             message_text=text,
             message_type=message_type,
@@ -825,7 +846,7 @@ def get_pocsag_stats() -> Response | tuple[Response, int]:
     """Get POCSAG statistics"""
     try:
         es = get_elasticsearch_service()
-        stats = db.get_pocsag_statistics()
+        stats = es.get_pocsag_stats()
 
         return jsonify({
             'status': 'success',
@@ -850,7 +871,7 @@ def get_pocsag_messages() -> Response | tuple[Response, int]:
         limit = request.args.get('limit', 50, type=int)
         offset = request.args.get('offset', 0, type=int)
 
-        results = db.search_pocsag_messages(limit=limit, offset=offset)
+        results = es.search_pocsag(limit=limit, offset=offset)
 
         return jsonify({
             'status': 'success',
@@ -920,30 +941,46 @@ def _scan_repeaters_worker(
                 # Capture to IQ file (complex64 format)
                 capture_instance.capture_iq(scan_duration, iq_file)
 
-                # Create capture record
-                capture_id = db.save_capture(
-                    frequency=frequency,
-                    modulation='FM',
-                    duration=scan_duration,
-                    gain=gain,
-                    audio_file_path=iq_file,
-                    sample_rate=sample_rate,
-                    metadata={'type': 'repeater_scan', 'session_id': session_id}
-                )
+                # Create capture record for Elasticsearch
+                capture_uuid = str(uuid.uuid4())
+                capture_doc = {
+                    'uuid': capture_uuid,
+                    'created_at': datetime.utcnow().isoformat(),
+                    'frequency': frequency,
+                    'modulation': 'FM',
+                    'duration_seconds': scan_duration,
+                    'rf_gain': gain,
+                    'audio_file': iq_file,
+                    'sample_rate': sample_rate,
+                    'sdr_type': detect_sdr().value,
+                    'mode': 'repeater_scan',
+                    'metadata': {'type': 'repeater_scan', 'session_id': session_id}
+                }
+                es.index_capture(capture_doc)
 
                 # Analyze IQ samples
                 metrics = analyzer.analyze_iq_file(iq_file)
                 scan_end_time = datetime.now()
 
-                # Save activity results
-                activity_id = db.save_repeater_activity(
-                    capture_id=capture_id,
-                    repeater_id=repeater['id'],
-                    frequency=frequency,
-                    scan_start_time=scan_start_time,
-                    scan_end_time=scan_end_time,
-                    metrics=metrics.to_dict()
-                )
+                # Index repeater activity
+                activity_doc = {
+                    'uuid': str(uuid.uuid4()),
+                    'created_at': datetime.utcnow().isoformat(),
+                    'capture_id': capture_uuid,
+                    'repeater_id': repeater.get('id'),
+                    'repeater_callsign': repeater.get('callsign'),
+                    'frequency': frequency,
+                    'frequency_mhz': repeater.get('frequency_mhz'),
+                    'band': repeater.get('band'),
+                    'canton': repeater.get('canton'),
+                    'scan_start_time': scan_start_time.isoformat(),
+                    'scan_end_time': scan_end_time.isoformat(),
+                    'metrics': metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
+                }
+                # Merge with analysis results if they exist
+                if 'analysis_result' in locals():
+                    activity_doc.update(analysis_result)
+                activity_id = es.index_repeater_activity(activity_doc)
 
                 repeaters_scanned += 1
                 if metrics.carrier_detected:
@@ -994,12 +1031,8 @@ def _scan_repeaters_worker(
                 scan_sessions[session_id]['results'] = results
 
         # Update database
-        db.update_scan_session(
-            session_id=session_id,
-            status='completed',
-            repeaters_scanned=repeaters_scanned,
-            repeaters_with_activity=repeaters_with_activity
-        )
+        # Scan sessions are in-memory only
+        # # REMOVED: db.update_scan_session() - using in-memory scan_sessions dict instead
 
         # Record completion metrics
         repeater_scans_total.labels(status='completed').inc()
@@ -1013,14 +1046,7 @@ def _scan_repeaters_worker(
                 scan_sessions[session_id]['status'] = 'failed'
                 scan_sessions[session_id]['error'] = str(e)
 
-        db.update_scan_session(
-            session_id=session_id,
-            status='failed',
-            metadata={'error': str(e)}
-        )
-
-        # Record failure metrics
-        repeater_scans_total.labels(status='failed').inc()
+        # Scan sessions are in-memory only (removed db.update_scan_session)
 
 
 @app.route('/scan-repeaters', methods=['POST'])
@@ -1065,12 +1091,12 @@ def scan_repeaters() -> Response | tuple[Response, int]:
             # Specific repeaters by ID
             repeaters = []
             for rid in repeater_ids:
-                repeater = db.get_repeater_by_id(rid)
+                repeater = es.get_repeater_by_id(rid)
                 if repeater:
                     repeaters.append(repeater)
         else:
             # Filter by band/canton
-            repeaters = db.get_repeaters(
+            repeaters = es.get_repeaters(
                 band=band,
                 canton=canton,
                 mode='FM',
@@ -1083,17 +1109,8 @@ def scan_repeaters() -> Response | tuple[Response, int]:
                 'message': 'No repeaters found matching criteria'
             }), 404
 
-        # Create scan session in database
-        session_id = db.create_scan_session(
-            scan_duration_per_repeater=duration_per_repeater,
-            metadata={
-                'band': band,
-                'canton': canton,
-                'repeater_count': len(repeaters),
-                'sample_rate': sample_rate,
-                'gain': gain
-            }
-        )
+        # Create scan session in-memory (removed db.create_scan_session)
+        session_id = len(scan_sessions) + 1
 
         if not session_id:
             return jsonify({
@@ -1218,7 +1235,8 @@ def get_scan_session_details(session_id: int) -> Response | tuple[Response, int]
     """
     try:
         es = get_elasticsearch_service()
-        session = db.get_scan_session(session_id)
+        # Get session from in-memory dict (removed db.get_scan_session)
+        session = scan_sessions.get(session_id)
 
         if not session:
             return jsonify({
@@ -1264,7 +1282,7 @@ def get_repeaters_endpoint() -> Response | tuple[Response, int]:
         status = request.args.get('status', 'active')
         limit = request.args.get('limit', 1000, type=int)
 
-        repeaters = db.get_repeaters(
+        repeaters = es.get_repeaters(
             band=band,
             canton=canton,
             mode=mode,
@@ -1303,7 +1321,7 @@ def get_repeater_activity_summary_endpoint() -> Response | tuple[Response, int]:
         hours = request.args.get('hours', 24, type=int)
         limit = request.args.get('limit', 10, type=int)
 
-        summary = db.get_repeater_activity_summary(hours=hours, limit=limit)
+        summary = es.get_repeater_activity_summary(hours=hours, limit=limit)
 
         return jsonify({
             'status': 'success',

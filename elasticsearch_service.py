@@ -530,6 +530,197 @@ class ElasticsearchService:
             raise
 
     # =========================================================================
+    # Repeater Master Data Operations
+    # =========================================================================
+
+    def index_repeater(self, repeater: Dict[str, Any]) -> str:
+        """
+        Index repeater master data
+
+        Args:
+            repeater: Repeater data dictionary
+
+        Returns:
+            UUID or ID of indexed repeater
+        """
+        try:
+            repeater_id = repeater.get('id') or repeater.get('uuid')
+
+            response = self.es_client.index(
+                index='radio-repeaters',
+                id=repeater_id,
+                document=repeater
+            )
+
+            logger.info(f"Indexed repeater {repeater.get('callsign')}")
+            return repeater_id
+
+        except Exception as e:
+            logger.error(f"Error indexing repeater: {e}")
+            raise
+
+    def get_repeaters(self,
+                     band: str = None,
+                     canton: str = None,
+                     mode: str = None,
+                     status: str = None,
+                     limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Get repeaters with optional filters
+
+        Args:
+            band: Filter by band (2m, 70cm, etc.)
+            canton: Filter by Swiss canton
+            mode: Filter by mode (FM, DMR, etc.)
+            status: Filter by status (active, inactive)
+            limit: Maximum results
+
+        Returns:
+            List of repeaters
+        """
+        try:
+            must_clauses = []
+
+            if band:
+                must_clauses.append({'term': {'band': band}})
+            if canton:
+                must_clauses.append({'term': {'canton': canton.upper()}})
+            if mode:
+                must_clauses.append({'term': {'mode': mode}})
+            if status:
+                must_clauses.append({'term': {'status': status}})
+
+            body = {
+                'query': {'bool': {'must': must_clauses}} if must_clauses else {'match_all': {}},
+                'sort': [{'callsign.keyword': 'asc'}],
+                'size': limit
+            }
+
+            result = self.es_client.search(index='radio-repeaters', body=body)
+
+            return [hit['_source'] for hit in result['hits']['hits']]
+
+        except NotFoundError:
+            logger.warning("Repeaters index not found")
+            return []
+        except Exception as e:
+            logger.error(f"Error getting repeaters: {e}")
+            raise
+
+    def get_repeater_by_id(self, repeater_id: int) -> Optional[Dict[str, Any]]:
+        """
+        Get single repeater by ID
+
+        Args:
+            repeater_id: Repeater ID
+
+        Returns:
+            Repeater data or None
+        """
+        try:
+            result = self.es_client.get(index='radio-repeaters', id=str(repeater_id))
+            return result['_source']
+
+        except NotFoundError:
+            logger.warning(f"Repeater {repeater_id} not found")
+            return None
+        except Exception as e:
+            logger.error(f"Error getting repeater by ID: {e}")
+            return None
+
+    # =========================================================================
+    # Additional Query Methods
+    # =========================================================================
+
+    def get_capture_by_id(self, capture_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Get a single capture by UUID
+
+        Args:
+            capture_id: UUID of the capture
+
+        Returns:
+            Capture document or None if not found
+        """
+        try:
+            body = {
+                'query': {
+                    'term': {'uuid.keyword': capture_id}
+                },
+                'size': 1
+            }
+
+            result = self.es_client.search(index='radio-captures-*', body=body)
+
+            if result['hits']['total']['value'] > 0:
+                return result['hits']['hits'][0]['_source']
+            return None
+
+        except Exception as e:
+            logger.error(f"Error getting capture by ID: {e}")
+            return None
+
+    def get_frequency_usage(self, limit: int = 20) -> List[Dict[str, Any]]:
+        """
+        Get frequency usage statistics
+
+        Args:
+            limit: Maximum number of frequencies to return
+
+        Returns:
+            List of frequencies with usage counts
+        """
+        try:
+            body = {
+                'size': 0,
+                'aggs': {
+                    'by_frequency': {
+                        'terms': {
+                            'field': 'frequency',
+                            'size': limit,
+                            'order': {'_count': 'desc'}
+                        },
+                        'aggs': {
+                            'frequency_mhz': {
+                                'top_hits': {
+                                    'size': 1,
+                                    '_source': ['frequency_mhz'],
+                                    'sort': [{'@timestamp': 'desc'}]
+                                }
+                            },
+                            'modulations': {
+                                'terms': {'field': 'modulation'}
+                            },
+                            'last_capture': {
+                                'max': {'field': '@timestamp'}
+                            }
+                        }
+                    }
+                }
+            }
+
+            result = self.es_client.search(index='radio-captures-*', body=body)
+
+            frequencies = []
+            for bucket in result['aggregations']['by_frequency']['buckets']:
+                freq_mhz = bucket['frequency_mhz']['hits']['hits'][0]['_source']['frequency_mhz']
+                modulations = [b['key'] for b in bucket['modulations']['buckets']]
+
+                frequencies.append({
+                    'frequency': bucket['key'],
+                    'frequency_mhz': freq_mhz,
+                    'count': bucket['doc_count'],
+                    'modulations': modulations,
+                    'last_capture': bucket['last_capture']['value_as_string']
+                })
+
+            return frequencies
+
+        except Exception as e:
+            logger.error(f"Error getting frequency usage: {e}")
+            raise
+
+    # =========================================================================
     # System Statistics
     # =========================================================================
 
