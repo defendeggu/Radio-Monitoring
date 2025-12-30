@@ -582,13 +582,13 @@ class ElasticsearchService:
             must_clauses = []
 
             if band:
-                must_clauses.append({'term': {'band': band}})
+                must_clauses.append({'term': {'band.keyword': band}})
             if canton:
-                must_clauses.append({'term': {'canton': canton.upper()}})
+                must_clauses.append({'term': {'canton.keyword': canton.upper()}})
             if mode:
-                must_clauses.append({'term': {'mode': mode}})
+                must_clauses.append({'term': {'mode.keyword': mode}})
             if status:
-                must_clauses.append({'term': {'status': status}})
+                must_clauses.append({'term': {'status.keyword': status}})
 
             body = {
                 'query': {'bool': {'must': must_clauses}} if must_clauses else {'match_all': {}},
