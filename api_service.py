@@ -1010,7 +1010,10 @@ def _scan_repeaters_worker(
         print(f"Scan session {session_id} completed: {repeaters_scanned} scanned, {repeaters_with_activity} with activity")
 
     except Exception as e:
+        import traceback
         print(f"Scan session {session_id} failed: {e}")
+        print("Full traceback:")
+        traceback.print_exc()
         with scan_sessions_lock:
             if session_id in scan_sessions:
                 scan_sessions[session_id]['status'] = 'failed'
