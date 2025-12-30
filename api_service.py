@@ -945,7 +945,7 @@ def _scan_repeaters_worker(
                     'uuid': str(uuid.uuid4()),
                     'created_at': datetime.utcnow().isoformat(),
                     'capture_id': capture_uuid,
-                    'repeater_id': repeater.get('id'),
+                    'repeater_id': repeater.get('uuid', repeater.get('id')),
                     'repeater_callsign': repeater.get('callsign'),
                     'frequency': frequency,
                     'frequency_mhz': repeater.get('frequency_mhz'),
