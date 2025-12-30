@@ -198,7 +198,7 @@ def create_dashboards():
     create_metric_viz("overview-total-aprs", "APRS Messages", "radio-aprs-pattern")
     create_metric_viz("overview-total-pocsag", "POCSAG Messages", "radio-pocsag-pattern")
     create_timeline_viz("overview-captures-timeline", "Captures Over Time", "radio-captures-pattern")
-    create_table_viz("overview-recent-captures", "Recent Captures", "radio-captures-pattern", ["mode", "modulation"])
+    create_table_viz("overview-recent-captures", "Recent Captures", "radio-captures-pattern", ["modulation", "sdr_type"])
     print()
 
     # Create visualizations for APRS
