@@ -969,7 +969,7 @@ def _scan_repeaters_worker(
                     band = repeater.get('band', 'unknown')
                     canton = repeater.get('canton', 'unknown')
                 result = {
-                    'repeater_id': repeater['id'],
+                    'repeater_id': repeater.get('uuid', repeater.get('id')),
                     'callsign': callsign,
                     'frequency': frequency,
                     'activity': metrics.to_dict()
@@ -989,7 +989,7 @@ def _scan_repeaters_worker(
             except Exception as e:
                 print(f"Error scanning {callsign}: {e}")
                 results.append({
-                    'repeater_id': repeater['id'],
+                    'repeater_id': repeater.get('uuid', repeater.get('id')),
                     'callsign': callsign,
                     'frequency': frequency,
                     'error': str(e)
