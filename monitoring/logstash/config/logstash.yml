@@ -2,7 +2,7 @@
 
 # HTTP API Settings
 http.host: "0.0.0.0"
-http.port: 9600
+http.port: 9605  # Changed from 9600 to avoid conflict with radio-captures pipeline
 
 # Pipeline Settings
 pipeline.workers: 2
@@ -10,7 +10,7 @@ pipeline.batch.size: 125
 pipeline.batch.delay: 50
 
 # Path Settings
-path.config: /usr/share/logstash/pipeline
+# path.config: /usr/share/logstash/pipeline  # Commented out to use pipelines.yml for multiple pipelines
 path.data: /usr/share/logstash/data
 path.logs: /usr/share/logstash/logs
 

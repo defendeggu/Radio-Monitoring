@@ -219,9 +219,6 @@ def capture() -> Response | tuple[Response, int]:
         capture_duration_seconds = time.time() - start_time
 
         # Record metrics
-        radio_captures_total.labels(modulation=modulation, status='success').inc()
-        radio_capture_duration.observe(capture_duration_seconds)
-
         return jsonify({
             'status': 'success',
             'audio_file': output_file,
@@ -232,8 +229,6 @@ def capture() -> Response | tuple[Response, int]:
         })
 
     except Exception as e:
-        # Record failure metric
-        radio_captures_total.labels(modulation=modulation if 'modulation' in locals() else 'unknown', status='failure').inc()
         return jsonify({'error': str(e)}), 500
 
 
@@ -267,20 +262,13 @@ def transcribe() -> Response | tuple[Response, int]:
         transcription_duration_seconds = time.time() - start_time
 
         # Record metrics
-        transcription_requests_total.labels(status='success').inc()
-        transcription_duration.observe(transcription_duration_seconds)
-
         return jsonify({
             'status': 'success',
             'result': result
         })
 
-    except FileNotFoundError as e:
-        transcription_requests_total.labels(status='failure').inc()
-        return jsonify({'error': str(e)}), 404
-    except Exception as e:
-        transcription_requests_total.labels(status='failure').inc()
-        return jsonify({'error': str(e)}), 500
+    except FileNotFoundError as e:        return jsonify({'error': str(e)}), 404
+    except Exception as e:        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/capture-and-transcribe', methods=['POST'])
@@ -380,9 +368,6 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 print(f"Indexed {len(packets)} APRS packets to Elasticsearch")
 
                 # Metrics
-                aprs_decodes_total.labels(status='success').inc()
-                aprs_packets_decoded.inc(len(packets))
-
                 return jsonify({
                     'status': 'success',
                     'mode': 'aprs',
@@ -400,9 +385,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     'timestamp': datetime.now().isoformat()
                 })
 
-            except Exception as e:
-                aprs_decodes_total.labels(status='error').inc()
-                return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
+            except Exception as e:                return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
 
         elif mode == 'pocsag':
             # POCSAG decoding
@@ -451,9 +434,6 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 print(f"Indexed {len(messages)} POCSAG messages to Elasticsearch")
 
                 # Metrics
-                pocsag_decodes_total.labels(status='success').inc()
-                pocsag_messages_decoded.inc(len(messages))
-
                 return jsonify({
                     'status': 'success',
                     'mode': 'pocsag',
@@ -471,9 +451,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     'timestamp': datetime.now().isoformat()
                 })
 
-            except Exception as e:
-                pocsag_decodes_total.labels(status='error').inc()
-                return jsonify({'error': f'POCSAG decode error: {str(e)}'}), 500
+            except Exception as e:                return jsonify({'error': f'POCSAG decode error: {str(e)}'}), 500
 
         else:
             # Voice transcription (existing logic)
@@ -987,15 +965,9 @@ def _scan_repeaters_worker(
                     repeaters_with_activity += 1
 
                 # Record Prometheus metrics
-                repeater_scans_duration.observe(scan_duration)
-                repeater_activity_percentage.observe(metrics.activity_percentage)
-                repeater_transmissions_total.inc(metrics.transmission_count)
-
                 if metrics.carrier_detected:
                     band = repeater.get('band', 'unknown')
                     canton = repeater.get('canton', 'unknown')
-                    repeater_activity_detected.labels(band=band, canton=canton).inc()
-
                 result = {
                     'repeater_id': repeater['id'],
                     'callsign': callsign,
@@ -1035,8 +1007,6 @@ def _scan_repeaters_worker(
         # # REMOVED: db.update_scan_session() - using in-memory scan_sessions dict instead
 
         # Record completion metrics
-        repeater_scans_total.labels(status='completed').inc()
-
         print(f"Scan session {session_id} completed: {repeaters_scanned} scanned, {repeaters_with_activity} with activity")
 
     except Exception as e:
