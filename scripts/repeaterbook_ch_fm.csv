@@ -1,0 +1,35 @@
+callsign,frequency_mhz,offset_mhz,tone,mode,band,location,canton,status
+HB9GR,144.6450,0.6,,FM,2m,Weisshorn Arosa,GR,active
+HB9EI,145.6000,-0.6,,FM,2m,Airolo,TI,active
+HB9MM,145.6000,-0.6,67.0,FM,2m,Les Pléiades,VD,active
+HB9LU,145.6000,-0.6,71.9,FM,2m,Luzern,LU,active
+HB9DD,145.6000,-0.6,103.5,FM,2m,Motto Rotondo,TI,active
+HB9BS,145.6000,-0.6,71.9,FM,2m,Schoenenbuch,BS,active
+HB9EE,145.6125,-0.6,69.3,FM,2m,Eglisau,ZH,active
+HB9RW,145.6125,-0.6,141.3,FM,2m,Parpaner Rothorn,GR,active
+HB9ND,145.6250,-0.6,94.8,FM,2m,Melchnau Bodmen,BE,active
+HB9OK,145.6250,-0.6,,FM,2m,Monti di Malmera,TI,active
+HB9Y,145.6250,-0.6,,FM,2m,Moosalp,VS,active
+HB9OK,145.6250,-0.6,123.0,FM,2m,San Salvatore,TI,active
+HB9CF,145.6375,-0.6,71.9,FM,2m,Rigi Scheidegg,SZ,active
+HB9F,145.6500,-0.6,94.8,FM,2m,Magglingen,BE,active
+HB9AC,145.6500,-0.6,71.9,FM,2m,Pfeffingen,BL,active
+HB9HAI,145.6625,-0.6,141.3,FM,2m,Weissfluhgipfel,GR,active
+HB9DC,145.6875,-0.6,77.0,FM,2m,Etzel,SZ,active
+HB9EBS,145.6875,-0.6,,FM,2m,Laufen,BL,active
+HB9F,145.7000,-0.6,94.8,FM,2m,Schilthorn,BE,active
+HB9T,145.7250,-0.6,94.8,FM,2m,Burgdorf,BE,active
+HB9G,145.7250,-0.6,1750,FM,2m,Poele Chaud,VD,active
+HB9Z,145.7250,-0.6,71.9,FM,2m,Wildberg,ZH,active
+HB9FS,145.7375,-0.6,,FM,2m,Bad Ramsach,BL,active
+HB9SP,145.7375,-0.6,77.0,FM,2m,Zuerich,ZH,active
+HB9BC,145.7500,-0.6,82.5,FM,2m,Olten,SO,active
+HB9Y,145.7500,-0.6,1750,FM,2m,Sex Carro,VS,active
+HB9ZF,145.7625,-0.6,71.9,FM,2m,Bachtel,ZH,active
+HB9H,145.7625,-0.6,103.5,FM,2m,Monte Tamaro,TI,active
+HB9AG,145.7750,-0.6,77.0,FM,2m,Laegern,AG,active
+HB9ID,438.2500,-7.6,71.9,FM,70cm,Iddaburg/Gaehwil,SG,active
+HB9UF,438.6500,-7.6,71.9,FM,70cm,Uetliberg,ZH,active
+HB9FG,439.0000,-7.6,67.0,FM,70cm,Le Gibloux,FR,active
+HB9ZRH,145.5750,-0.6,,FM,2m,Uetliberg,ZH,active
+HB9ID,144.5750,0.6,71.9,FM,2m,Oberhelfenschwil,SG,active
