@@ -8,9 +8,7 @@ server.port: 5601
 # Elasticsearch Connection
 elasticsearch.hosts: ["http://elasticsearch:9200"]
 
-# Kibana Settings
-kibana.index: ".kibana"
-kibana.defaultAppId: "discover"
+# Kibana Settings (defaults work fine for Kibana 8.x)
 
 # Monitoring
 monitoring.ui.container.elasticsearch.enabled: true
@@ -19,11 +17,15 @@ monitoring.ui.container.elasticsearch.enabled: true
 xpack.security.enabled: false
 xpack.encryptedSavedObjects.encryptionKey: "radio_monitoring_kibana_encryption_key_min_32_chars"
 
-# Logging
-logging.dest: stdout
-logging.silent: false
-logging.quiet: false
-logging.verbose: false
+# Logging (Kibana 8.x format)
+logging:
+  appenders:
+    default:
+      type: console
+      layout:
+        type: pattern
+  root:
+    level: info
 
 # Time Settings
 i18n.locale: "en"
