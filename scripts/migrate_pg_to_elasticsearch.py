@@ -69,9 +69,9 @@ class DataMigrator:
         cursor = self.pg_conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("""
             SELECT
-                id, uuid, created_at, frequency, duration_seconds,
-                modulation, sample_rate, rf_gain, sdr_type,
-                audio_file_path, transcription_text, detected_language,
+                id, uuid, created_at, frequency, duration,
+                modulation, sample_rate, gain,
+                audio_file_path, transcription_text, language,
                 language_confidence, segments, status, metadata
             FROM captures
             ORDER BY created_at
@@ -92,14 +92,14 @@ class DataMigrator:
                 'uuid': row['uuid'] or str(uuid_lib.uuid4()),
                 'frequency': row['frequency'],
                 'frequency_mhz': row['frequency'] / 1_000_000.0 if row['frequency'] else None,
-                'duration_seconds': row['duration_seconds'],
+                'duration_seconds': row['duration'],
                 'modulation': row['modulation'],
                 'sample_rate': row['sample_rate'],
-                'rf_gain': row['rf_gain'],
-                'sdr_type': row['sdr_type'] or 'hackrf',
+                'rf_gain': row['gain'],
+                'sdr_type': 'hackrf',  # Default for old data
                 'audio_file': row['audio_file_path'],
                 'transcription': row['transcription_text'],
-                'detected_language': row['detected_language'],
+                'detected_language': row['language'],
                 'confidence_score': row['language_confidence'],
                 'segments': row['segments'],
                 'status': row['status'] or 'completed',
@@ -142,8 +142,8 @@ class DataMigrator:
         cursor.execute("""
             SELECT
                 id, uuid, created_at, capture_id, source_callsign,
-                destination_callsign, packet_type, latitude, longitude,
-                message_text, raw_packet, frequency
+                destination_callsign, aprs_type as packet_type, latitude, longitude,
+                message_text, raw_packet
             FROM aprs_messages
             ORDER BY created_at
         """)
@@ -160,16 +160,14 @@ class DataMigrator:
                 '_id': row['uuid'] or str(uuid_lib.uuid4()),
                 '@timestamp': created_at.isoformat(),
                 'uuid': row['uuid'] or str(uuid_lib.uuid4()),
-                'capture_id': row['capture_id'],
+                'capture_id': str(row['capture_id']) if row['capture_id'] else None,
                 'source_callsign': row['source_callsign'],
                 'destination_callsign': row['destination_callsign'],
                 'packet_type': row['packet_type'],
                 'latitude': row['latitude'],
                 'longitude': row['longitude'],
                 'message_text': row['message_text'],
-                'raw_packet': row['raw_packet'],
-                'frequency': row['frequency'],
-                'frequency_mhz': row['frequency'] / 1_000_000.0 if row['frequency'] else None
+                'raw_packet': row['raw_packet']
             }
 
             # Build geo_point if lat/lon present
@@ -211,7 +209,7 @@ class DataMigrator:
         cursor.execute("""
             SELECT
                 id, uuid, created_at, capture_id, address, message_type,
-                function_code, baud_rate, message_text, frequency
+                function_code, baud_rate, message_text
             FROM pocsag_messages
             ORDER BY created_at
         """)
@@ -228,14 +226,12 @@ class DataMigrator:
                 '_id': row['uuid'] or str(uuid_lib.uuid4()),
                 '@timestamp': created_at.isoformat(),
                 'uuid': row['uuid'] or str(uuid_lib.uuid4()),
-                'capture_id': row['capture_id'],
+                'capture_id': str(row['capture_id']) if row['capture_id'] else None,
                 'address': row['address'],
                 'message_type': row['message_type'],
                 'function_code': row['function_code'],
                 'baud_rate': row['baud_rate'],
-                'message_text': row['message_text'],
-                'frequency': row['frequency'],
-                'frequency_mhz': row['frequency'] / 1_000_000.0 if row['frequency'] else None
+                'message_text': row['message_text']
             }
 
             doc = {k: v for k, v in doc.items() if v is not None}
@@ -269,13 +265,13 @@ class DataMigrator:
         cursor = self.pg_conn.cursor(cursor_factory=RealDictCursor)
         cursor.execute("""
             SELECT
-                ra.id, ra.uuid, ra.created_at, ra.session_id, ra.repeater_id,
+                ra.id, ra.uuid, ra.created_at, ra.capture_id, ra.repeater_id,
                 r.callsign, r.output_frequency, r.band, r.canton, r.location_name,
                 ra.carrier_detected, ra.transmission_count, ra.activity_percentage,
                 ra.average_signal_strength, ra.noise_floor, ra.scan_duration_seconds,
                 ra.transmissions
             FROM repeater_activity ra
-            JOIN repeaters r ON ra.repeater_id = r.id
+            LEFT JOIN repeaters r ON ra.repeater_id = r.id
             ORDER BY ra.created_at
         """)
 
@@ -291,8 +287,8 @@ class DataMigrator:
                 '_id': row['uuid'] or str(uuid_lib.uuid4()),
                 '@timestamp': created_at.isoformat(),
                 'uuid': row['uuid'] or str(uuid_lib.uuid4()),
-                'session_id': row['session_id'],
-                'repeater_id': str(row['repeater_id']),
+                'capture_id': str(row['capture_id']) if row['capture_id'] else None,
+                'repeater_id': str(row['repeater_id']) if row['repeater_id'] else None,
                 'repeater_callsign': row['callsign'],
                 'frequency': row['output_frequency'],
                 'frequency_mhz': row['output_frequency'] / 1_000_000.0 if row['output_frequency'] else None,
@@ -301,9 +297,9 @@ class DataMigrator:
                 'location_name': row['location_name'],
                 'carrier_detected': row['carrier_detected'],
                 'transmission_count': row['transmission_count'],
-                'activity_percentage': row['activity_percentage'],
-                'average_signal_strength': row['average_signal_strength'],
-                'noise_floor': row['noise_floor'],
+                'activity_percentage': float(row['activity_percentage']) if row['activity_percentage'] else None,
+                'average_signal_strength': float(row['average_signal_strength']) if row['average_signal_strength'] else None,
+                'noise_floor': float(row['noise_floor']) if row['noise_floor'] else None,
                 'scan_duration_seconds': row['scan_duration_seconds'],
                 'transmissions': row['transmissions']
             }
