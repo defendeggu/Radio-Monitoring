@@ -4,6 +4,7 @@ Elasticsearch Service for Radio Monitoring System
 Replaces PostgreSQL database with Elasticsearch for scalable storage and analytics
 """
 
+import os
 import logging
 from datetime import datetime
 from typing import Dict, List, Optional, Any
@@ -18,16 +19,26 @@ logger = logging.getLogger(__name__)
 class ElasticsearchService:
     """Elasticsearch client wrapper for radio monitoring data"""
 
-    def __init__(self, hosts: List[str] = None, logstash_host: str = None):
+    def __init__(self, hosts: List[str] = None,
+                 logstash_host: str = None,
+                 logstash_aprs_host: str = None,
+                 logstash_pocsag_host: str = None,
+                 logstash_repeater_host: str = None):
         """
         Initialize Elasticsearch service
 
         Args:
             hosts: List of Elasticsearch hosts (default: http://elasticsearch:9200)
-            logstash_host: Logstash HTTP input endpoint (default: http://logstash:9600)
+            logstash_host: Logstash HTTP input endpoint for captures (default: http://logstash:9600)
+            logstash_aprs_host: Logstash HTTP input for APRS (default: http://logstash:9601)
+            logstash_pocsag_host: Logstash HTTP input for POCSAG (default: http://logstash:9602)
+            logstash_repeater_host: Logstash HTTP input for repeater activity (default: http://logstash:9603)
         """
         self.es_hosts = hosts or ['http://elasticsearch:9200']
         self.logstash_host = logstash_host or 'http://logstash:9600'
+        self.logstash_aprs_host = logstash_aprs_host or 'http://logstash:9601'
+        self.logstash_pocsag_host = logstash_pocsag_host or 'http://logstash:9602'
+        self.logstash_repeater_host = logstash_repeater_host or 'http://logstash:9603'
         self.es_client = Elasticsearch(self.es_hosts)
         logger.info(f"Elasticsearch service initialized: {self.es_hosts}")
 
@@ -192,7 +203,7 @@ class ElasticsearchService:
                 message['frequency_mhz'] = message['frequency'] / 1_000_000.0
 
             response = requests.post(
-                f"{self.logstash_host.replace(':9600', ':9601')}",  # APRS pipeline port
+                self.logstash_aprs_host,
                 json=message,
                 headers={'Content-Type': 'application/json'},
                 timeout=30
@@ -308,7 +319,7 @@ class ElasticsearchService:
                 message['frequency_mhz'] = message['frequency'] / 1_000_000.0
 
             response = requests.post(
-                f"{self.logstash_host.replace(':9600', ':9602')}",  # POCSAG pipeline port
+                self.logstash_pocsag_host,
                 json=message,
                 headers={'Content-Type': 'application/json'},
                 timeout=30
@@ -431,7 +442,7 @@ class ElasticsearchService:
                 activity['frequency_mhz'] = activity['frequency'] / 1_000_000.0
 
             response = requests.post(
-                f"{self.logstash_host.replace(':9600', ':9603')}",  # Repeater pipeline port
+                self.logstash_repeater_host,
                 json=activity,
                 headers={'Content-Type': 'application/json'},
                 timeout=30
@@ -775,5 +786,18 @@ def get_elasticsearch_service() -> ElasticsearchService:
     """Get or create Elasticsearch service singleton"""
     global _es_service_instance
     if _es_service_instance is None:
-        _es_service_instance = ElasticsearchService()
+        # Read environment variables
+        es_hosts = os.getenv('ELASTICSEARCH_HOSTS', 'http://elasticsearch:9200').split(',')
+        logstash_host = os.getenv('LOGSTASH_HOST', 'http://logstash:9600')
+        logstash_aprs_host = os.getenv('LOGSTASH_APRS_HOST', 'http://logstash:9601')
+        logstash_pocsag_host = os.getenv('LOGSTASH_POCSAG_HOST', 'http://logstash:9602')
+        logstash_repeater_host = os.getenv('LOGSTASH_REPEATER_HOST', 'http://logstash:9603')
+
+        _es_service_instance = ElasticsearchService(
+            hosts=es_hosts,
+            logstash_host=logstash_host,
+            logstash_aprs_host=logstash_aprs_host,
+            logstash_pocsag_host=logstash_pocsag_host,
+            logstash_repeater_host=logstash_repeater_host
+        )
     return _es_service_instance
