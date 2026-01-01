@@ -110,6 +110,8 @@ services:
   metricbeat:
     image: docker.elastic.co/beats/metricbeat:8.11.3
     container_name: radio-metricbeat
+    # Security: Running as root is required for system metrics collection
+    # Metricbeat needs access to /proc, /sys, and Docker socket
     user: root
     env_file:
       - .env.elk
@@ -119,7 +121,9 @@ services:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     volumes:
       - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      # Security: Docker socket mounted as read-only (cannot control containers)
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      # System metrics sources (read-only)
       - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
       - /proc:/hostfs/proc:ro
       - /:/hostfs:ro
@@ -140,11 +144,14 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: radio-transcription-api
-    privileged: true
+    # Security: Removed privileged mode, using explicit device access instead
+    # privileged: true
     env_file:
       - .env.elk
-    volumes:
+    devices:
+      # Grant access to USB bus for SDR hardware (HackRF, RTL-SDR)
       - /dev/bus/usb:/dev/bus/usb
+    volumes:
       - ./captures:/app/captures
       - ./recordings:/app/recordings
     ports:
