@@ -21,6 +21,9 @@ WORKDIR /app
 # Copy requirements
 COPY requirements.txt .
 
+# Upgrade pip to fix CVE-2025-8869
+RUN pip install --upgrade pip==25.3
+
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 

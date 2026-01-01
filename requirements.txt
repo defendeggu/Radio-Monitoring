@@ -4,8 +4,8 @@ pyHackRF==0.2.0
 numpy==1.24.3
 scipy==1.11.4
 flask==3.0.0
-flask-cors==4.0.0
-requests==2.31.0
+flask-cors==6.0.0  # Updated from 4.0.0 - fixes CVE-2024-1681, CVE-2024-6844, CVE-2024-6866, CVE-2024-6839, PYSEC-2024-71
+requests==2.32.4  # Updated from 2.31.0 - fixes CVE-2024-35195, CVE-2024-47081
 beautifulsoup4==4.12.3
 python-dotenv==1.0.0
 
