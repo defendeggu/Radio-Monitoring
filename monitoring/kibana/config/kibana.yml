@@ -8,15 +8,15 @@ server.port: 5601
 # Elasticsearch Connection
 elasticsearch.hosts: ["http://elasticsearch:9200"]
 elasticsearch.username: "kibana_system"
-elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
+elasticsearch.password: "***REMOVED***"
 
 # Kibana Settings (defaults work fine for Kibana 8.x)
 
 # Monitoring
 monitoring.ui.container.elasticsearch.enabled: true
 
-# Security (disabled for simplicity - enable in production)
-xpack.security.enabled: false
+# Security
+xpack.security.enabled: true
 xpack.encryptedSavedObjects.encryptionKey: "radio_monitoring_kibana_encryption_key_min_32_chars"
 
 # Logging (Kibana 8.x format)
