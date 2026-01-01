@@ -14,6 +14,80 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ---
 
+## 🔐 Sicherheit & API-Keys
+
+### Was sind API-Keys?
+
+Das System verwendet **API-Key-Authentifizierung** zum Schutz der API. Alle API-Zugriffe (außer `/health`) benötigen einen gültigen API-Key im `X-API-Key` Header.
+
+### Warum API-Keys?
+
+- **Zugriffskontrolle**: Verhindert unbefugten Zugriff auf dein Radio-Monitoring-System
+- **Mehrere Keys**: Separate Keys für verschiedene Integrationen (N8N, Scripts, etc.)
+- **Widerrufbar**: Kompromittierte Keys können deaktiviert werden
+
+### API-Keys einrichten
+
+**Automatisch (Empfohlen):**
+
+Das Setup-Script generiert automatisch API-Keys:
+```bash
+./setup.sh
+```
+
+Das Script:
+1. Generiert zwei sichere API-Keys (32-Byte Zufallstoken)
+2. Fügt sie zur `.env` Datei hinzu als `API_KEYS=key1,key2`
+3. Zeigt dir die Keys zum Speichern an
+
+**⚠️ WICHTIG:** Speichere deine API-Keys in einem Passwort-Manager! Du brauchst sie für alle API-Anfragen.
+
+**Manuell:**
+
+API-Keys manuell generieren:
+```bash
+python3 scripts/generate_api_keys.py
+```
+
+Die Ausgabe zur `.env` Datei hinzufügen:
+```bash
+# API Security
+API_KEYS=dein-key-1,dein-key-2
+```
+
+### API-Keys verwenden
+
+**Im Web-Interface:**
+- Keine API-Keys nötig! Das Web-Interface (http://localhost:8080) funktioniert direkt
+
+**In curl/API-Aufrufen:**
+```bash
+curl -X POST http://localhost:5000/capture \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: dein-api-key-hier" \
+  -d '{...}'
+```
+
+**In N8N:**
+- Umgebungsvariable `RADIO_API_KEY` setzen
+- N8N Workflow verwendet automatisch den Key (bereits konfiguriert in `n8n-workflow.json`)
+
+### Container-Sicherheit
+
+Der Docker-Container läuft als **nicht-root User** (`radiouser`, UID 1000):
+- Minimale Berechtigungen
+- USB-Zugriff durch Gruppenmitgliedschaft (plugdev, dialout)
+- Automatisch konfiguriert, keine Benutzeraktion nötig
+
+### Öffentliche Endpoints
+
+Der folgende Endpoint benötigt **keine** Authentifizierung:
+- `GET /health` - Health Check für Monitoring
+
+Alle anderen Endpoints benötigen einen gültigen API-Key.
+
+---
+
 ## 🚀 System Starten
 
 ```bash
@@ -428,10 +502,10 @@ docker compose restart
 
 ```bash
 # System starten
-docker compose up -d
+docker compose -f docker-compose.elk.yml up -d
 
 # System stoppen
-docker compose down
+docker compose -f docker-compose.elk.yml down
 
 # Status prüfen
 docker compose ps
@@ -442,8 +516,15 @@ docker compose logs -f radio-api
 # HackRF prüfen
 hackrf_info
 
-# Credentials ansehen
-./setup-secrets.sh  # Zeigt alle Passwörter
+# API-Keys ansehen
+cat .env | grep API_KEYS
+
+# API-Keys generieren (neu)
+python3 scripts/generate_api_keys.py
+
+# Credentials ansehen (N8N, etc.)
+cat secrets/n8n_basic_auth_user.txt
+cat secrets/n8n_basic_auth_password.txt
 ```
 
 ### Zugangsdaten
