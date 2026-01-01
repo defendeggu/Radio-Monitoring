@@ -82,12 +82,61 @@ if not API_KEYS or API_KEYS == {''}:
 PUBLIC_ENDPOINTS = {'/health'}
 
 
+def is_trusted_ip(ip_address):
+    """
+    Check if the request comes from a trusted source.
+
+    Trusted sources:
+    - localhost (127.0.0.1, ::1)
+    - Docker network (172.16.0.0/12 - includes 172.18.0.0/16)
+    - Private networks (10.0.0.0/8, 192.168.0.0/16)
+
+    Args:
+        ip_address: IP address string
+
+    Returns:
+        bool: True if IP is trusted, False otherwise
+    """
+    import ipaddress
+
+    if not ip_address:
+        return False
+
+    try:
+        ip = ipaddress.ip_address(ip_address)
+
+        # Localhost
+        if ip.is_loopback:
+            return True
+
+        # Docker networks (172.16.0.0/12 covers 172.16-172.31)
+        docker_network = ipaddress.ip_network('172.16.0.0/12')
+        if ip in docker_network:
+            return True
+
+        # Private networks
+        private_networks = [
+            ipaddress.ip_network('10.0.0.0/8'),
+            ipaddress.ip_network('192.168.0.0/16'),
+        ]
+
+        for network in private_networks:
+            if ip in network:
+                return True
+
+        return False
+    except ValueError:
+        # Invalid IP address
+        return False
+
+
 @app.before_request
 def check_api_key():
     """
     Global API key check for all routes except public ones.
 
     Checks for X-API-Key header and validates it against configured API keys.
+    Exempts requests from trusted sources (localhost, Docker network, private networks).
     Returns 401 if key is missing, 403 if key is invalid.
     """
     # Skip authentication for public endpoints
@@ -96,6 +145,11 @@ def check_api_key():
 
     # Skip authentication if no API keys are configured (development mode)
     if not API_KEYS:
+        return None
+
+    # Skip authentication for trusted sources (localhost, Docker network, private networks)
+    if is_trusted_ip(request.remote_addr):
+        logger.debug(f"Allowing trusted request from {request.remote_addr} to {request.path}")
         return None
 
     # Check for API key in header
