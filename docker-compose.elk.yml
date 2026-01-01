@@ -170,6 +170,7 @@ services:
       - LOGSTASH_POCSAG_HOST=http://logstash:9602
       - LOGSTASH_REPEATER_HOST=http://logstash:9603
       - LOGSTASH_METRICS_HOST=http://logstash:9604
+      - API_KEYS=${API_KEYS}
     restart: unless-stopped
 
   # ===========================================================================
