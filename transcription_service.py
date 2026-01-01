@@ -44,6 +44,7 @@ class TranscriptionService:
         self.device: str = device
         self.compute_type: str = compute_type
         self.model: object | None = None
+        self.simulation_mode: bool = False  # Track if simulation mode is active
 
         print(f"Initializing Whisper model: {model}")
         self._load_model()
@@ -61,8 +62,15 @@ class TranscriptionService:
             print("Model loaded successfully")
 
         except ImportError:
-            print("WARNING: faster-whisper not available, using simulation mode")
+            print("="*80)
+            print("⚠️  WARNING: SIMULATION MODE ACTIVE ⚠️")
+            print("faster-whisper not available - using MOCK transcriptions")
+            print("All transcriptions will be simulated and NOT REAL!")
+            print("Install faster-whisper to enable real transcriptions:")
+            print("  pip install faster-whisper")
+            print("="*80)
             self.model = None
+            self.simulation_mode = True
 
     def transcribe(self, audio_file: str, language: str | None = None) -> TranscriptionResult:
         """
@@ -123,15 +131,22 @@ class TranscriptionService:
             return result
 
         except Exception as e:
-            print(f"Error during transcription: {e}")
+            print("="*80)
+            print(f"⚠️  TRANSCRIPTION ERROR: {e}")
+            print("⚠️  Falling back to SIMULATION MODE")
+            print("⚠️  The returned transcription will be SIMULATED, not real!")
+            print("="*80)
             return self._simulate_transcription(audio_file)
 
     def _simulate_transcription(self, audio_file: str) -> TranscriptionResult:
         """Simulate transcription for testing"""
-        print("SIMULATION MODE: Generating mock transcription")
+        print("="*80)
+        print("⚠️  SIMULATION MODE: Generating MOCK transcription ⚠️")
+        print("⚠️  This is NOT a real transcription! ⚠️")
+        print("="*80)
 
         result = {
-            "text": "This is a simulated transcription of a radio message. "
+            "text": "[SIMULATED] This is a simulated transcription of a radio message. "
                     "The actual transcription will appear here when faster-whisper is available.",
             "language": "en",
             "language_probability": 0.95,
@@ -140,16 +155,18 @@ class TranscriptionService:
                 {
                     "start": 0.0,
                     "end": 5.0,
-                    "text": "This is a simulated transcription of a radio message."
+                    "text": "[SIMULATED] This is a simulated transcription of a radio message."
                 },
                 {
                     "start": 5.0,
                     "end": 10.0,
-                    "text": "The actual transcription will appear here when faster-whisper is available."
+                    "text": "[SIMULATED] The actual transcription will appear here when faster-whisper is available."
                 }
             ],
             "audio_file": audio_file,
-            "timestamp": datetime.now().isoformat()
+            "timestamp": datetime.now().isoformat(),
+            "simulation_mode": True,  # Flag to indicate simulated data
+            "warning": "This is a simulated transcription, not real data"
         }
 
         return result

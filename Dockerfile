@@ -40,7 +40,17 @@ COPY .env.example .env
 COPY scripts/ scripts/
 
 # Create recordings directory
-RUN mkdir -p recordings
+RUN mkdir -p recordings captures
+
+# Create non-root user for security
+# Note: We need access to USB devices, so user must be in plugdev/dialout groups
+RUN groupadd -r radiouser && \
+    useradd -r -g radiouser -G plugdev,dialout -u 1000 radiouser && \
+    chown -R radiouser:radiouser /app && \
+    chown -R radiouser:radiouser /app/recordings /app/captures
+
+# Switch to non-root user
+USER radiouser
 
 # Expose API port
 EXPOSE 5000

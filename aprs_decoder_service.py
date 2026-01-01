@@ -64,7 +64,13 @@ class APRSDecoder:
             subprocess.run([self.direwolf_path, '-h'],
                          capture_output=True, timeout=5)
         except (FileNotFoundError, subprocess.TimeoutExpired):
-            print(f"Warning: direwolf not found at {direwolf_path}, will use simulation mode")
+            print("="*80)
+            print("⚠️  WARNING: APRS DECODER SIMULATION MODE ACTIVE ⚠️")
+            print(f"direwolf not found at {direwolf_path} - using MOCK APRS packets")
+            print("All APRS decodes will be simulated and NOT REAL!")
+            print("Install direwolf to enable real APRS decoding:")
+            print("  apt-get install direwolf")
+            print("="*80)
             self.simulation_mode = True
 
     def decode(self, audio_file: str) -> List[APRSPacket]:
@@ -90,11 +96,18 @@ class APRSDecoder:
             print(f"Decoded {len(packets)} APRS packets from {audio_file}")
             return packets
         except FileNotFoundError:
-            print("Warning: direwolf not found, using simulation mode")
+            print("="*80)
+            print("⚠️  WARNING: direwolf not found")
+            print("⚠️  Falling back to SIMULATION MODE")
+            print("="*80)
             self.simulation_mode = True
             return self._simulate_decode(audio_file)
         except Exception as e:
-            print(f"Error decoding APRS: {e}")
+            print("="*80)
+            print(f"⚠️  APRS DECODING ERROR: {e}")
+            print("⚠️  Falling back to SIMULATION MODE")
+            print("⚠️  The returned packets will be SIMULATED, not real!")
+            print("="*80)
             return self._simulate_decode(audio_file)
 
     def _run_direwolf(self, audio_file: str) -> str:
@@ -384,7 +397,10 @@ class APRSDecoder:
         Returns:
             List of simulated APRS packets
         """
-        print(f"SIMULATION MODE: Generating mock APRS packets for {audio_file}")
+        print("="*80)
+        print("⚠️  APRS SIMULATION MODE: Generating MOCK packets ⚠️")
+        print("⚠️  These are NOT real APRS packets! ⚠️")
+        print("="*80)
 
         return [
             APRSPacket(
@@ -396,12 +412,12 @@ class APRSDecoder:
                 altitude=100,
                 speed=None,
                 course=None,
-                message_text='Test APRS packet (simulated)',
+                message_text='[SIMULATED] Test APRS packet (simulated)',
                 symbol_table='/',
                 symbol_code='-',
                 raw_packet='[0] N0CALL>APRS,WIDE1-1:=4736.37N/12219.93W-Test',
                 aprs_type='position',
-                aprs_data={'simulation': True},
+                aprs_data={'simulation': True, 'warning': 'Simulated data, not real'},
                 timestamp=datetime.now().isoformat()
             ),
             APRSPacket(
@@ -413,12 +429,12 @@ class APRSDecoder:
                 altitude=None,
                 speed=None,
                 course=None,
-                message_text='Simulated mobile station',
+                message_text='[SIMULATED] Simulated mobile station',
                 symbol_table='/',
                 symbol_code='>',
                 raw_packet='[0] TEST123>APRS,WIDE2-1:=4736.61N/12220.52W>Simulated',
                 aprs_type='position',
-                aprs_data={'simulation': True},
+                aprs_data={'simulation': True, 'warning': 'Simulated data, not real'},
                 timestamp=datetime.now().isoformat()
             )
         ]

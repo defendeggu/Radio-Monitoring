@@ -8,6 +8,7 @@ import os
 import json
 import time
 import threading
+import logging
 from datetime import datetime
 import uuid
 from typing import TypedDict, Any, Dict, Optional
@@ -22,6 +23,10 @@ from pocsag_decoder_service import POCSAGDecoder
 from elasticsearch_service import get_elasticsearch_service
 from repeater_activity_analyzer import RepeaterActivityAnalyzer
 from dotenv import load_dotenv
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 # Prometheus metrics removed - replaced by Metricbeat
 # from prometheus_flask_exporter import PrometheusMetrics
@@ -58,6 +63,62 @@ app = Flask(__name__)
 
 # Enable CORS for all routes
 CORS(app)
+
+# ============================================================================
+# API Security Configuration
+# ============================================================================
+
+# Load API keys from environment (comma-separated list)
+API_KEYS = set(os.getenv('API_KEYS', '').split(','))
+if not API_KEYS or API_KEYS == {''}:
+    logger.warning("="*80)
+    logger.warning("⚠️  WARNING: No API keys configured! API is UNSECURED!")
+    logger.warning("⚠️  Set API_KEYS environment variable to secure the API")
+    logger.warning("⚠️  Generate keys with: python3 scripts/generate_api_keys.py")
+    logger.warning("="*80)
+    API_KEYS = set()
+
+# Public endpoints that don't require authentication
+PUBLIC_ENDPOINTS = {'/health'}
+
+
+@app.before_request
+def check_api_key():
+    """
+    Global API key check for all routes except public ones.
+
+    Checks for X-API-Key header and validates it against configured API keys.
+    Returns 401 if key is missing, 403 if key is invalid.
+    """
+    # Skip authentication for public endpoints
+    if request.path in PUBLIC_ENDPOINTS:
+        return None
+
+    # Skip authentication if no API keys are configured (development mode)
+    if not API_KEYS:
+        return None
+
+    # Check for API key in header
+    api_key = request.headers.get('X-API-Key')
+
+    if not api_key:
+        logger.warning(f"Unauthorized request to {request.path} from {request.remote_addr}: Missing API key")
+        return jsonify({
+            'error': 'Missing API key',
+            'message': 'Please provide X-API-Key header'
+        }), 401
+
+    if api_key not in API_KEYS:
+        logger.warning(f"Forbidden request to {request.path} from {request.remote_addr}: Invalid API key")
+        return jsonify({
+            'error': 'Invalid API key',
+            'message': 'The provided API key is not valid'
+        }), 403
+
+    # API key is valid - allow request to proceed
+    return None
+
+# ============================================================================
 
 # Prometheus metrics removed - replaced by Metricbeat for system/container metrics
 # Application metrics now tracked in Elasticsearch via elasticsearch_service.py
@@ -635,7 +696,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             except Exception as es_error:
                 print(f"Warning: Could not index to Elasticsearch: {es_error}")
 
-            return jsonify({
+            response_data = {
                 'status': 'success',
                 'mode': 'voice',
                 'capture': {
@@ -646,7 +707,14 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 },
                 'transcription': transcription_result,
                 'timestamp': datetime.now().isoformat()
-            })
+            }
+
+            # Add simulation warning if present
+            if transcription_result.get('simulation_mode'):
+                response_data['warning'] = 'Transcription was simulated, not real'
+                response_data['simulation_mode'] = True
+
+            return jsonify(response_data)
 
     except Exception as e:
         return jsonify({'error': str(e)}), 500

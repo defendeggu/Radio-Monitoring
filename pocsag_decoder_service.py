@@ -51,8 +51,13 @@ class POCSAGDecoder:
             )
             print(f"multimon-ng found at {multimon_path}")
         except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-            print(f"Warning: multimon-ng not found at {multimon_path}: {e}")
-            print("Will use simulation mode for testing")
+            print("="*80)
+            print("⚠️  WARNING: POCSAG DECODER SIMULATION MODE ACTIVE ⚠️")
+            print(f"multimon-ng not found at {multimon_path} - using MOCK POCSAG messages")
+            print("All POCSAG decodes will be simulated and NOT REAL!")
+            print("Install multimon-ng to enable real POCSAG decoding:")
+            print("  apt-get install multimon-ng")
+            print("="*80)
             self.simulation_mode = True
 
     def decode(self, audio_file: str) -> List[POCSAGMessage]:
@@ -79,8 +84,11 @@ class POCSAGDecoder:
             return messages
 
         except Exception as e:
-            print(f"Error decoding POCSAG: {e}")
-            print("Falling back to simulation mode")
+            print("="*80)
+            print(f"⚠️  POCSAG DECODING ERROR: {e}")
+            print("⚠️  Falling back to SIMULATION MODE")
+            print("⚠️  The returned messages will be SIMULATED, not real!")
+            print("="*80)
             return self._simulate_decode(audio_file)
 
     def _run_multimon(self, audio_file: str) -> str:
@@ -227,25 +235,28 @@ class POCSAGDecoder:
         Returns:
             List of simulated POCSAG messages
         """
-        print(f"SIMULATION MODE: Generating mock POCSAG messages for {audio_file}")
+        print("="*80)
+        print("⚠️  POCSAG SIMULATION MODE: Generating MOCK messages ⚠️")
+        print("⚠️  These are NOT real POCSAG messages! ⚠️")
+        print("="*80)
 
         return [
             POCSAGMessage(
                 address=1234567,
                 function_code=3,
                 message_type='alphanumeric',
-                message_text='Test POCSAG message (simulated)',
+                message_text='[SIMULATED] Test POCSAG message (simulated)',
                 baud_rate=1200,
-                raw_line='POCSAG1200: Address: 1234567  Function: 3  Alpha:   Test POCSAG message (simulated)',
+                raw_line='POCSAG1200: Address: 1234567  Function: 3  Alpha:   [SIMULATED] Test POCSAG message (simulated)',
                 timestamp=datetime.now().isoformat()
             ),
             POCSAGMessage(
                 address=7654321,
                 function_code=0,
                 message_type='numeric',
-                message_text='555-1234',
+                message_text='[SIMULATED] 555-1234',
                 baud_rate=512,
-                raw_line='POCSAG512: Address: 7654321  Function: 0  Numeric: 555-1234',
+                raw_line='POCSAG512: Address: 7654321  Function: 0  Numeric: [SIMULATED] 555-1234',
                 timestamp=datetime.now().isoformat()
             ),
             POCSAGMessage(

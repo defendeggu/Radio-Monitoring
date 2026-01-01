@@ -56,8 +56,18 @@
     {
       "parameters": {
         "url": "http://localhost:5000/capture-and-transcribe",
-        "authentication": "none",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
         "requestMethod": "POST",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "={{ $env.RADIO_API_KEY }}"
+            }
+          ]
+        },
         "bodyParametersJson": "={{ JSON.stringify({\n  frequency: $json.frequency,\n  modulation: $json.modulation,\n  duration: $json.duration,\n  gain: $json.gain,\n  language: $json.language,\n  mode: $json.mode\n}) }}",
         "options": {
           "timeout": 120000
