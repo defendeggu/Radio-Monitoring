@@ -87,6 +87,44 @@ WHISPER_COMPUTE_TYPE = os.getenv('WHISPER_COMPUTE_TYPE', 'int8')
 scan_sessions: Dict[int, Dict[str, Any]] = {}
 scan_sessions_lock = threading.Lock()
 
+
+def validate_file_path(file_path: str, base_dir: str = RECORDING_DIR) -> str:
+    """
+    Validate file path to prevent path traversal attacks
+
+    Args:
+        file_path: User-provided file path
+        base_dir: Base directory to restrict access to
+
+    Returns:
+        Validated absolute file path
+
+    Raises:
+        ValueError: If path attempts to escape base directory
+    """
+    # Convert to absolute paths
+    base_dir_abs = os.path.abspath(base_dir)
+
+    # Handle both absolute and relative paths from user
+    if os.path.isabs(file_path):
+        # If user provides absolute path, check if it's within base_dir
+        file_path_abs = os.path.abspath(file_path)
+    else:
+        # If relative, join with base_dir
+        file_path_abs = os.path.abspath(os.path.join(base_dir_abs, file_path))
+
+    # Ensure the resolved path is within base_dir
+    try:
+        common_path = os.path.commonpath([base_dir_abs, file_path_abs])
+    except ValueError:
+        # Paths on different drives on Windows
+        raise ValueError(f"Invalid file path: path traversal detected")
+
+    if common_path != base_dir_abs:
+        raise ValueError(f"Invalid file path: access denied outside {base_dir}")
+
+    return file_path_abs
+
 # Initialize transcription service
 transcription_service: TranscriptionService | None = None
 
@@ -250,7 +288,12 @@ def transcribe() -> Response | tuple[Response, int]:
         if 'audio_file' not in data:
             return jsonify({'error': 'audio_file is required'}), 400
 
-        audio_file = data['audio_file']
+        # Validate file path to prevent path traversal
+        try:
+            audio_file = validate_file_path(data['audio_file'])
+        except ValueError as e:
+            return jsonify({'error': str(e)}), 403
+
         language = data.get('language')
 
         # Get transcription service
@@ -267,8 +310,10 @@ def transcribe() -> Response | tuple[Response, int]:
             'result': result
         })
 
-    except FileNotFoundError as e:        return jsonify({'error': str(e)}), 404
-    except Exception as e:        return jsonify({'error': str(e)}), 500
+    except FileNotFoundError as e:
+        return jsonify({'error': str(e)}), 404
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/capture-and-transcribe', methods=['POST'])
