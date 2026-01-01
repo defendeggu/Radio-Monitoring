@@ -7,6 +7,8 @@ server.port: 5601
 
 # Elasticsearch Connection
 elasticsearch.hosts: ["http://elasticsearch:9200"]
+elasticsearch.username: "kibana_system"
+elasticsearch.password: "${ELASTICSEARCH_PASSWORD}"
 
 # Kibana Settings (defaults work fine for Kibana 8.x)
 
