@@ -21,3 +21,4 @@ secrets/
 
 # Claude Code files
 claude.md
+.env.elk
