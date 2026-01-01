@@ -287,6 +287,118 @@ cat secrets/n8n_basic_auth_password.txt
 
 For more details, see [`secrets/README.md`](secrets/README.md).
 
+## API Security
+
+The Radio Transcription API uses **API key authentication** to protect all endpoints (except `/health`).
+
+### Why API Keys?
+
+- **Access Control**: Prevent unauthorized access to your radio monitoring system
+- **Audit Trail**: Track which API key was used for each request
+- **Multiple Keys**: Issue separate keys for different integrations (N8N, scripts, etc.)
+- **Revocable**: Disable compromised keys without changing all credentials
+
+### Setup API Keys
+
+**Automatic (Recommended):**
+
+Run the setup script which automatically generates API keys:
+```bash
+./setup.sh
+```
+
+The script will:
+1. Generate two secure API keys (32-byte random tokens)
+2. Add them to your `.env` file as `API_KEYS=key1,key2`
+3. Display the keys for you to save
+
+**Manual:**
+
+Generate API keys manually:
+```bash
+python3 scripts/generate_api_keys.py
+```
+
+Add the output to your `.env` file:
+```bash
+# API Security
+API_KEYS=hAqaR34FS4oSanOQCiijqXhEd8bCIy6Z7L1CYrvX5Ns,VPdlHcd6qHBDR4luLGGyK_PufpH__aEhDX4W6v0vIN8
+```
+
+**Important:** Save your API keys to a password manager! You'll need them for all API requests.
+
+### Using API Keys
+
+All API requests (except `/health`) require the `X-API-Key` header:
+
+```bash
+curl -X POST http://localhost:5000/capture \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
+  -d '{
+    "frequency": 100000000,
+    "modulation": "FM",
+    "duration": 30
+  }'
+```
+
+**Without API key:**
+```bash
+# Returns 401 Unauthorized
+curl -X POST http://localhost:5000/capture \
+  -H "Content-Type: application/json" \
+  -d '{...}'
+```
+
+### Public Endpoints
+
+The following endpoints do **not** require authentication:
+- `GET /health` - Health check for monitoring
+
+All other endpoints require a valid API key.
+
+### N8N Integration
+
+Configure N8N to use API keys:
+
+1. Set environment variable in N8N container:
+   ```bash
+   RADIO_API_KEY=your-api-key-here
+   ```
+
+2. Use `X-API-Key` header in HTTP request nodes (already configured in `n8n-workflow.json`):
+   ```json
+   {
+     "headerParameters": {
+       "parameters": [
+         {
+           "name": "X-API-Key",
+           "value": "={{ $env.RADIO_API_KEY }}"
+         }
+       ]
+     }
+   }
+   ```
+
+### Container Security
+
+The Docker container runs as a **non-root user** (`radiouser`, UID 1000) for enhanced security:
+
+- **Principle of Least Privilege**: Service runs with minimal permissions
+- **USB Access**: User is member of `plugdev` and `dialout` groups for SDR hardware access
+- **No root required**: Application processes cannot escalate privileges
+
+This is automatically configured in the Dockerfile and requires no user action.
+
+### Security Best Practices
+
+1. **Never commit `.env`** to version control (already in `.gitignore`)
+2. **Rotate API keys periodically** by regenerating and updating `.env`
+3. **Use HTTPS in production** with a reverse proxy (nginx, Caddy)
+4. **Enable rate limiting** for production deployments
+5. **Monitor access logs** in Elasticsearch for suspicious activity
+6. **Enable X-Pack Security** for Elasticsearch/Kibana in production
+
 ## Manual Installation
 
 ### System Dependencies
@@ -397,10 +509,13 @@ python transcription_service.py \
 
 ### API Endpoints
 
+**Note:** All endpoints (except `/health`) require the `X-API-Key` header. See [API Security](#api-security) section.
+
 **Capture only:**
 ```bash
 curl -X POST http://localhost:5000/capture \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "frequency": 100000000,
     "modulation": "FM",
@@ -413,6 +528,7 @@ curl -X POST http://localhost:5000/capture \
 ```bash
 curl -X POST http://localhost:5000/transcribe \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "audio_file": "recordings/capture_20250101_120000.wav"
   }'
@@ -422,6 +538,7 @@ curl -X POST http://localhost:5000/transcribe \
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "frequency": 100000000,
     "modulation": "FM",
@@ -436,6 +553,7 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "frequency": 144800000,
     "modulation": "FM",
@@ -447,23 +565,27 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
 
 **Search APRS messages:**
 ```bash
-curl -X GET "http://localhost:5000/aprs/search?callsign=N0CALL&limit=50"
+curl -X GET "http://localhost:5000/aprs/search?callsign=N0CALL&limit=50" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Get APRS statistics:**
 ```bash
-curl -X GET "http://localhost:5000/aprs/stats"
+curl -X GET "http://localhost:5000/aprs/stats" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Get APRS map data (GeoJSON):**
 ```bash
-curl -X GET "http://localhost:5000/aprs/map"
+curl -X GET "http://localhost:5000/aprs/map" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Capture and decode POCSAG:**
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "frequency": 147325000,
     "modulation": "FM",
@@ -475,23 +597,27 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
 
 **Search POCSAG messages:**
 ```bash
-curl -X GET "http://localhost:5000/pocsag/search?address=1234567&limit=50"
+curl -X GET "http://localhost:5000/pocsag/search?address=1234567&limit=50" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Get POCSAG statistics:**
 ```bash
-curl -X GET "http://localhost:5000/pocsag/stats"
+curl -X GET "http://localhost:5000/pocsag/stats" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Get recent POCSAG messages:**
 ```bash
-curl -X GET "http://localhost:5000/pocsag/messages?limit=20"
+curl -X GET "http://localhost:5000/pocsag/messages?limit=20" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Start repeater activity scan:**
 ```bash
 curl -X POST http://localhost:5000/scan-repeaters \
   -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
   -d '{
     "duration_per_repeater": 120,
     "band": "2m",
@@ -502,17 +628,20 @@ curl -X POST http://localhost:5000/scan-repeaters \
 
 **Get scan progress:**
 ```bash
-curl -X GET "http://localhost:5000/scan-repeaters/1/progress"
+curl -X GET "http://localhost:5000/scan-repeaters/1/progress" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **List available repeaters:**
 ```bash
-curl -X GET "http://localhost:5000/repeaters?band=2m&canton=ZH"
+curl -X GET "http://localhost:5000/repeaters?band=2m&canton=ZH" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 **Get repeater activity summary:**
 ```bash
-curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10"
+curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10" \
+  -H "X-API-Key: your-api-key-here"
 ```
 
 ### N8N Workflow
@@ -529,6 +658,10 @@ curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10"
 Edit `.env` file to customize:
 
 ```bash
+# API Security (REQUIRED)
+# Generate with: python3 scripts/generate_api_keys.py
+API_KEYS=your-key-1,your-key-2   # Comma-separated list of valid API keys
+
 # Radio Configuration
 DEFAULT_FREQUENCY=100000000      # 100 MHz
 DEFAULT_SAMPLE_RATE=2000000      # 2 MHz
@@ -548,8 +681,9 @@ AUDIO_OUTPUT_DIR=./recordings
 ELASTICSEARCH_HOSTS=http://elasticsearch:9200  # Elasticsearch cluster hosts (comma-separated)
 LOGSTASH_HOST=http://logstash:9600            # Logstash HTTP input endpoint
 
-# N8N Webhook
+# N8N Configuration
 N8N_WEBHOOK_URL=http://localhost:5678/webhook/radio-transcription
+RADIO_API_KEY=your-api-key-here  # API key for N8N to access the Radio API
 ```
 
 ### Frequency Presets
@@ -735,8 +869,16 @@ The API can be integrated with:
 
 ## API Reference
 
+**Authentication:** All endpoints (except `/health`) require the `X-API-Key` header.
+
 ### POST /capture
 Capture radio signal to WAV file.
+
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: your-api-key-here
+```
 
 **Request:**
 ```json
@@ -764,6 +906,12 @@ Capture radio signal to WAV file.
 ### POST /transcribe
 Transcribe existing audio file.
 
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: your-api-key-here
+```
+
 **Request:**
 ```json
 {
@@ -790,6 +938,12 @@ Transcribe existing audio file.
 
 ### POST /capture-and-transcribe
 Capture and transcribe in one operation.
+
+**Headers:**
+```
+Content-Type: application/json
+X-API-Key: your-api-key-here
+```
 
 **Request:**
 ```json
