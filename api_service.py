@@ -11,6 +11,8 @@ import threading
 from datetime import datetime
 import uuid
 from typing import TypedDict, Any, Dict, Optional
+from concurrent.futures import ThreadPoolExecutor
+from itertools import count
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from sdr_hardware import get_sdr_instance, detect_sdr, SDRType
@@ -87,9 +89,29 @@ WHISPER_COMPUTE_TYPE = os.getenv('WHISPER_COMPUTE_TYPE', 'int8')
 scan_sessions: Dict[int, Dict[str, Any]] = {}
 scan_sessions_lock = threading.Lock()
 
+# Thread pool for scan operations (max 1 worker - only 1 SDR device)
+scan_thread_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="scan-worker")
+
+# Atomic session ID counter (thread-safe)
+_session_id_counter = count(1)
+
 # Session cleanup configuration
 MAX_SESSIONS = 100  # Maximum number of sessions to keep in memory
 SESSION_MAX_AGE_HOURS = 24  # Remove sessions older than 24 hours
+
+
+def has_active_scan() -> bool:
+    """
+    Check if there's currently an active scan in progress.
+
+    Returns:
+        True if a scan is in progress, False otherwise
+    """
+    with scan_sessions_lock:
+        return any(
+            session.get('status') == 'in_progress'
+            for session in scan_sessions.values()
+        )
 
 
 def cleanup_old_sessions() -> int:
@@ -1164,6 +1186,14 @@ def scan_repeaters() -> Response | tuple[Response, int]:
     }
     """
     try:
+        # Check if a scan is already in progress
+        if has_active_scan():
+            return jsonify({
+                'status': 'error',
+                'message': 'A scan is already in progress. Please wait for it to complete.',
+                'code': 'SCAN_IN_PROGRESS'
+            }), 409
+
         data = request.get_json() or {}
 
         # Parse parameters
@@ -1199,14 +1229,8 @@ def scan_repeaters() -> Response | tuple[Response, int]:
                 'message': 'No repeaters found matching criteria'
             }), 404
 
-        # Create scan session in-memory (removed db.create_scan_session)
-        session_id = len(scan_sessions) + 1
-
-        if not session_id:
-            return jsonify({
-                'status': 'error',
-                'message': 'Failed to create scan session'
-            }), 500
+        # Generate thread-safe session ID using atomic counter
+        session_id = next(_session_id_counter)
 
         # Initialize session tracking
         with scan_sessions_lock:
@@ -1222,13 +1246,15 @@ def scan_repeaters() -> Response | tuple[Response, int]:
                 'results': []
             }
 
-        # Start background scan thread
-        scan_thread = threading.Thread(
-            target=_scan_repeaters_worker,
-            args=(session_id, repeaters, duration_per_repeater, sample_rate, gain),
-            daemon=True
+        # Submit scan to thread pool (max 1 concurrent scan)
+        scan_thread_pool.submit(
+            _scan_repeaters_worker,
+            session_id,
+            repeaters,
+            duration_per_repeater,
+            sample_rate,
+            gain
         )
-        scan_thread.start()
 
         estimated_duration = len(repeaters) * duration_per_repeater
 
