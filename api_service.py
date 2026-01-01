@@ -87,6 +87,78 @@ WHISPER_COMPUTE_TYPE = os.getenv('WHISPER_COMPUTE_TYPE', 'int8')
 scan_sessions: Dict[int, Dict[str, Any]] = {}
 scan_sessions_lock = threading.Lock()
 
+# Session cleanup configuration
+MAX_SESSIONS = 100  # Maximum number of sessions to keep in memory
+SESSION_MAX_AGE_HOURS = 24  # Remove sessions older than 24 hours
+
+
+def cleanup_old_sessions() -> int:
+    """
+    Remove old and excess scan sessions to prevent memory leak
+
+    Removes:
+    1. Sessions older than SESSION_MAX_AGE_HOURS
+    2. Oldest sessions if total exceeds MAX_SESSIONS
+
+    Returns:
+        Number of sessions removed
+    """
+    removed_count = 0
+    current_time = time.time()
+    max_age_seconds = SESSION_MAX_AGE_HOURS * 3600
+
+    with scan_sessions_lock:
+        # Phase 1: Remove sessions older than max age
+        sessions_to_remove = []
+        for session_id, session in scan_sessions.items():
+            session_age = current_time - session.get('start_time', current_time)
+            if session_age > max_age_seconds:
+                sessions_to_remove.append(session_id)
+
+        for session_id in sessions_to_remove:
+            del scan_sessions[session_id]
+            removed_count += 1
+
+        # Phase 2: If still too many sessions, remove oldest completed/failed ones
+        if len(scan_sessions) > MAX_SESSIONS:
+            # Separate completed/failed sessions from in-progress
+            completed_sessions = [
+                (sid, s) for sid, s in scan_sessions.items()
+                if s.get('status') in ['completed', 'failed']
+            ]
+
+            if completed_sessions:
+                # Sort by start time (oldest first)
+                completed_sessions.sort(key=lambda x: x[1].get('start_time', 0))
+
+                # Remove oldest until we're under the limit
+                sessions_to_keep = MAX_SESSIONS - sum(
+                    1 for s in scan_sessions.values()
+                    if s.get('status') == 'in_progress'
+                )
+
+                for i in range(len(completed_sessions) - sessions_to_keep):
+                    session_id = completed_sessions[i][0]
+                    if session_id in scan_sessions:
+                        del scan_sessions[session_id]
+                        removed_count += 1
+
+    return removed_count
+
+
+def session_cleanup_background():
+    """Background thread that periodically cleans up old sessions"""
+    while True:
+        time.sleep(3600)  # Run every hour
+        removed = cleanup_old_sessions()
+        if removed > 0:
+            print(f"Session cleanup: Removed {removed} old sessions")
+
+
+# Start background cleanup thread
+cleanup_thread = threading.Thread(target=session_cleanup_background, daemon=True)
+cleanup_thread.start()
+
 
 def validate_file_path(file_path: str, base_dir: str = RECORDING_DIR) -> str:
     """
