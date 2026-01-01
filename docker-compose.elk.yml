@@ -5,9 +5,15 @@ services:
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.11.3
     container_name: radio-elasticsearch
+    env_file:
+      - .env.elk
     environment:
       - discovery.type=single-node
-      - xpack.security.enabled=false
+      - xpack.security.enabled=true
+      - xpack.security.enrollment.enabled=false
+      - xpack.security.http.ssl.enabled=false
+      - xpack.security.transport.ssl.enabled=false
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
       - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
       - bootstrap.memory_lock=true
     ulimits:
@@ -26,7 +32,7 @@ services:
     networks:
       - radio-network
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      test: ["CMD-SHELL", "curl -u elastic:${ELASTIC_PASSWORD} -f http://localhost:9200/_cluster/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -38,6 +44,8 @@ services:
   logstash:
     image: docker.elastic.co/logstash/logstash:8.11.3
     container_name: radio-logstash
+    env_file:
+      - .env.elk
     volumes:
       - ./monitoring/logstash/pipelines:/usr/share/logstash/pipeline:ro
       - ./monitoring/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
@@ -50,6 +58,9 @@ services:
       - "9604:9604"  # radio-metrics pipeline
     environment:
       - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+      - ELASTICSEARCH_USERNAME=logstash_system
+      - ELASTICSEARCH_PASSWORD=${LOGSTASH_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     networks:
       - radio-network
     depends_on:
@@ -68,9 +79,15 @@ services:
   kibana:
     image: docker.elastic.co/kibana/kibana:8.11.3
     container_name: radio-kibana
+    env_file:
+      - .env.elk
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=kibana_system
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
       - SERVER_NAME=radio-kibana
+      - XPACK_SECURITY_ENABLED=true
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=min-32-byte-long-strong-encryption-key-here-for-kibana
     volumes:
       - ./monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
     ports:
@@ -94,6 +111,12 @@ services:
     image: docker.elastic.co/beats/metricbeat:8.11.3
     container_name: radio-metricbeat
     user: root
+    env_file:
+      - .env.elk
+    environment:
+      - ELASTICSEARCH_USERNAME=beats_system
+      - ELASTICSEARCH_PASSWORD=${BEATS_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     volumes:
       - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
@@ -118,6 +141,8 @@ services:
       dockerfile: Dockerfile
     container_name: radio-transcription-api
     privileged: true
+    env_file:
+      - .env.elk
     volumes:
       - /dev/bus/usb:/dev/bus/usb
       - ./captures:/app/captures
@@ -132,7 +157,7 @@ services:
       logstash:
         condition: service_healthy
     environment:
-      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=http://elastic:${ELASTIC_PASSWORD}@elasticsearch:9200
       - LOGSTASH_HOST=http://logstash:9600
       - LOGSTASH_APRS_HOST=http://logstash:9601
       - LOGSTASH_POCSAG_HOST=http://logstash:9602
