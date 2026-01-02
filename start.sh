@@ -18,10 +18,22 @@ source venv/bin/activate
 # Create recordings directory
 mkdir -p recordings
 
-# Check if HackRF is connected
-echo "Checking HackRF connection..."
-if ! hackrf_info &> /dev/null; then
-    echo "Warning: HackRF device not detected!"
+# Check if SDR is connected (HackRF or RTL-SDR)
+echo "Checking SDR device connection..."
+SDR_DETECTED=false
+
+if hackrf_info &> /dev/null 2>&1; then
+    echo "✓ HackRF detected"
+    SDR_DETECTED=true
+fi
+
+if timeout 1 rtl_test -t &> /dev/null 2>&1; then
+    echo "✓ RTL-SDR detected"
+    SDR_DETECTED=true
+fi
+
+if [ "$SDR_DETECTED" = false ]; then
+    echo "Warning: No SDR device detected!"
     echo "Running in simulation mode..."
     echo ""
 fi

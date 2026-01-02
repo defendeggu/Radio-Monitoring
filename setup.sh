@@ -28,6 +28,8 @@ sudo apt-get install -y \
     libusb-1.0-0-dev \
     libhackrf-dev \
     hackrf \
+    rtl-sdr \
+    librtlsdr-dev \
     build-essential \
     python3-pip \
     python3-venv \
@@ -101,7 +103,7 @@ fi
 
 # Add user to plugdev group for USB access
 echo ""
-echo "Setting up USB permissions for HackRF..."
+echo "Setting up USB permissions for SDR devices (HackRF/RTL-SDR)..."
 sudo usermod -a -G plugdev $USER
 
 # Create udev rules for HackRF
@@ -114,16 +116,38 @@ ATTR{idVendor}=="1d50", ATTR{idProduct}=="6062", SYMLINK+="rad1o-%k", MODE="660"
 ATTR{idVendor}=="1d50", ATTR{idProduct}=="cc15", SYMLINK+="rad1o-%k", MODE="660", GROUP="plugdev"
 EOF
 
+# Create udev rules for RTL-SDR
+echo ""
+echo "Creating udev rules for RTL-SDR..."
+sudo tee /etc/udev/rules.d/20-rtlsdr.rules > /dev/null <<EOF
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", GROUP="plugdev", MODE="0666", SYMLINK+="rtl_sdr"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="plugdev", MODE="0666", SYMLINK+="rtl_sdr"
+EOF
+
 sudo udevadm control --reload-rules
 sudo udevadm trigger
 
-# Test HackRF connection
+# Test SDR connection
 echo ""
-echo "Testing HackRF connection..."
+echo "Testing SDR device connection..."
+SDR_FOUND=false
+
 if command -v hackrf_info &> /dev/null; then
-    hackrf_info
-else
-    echo "Warning: hackrf_info command not found. Please reconnect your HackRF device."
+    if hackrf_info &> /dev/null; then
+        echo "✓ HackRF detected"
+        SDR_FOUND=true
+    fi
+fi
+
+if command -v rtl_test &> /dev/null; then
+    if timeout 2 rtl_test -t &> /dev/null; then
+        echo "✓ RTL-SDR detected"
+        SDR_FOUND=true
+    fi
+fi
+
+if [ "$SDR_FOUND" = false ]; then
+    echo "Warning: No SDR device detected. Please connect your HackRF or RTL-SDR device."
 fi
 
 echo ""
@@ -133,10 +157,10 @@ echo "========================================="
 echo ""
 echo "Next steps:"
 echo "1. Log out and log back in for USB permissions to take effect"
-echo "2. Connect your HackRF device"
+echo "2. Connect your HackRF or RTL-SDR device"
 echo "3. Run: source venv/bin/activate"
 echo "4. Run: ./start.sh"
 echo ""
-echo "Or use Docker:"
-echo "  docker-compose up -d"
+echo "Or use Docker (recommended for production with ELK stack):"
+echo "  docker compose -f docker-compose.elk.yml up -d"
 echo ""

@@ -341,7 +341,7 @@ Application metrics can be tracked by:
 
 1. **Unit Tests**: Update test mocks to use Elasticsearch service
 2. **Integration Tests**:
-   - Start ELK stack with docker-compose.elk.yml
+   - Start ELK stack with `docker compose -f docker-compose.elk.yml up -d`
    - Run full capture → index → search workflow
 3. **Performance Tests**:
    - Index 10,000 documents
@@ -356,9 +356,9 @@ Application metrics can be tracked by:
 ## Rollback Plan
 
 If ELK migration fails:
-1. Stop ELK containers: `docker-compose -f docker-compose.elk.yml down`
+1. Stop ELK containers: `docker compose -f docker-compose.elk.yml down`
 2. Restore original docker-compose.yml
-3. Start PostgreSQL/Prometheus/Grafana: `docker-compose up -d`
+3. Start PostgreSQL/Prometheus/Grafana: `docker compose up -d`
 4. Restore PostgreSQL from backup
 5. Revert code changes (git revert)
 

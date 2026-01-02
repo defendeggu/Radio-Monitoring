@@ -51,9 +51,12 @@ fi
 
 # Test 5: Check Docker Compose
 echo -n "Testing Docker Compose... "
-if command -v docker-compose &> /dev/null; then
+if docker compose version &> /dev/null; then
+    COMPOSE_VERSION=$(docker compose version --short 2>/dev/null || echo "V2")
+    echo -e "${GREEN}OK${NC} (V2: $COMPOSE_VERSION)"
+elif command -v docker-compose &> /dev/null; then
     COMPOSE_VERSION=$(docker-compose --version)
-    echo -e "${GREEN}OK${NC} ($COMPOSE_VERSION)"
+    echo -e "${YELLOW}WARNING${NC} (V1: $COMPOSE_VERSION - V2 recommended)"
 else
     echo -e "${YELLOW}WARNING${NC}"
     echo "  Docker Compose not found - required for Docker deployment"
@@ -90,7 +93,7 @@ if curl -s http://localhost:5000/health &> /dev/null; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}NOT RUNNING${NC}"
-    echo "  Start with: ./start.sh or docker-compose up"
+    echo "  Start with: ./start.sh or docker compose -f docker-compose.elk.yml up -d"
 fi
 
 # Test 9: Test Web Interface (if running)
@@ -99,16 +102,16 @@ if curl -s http://localhost:8080 &> /dev/null; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}NOT RUNNING${NC}"
-    echo "  Start with: ./start.sh or docker-compose up"
+    echo "  Start with: ./start.sh or docker compose -f docker-compose.elk.yml up -d"
 fi
 
-# Test 10: Test N8N (if running)
-echo -n "Testing N8N... "
-if curl -s http://localhost:5678 &> /dev/null; then
+# Test 10: Test Kibana (if running)
+echo -n "Testing Kibana... "
+if curl -s http://localhost:5601 &> /dev/null; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}NOT RUNNING${NC}"
-    echo "  Start with: npx n8n or docker-compose up"
+    echo "  Start with: docker compose -f docker-compose.elk.yml up -d"
 fi
 
 echo ""
@@ -117,8 +120,9 @@ echo "Test Complete!"
 echo "========================================="
 echo ""
 echo "Quick commands:"
-echo "  ./setup.sh          - Run initial setup"
-echo "  ./start.sh          - Start services manually"
-echo "  docker-compose up   - Start with Docker"
-echo "  hackrf_info         - Check HackRF connection"
+echo "  ./setup.sh                                     - Run initial setup"
+echo "  ./start.sh                                     - Start services manually"
+echo "  docker compose -f docker-compose.elk.yml up -d - Start with Docker (ELK stack)"
+echo "  hackrf_info                                    - Check HackRF connection"
+echo "  rtl_test -t                                    - Check RTL-SDR connection"
 echo ""

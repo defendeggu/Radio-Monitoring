@@ -7,10 +7,10 @@ Get up and running in 5 minutes!
 The fastest way to get started:
 
 ```bash
-# 1. Connect your HackRF device
+# 1. Connect your SDR device (HackRF One or RTL-SDR)
 
-# 2. Start all services
-docker-compose up -d
+# 2. Start all services with ELK stack
+docker compose -f docker-compose.elk.yml up -d
 
 # 3. Open your browser
 open http://localhost:8080
@@ -18,7 +18,7 @@ open http://localhost:8080
 
 **Access Points:**
 - Web Interface: http://localhost:8080
-- N8N: http://localhost:5678 (admin/admin)
+- Kibana Dashboards: http://localhost:5601
 - API: http://localhost:5000
 
 ## Option 2: Manual Setup
@@ -26,17 +26,17 @@ open http://localhost:8080
 For development or customization:
 
 ```bash
-# 1. Run setup script
+# 1. Run setup script (installs HackRF and RTL-SDR packages)
 ./setup.sh
 
 # 2. Log out and back in (for USB permissions)
 
-# 3. Connect HackRF device
+# 3. Connect your SDR device (HackRF One or RTL-SDR)
 
 # 4. Start services
 ./start.sh
 
-# 5. In another terminal, start N8N
+# 5. In another terminal, start N8N (optional)
 npx n8n
 ```
 
@@ -51,10 +51,11 @@ npx n8n
 
 ## Testing Without Hardware
 
-The system includes simulation mode if HackRF is not connected. It will:
+The system includes simulation mode if no SDR device is connected. It will:
 - Generate test audio signals
 - Create mock transcriptions
 - Allow you to test the workflow
+- Auto-detect available hardware (HackRF or RTL-SDR)
 
 ## Common Frequencies to Try
 
@@ -76,22 +77,28 @@ The system includes simulation mode if HackRF is not connected. It will:
 
 ## Troubleshooting
 
-**HackRF not detected?**
+**SDR device not detected?**
 ```bash
+# For HackRF:
 hackrf_info
+
+# For RTL-SDR:
+rtl_test -t
+
 # If it fails, reconnect device and check USB permissions
 ```
 
 **Docker USB issues?**
 ```bash
-# Already configured with privileged mode
-# Just restart: docker-compose restart radio-api
+# USB device access is configured in docker-compose.elk.yml
+# Just restart the API container:
+docker compose -f docker-compose.elk.yml restart radio-api
 ```
 
 **Can't access web interface?**
 ```bash
 # Check if port 8080 is available
-# Or use different port in docker-compose.yml
+# Or modify port mapping in docker-compose.elk.yml
 ```
 
 ## Next Steps
