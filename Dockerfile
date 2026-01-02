@@ -32,6 +32,7 @@ COPY sdr_hardware.py .
 COPY transcription_service.py .
 COPY aprs_decoder_service.py .
 COPY pocsag_decoder_service.py .
+COPY streaming_decoder_service.py .
 COPY api_service.py .
 COPY elasticsearch_service.py .
 COPY repeater_activity_analyzer.py .
