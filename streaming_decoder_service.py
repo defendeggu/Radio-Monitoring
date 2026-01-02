@@ -338,6 +338,10 @@ class BaseStreamingDecoder(ABC):
                 if self.stop_event.is_set():
                     break
 
+                # Decode bytes to string if needed (binary mode stdin)
+                if isinstance(line, bytes):
+                    line = line.decode('utf-8', errors='ignore')
+
                 line = line.strip()
                 if not line:
                     continue
@@ -412,7 +416,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,  # Suppress direwolf info messages
-            text=True,
+            text=False,  # Binary mode for stdin (audio data), text for stdout
             bufsize=1  # Line buffered
         )
         return proc
@@ -546,7 +550,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            text=True,
+            text=False,  # Binary mode for stdin (audio data), text for stdout
             bufsize=1
         )
         return proc
