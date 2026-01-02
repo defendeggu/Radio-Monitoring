@@ -80,8 +80,9 @@ A complete professional radio monitoring system for capturing radio signals from
                      │
                      ▼
             ┌─────────────────────────────────┐
-            │         Flask API               │
+            │     Flask API (Gunicorn)        │
             │         Port 5000               │
+            │  Production WSGI Server         │
             ├─────────────────────────────────┤
             │  /capture-and-transcribe        │
             │  /search (ES Full-Text Search)  │
@@ -204,6 +205,59 @@ The system automatically detects which SDR is connected:
    - Logstash Pipelines: http://localhost:9600-9604
    - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
    - API: http://localhost:5000
+
+## Production Deployment
+
+The API service runs with **Gunicorn**, a production-ready WSGI HTTP server optimized for long-running streaming sessions.
+
+### Why Gunicorn?
+
+- ✅ **Production-ready**: Stable, battle-tested WSGI server
+- ✅ **Asynchronous I/O**: Gevent workers handle long-running streaming sessions (1-24 hours)
+- ✅ **Multiple workers**: Better CPU utilization and concurrent request handling
+- ✅ **Auto-recovery**: Workers automatically restart if they crash
+- ✅ **Graceful restarts**: No dropped connections during updates
+
+### Configuration
+
+Worker count and other settings can be configured via environment variables in `docker-compose.yml`:
+
+```yaml
+environment:
+  - GUNICORN_WORKERS=5          # Number of worker processes (default: CPU cores * 2 + 1)
+  - GUNICORN_LOG_LEVEL=info     # Log level: debug, info, warning, error
+```
+
+Or modify `gunicorn_config.py` directly for advanced settings.
+
+### Health Checks
+
+The API includes a health check endpoint for monitoring:
+
+```bash
+curl http://localhost:5000/health
+```
+
+Returns:
+```json
+{
+  "status": "healthy",
+  "service": "radio-transcription-api",
+  "timestamp": "2026-01-02T20:00:00.000000",
+  "version": "2.0.0"
+}
+```
+
+### Local Development (Flask Dev Server)
+
+For local development without Docker, the Flask development server can still be used:
+
+```bash
+source venv/bin/activate
+python api_service.py
+```
+
+**Note**: The development server shows a warning that it's not suitable for production. Use Docker with Gunicorn for production deployments.
 
 ## Secrets Management
 

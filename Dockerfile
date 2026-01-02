@@ -36,6 +36,7 @@ COPY streaming_decoder_service.py .
 COPY api_service.py .
 COPY elasticsearch_service.py .
 COPY repeater_activity_analyzer.py .
+COPY gunicorn_config.py .
 COPY direwolf.conf .
 COPY .env.example .env
 COPY scripts/ scripts/
@@ -59,5 +60,5 @@ EXPOSE 5000
 # Set environment variables
 ENV PYTHONUNBUFFERED=1
 
-# Run the API service
-CMD ["python", "api_service.py"]
+# Run the API service with Gunicorn (production WSGI server)
+CMD ["gunicorn", "--config", "gunicorn_config.py", "api_service:app"]

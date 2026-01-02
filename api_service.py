@@ -381,11 +381,21 @@ def get_pocsag_decoder() -> POCSAGDecoder:
 
 @app.route('/health', methods=['GET'])
 def health() -> Response:
-    """Health check endpoint"""
+    """
+    Health check endpoint for load balancers and monitoring
+
+    Returns:
+    - status: healthy/unhealthy
+    - service: service name
+    - timestamp: current UTC time
+    - version: API version
+    - uptime: seconds since startup
+    """
     return jsonify({
         'status': 'healthy',
         'service': 'radio-transcription-api',
-        'timestamp': datetime.now().isoformat()
+        'timestamp': datetime.utcnow().isoformat(),
+        'version': '2.0.0',  # Incremented for Gunicorn migration
     })
 
 
@@ -1850,16 +1860,31 @@ def list_stream_sessions():
 
 
 def main() -> None:
+    """
+    Initialize application directories and resources.
+    Called by both Gunicorn (production) and Flask dev server (development).
+    """
     # Create recordings directory
     os.makedirs(RECORDING_DIR, exist_ok=True)
+    logger.info("Application initialization complete")
 
-    # Run Flask app
-    port = int(os.getenv('API_PORT', '5000'))
-    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
 
-    # Note: Debug mode disabled by default for Prometheus metrics compatibility
-    app.run(host='0.0.0.0', port=port, debug=debug_mode, use_reloader=False)
+# Initialize app on module import (Gunicorn imports this module)
+main()
 
 
 if __name__ == '__main__':
-    main()
+    # Local development mode using Flask's built-in server
+    # For production, use: gunicorn --config gunicorn_config.py api_service:app
+    port = int(os.getenv('API_PORT', '5000'))
+    debug_mode = os.getenv('FLASK_DEBUG', 'false').lower() == 'true'
+
+    logger.warning("=" * 70)
+    logger.warning("⚠️  DEVELOPMENT MODE - Flask built-in server")
+    logger.warning("   This server is NOT suitable for production deployment!")
+    logger.warning("")
+    logger.warning("   For production, use:")
+    logger.warning("   gunicorn --config gunicorn_config.py api_service:app")
+    logger.warning("=" * 70)
+
+    app.run(host='0.0.0.0', port=port, debug=debug_mode, use_reloader=False)
