@@ -416,8 +416,8 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,  # Suppress direwolf info messages
-            text=False,  # Binary mode for stdin (audio data), text for stdout
-            bufsize=1  # Line buffered
+            text=False  # Binary mode for stdin (audio data)
+            # bufsize default (binary mode doesn't support line buffering)
         )
         return proc
 
@@ -550,8 +550,8 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL,
-            text=False,  # Binary mode for stdin (audio data), text for stdout
-            bufsize=1
+            text=False  # Binary mode for stdin (audio data)
+            # bufsize default (binary mode doesn't support line buffering)
         )
         return proc
 

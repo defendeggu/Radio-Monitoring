@@ -1737,8 +1737,11 @@ def get_stream_status(session_id):
         if not session:
             return jsonify({'error': 'Session not found'}), 404
 
-        # Calculate elapsed time
-        elapsed = (datetime.utcnow() - session.start_time).total_seconds()
+        # Calculate elapsed time (use end_time if session completed)
+        if session.end_time:
+            elapsed = (session.end_time - session.start_time).total_seconds()
+        else:
+            elapsed = (datetime.utcnow() - session.start_time).total_seconds()
 
         return jsonify({
             'session_id': session.session_id,
