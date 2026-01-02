@@ -9,6 +9,7 @@ import sys
 import subprocess
 import tempfile
 import logging
+import gc
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional, Tuple
@@ -227,6 +228,10 @@ class HackRFCapture(SDRCapture):
             audio = self._demodulate(iq_samples, modulation)
             self._save_wav(audio, output_file)
 
+            # Force garbage collection to free memory from large arrays
+            del iq_samples, audio
+            gc.collect()
+
             self.logger.info(f"Audio capture complete: {output_file}")
 
         finally:
@@ -334,6 +339,10 @@ class RTLSDRCapture(SDRCapture):
                 iq_samples = np.fromfile(iq_file, dtype=np.complex64)
                 audio = self._demodulate(iq_samples, modulation)
                 self._save_wav(audio, output_file)
+
+                # Force garbage collection to free memory from large arrays
+                del iq_samples, audio
+                gc.collect()
 
                 self.logger.info(f"Audio capture complete: {output_file}")
 

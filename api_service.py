@@ -560,6 +560,28 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         if mode not in ['voice', 'aprs', 'pocsag']:
             return jsonify({'error': 'mode must be "voice", "aprs", or "pocsag"'}), 400
 
+        # Optimize sample rate for POCSAG/APRS (reduces memory usage by 8-10x)
+        # POCSAG/APRS only need ~25 kHz bandwidth, not 2 MHz
+        if mode in ['pocsag', 'aprs']:
+            original_sample_rate = sample_rate
+            sample_rate = min(sample_rate, 250000)  # Max 250 kHz for digital modes
+            if original_sample_rate != sample_rate:
+                print(f"Sample rate reduced for {mode} mode: {original_sample_rate/1e6:.1f} MHz -> {sample_rate/1e3:.0f} kHz")
+
+        # Enforce duration limits to prevent OOM crashes
+        MAX_DURATIONS = {
+            'pocsag': 120,   # Max 2 minutes for POCSAG (prevents 11 GB RAM usage)
+            'aprs': 300,     # Max 5 minutes for APRS
+            'voice': 600,    # Max 10 minutes for voice transcription
+        }
+        max_duration = MAX_DURATIONS.get(mode, 600)
+        if duration > max_duration:
+            return jsonify({
+                'error': f'{mode.upper()} captures are limited to {max_duration} seconds to prevent memory issues',
+                'max_duration': max_duration,
+                'requested_duration': duration
+            }), 400
+
         # Generate output filename
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         audio_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.wav')
@@ -1244,8 +1266,13 @@ def _scan_repeaters_worker(
                         scan_sessions[session_id]['repeaters_scanned'] = repeaters_scanned
                         scan_sessions[session_id]['repeaters_with_activity'] = repeaters_with_activity
 
-                # Clean up IQ file to save space (optional - comment out to keep)
-                # os.remove(iq_file)
+                # Clean up IQ file to save disk space (prevents disk filling)
+                try:
+                    if os.path.exists(iq_file):
+                        os.remove(iq_file)
+                        print(f"Cleaned up IQ file: {iq_file}")
+                except Exception as cleanup_error:
+                    print(f"Warning: Failed to cleanup IQ file {iq_file}: {cleanup_error}")
 
             except Exception as e:
                 print(f"Error scanning {callsign}: {e}")

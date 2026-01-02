@@ -148,6 +148,10 @@ services:
     # privileged: true
     env_file:
       - .env.elk
+    # Memory limits to prevent OOM crashes during long captures
+    mem_limit: 8g
+    memswap_limit: 12g
+    oom_kill_disable: false
     devices:
       # Grant access to USB bus for SDR hardware (HackRF, RTL-SDR)
       - /dev/bus/usb:/dev/bus/usb
