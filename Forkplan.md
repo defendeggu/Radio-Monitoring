@@ -708,7 +708,7 @@ def search_captures():
 
 ### 2.6 Docker Compose Changes
 
-**New File**: `docker-compose.elk.yml` (replaces docker-compose.yml)
+**New File**: `docker-compose.yml` (replaces docker-compose.yml)
 
 ```yaml
 version: '3.8'
@@ -888,7 +888,7 @@ def migrate_captures(pg_conn, es_client):
 - `monitoring/metricbeat/metricbeat.yml`
 - `scripts/migrate_to_elasticsearch.py`
 - `scripts/create_index_templates.sh`
-- `docker-compose.elk.yml`
+- `docker-compose.yml`
 
 ✅ **Modified Files**:
 - `api_service.py` - Use ElasticsearchService
@@ -903,7 +903,7 @@ def migrate_captures(pg_conn, es_client):
 - `monitoring/prometheus/prometheus.yml`
 - `monitoring/grafana/provisioning/**/*` (all files)
 - `monitoring/grafana/dashboards/*.json` (8 files)
-- `docker-compose.yml` (replaced by docker-compose.elk.yml)
+- `docker-compose.yml` (replaced by docker-compose.yml)
 
 ✅ **Success Criteria**:
 - All data migrated (100% accuracy)
@@ -947,7 +947,7 @@ def migrate_captures(pg_conn, es_client):
 9-14. `/home/spia/my-project/monitoring/kibana/dashboards/*.json` (6 dashboard files)
 15. `/home/spia/my-project/monitoring/metricbeat/metricbeat.yml`
 16. `/home/spia/my-project/scripts/migrate_to_elasticsearch.py`
-17. `/home/spia/my-project/docker-compose.elk.yml`
+17. `/home/spia/my-project/docker-compose.yml`
 
 **Modified (5)**:
 1. `/home/spia/my-project/api_service.py` - Use ES
@@ -1044,7 +1044,7 @@ def migrate_captures(pg_conn, es_client):
 
 ### Phase 2 Rollback
 **If ELK migration fails:**
-1. Stop ELK containers: `docker-compose -f docker-compose.elk.yml down`
+1. Stop ELK containers: `docker-compose -f docker-compose.yml down`
 2. Restore `docker-compose.yml` from backup
 3. Start PostgreSQL/Prometheus/Grafana: `docker-compose up -d`
 4. Restore PostgreSQL database from backup

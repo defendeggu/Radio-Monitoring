@@ -194,7 +194,7 @@ The system automatically detects which SDR is connected:
 
 5. **Start the services**
    ```bash
-   docker compose -f docker-compose.elk.yml up -d
+   docker compose up -d
    ```
 
 6. **Access the interfaces**
@@ -282,7 +282,7 @@ cat secrets/n8n_basic_auth_password.txt
 
 2. Restart the service:
    ```bash
-   docker compose -f docker-compose.elk.yml restart n8n
+   docker compose restart n8n
    ```
 
 For more details, see [`secrets/README.md`](secrets/README.md).
@@ -790,7 +790,7 @@ sudo udevadm trigger
 ### Docker USB Access Issues
 
 ```bash
-# USB device access is configured in docker-compose.elk.yml
+# USB device access is configured in docker-compose.yml
 # If you need to specify a specific USB device:
 docker run --device=/dev/bus/usb/XXX/YYY ...
 ```
@@ -860,7 +860,7 @@ The API can be integrated with:
 ├── n8n-workflow.json                # N8N workflow definition
 ├── requirements.txt                 # Python dependencies
 ├── Dockerfile                       # Docker image definition
-├── docker-compose.elk.yml           # Docker Compose with ELK stack
+├── docker-compose.yml           # Docker Compose with ELK stack
 ├── .env.example                     # Environment variables template
 ├── .gitignore                      # Git ignore rules
 ├── README.md                        # This file

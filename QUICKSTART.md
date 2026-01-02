@@ -10,7 +10,7 @@ The fastest way to get started:
 # 1. Connect your SDR device (HackRF One or RTL-SDR)
 
 # 2. Start all services with ELK stack
-docker compose -f docker-compose.elk.yml up -d
+docker compose up -d
 
 # 3. Open your browser
 open http://localhost:8080
@@ -90,15 +90,15 @@ rtl_test -t
 
 **Docker USB issues?**
 ```bash
-# USB device access is configured in docker-compose.elk.yml
+# USB device access is configured in docker-compose.yml
 # Just restart the API container:
-docker compose -f docker-compose.elk.yml restart radio-api
+docker compose restart radio-api
 ```
 
 **Can't access web interface?**
 ```bash
 # Check if port 8080 is available
-# Or modify port mapping in docker-compose.elk.yml
+# Or modify port mapping in docker-compose.yml
 ```
 
 ## Next Steps

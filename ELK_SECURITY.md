@@ -59,7 +59,7 @@ The API automatically authenticates with Elasticsearch using the credentials fro
 
 2. Start the stack:
    ```bash
-   docker compose -f docker-compose.elk.yml up -d
+   docker compose up -d
    ```
 
 3. Configure built-in users:
@@ -69,7 +69,7 @@ The API automatically authenticates with Elasticsearch using the credentials fro
 
 4. Restart services:
    ```bash
-   docker compose -f docker-compose.elk.yml restart logstash kibana metricbeat radio-api
+   docker compose restart logstash kibana metricbeat radio-api
    ```
 
 ### Resetting Passwords
@@ -84,16 +84,16 @@ cp .env .env.backup
 ./setup-elk-security.sh
 
 # Stop and remove containers
-docker compose -f docker-compose.elk.yml down
+docker compose down
 
 # Start with new credentials
-docker compose -f docker-compose.elk.yml up -d
+docker compose up -d
 
 # Configure users
 ./setup-elk-users.sh
 
 # Restart services
-docker compose -f docker-compose.elk.yml restart logstash kibana metricbeat radio-api
+docker compose restart logstash kibana metricbeat radio-api
 ```
 
 ## Security Features Enabled
@@ -141,7 +141,7 @@ docker logs radio-logstash --tail 50
 If you see authentication errors, run:
 ```bash
 ./setup-elk-users.sh
-docker compose -f docker-compose.elk.yml restart logstash
+docker compose restart logstash
 ```
 
 ### Lost `.env` file
@@ -152,11 +152,11 @@ If `.env` is lost, you must:
 3. Re-run setup from scratch
 
 ```bash
-docker compose -f docker-compose.elk.yml down -v
+docker compose down -v
 ./setup-elk-security.sh
-docker compose -f docker-compose.elk.yml up -d
+docker compose up -d
 ./setup-elk-users.sh
-docker compose -f docker-compose.elk.yml restart logstash kibana metricbeat radio-api
+docker compose restart logstash kibana metricbeat radio-api
 ```
 
 ## Production Recommendations
@@ -194,7 +194,7 @@ For production deployment, consider:
 - `.env.elk` - Backup of credentials (DO NOT COMMIT)
 - `setup-elk-security.sh` - Password generation script
 - `setup-elk-users.sh` - User configuration script
-- `docker-compose.elk.yml` - ELK stack configuration with security
+- `docker-compose.yml` - ELK stack configuration with security
 
 ## Support
 

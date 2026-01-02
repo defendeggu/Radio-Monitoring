@@ -93,7 +93,7 @@ if curl -s http://localhost:5000/health &> /dev/null; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}NOT RUNNING${NC}"
-    echo "  Start with: ./start.sh or docker compose -f docker-compose.elk.yml up -d"
+    echo "  Start with: ./start.sh or docker compose up -d"
 fi
 
 # Test 9: Test Web Interface (if running)
@@ -102,7 +102,7 @@ if curl -s http://localhost:8080 &> /dev/null; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}NOT RUNNING${NC}"
-    echo "  Start with: ./start.sh or docker compose -f docker-compose.elk.yml up -d"
+    echo "  Start with: ./start.sh or docker compose up -d"
 fi
 
 # Test 10: Test Kibana (if running)
@@ -111,7 +111,7 @@ if curl -s http://localhost:5601 &> /dev/null; then
     echo -e "${GREEN}OK${NC}"
 else
     echo -e "${YELLOW}NOT RUNNING${NC}"
-    echo "  Start with: docker compose -f docker-compose.elk.yml up -d"
+    echo "  Start with: docker compose up -d"
 fi
 
 echo ""
@@ -122,7 +122,7 @@ echo ""
 echo "Quick commands:"
 echo "  ./setup.sh                                     - Run initial setup"
 echo "  ./start.sh                                     - Start services manually"
-echo "  docker compose -f docker-compose.elk.yml up -d - Start with Docker (ELK stack)"
+echo "  docker compose up -d - Start with Docker (ELK stack)"
 echo "  hackrf_info                                    - Check HackRF connection"
 echo "  rtl_test -t                                    - Check RTL-SDR connection"
 echo ""
