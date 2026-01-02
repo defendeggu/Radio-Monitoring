@@ -2,97 +2,204 @@
 
 ## Overview
 
-This monitoring stack provides comprehensive observability for the Radio Transcription System using Prometheus and Grafana.
+This monitoring stack provides comprehensive observability for the Radio Transcription System using the **ELK Stack** (Elasticsearch, Logstash, Kibana) with Metricbeat for system metrics.
 
 ## Components
 
-- **Prometheus** (Port 9090): Metrics collection and storage
-- **Grafana** (Port 3000): Visualization and dashboards
-- **cAdvisor** (Port 8081): Container resource metrics
+- **Elasticsearch** (Port 9200): Time-series data storage and search engine
+- **Logstash** (Ports 9600-9604): Data ingestion pipelines (5 dedicated pipelines)
+- **Kibana** (Port 5601): Visualization, dashboards, and data exploration
+- **Metricbeat** (Internal): Container and system metrics collection
 
 ## Access
 
-- **Grafana**: http://localhost:3000
-  - Username: `admin`
-  - Password: `admin`
+- **Kibana**: http://localhost:5601
+  - Username: `elastic`
+  - Password: See `.env.elk` file (`ELASTIC_PASSWORD`)
 
-- **Prometheus**: http://localhost:9090
+- **Elasticsearch API**: http://localhost:9200
+  - Username: `elastic`
+  - Password: See `.env.elk` file
 
-- **cAdvisor**: http://localhost:8081
+## Data Indices
 
-## Metrics Collected
+### Radio Captures
+- **Index Pattern**: `radio-captures-*` (daily rollover: `radio-captures-2025.01.02`)
+- **Contents**: Voice transcriptions with frequency, modulation, SDR type, language detection
+- **Features**: Full-text search with multi-language analyzers (English, German, French, Spanish)
 
-### API Performance
-- `http_requests_total`: Total HTTP requests by endpoint and status
-- `http_request_duration_seconds`: Request latency
-- `http_request_size_bytes`: Request payload sizes
-- `http_response_size_bytes`: Response payload sizes
+### APRS Messages
+- **Index Pattern**: `radio-aprs-*`
+- **Contents**: APRS packet data with callsigns, positions, message types
+- **Features**: Geospatial queries with geo_point mapping for station positions
 
-### Radio Operations
-- `radio_captures_total{modulation, status}`: Total captures by modulation type
-- `radio_capture_duration_seconds`: Capture duration distribution
-- `radio_simulation_mode`: Whether using real hardware or simulation
+### POCSAG Messages
+- **Index Pattern**: `radio-pocsag-*`
+- **Contents**: Pager messages with addresses, function codes, baud rates
+- **Features**: Address and message type aggregations
 
-### Transcription Operations
-- `transcription_requests_total{status}`: Total transcription requests
-- `transcription_duration_seconds`: Transcription time distribution
+### Repeater Activity
+- **Index Pattern**: `radio-repeater-activity-*`
+- **Contents**: Scan results with transmission counts, signal strength, activity percentages
+- **Features**: Activity trends by band/canton, signal quality metrics
 
-### Container Metrics (via cAdvisor)
-- CPU usage
-- Memory usage
-- Network I/O
-- Disk I/O
+### System Metrics
+- **Index Pattern**: `metricbeat-*`
+- **Contents**: Container CPU, memory, disk, network metrics
+- **Features**: Real-time performance monitoring (replaces Prometheus + cAdvisor)
 
-## Alerts
+## Logstash Pipelines
 
-Configured alerts (view in Prometheus):
-- API Down
-- High Error Rate (>10% for 5 minutes)
-- High Capture Failure Rate (>20%)
-- Slow Captures (p95 > 2 minutes)
-- High Transcription Failure Rate (>20%)
-- Slow Transcriptions (p95 > 1 minute)
-- High Memory Usage (>90%)
-- High CPU Usage (>80%)
+Five dedicated ingestion pipelines:
+
+1. **Port 9600**: Radio captures (voice transcriptions)
+2. **Port 9601**: APRS messages
+3. **Port 9602**: POCSAG messages
+4. **Port 9603**: Repeater activity
+5. **Port 9604**: Custom metrics (future use)
+
+## Kibana Dashboards
+
+Pre-configured dashboards available in Kibana:
+
+- **Captures Dashboard**: Browse and search all radio captures with full-text search
+- **APRS Dashboard**: Geospatial map, packet statistics, callsign analytics
+- **POCSAG Dashboard**: Pager address analytics, message type distribution
+- **Repeater Activity Dashboard**: Most active repeaters, activity by band/canton
+- **System Metrics Dashboard**: Container performance monitoring
 
 ## Data Retention
 
-- Prometheus retains metrics for 30 days
-- Data stored in Docker volume: `prometheus-data`
+- **Index Lifecycle Management (ILM)** automatically manages data:
+  - **Hot (0-7 days)**: Fast storage, searchable, writable
+  - **Warm (7-30 days)**: Searchable, read-only
+  - **Cold (30-90 days)**: Less frequently accessed
+  - **Delete (>90 days)**: Automatic cleanup
+
+- **Elasticsearch data** stored in Docker volume: `elasticsearch-data`
 
 ## Starting the Monitoring Stack
 
 ```bash
-# Start all services including monitoring
-docker-compose up -d
+# Start all services including ELK stack
+docker compose -f docker-compose.elk.yml up -d
 
 # View logs
-docker-compose logs -f prometheus grafana
+docker compose -f docker-compose.elk.yml logs -f elasticsearch logstash kibana
 
 # Stop services
-docker-compose down
+docker compose -f docker-compose.elk.yml down
+
+# Check cluster health
+curl -u elastic:YOUR_PASSWORD http://localhost:9200/_cluster/health?pretty
 ```
+
+## Security
+
+The ELK stack uses **X-Pack Security** for authentication:
+
+- All services require authentication
+- Passwords configured in `.env.elk` file
+- Separate users for each service (logstash_system, kibana_system, beats_system)
+- See `ELK_SECURITY.md` for setup instructions
 
 ## Custom Dashboards
 
-Dashboards are provisioned automatically in Grafana:
-- Import custom dashboards by adding JSON files to `monitoring/grafana/dashboards/`
-- Dashboards reload automatically every 10 seconds
+Import custom dashboards:
 
-## Querying Metrics
+1. Go to Kibana → Stack Management → Saved Objects
+2. Click "Import"
+3. Select NDJSON file from `monitoring/kibana/dashboards/`
+4. Dashboards appear in Kibana → Dashboard
 
-Example PromQL queries:
+## Querying Data
 
-```promql
-# Request rate per second
-rate(http_requests_total[5m])
+### Elasticsearch Query Examples
 
-# 95th percentile latency
-histogram_quantile(0.95, rate(http_request_duration_seconds_bucket[5m]))
+```bash
+# Search recent captures
+curl -u elastic:PASSWORD http://localhost:9200/radio-captures-*/_search?pretty \
+  -H 'Content-Type: application/json' \
+  -d '{"query": {"match_all": {}}, "size": 10}'
 
-# Capture success rate
-rate(radio_captures_total{status="success"}[5m]) / rate(radio_captures_total[5m])
+# Full-text search in transcriptions
+curl -u elastic:PASSWORD http://localhost:9200/radio-captures-*/_search?pretty \
+  -H 'Content-Type: application/json' \
+  -d '{"query": {"match": {"transcription": "emergency"}}}'
 
-# Container memory usage
-container_memory_usage_bytes{name="radio-api"}
+# Get APRS statistics
+curl -u elastic:PASSWORD http://localhost:9200/radio-aprs-*/_search?pretty \
+  -H 'Content-Type: application/json' \
+  -d '{
+    "size": 0,
+    "aggs": {
+      "top_callsigns": {
+        "terms": {"field": "source_callsign", "size": 10}
+      }
+    }
+  }'
 ```
+
+### Kibana Dev Tools
+
+Use Kibana Dev Tools Console for interactive queries:
+
+```json
+GET radio-captures-*/_search
+{
+  "query": {
+    "bool": {
+      "must": [
+        {"range": {"@timestamp": {"gte": "now-24h"}}},
+        {"term": {"modulation": "FM"}}
+      ]
+    }
+  }
+}
+```
+
+## Monitoring Best Practices
+
+1. **Index Patterns**: Create index patterns for each data type in Kibana
+2. **Time Range**: Set appropriate time ranges in dashboards (Last 24h, Last 7d)
+3. **Refresh Interval**: Configure auto-refresh for real-time monitoring
+4. **Disk Space**: Monitor Elasticsearch disk usage, adjust ILM policies if needed
+5. **Performance**: Keep cluster health "green" or "yellow" (check `_cluster/health`)
+
+## Troubleshooting
+
+**Kibana shows no data?**
+- Ensure captures have been made
+- Check time range (set to "Last 24 hours")
+- Verify index patterns exist (Kibana → Stack Management → Index Patterns)
+- Create index patterns: `radio-captures-*`, `radio-aprs-*`, etc.
+
+**Elasticsearch cluster unhealthy?**
+```bash
+# Check cluster status
+docker compose -f docker-compose.elk.yml exec elasticsearch curl -u elastic:PASSWORD http://localhost:9200/_cluster/health?pretty
+
+# View Elasticsearch logs
+docker compose -f docker-compose.elk.yml logs elasticsearch
+```
+
+**Logstash not receiving data?**
+```bash
+# Test pipeline connectivity
+curl -X POST http://localhost:9600 \
+  -H 'Content-Type: application/json' \
+  -d '{"test": "message"}'
+
+# Check Logstash logs
+docker compose -f docker-compose.elk.yml logs logstash
+```
+
+## Migration from Prometheus/Grafana
+
+This system has migrated from Prometheus/Grafana to ELK Stack for:
+- Better full-text search capabilities
+- Geospatial query support (APRS positions)
+- Time-series data lifecycle management
+- Unified data platform for logs and metrics
+
+For migration details, see `MIGRATION_GUIDE_PHASE2.md`.

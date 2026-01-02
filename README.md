@@ -194,7 +194,7 @@ The system automatically detects which SDR is connected:
 
 5. **Start the services**
    ```bash
-   docker-compose -f docker-compose.elk.yml up -d
+   docker compose -f docker-compose.elk.yml up -d
    ```
 
 6. **Access the interfaces**
@@ -790,8 +790,8 @@ sudo udevadm trigger
 ### Docker USB Access Issues
 
 ```bash
-# Run with privileged mode (already in docker-compose.yml)
-# Or add specific USB device:
+# USB device access is configured in docker-compose.elk.yml
+# If you need to specify a specific USB device:
 docker run --device=/dev/bus/usb/XXX/YYY ...
 ```
 
