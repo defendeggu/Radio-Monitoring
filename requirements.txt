@@ -37,3 +37,4 @@ gevent==24.2.1
 # Database (PostgreSQL removed, using Elasticsearch)
 # psycopg2-binary==2.9.9 - REMOVED (replaced by Elasticsearch)
 # sqlalchemy==2.0.23 - REMOVED (replaced by Elasticsearch)
+types-Flask-Cors
