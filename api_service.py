@@ -1638,7 +1638,6 @@ active_decoders = {}  # session_id -> decoder instance
 
 
 @app.route('/stream-decode', methods=['POST'])
-@require_api_key
 def start_stream_decode():
     """
     Start continuous streaming decode session (APRS/POCSAG)
@@ -1714,7 +1713,6 @@ def start_stream_decode():
 
 
 @app.route('/stream-decode/<session_id>', methods=['GET'])
-@require_api_key
 def get_stream_status(session_id):
     """
     Get streaming session status and stats
@@ -1764,7 +1762,6 @@ def get_stream_status(session_id):
 
 
 @app.route('/stream-decode/<session_id>', methods=['DELETE'])
-@require_api_key
 def stop_stream_decode(session_id):
     """
     Stop streaming session gracefully
@@ -1810,7 +1807,6 @@ def stop_stream_decode(session_id):
 
 
 @app.route('/stream-decode', methods=['GET'])
-@require_api_key
 def list_stream_sessions():
     """
     List all streaming sessions (active and recent)
