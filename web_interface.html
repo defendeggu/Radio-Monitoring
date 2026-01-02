@@ -729,7 +729,7 @@
 
     <script>
         // API URL - direct connection to Flask API
-        const API_URL = 'http://localhost:5000/capture-and-transcribe';
+        const API_BASE_URL = 'http://localhost:5000';
 
         // API Key - optional for localhost (trusted IP), required for remote access
         // Can be set via localStorage.setItem('api_key', 'your-key-here')
@@ -795,7 +795,7 @@
                     throw new Error('Request timeout after 15 minutes');
                 }, 900000); // 15 minutes = 900000ms
 
-                const response = await fetch(API_URL, {
+                const response = await fetch(API_BASE_URL + '/capture-and-transcribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData),
@@ -863,7 +863,7 @@
                     throw new Error('Request timeout after 15 minutes');
                 }, 900000); // 15 minutes = 900000ms
 
-                const response = await fetch(API_URL, {
+                const response = await fetch(API_BASE_URL + '/capture-and-transcribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData),
@@ -931,7 +931,7 @@
                     throw new Error('Request timeout after 15 minutes');
                 }, 900000); // 15 minutes = 900000ms
 
-                const response = await fetch(API_URL, {
+                const response = await fetch(API_BASE_URL + '/capture-and-transcribe', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData),
@@ -1158,7 +1158,7 @@
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
 
-                const response = await fetch('http://localhost:5000/scan-repeaters', {
+                const response = await fetch(API_BASE_URL + '/scan-repeaters', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1207,7 +1207,7 @@
             // Poll every 2 seconds
             progressPollInterval = setInterval(async () => {
                 try {
-                    const response = await fetch(`http://localhost:5000/scan-repeaters/${sessionId}/progress`);
+                    const response = await fetch(`${API_BASE_URL}/scan-repeaters/${sessionId}/progress`);
                     const data = await response.json();
 
                     if (data.status === 'in_progress') {
@@ -1326,7 +1326,7 @@
             const indicator = document.getElementById('sdr-indicator');
 
             try {
-                const response = await fetch('http://localhost:5000/sdr/detect', {
+                const response = await fetch(API_BASE_URL + '/sdr/detect', {
                     method: 'GET',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -1494,7 +1494,7 @@
             };
 
             try {
-                const response = await fetch(API_URL + '/stream-decode', {
+                const response = await fetch(API_BASE_URL + '/stream-decode', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1503,12 +1503,18 @@
                     body: JSON.stringify(formData)
                 });
 
-                const data = await response.json();
-
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to start streaming');
+                    let errorMsg = 'Failed to start streaming';
+                    try {
+                        const data = await response.json();
+                        errorMsg = data.error || data.message || errorMsg;
+                    } catch (e) {
+                        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    throw new Error(errorMsg);
                 }
 
+                const data = await response.json();
                 aprsStreamSessionId = data.session_id;
 
                 // Update UI
@@ -1530,7 +1536,7 @@
             if (!aprsStreamSessionId) return;
 
             try {
-                const response = await fetch(API_URL + '/stream-decode/' + aprsStreamSessionId, {
+                const response = await fetch(API_BASE_URL + '/stream-decode/' + aprsStreamSessionId, {
                     method: 'DELETE',
                     headers: { 'X-API-Key': API_KEY }
                 });
@@ -1560,7 +1566,7 @@
             if (!aprsStreamSessionId) return;
 
             try {
-                const response = await fetch(API_URL + '/stream-decode/' + aprsStreamSessionId, {
+                const response = await fetch(API_BASE_URL + '/stream-decode/' + aprsStreamSessionId, {
                     headers: { 'X-API-Key': API_KEY }
                 });
 
@@ -1600,7 +1606,7 @@
             };
 
             try {
-                const response = await fetch(API_URL + '/stream-decode', {
+                const response = await fetch(API_BASE_URL + '/stream-decode', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -1609,12 +1615,18 @@
                     body: JSON.stringify(formData)
                 });
 
-                const data = await response.json();
-
                 if (!response.ok) {
-                    throw new Error(data.error || 'Failed to start streaming');
+                    let errorMsg = 'Failed to start streaming';
+                    try {
+                        const data = await response.json();
+                        errorMsg = data.error || data.message || errorMsg;
+                    } catch (e) {
+                        errorMsg = `HTTP ${response.status}: ${response.statusText}`;
+                    }
+                    throw new Error(errorMsg);
                 }
 
+                const data = await response.json();
                 pocsagStreamSessionId = data.session_id;
 
                 // Update UI
@@ -1636,7 +1648,7 @@
             if (!pocsagStreamSessionId) return;
 
             try {
-                const response = await fetch(API_URL + '/stream-decode/' + pocsagStreamSessionId, {
+                const response = await fetch(API_BASE_URL + '/stream-decode/' + pocsagStreamSessionId, {
                     method: 'DELETE',
                     headers: { 'X-API-Key': API_KEY }
                 });
@@ -1666,7 +1678,7 @@
             if (!pocsagStreamSessionId) return;
 
             try {
-                const response = await fetch(API_URL + '/stream-decode/' + pocsagStreamSessionId, {
+                const response = await fetch(API_BASE_URL + '/stream-decode/' + pocsagStreamSessionId, {
                     headers: { 'X-API-Key': API_KEY }
                 });
 
