@@ -731,6 +731,10 @@
         // API URL - direct connection to Flask API
         const API_URL = 'http://localhost:5000/capture-and-transcribe';
 
+        // API Key - optional for localhost (trusted IP), required for remote access
+        // Can be set via localStorage.setItem('api_key', 'your-key-here')
+        const API_KEY = localStorage.getItem('api_key') || '';
+
         // Tab switching
         function switchTab(tabName) {
             // Hide all tabs
