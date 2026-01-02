@@ -17,6 +17,7 @@ License: MIT
 """
 
 import numpy as np
+import gc
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 from pathlib import Path
@@ -222,6 +223,10 @@ class RepeaterActivityAnalyzer:
         logger.info(f"  Carrier threshold: {10*np.log10(carrier_threshold):.1f} dB")
         logger.info(f"  Transmissions: {len(transmissions)}")
         logger.info(f"  Active time: {total_active_seconds:.1f}s ({activity_percentage:.1f}%)")
+
+        # Force garbage collection to free memory from large arrays
+        del iq_samples, rms_power, carrier_active
+        gc.collect()
 
         return ActivityMetrics(
             carrier_detected=len(transmissions) > 0,
