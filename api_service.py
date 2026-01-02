@@ -558,12 +558,14 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
     """
     try:
         data = request.get_json()
+        if not data:
+            return jsonify({'error': 'Invalid JSON body'}), 400
 
         # Validate required parameters
         if 'frequency' not in data:
             return jsonify({'error': 'frequency is required'}), 400
 
-        frequency = float(data['frequency'])
+        frequency = int(float(data['frequency']))
         modulation = data.get('modulation', 'FM')
         duration = int(data.get('duration', 30))
         gain = int(data.get('gain', 20))
@@ -578,25 +580,24 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         # Optimize sample rate for POCSAG/APRS (reduces memory usage by 8-10x)
         # POCSAG/APRS only need ~25 kHz bandwidth, not 2 MHz
         # NOTE: HackRF minimum is 2 MHz, RTL-SDR can go lower
+        sdr_type_val = detect_sdr()
         if mode in ['pocsag', 'aprs']:
-            sdr_type = detect_sdr()
-            if sdr_type == SDRType.RTLSDR:
+            if sdr_type_val == SDRType.RTLSDR:
                 # RTL-SDR can use lower sample rates
                 original_sample_rate = sample_rate
                 sample_rate = min(sample_rate, 250000)  # Max 250 kHz for digital modes
                 if original_sample_rate != sample_rate:
-                    print(f"Sample rate reduced for {mode} mode: {original_sample_rate/1e6:.1f} MHz -> {sample_rate/1e3:.0f} kHz")
+                    logger.info(f"Sample rate reduced for {mode} mode: {original_sample_rate/1e6:.1f} MHz -> {sample_rate/1e3:.0f} kHz")
             else:
                 # HackRF minimum is 2 MHz - cannot reduce sample rate
-                print(f"HackRF detected: keeping sample rate at {sample_rate/1e6:.1f} MHz (hardware minimum: 2 MHz)")
+                logger.info(f"HackRF detected: keeping sample rate at {sample_rate/1e6:.1f} MHz (hardware minimum: 2 MHz)")
 
         # Enforce duration limits to prevent OOM crashes
         # HackRF uses 2 MHz (can't reduce), RTL-SDR uses 250 kHz (8x less memory)
-        sdr_type = detect_sdr()
-        if sdr_type == SDRType.HACKRF and mode == 'pocsag':
+        if sdr_type_val == SDRType.HACKRF and mode == 'pocsag':
             # HackRF POCSAG: 2 MHz sample rate = high memory usage
             # Limit to 60s to prevent OOM (2 MHz * 2 bytes * 60s = 240 MB raw IQ)
-            MAX_DURATIONS = {
+            MAX_DURATIONS: Dict[str, int] = {
                 'pocsag': 60,    # Max 1 minute for POCSAG with HackRF (2 MHz sample rate)
                 'aprs': 180,     # Max 3 minutes for APRS with HackRF
                 'voice': 600,    # Max 10 minutes for voice transcription
@@ -646,17 +647,17 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
                 # Index capture to Elasticsearch
                 capture_uuid = str(uuid.uuid4())
-                capture_doc = {
+                capture_doc: Dict[str, Any] = {
                     'uuid': capture_uuid,
                     'created_at': datetime.utcnow().isoformat(),
-                    'frequency': int(frequency),
+                    'frequency': frequency,
                     'modulation': modulation,
                     'duration_seconds': duration,
                     'rf_gain': gain,
                     'sample_rate': sample_rate,
                     'audio_file': audio_file,
                     'file_size': file_size,
-                    'sdr_type': detect_sdr().value,
+                    'sdr_type': sdr_type_val.value,
                     'mode': 'aprs',
                     'transcription_duration': decode_duration,
                     'metadata': {
@@ -668,15 +669,15 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
                 # Index APRS packets
                 for packet in packets:
-                    packet_doc = {
+                    packet_doc: Dict[str, Any] = {
                         'uuid': str(uuid.uuid4()),
                         'capture_id': capture_uuid,
                         'timestamp': datetime.utcnow().isoformat(),
-                        'frequency': int(frequency),
+                        'frequency': frequency,
                         **packet
                     }
                     es.index_aprs(packet_doc)
-                print(f"Indexed {len(packets)} APRS packets to Elasticsearch")
+                logger.info(f"Indexed {len(packets)} APRS packets to Elasticsearch")
 
                 # Metrics
                 return jsonify({
@@ -696,7 +697,9 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     'timestamp': datetime.now().isoformat()
                 })
 
-            except Exception as e:                return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
+            except Exception as e:
+                logger.error(f"APRS decode error: {e}", exc_info=True)
+                return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
 
         elif mode == 'pocsag':
             # POCSAG decoding
@@ -715,14 +718,14 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 capture_doc = {
                     'uuid': capture_uuid,
                     'created_at': datetime.utcnow().isoformat(),
-                    'frequency': int(frequency),
+                    'frequency': frequency,
                     'modulation': modulation,
                     'duration_seconds': duration,
                     'rf_gain': gain,
                     'sample_rate': sample_rate,
                     'audio_file': audio_file,
                     'file_size': file_size,
-                    'sdr_type': detect_sdr().value,
+                    'sdr_type': sdr_type_val.value,
                     'mode': 'pocsag',
                     'transcription_duration': decode_duration,
                     'metadata': {
@@ -734,15 +737,15 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
                 # Index POCSAG messages
                 for message in messages:
-                    message_doc = {
+                    message_doc: Dict[str, Any] = {
                         'uuid': str(uuid.uuid4()),
                         'capture_id': capture_uuid,
                         'timestamp': datetime.utcnow().isoformat(),
-                        'frequency': int(frequency),
+                        'frequency': frequency,
                         **message
                     }
                     es.index_pocsag(message_doc)
-                print(f"Indexed {len(messages)} POCSAG messages to Elasticsearch")
+                logger.info(f"Indexed {len(messages)} POCSAG messages to Elasticsearch")
 
                 # Metrics
                 return jsonify({
@@ -762,7 +765,9 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     'timestamp': datetime.now().isoformat()
                 })
 
-            except Exception as e:                return jsonify({'error': f'POCSAG decode error: {str(e)}'}), 500
+            except Exception as e:
+                logger.error(f"POCSAG decode error: {e}", exc_info=True)
+                return jsonify({'error': f'POCSAG decode error: {str(e)}'}), 500
 
         else:
             # Voice transcription (existing logic)
@@ -783,7 +788,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 capture_doc = {
                     'uuid': str(uuid.uuid4()),
                     'created_at': datetime.utcnow().isoformat(),
-                    'frequency': int(frequency),
+                    'frequency': frequency,
                     'modulation': modulation,
                     'duration_seconds': duration,
                     'rf_gain': gain,
@@ -791,7 +796,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     'audio_file': audio_file,
                     'json_file': json_file,
                     'file_size': file_size,
-                    'sdr_type': detect_sdr().value,
+                    'sdr_type': sdr_type_val.value,
                     'transcription': transcription_result.get('text'),
                     'detected_language': transcription_result.get('language'),
                     'confidence_score': transcription_result.get('language_probability'),
@@ -805,9 +810,9 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 }
                 es.index_capture(capture_doc)
             except Exception as es_error:
-                print(f"Warning: Could not index to Elasticsearch: {es_error}")
+                logger.warning(f"Warning: Could not index to Elasticsearch: {es_error}")
 
-            response_data = {
+            response_data: Dict[str, Any] = {
                 'status': 'success',
                 'mode': 'voice',
                 'capture': {
@@ -828,6 +833,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             return jsonify(response_data)
 
     except Exception as e:
+        logger.error(f"Capture and Transcribe error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -865,12 +871,13 @@ def search_captures() -> Response | tuple[Response, int]:
     Search captures in database
 
     Query parameters:
-    - text: Full-text search query
-    - frequency: Filter by frequency
+    - query: Full-text search query
+    - freq_min: Filter by minimum frequency
+    - freq_max: Filter by maximum frequency
     - modulation: Filter by modulation (FM, AM, USB, LSB)
     - language: Filter by language
-    - start_date: Filter by start date (ISO format)
-    - end_date: Filter by end date (ISO format)
+    - sdr_type: Filter by SDR type
+    - hours: Time range in hours (default 24)
     - limit: Maximum results (default 100)
     - offset: Offset for pagination (default 0)
     """
@@ -878,38 +885,37 @@ def search_captures() -> Response | tuple[Response, int]:
         es = get_elasticsearch_service()
 
         # Get query parameters
-        text_query = request.args.get('text')
-        frequency = request.args.get('frequency', type=int)
+        query = request.args.get('query')
+        freq_min = request.args.get('freq_min', type=int)
+        freq_max = request.args.get('freq_max', type=int)
         modulation = request.args.get('modulation')
         language = request.args.get('language')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
+        sdr_type = request.args.get('sdr_type')
+        hours = request.args.get('hours', 24, type=int)
         limit = request.args.get('limit', 100, type=int)
         offset = request.args.get('offset', 0, type=int)
 
-        # Convert dates if provided
-        start_dt = datetime.fromisoformat(start_date) if start_date else None
-        end_dt = datetime.fromisoformat(end_date) if end_date else None
-
         # Search
         results = es.search_captures(
-            text_query=text_query,
-            frequency=frequency,
+            query=query,
+            frequency_min=freq_min,
+            frequency_max=freq_max,
             modulation=modulation,
             language=language,
-            start_date=start_dt,
-            end_date=end_dt,
+            sdr_type=sdr_type,
+            hours=hours,
             limit=limit,
             offset=offset
         )
 
         return jsonify({
             'status': 'success',
-            'count': len(results),
-            'results': results
+            'count': results['total'],
+            'results': results['hits']
         })
 
     except Exception as e:
+        logger.error(f"Search failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -972,47 +978,35 @@ def search_aprs() -> Response | tuple[Response, int]:
 
     Query parameters:
     - callsign: Filter by source callsign
-    - text: Full-text search in message text
     - type: Filter by APRS type (position, message, weather, telemetry)
-    - start_date: Filter by start date (ISO format)
-    - end_date: Filter by end date (ISO format)
+    - hours: Time window in hours (default 24)
     - limit: Maximum results (default 100)
-    - offset: Offset for pagination (default 0)
     """
     try:
         es = get_elasticsearch_service()
 
         # Get query parameters
         callsign = request.args.get('callsign')
-        text = request.args.get('text')
-        aprs_type = request.args.get('type')
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
+        packet_type = request.args.get('type')
+        hours = request.args.get('hours', 24, type=int)
         limit = request.args.get('limit', 100, type=int)
-        offset = request.args.get('offset', 0, type=int)
-
-        # Convert dates if provided
-        start_dt = datetime.fromisoformat(start_date) if start_date else None
-        end_dt = datetime.fromisoformat(end_date) if end_date else None
 
         # Search
         results = es.search_aprs(
             callsign=callsign,
-            message_text=text,
-            aprs_type=aprs_type,
-            start_date=start_dt,
-            end_date=end_dt,
-            limit=limit,
-            offset=offset
+            packet_type=packet_type,
+            hours=hours,
+            limit=limit
         )
 
         return jsonify({
             'status': 'success',
-            'count': len(results),
-            'results': results
+            'count': results['total'],
+            'results': results['hits']
         })
 
     except Exception as e:
+        logger.error(f"APRS search failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -1090,50 +1084,35 @@ def search_pocsag() -> Response | tuple[Response, int]:
 
     Query parameters:
     - address: Filter by pager address
-    - text: Full-text search in message text
     - type: Filter by message type (alphanumeric, numeric, tone)
-    - baud: Filter by baud rate (512, 1200, 2400)
-    - start_date: Filter by start date (ISO format)
-    - end_date: Filter by end date (ISO format)
+    - hours: Time window in hours (default 24)
     - limit: Maximum results (default 100)
-    - offset: Offset for pagination (default 0)
     """
     try:
         es = get_elasticsearch_service()
 
         # Get query parameters
         address = request.args.get('address', type=int)
-        text = request.args.get('text')
         message_type = request.args.get('type')
-        baud_rate = request.args.get('baud', type=int)
-        start_date = request.args.get('start_date')
-        end_date = request.args.get('end_date')
+        hours = request.args.get('hours', 24, type=int)
         limit = request.args.get('limit', 100, type=int)
-        offset = request.args.get('offset', 0, type=int)
-
-        # Convert dates if provided
-        start_dt = datetime.fromisoformat(start_date) if start_date else None
-        end_dt = datetime.fromisoformat(end_date) if end_date else None
 
         # Search
         results = es.search_pocsag(
             address=address,
-            message_text=text,
             message_type=message_type,
-            baud_rate=baud_rate,
-            start_date=start_dt,
-            end_date=end_dt,
-            limit=limit,
-            offset=offset
+            hours=hours,
+            limit=limit
         )
 
         return jsonify({
             'status': 'success',
-            'count': len(results),
-            'results': results
+            'count': results['total'],
+            'results': results['hits']
         })
 
     except Exception as e:
+        logger.error(f"POCSAG search failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 

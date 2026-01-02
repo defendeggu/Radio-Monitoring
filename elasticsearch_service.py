@@ -19,11 +19,11 @@ logger = logging.getLogger(__name__)
 class ElasticsearchService:
     """Elasticsearch client wrapper for radio monitoring data"""
 
-    def __init__(self, hosts: List[str] = None,
-                 logstash_host: str = None,
-                 logstash_aprs_host: str = None,
-                 logstash_pocsag_host: str = None,
-                 logstash_repeater_host: str = None):
+    def __init__(self, hosts: Optional[List[str]] = None,
+                 logstash_host: Optional[str] = None,
+                 logstash_aprs_host: Optional[str] = None,
+                 logstash_pocsag_host: Optional[str] = None,
+                 logstash_repeater_host: Optional[str] = None):
         """
         Initialize Elasticsearch service
 
@@ -59,7 +59,7 @@ class ElasticsearchService:
     # Voice Capture Operations
     # =========================================================================
 
-    def index_capture(self, capture: Dict[str, Any]) -> str:
+    def index_capture(self, capture: Dict[str, Any]) -> Optional[str]:
         """
         Index voice capture document via Logstash
 
@@ -98,12 +98,12 @@ class ElasticsearchService:
             raise
 
     def search_captures(self,
-                       query: str = None,
-                       frequency_min: int = None,
-                       frequency_max: int = None,
-                       modulation: str = None,
-                       language: str = None,
-                       sdr_type: str = None,
+                       query: Optional[str] = None,
+                       frequency_min: Optional[int] = None,
+                       frequency_max: Optional[int] = None,
+                       modulation: Optional[str] = None,
+                       language: Optional[str] = None,
+                       sdr_type: Optional[str] = None,
                        hours: int = 24,
                        limit: int = 100,
                        offset: int = 0) -> Dict[str, Any]:
@@ -125,7 +125,7 @@ class ElasticsearchService:
             Search results with hits and total count
         """
         try:
-            must_clauses = [
+            must_clauses: List[Dict[str, Any]] = [
                 {'range': {'@timestamp': {'gte': f'now-{hours}h', 'lte': 'now'}}}
             ]
 
@@ -147,7 +147,7 @@ class ElasticsearchService:
 
             # Frequency range filter
             if frequency_min or frequency_max:
-                range_clause = {}
+                range_clause: Dict[str, int] = {}
                 if frequency_min:
                     range_clause['gte'] = frequency_min
                 if frequency_max:
@@ -169,7 +169,7 @@ class ElasticsearchService:
                 'from': offset
             }
 
-            result = self.es_client.search(index='radio-captures-*', body=body)
+            result = self.es_client.search(index='radio-captures-*', **body)
 
             return {
                 'hits': [hit['_source'] for hit in result['hits']['hits']],
@@ -186,7 +186,7 @@ class ElasticsearchService:
     # APRS Operations
     # =========================================================================
 
-    def index_aprs(self, message: Dict[str, Any]) -> str:
+    def index_aprs(self, message: Dict[str, Any]) -> Optional[str]:
         """Index APRS message via Logstash"""
         try:
             if '@timestamp' not in message:
@@ -221,13 +221,13 @@ class ElasticsearchService:
             raise
 
     def search_aprs(self,
-                    callsign: str = None,
-                    packet_type: str = None,
+                    callsign: Optional[str] = None,
+                    packet_type: Optional[str] = None,
                     hours: int = 24,
                     limit: int = 100) -> Dict[str, Any]:
         """Search APRS messages"""
         try:
-            must_clauses = [
+            must_clauses: List[Dict[str, Any]] = [
                 {'range': {'@timestamp': {'gte': f'now-{hours}h'}}}
             ]
 
@@ -244,7 +244,7 @@ class ElasticsearchService:
                 'size': limit
             }
 
-            result = self.es_client.search(index='radio-aprs-*', body=body)
+            result = self.es_client.search(index='radio-aprs-*', **body)
 
             return {
                 'hits': [hit['_source'] for hit in result['hits']['hits']],
@@ -285,7 +285,7 @@ class ElasticsearchService:
                 }
             }
 
-            result = self.es_client.search(index='radio-aprs-*', body=body)
+            result = self.es_client.search(index='radio-aprs-*', **body)
             aggs = result['aggregations']
 
             return {
@@ -309,7 +309,7 @@ class ElasticsearchService:
     # POCSAG Operations
     # =========================================================================
 
-    def index_pocsag(self, message: Dict[str, Any]) -> str:
+    def index_pocsag(self, message: Dict[str, Any]) -> Optional[str]:
         """Index POCSAG message via Logstash"""
         try:
             if '@timestamp' not in message:
@@ -337,13 +337,13 @@ class ElasticsearchService:
             raise
 
     def search_pocsag(self,
-                      address: int = None,
-                      message_type: str = None,
+                      address: Optional[int] = None,
+                      message_type: Optional[str] = None,
                       hours: int = 24,
                       limit: int = 100) -> Dict[str, Any]:
         """Search POCSAG messages"""
         try:
-            must_clauses = [
+            must_clauses: List[Dict[str, Any]] = [
                 {'range': {'@timestamp': {'gte': f'now-{hours}h'}}}
             ]
 
@@ -358,7 +358,7 @@ class ElasticsearchService:
                 'size': limit
             }
 
-            result = self.es_client.search(index='radio-pocsag-*', body=body)
+            result = self.es_client.search(index='radio-pocsag-*', **body)
 
             return {
                 'hits': [hit['_source'] for hit in result['hits']['hits']],
@@ -404,7 +404,7 @@ class ElasticsearchService:
                 }
             }
 
-            result = self.es_client.search(index='radio-pocsag-*', body=body)
+            result = self.es_client.search(index='radio-pocsag-*', **body)
             aggs = result['aggregations']
 
             return {
@@ -432,7 +432,7 @@ class ElasticsearchService:
     # Repeater Activity Operations
     # =========================================================================
 
-    def index_repeater_activity(self, activity: Dict[str, Any]) -> str:
+    def index_repeater_activity(self, activity: Dict[str, Any]) -> Optional[str]:
         """Index repeater activity data via Logstash"""
         try:
             if '@timestamp' not in activity:
@@ -461,8 +461,8 @@ class ElasticsearchService:
 
     def get_repeater_activity_summary(self,
                                      hours: int = 24,
-                                     band: str = None,
-                                     canton: str = None,
+                                     band: Optional[str] = None,
+                                     canton: Optional[str] = None,
                                      limit: int = 20) -> List[Dict[str, Any]]:
         """
         Get most active repeaters via aggregation
@@ -477,7 +477,7 @@ class ElasticsearchService:
             List of repeaters with activity statistics
         """
         try:
-            must_clauses = [
+            must_clauses: List[Dict[str, Any]] = [
                 {'range': {'@timestamp': {'gte': f'now-{hours}h'}}},
                 {'term': {'carrier_detected': True}}
             ]
@@ -519,7 +519,7 @@ class ElasticsearchService:
                 }
             }
 
-            result = self.es_client.search(index='radio-repeater-activity-*', body=body)
+            result = self.es_client.search(index='radio-repeater-activity-*', **body)
 
             repeaters = []
             for bucket in result['aggregations']['by_repeater']['buckets']:
@@ -544,7 +544,7 @@ class ElasticsearchService:
     # Repeater Master Data Operations
     # =========================================================================
 
-    def index_repeater(self, repeater: Dict[str, Any]) -> str:
+    def index_repeater(self, repeater: Dict[str, Any]) -> Optional[str]:
         """
         Index repeater master data
 
@@ -571,10 +571,10 @@ class ElasticsearchService:
             raise
 
     def get_repeaters(self,
-                     band: str = None,
-                     canton: str = None,
-                     mode: str = None,
-                     status: str = None,
+                     band: Optional[str] = None,
+                     canton: Optional[str] = None,
+                     mode: Optional[str] = None,
+                     status: Optional[str] = None,
                      limit: int = 100) -> List[Dict[str, Any]]:
         """
         Get repeaters with optional filters
@@ -590,7 +590,7 @@ class ElasticsearchService:
             List of repeaters
         """
         try:
-            must_clauses = []
+            must_clauses: List[Dict[str, Any]] = []
 
             if band:
                 must_clauses.append({'term': {'band.keyword': band}})
@@ -607,7 +607,7 @@ class ElasticsearchService:
                 'size': limit
             }
 
-            result = self.es_client.search(index='radio-repeaters', body=body)
+            result = self.es_client.search(index='radio-repeaters', **body)
 
             return [hit['_source'] for hit in result['hits']['hits']]
 
@@ -661,7 +661,7 @@ class ElasticsearchService:
                 'size': 1
             }
 
-            result = self.es_client.search(index='radio-captures-*', body=body)
+            result = self.es_client.search(index='radio-captures-*', **body)
 
             if result['hits']['total']['value'] > 0:
                 return result['hits']['hits'][0]['_source']
@@ -710,7 +710,7 @@ class ElasticsearchService:
                 }
             }
 
-            result = self.es_client.search(index='radio-captures-*', body=body)
+            result = self.es_client.search(index='radio-captures-*', **body)
 
             frequencies = []
             for bucket in result['aggregations']['by_frequency']['buckets']:
@@ -738,7 +738,7 @@ class ElasticsearchService:
     def get_overall_stats(self) -> Dict[str, Any]:
         """Get overall system statistics across all indices"""
         try:
-            stats = {}
+            stats: Dict[str, Any] = {}
 
             # Voice captures count
             try:
@@ -779,7 +779,7 @@ class ElasticsearchService:
 
 
 # Initialize global instance (singleton pattern)
-_es_service_instance = None
+_es_service_instance: Optional[ElasticsearchService] = None
 
 
 def get_elasticsearch_service() -> ElasticsearchService:
@@ -787,7 +787,8 @@ def get_elasticsearch_service() -> ElasticsearchService:
     global _es_service_instance
     if _es_service_instance is None:
         # Read environment variables
-        es_hosts = os.getenv('ELASTICSEARCH_HOSTS', 'http://elasticsearch:9200').split(',')
+        es_hosts_str = os.getenv('ELASTICSEARCH_HOSTS', 'http://elasticsearch:9200')
+        es_hosts = es_hosts_str.split(',') if es_hosts_str else ['http://elasticsearch:9200']
         logstash_host = os.getenv('LOGSTASH_HOST', 'http://logstash:9600')
         logstash_aprs_host = os.getenv('LOGSTASH_APRS_HOST', 'http://logstash:9601')
         logstash_pocsag_host = os.getenv('LOGSTASH_POCSAG_HOST', 'http://logstash:9602')

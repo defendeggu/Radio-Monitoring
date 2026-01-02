@@ -92,11 +92,11 @@ class SDRCapture(ABC):
         if modulation == 'FM':
             audio = self._fm_demodulate(iq_samples)
         elif modulation == 'AM':
-            audio = np.abs(iq_samples)
+            audio = np.abs(iq_samples).astype(np.float64)
         elif modulation == 'USB':
-            audio = iq_samples.real
+            audio = iq_samples.real.astype(np.float64)
         elif modulation == 'LSB':
-            audio = -iq_samples.real
+            audio = -iq_samples.real.astype(np.float64)
         else:
             raise ValueError(f"Unsupported modulation: {modulation}")
 
