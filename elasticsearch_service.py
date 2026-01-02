@@ -162,14 +162,13 @@ class ElasticsearchService:
             if sdr_type:
                 must_clauses.append({'term': {'sdr_type': sdr_type}})
 
-            body = {
-                'query': {'bool': {'must': must_clauses}},
-                'sort': [{'@timestamp': 'desc'}],
-                'size': limit,
-                'from': offset
-            }
-
-            result = self.es_client.search(index='radio-captures-*', **body)
+            result = self.es_client.search(
+                index='radio-captures-*',
+                query={'bool': {'must': must_clauses}},
+                sort=[{'@timestamp': 'desc'}],
+                size=limit,
+                from_=offset
+            )
 
             return {
                 'hits': [hit['_source'] for hit in result['hits']['hits']],
@@ -238,13 +237,12 @@ class ElasticsearchService:
             if packet_type:
                 must_clauses.append({'term': {'packet_type': packet_type}})
 
-            body = {
-                'query': {'bool': {'must': must_clauses}},
-                'sort': [{'@timestamp': 'desc'}],
-                'size': limit
-            }
-
-            result = self.es_client.search(index='radio-aprs-*', **body)
+            result = self.es_client.search(
+                index='radio-aprs-*',
+                query={'bool': {'must': must_clauses}},
+                sort=[{'@timestamp': 'desc'}],
+                size=limit
+            )
 
             return {
                 'hits': [hit['_source'] for hit in result['hits']['hits']],
@@ -258,34 +256,32 @@ class ElasticsearchService:
     def get_aprs_stats(self, hours: int = 24) -> Dict[str, Any]:
         """Get APRS statistics with aggregations"""
         try:
-            body = {
-                'query': {
-                    'range': {'@timestamp': {'gte': f'now-{hours}h'}}
+            aggs_body = {
+                'total_packets': {
+                    'value_count': {'field': 'uuid.keyword'}
                 },
-                'size': 0,
-                'aggs': {
-                    'total_packets': {
-                        'value_count': {'field': 'uuid.keyword'}
-                    },
-                    'unique_callsigns': {
-                        'cardinality': {'field': 'source_callsign'}
-                    },
-                    'top_callsigns': {
-                        'terms': {
-                            'field': 'source_callsign',
-                            'size': 15
-                        }
-                    },
-                    'packet_types': {
-                        'terms': {
-                            'field': 'packet_type',
-                            'size': 10
-                        }
+                'unique_callsigns': {
+                    'cardinality': {'field': 'source_callsign'}
+                },
+                'top_callsigns': {
+                    'terms': {
+                        'field': 'source_callsign',
+                        'size': 15
+                    }
+                },
+                'packet_types': {
+                    'terms': {
+                        'field': 'packet_type',
+                        'size': 10
                     }
                 }
             }
-
-            result = self.es_client.search(index='radio-aprs-*', **body)
+            result = self.es_client.search(
+                index='radio-aprs-*',
+                query={'range': {'@timestamp': {'gte': f'now-{hours}h'}}},
+                size=0,
+                aggs=aggs_body
+            )
             aggs = result['aggregations']
 
             return {
@@ -352,13 +348,12 @@ class ElasticsearchService:
             if message_type:
                 must_clauses.append({'term': {'message_type': message_type}})
 
-            body = {
-                'query': {'bool': {'must': must_clauses}},
-                'sort': [{'@timestamp': 'desc'}],
-                'size': limit
-            }
-
-            result = self.es_client.search(index='radio-pocsag-*', **body)
+            result = self.es_client.search(
+                index='radio-pocsag-*',
+                query={'bool': {'must': must_clauses}},
+                sort=[{'@timestamp': 'desc'}],
+                size=limit
+            )
 
             return {
                 'hits': [hit['_source'] for hit in result['hits']['hits']],
@@ -372,39 +367,37 @@ class ElasticsearchService:
     def get_pocsag_stats(self, hours: int = 24) -> Dict[str, Any]:
         """Get POCSAG statistics"""
         try:
-            body = {
-                'query': {
-                    'range': {'@timestamp': {'gte': f'now-{hours}h'}}
+            aggs_body = {
+                'total_messages': {
+                    'value_count': {'field': 'uuid.keyword'}
                 },
-                'size': 0,
-                'aggs': {
-                    'total_messages': {
-                        'value_count': {'field': 'uuid.keyword'}
-                    },
-                    'unique_addresses': {
-                        'cardinality': {'field': 'address'}
-                    },
-                    'top_addresses': {
-                        'terms': {
-                            'field': 'address',
-                            'size': 15
-                        }
-                    },
-                    'message_types': {
-                        'terms': {
-                            'field': 'message_type',
-                            'size': 10
-                        }
-                    },
-                    'baud_rates': {
-                        'terms': {
-                            'field': 'baud_rate'
-                        }
+                'unique_addresses': {
+                    'cardinality': {'field': 'address'}
+                },
+                'top_addresses': {
+                    'terms': {
+                        'field': 'address',
+                        'size': 15
+                    }
+                },
+                'message_types': {
+                    'terms': {
+                        'field': 'message_type',
+                        'size': 10
+                    }
+                },
+                'baud_rates': {
+                    'terms': {
+                        'field': 'baud_rate'
                     }
                 }
             }
-
-            result = self.es_client.search(index='radio-pocsag-*', **body)
+            result = self.es_client.search(
+                index='radio-pocsag-*',
+                query={'range': {'@timestamp': {'gte': f'now-{hours}h'}}},
+                size=0,
+                aggs=aggs_body
+            )
             aggs = result['aggregations']
 
             return {
@@ -487,39 +480,40 @@ class ElasticsearchService:
             if canton:
                 must_clauses.append({'term': {'canton': canton.upper()}})
 
-            body = {
-                'query': {'bool': {'must': must_clauses}},
-                'size': 0,
-                'aggs': {
-                    'by_repeater': {
-                        'terms': {
-                            'field': 'repeater_callsign',
-                            'size': limit,
-                            'order': {'avg_activity': 'desc'}
+            aggs_body = {
+                'by_repeater': {
+                    'terms': {
+                        'field': 'repeater_callsign',
+                        'size': limit,
+                        'order': {'avg_activity': 'desc'}
+                    },
+                    'aggs': {
+                        'avg_activity': {
+                            'avg': {'field': 'activity_percentage'}
                         },
-                        'aggs': {
-                            'avg_activity': {
-                                'avg': {'field': 'activity_percentage'}
-                            },
-                            'total_transmissions': {
-                                'sum': {'field': 'transmission_count'}
-                            },
-                            'avg_signal': {
-                                'avg': {'field': 'average_signal_strength'}
-                            },
-                            'latest_frequency': {
-                                'top_hits': {
-                                    'size': 1,
-                                    '_source': ['frequency_mhz', 'band', 'canton'],
-                                    'sort': [{'@timestamp': 'desc'}]
-                                }
+                        'total_transmissions': {
+                            'sum': {'field': 'transmission_count'}
+                        },
+                        'avg_signal': {
+                            'avg': {'field': 'average_signal_strength'}
+                        },
+                        'latest_frequency': {
+                            'top_hits': {
+                                'size': 1,
+                                '_source': ['frequency_mhz', 'band', 'canton'],
+                                'sort': [{'@timestamp': 'desc'}]
                             }
                         }
                     }
                 }
             }
 
-            result = self.es_client.search(index='radio-repeater-activity-*', **body)
+            result = self.es_client.search(
+                index='radio-repeater-activity-*',
+                query={'bool': {'must': must_clauses}},
+                size=0,
+                aggs=aggs_body
+            )
 
             repeaters = []
             for bucket in result['aggregations']['by_repeater']['buckets']:
@@ -556,15 +550,17 @@ class ElasticsearchService:
         """
         try:
             repeater_id = repeater.get('id') or repeater.get('uuid')
+            if repeater_id is None:
+                raise ValueError("Repeater must have an id or uuid")
 
             response = self.es_client.index(
                 index='radio-repeaters',
-                id=repeater_id,
+                id=str(repeater_id),
                 document=repeater
             )
 
             logger.info(f"Indexed repeater {repeater.get('callsign')}")
-            return repeater_id
+            return str(repeater_id)
 
         except Exception as e:
             logger.error(f"Error indexing repeater: {e}")
@@ -601,13 +597,14 @@ class ElasticsearchService:
             if status:
                 must_clauses.append({'term': {'status.keyword': status}})
 
-            body = {
-                'query': {'bool': {'must': must_clauses}} if must_clauses else {'match_all': {}},
-                'sort': [{'callsign.keyword': 'asc'}],
-                'size': limit
-            }
+            query = {'bool': {'must': must_clauses}} if must_clauses else {'match_all': {}}
 
-            result = self.es_client.search(index='radio-repeaters', **body)
+            result = self.es_client.search(
+                index='radio-repeaters',
+                query=query,
+                sort=[{'callsign.keyword': 'asc'}],
+                size=limit
+            )
 
             return [hit['_source'] for hit in result['hits']['hits']]
 
@@ -630,7 +627,7 @@ class ElasticsearchService:
         """
         try:
             result = self.es_client.get(index='radio-repeaters', id=str(repeater_id))
-            return result['_source']
+            return result.get('_source')
 
         except NotFoundError:
             logger.warning(f"Repeater {repeater_id} not found")
@@ -654,14 +651,11 @@ class ElasticsearchService:
             Capture document or None if not found
         """
         try:
-            body = {
-                'query': {
-                    'term': {'uuid.keyword': capture_id}
-                },
-                'size': 1
-            }
-
-            result = self.es_client.search(index='radio-captures-*', **body)
+            result = self.es_client.search(
+                index='radio-captures-*',
+                query={'term': {'uuid.keyword': capture_id}},
+                size=1
+            )
 
             if result['hits']['total']['value'] > 0:
                 return result['hits']['hits'][0]['_source']
@@ -682,35 +676,35 @@ class ElasticsearchService:
             List of frequencies with usage counts
         """
         try:
-            body = {
-                'size': 0,
-                'aggs': {
-                    'by_frequency': {
-                        'terms': {
-                            'field': 'frequency',
-                            'size': limit,
-                            'order': {'_count': 'desc'}
-                        },
-                        'aggs': {
-                            'frequency_mhz': {
-                                'top_hits': {
-                                    'size': 1,
-                                    '_source': ['frequency_mhz'],
-                                    'sort': [{'@timestamp': 'desc'}]
-                                }
-                            },
-                            'modulations': {
-                                'terms': {'field': 'modulation'}
-                            },
-                            'last_capture': {
-                                'max': {'field': '@timestamp'}
+            aggs_body = {
+                'by_frequency': {
+                    'terms': {
+                        'field': 'frequency',
+                        'size': limit,
+                        'order': {'_count': 'desc'}
+                    },
+                    'aggs': {
+                        'frequency_mhz': {
+                            'top_hits': {
+                                'size': 1,
+                                '_source': ['frequency_mhz'],
+                                'sort': [{'@timestamp': 'desc'}]
                             }
+                        },
+                        'modulations': {
+                            'terms': {'field': 'modulation'}
+                        },
+                        'last_capture': {
+                            'max': {'field': '@timestamp'}
                         }
                     }
                 }
             }
-
-            result = self.es_client.search(index='radio-captures-*', **body)
+            result = self.es_client.search(
+                index='radio-captures-*',
+                size=0,
+                aggs=aggs_body
+            )
 
             frequencies = []
             for bucket in result['aggregations']['by_frequency']['buckets']:
@@ -801,4 +795,6 @@ def get_elasticsearch_service() -> ElasticsearchService:
             logstash_pocsag_host=logstash_pocsag_host,
             logstash_repeater_host=logstash_repeater_host
         )
+    if _es_service_instance is None:
+        raise RuntimeError("Failed to initialize ElasticsearchService")
     return _es_service_instance

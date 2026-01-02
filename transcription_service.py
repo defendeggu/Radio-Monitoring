@@ -9,7 +9,9 @@ import sys
 import argparse
 import json
 from datetime import datetime
-from typing import TypedDict
+from typing import TypedDict, cast, Any, Dict, Optional
+
+from faster_whisper import WhisperModel
 
 
 class SegmentDict(TypedDict):
@@ -43,7 +45,7 @@ class TranscriptionService:
         self.model_name: str = model
         self.device: str = device
         self.compute_type: str = compute_type
-        self.model: object | None = None
+        self.model: WhisperModel | None = None
         self.simulation_mode: bool = False  # Track if simulation mode is active
 
         print(f"Initializing Whisper model: {model}")
@@ -128,7 +130,7 @@ class TranscriptionService:
             print(f"  Duration: {result['duration']:.2f}s")
             print(f"  Text: {result['text'][:100]}...")
 
-            return result
+            return cast(TranscriptionResult, result)
 
         except Exception as e:
             print("="*80)
@@ -169,29 +171,7 @@ class TranscriptionService:
             "warning": "This is a simulated transcription, not real data"
         }
 
-        return result
-
-    def transcribe_and_save(self, audio_file: str, output_file: str | None = None, language: str | None = None) -> TranscriptionResult:
-        """
-        Transcribe and save results to JSON file
-
-        Args:
-            audio_file: Path to audio file
-            output_file: Path to output JSON file (optional)
-            language: Language code (optional)
-
-        Returns:
-            dict: Transcription result
-        """
-        result = self.transcribe(audio_file, language)
-
-        if output_file:
-            os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
-            with open(output_file, 'w') as f:
-                json.dump(result, f, indent=2)
-            print(f"Results saved to: {output_file}")
-
-        return result
+        return cast(TranscriptionResult, result)
 
 
 def main() -> None:
