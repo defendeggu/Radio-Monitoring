@@ -22,6 +22,11 @@ from aprs_decoder_service import APRSDecoder
 from pocsag_decoder_service import POCSAGDecoder
 from elasticsearch_service import get_elasticsearch_service
 from repeater_activity_analyzer import RepeaterActivityAnalyzer
+from streaming_decoder_service import (
+    StreamingAPRSDecoder,
+    StreamingPOCSAGDecoder,
+    SessionManager
+)
 from dotenv import load_dotenv
 
 # Configure logging
@@ -1614,6 +1619,234 @@ def get_repeater_activity_summary_endpoint() -> Response | tuple[Response, int]:
         })
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# ===========================================================================
+# Streaming Decode Endpoints (NEW)
+# ===========================================================================
+
+# Initialize session manager (Redis connection)
+session_manager = SessionManager(
+    redis_host=os.getenv('REDIS_HOST', 'localhost'),
+    redis_port=int(os.getenv('REDIS_PORT', 6379)),
+    redis_db=int(os.getenv('REDIS_DB', 0))
+)
+
+# Track active decoders in memory
+active_decoders = {}  # session_id -> decoder instance
+
+
+@app.route('/stream-decode', methods=['POST'])
+@require_api_key
+def start_stream_decode():
+    """
+    Start continuous streaming decode session (APRS/POCSAG)
+
+    Request body:
+    {
+        "mode": "aprs|pocsag",
+        "frequency": 144800000,
+        "duration": 3600,
+        "gain": 20,
+        "sample_rate": 2000000  # optional
+    }
+
+    Returns:
+    {
+        "status": "started",
+        "session_id": "uuid",
+        "mode": "aprs",
+        "frequency": 144800000,
+        "duration": 3600
+    }
+    """
+    try:
+        data = request.get_json()
+
+        mode = data.get('mode')
+        frequency = float(data['frequency'])
+        duration = int(data.get('duration', 3600))  # Default 1 hour
+        gain = int(data.get('gain', 20))
+        sample_rate = int(data.get('sample_rate', 2000000))
+
+        # Validate mode
+        if mode not in ['aprs', 'pocsag']:
+            return jsonify({'error': 'mode must be "aprs" or "pocsag"'}), 400
+
+        # Check if user already has an active session (max 1 per user)
+        existing_session = session_manager.get_user_active_session()
+        if existing_session:
+            return jsonify({
+                'error': 'Active streaming session already exists',
+                'active_session_id': existing_session.session_id,
+                'message': 'Stop the active session before starting a new one'
+            }), 409  # Conflict
+
+        # Create decoder instance
+        if mode == 'aprs':
+            decoder = StreamingAPRSDecoder(frequency, duration, gain, sample_rate)
+        elif mode == 'pocsag':
+            decoder = StreamingPOCSAGDecoder(frequency, duration, gain, sample_rate)
+        else:
+            return jsonify({'error': 'Invalid mode'}), 400
+
+        # Start streaming
+        session_id = decoder.start_stream(session_manager)
+        active_decoders[session_id] = decoder
+
+        logger.info(f"Started streaming session {session_id}: {mode} @ {frequency/1e6:.3f} MHz")
+
+        return jsonify({
+            'status': 'started',
+            'session_id': session_id,
+            'mode': mode,
+            'frequency': frequency,
+            'duration': duration,
+            'message': 'Streaming session started. Check /stream-decode/<session_id> for status.'
+        })
+
+    except KeyError as e:
+        return jsonify({'error': f'Missing required parameter: {str(e)}'}), 400
+    except Exception as e:
+        logger.error(f"Failed to start streaming: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stream-decode/<session_id>', methods=['GET'])
+@require_api_key
+def get_stream_status(session_id):
+    """
+    Get streaming session status and stats
+
+    Returns:
+    {
+        "session_id": "uuid",
+        "mode": "aprs",
+        "frequency": 144800000,
+        "status": "running",  # starting, running, stopping, completed, failed
+        "start_time": "2025-01-01T12:00:00",
+        "duration": 3600,
+        "stats": {
+            "packet_count": 42,
+            "last_packet_time": "2025-01-01T12:05:30",
+            "elapsed_seconds": 330
+        }
+    }
+    """
+    try:
+        session = session_manager.get_session(session_id)
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+
+        # Calculate elapsed time
+        elapsed = (datetime.utcnow() - session.start_time).total_seconds()
+
+        return jsonify({
+            'session_id': session.session_id,
+            'mode': session.mode,
+            'frequency': session.frequency,
+            'status': session.status,
+            'start_time': session.start_time.isoformat(),
+            'end_time': session.end_time.isoformat() if session.end_time else None,
+            'duration': session.duration,
+            'stats': {
+                'packet_count': session.packet_count,
+                'last_packet_time': session.last_packet_time.isoformat() if session.last_packet_time else None,
+                'elapsed_seconds': int(elapsed),
+                'error': session.error
+            }
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to get session status: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stream-decode/<session_id>', methods=['DELETE'])
+@require_api_key
+def stop_stream_decode(session_id):
+    """
+    Stop streaming session gracefully
+
+    Returns:
+    {
+        "status": "stopping",
+        "session_id": "uuid",
+        "message": "Session is being stopped..."
+    }
+    """
+    try:
+        decoder = active_decoders.get(session_id)
+        if not decoder:
+            # Session might be already completed
+            session = session_manager.get_session(session_id)
+            if not session:
+                return jsonify({'error': 'Session not found'}), 404
+
+            return jsonify({
+                'status': session.status,
+                'session_id': session_id,
+                'message': f'Session already {session.status}'
+            })
+
+        # Stop decoder
+        decoder.stop_stream()
+
+        # Remove from active decoders
+        del active_decoders[session_id]
+
+        logger.info(f"Stopped streaming session {session_id}")
+
+        return jsonify({
+            'status': 'stopping',
+            'session_id': session_id,
+            'message': 'Session is being stopped. Check status in a few seconds.'
+        })
+
+    except Exception as e:
+        logger.error(f"Failed to stop session: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stream-decode', methods=['GET'])
+@require_api_key
+def list_stream_sessions():
+    """
+    List all streaming sessions (active and recent)
+
+    Returns:
+    {
+        "sessions": [
+            {
+                "session_id": "uuid",
+                "mode": "aprs",
+                "status": "running",
+                "packet_count": 42,
+                "start_time": "2025-01-01T12:00:00"
+            }
+        ]
+    }
+    """
+    try:
+        sessions = session_manager.list_sessions()
+
+        sessions_data = []
+        for session in sessions:
+            sessions_data.append({
+                'session_id': session.session_id,
+                'mode': session.mode,
+                'frequency': session.frequency,
+                'status': session.status,
+                'packet_count': session.packet_count,
+                'start_time': session.start_time.isoformat(),
+                'duration': session.duration
+            })
+
+        return jsonify({'sessions': sessions_data})
+
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
