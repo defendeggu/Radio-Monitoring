@@ -39,7 +39,22 @@ if [ "$SDR_DETECTED" = false ]; then
 fi
 
 # Start Flask API in background
-echo "Starting Flask API on port 5000..."
+echo "========================================="
+echo "⚠️  DEVELOPMENT MODE"
+echo "========================================="
+echo "Starting Flask development server on port 5000..."
+echo ""
+echo "Note: This uses Flask's built-in server, which is"
+echo "NOT suitable for production deployment!"
+echo ""
+echo "For production with Gunicorn (recommended):"
+echo "  gunicorn --config gunicorn_config.py api_service:app"
+echo ""
+echo "Or use Docker (includes Gunicorn + full ELK stack):"
+echo "  docker compose up -d"
+echo "========================================="
+echo ""
+
 python api_service.py &
 API_PID=$!
 
