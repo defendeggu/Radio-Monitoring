@@ -39,7 +39,7 @@ Key differences from capture mode:
 
 ### Environment Variables
 
-The following environment variables are configured in `docker-compose.elk.yml`:
+The following environment variables are configured in `docker-compose.yml`:
 
 ```yaml
 environment:
@@ -357,7 +357,7 @@ docker logs radio-transcription-api --tail 50
 
 **Check Redis status**:
 ```bash
-docker compose -f docker-compose.elk.yml ps redis
+docker compose ps redis
 ```
 
 **Verify environment variables**:

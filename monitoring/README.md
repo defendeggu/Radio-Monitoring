@@ -82,13 +82,13 @@ Pre-configured dashboards available in Kibana:
 
 ```bash
 # Start all services including ELK stack
-docker compose -f docker-compose.elk.yml up -d
+docker compose up -d
 
 # View logs
-docker compose -f docker-compose.elk.yml logs -f elasticsearch logstash kibana
+docker compose logs -f elasticsearch logstash kibana
 
 # Stop services
-docker compose -f docker-compose.elk.yml down
+docker compose down
 
 # Check cluster health
 curl -u elastic:YOUR_PASSWORD http://localhost:9200/_cluster/health?pretty
@@ -177,10 +177,10 @@ GET radio-captures-*/_search
 **Elasticsearch cluster unhealthy?**
 ```bash
 # Check cluster status
-docker compose -f docker-compose.elk.yml exec elasticsearch curl -u elastic:PASSWORD http://localhost:9200/_cluster/health?pretty
+docker compose exec elasticsearch curl -u elastic:PASSWORD http://localhost:9200/_cluster/health?pretty
 
 # View Elasticsearch logs
-docker compose -f docker-compose.elk.yml logs elasticsearch
+docker compose logs elasticsearch
 ```
 
 **Logstash not receiving data?**
@@ -191,7 +191,7 @@ curl -X POST http://localhost:9600 \
   -d '{"test": "message"}'
 
 # Check Logstash logs
-docker compose -f docker-compose.elk.yml logs logstash
+docker compose logs logstash
 ```
 
 ## Migration from Prometheus/Grafana

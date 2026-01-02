@@ -92,7 +92,7 @@ Alle anderen Endpoints benötigen einen gültigen API-Key.
 
 ```bash
 cd /home/spia/my-project
-docker compose -f docker-compose.elk.yml up -d
+docker compose up -d
 ```
 
 **Wichtige URLs:**
@@ -443,7 +443,7 @@ hackrf_info
 
 **Lösung:**
 ```bash
-docker compose -f docker-compose.elk.yml restart
+docker compose restart
 ```
 
 ### Kibana zeigt keine Daten
@@ -502,16 +502,16 @@ docker compose -f docker-compose.elk.yml restart
 
 ```bash
 # System starten
-docker compose -f docker-compose.elk.yml up -d
+docker compose up -d
 
 # System stoppen
-docker compose -f docker-compose.elk.yml down
+docker compose down
 
 # Status prüfen
-docker compose -f docker-compose.elk.yml ps
+docker compose ps
 
 # Logs ansehen
-docker compose -f docker-compose.elk.yml logs -f radio-api
+docker compose logs -f radio-api
 
 # HackRF prüfen
 hackrf_info
