@@ -562,18 +562,38 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
         # Optimize sample rate for POCSAG/APRS (reduces memory usage by 8-10x)
         # POCSAG/APRS only need ~25 kHz bandwidth, not 2 MHz
+        # NOTE: HackRF minimum is 2 MHz, RTL-SDR can go lower
         if mode in ['pocsag', 'aprs']:
-            original_sample_rate = sample_rate
-            sample_rate = min(sample_rate, 250000)  # Max 250 kHz for digital modes
-            if original_sample_rate != sample_rate:
-                print(f"Sample rate reduced for {mode} mode: {original_sample_rate/1e6:.1f} MHz -> {sample_rate/1e3:.0f} kHz")
+            sdr_type = detect_sdr()
+            if sdr_type == SDRType.RTLSDR:
+                # RTL-SDR can use lower sample rates
+                original_sample_rate = sample_rate
+                sample_rate = min(sample_rate, 250000)  # Max 250 kHz for digital modes
+                if original_sample_rate != sample_rate:
+                    print(f"Sample rate reduced for {mode} mode: {original_sample_rate/1e6:.1f} MHz -> {sample_rate/1e3:.0f} kHz")
+            else:
+                # HackRF minimum is 2 MHz - cannot reduce sample rate
+                print(f"HackRF detected: keeping sample rate at {sample_rate/1e6:.1f} MHz (hardware minimum: 2 MHz)")
 
         # Enforce duration limits to prevent OOM crashes
-        MAX_DURATIONS = {
-            'pocsag': 120,   # Max 2 minutes for POCSAG (prevents 11 GB RAM usage)
-            'aprs': 300,     # Max 5 minutes for APRS
-            'voice': 600,    # Max 10 minutes for voice transcription
-        }
+        # HackRF uses 2 MHz (can't reduce), RTL-SDR uses 250 kHz (8x less memory)
+        sdr_type = detect_sdr()
+        if sdr_type == SDRType.HACKRF and mode == 'pocsag':
+            # HackRF POCSAG: 2 MHz sample rate = high memory usage
+            # Limit to 60s to prevent OOM (2 MHz * 2 bytes * 60s = 240 MB raw IQ)
+            MAX_DURATIONS = {
+                'pocsag': 60,    # Max 1 minute for POCSAG with HackRF (2 MHz sample rate)
+                'aprs': 180,     # Max 3 minutes for APRS with HackRF
+                'voice': 600,    # Max 10 minutes for voice transcription
+            }
+        else:
+            # RTL-SDR POCSAG: 250 kHz sample rate = low memory usage
+            # Can handle longer durations
+            MAX_DURATIONS = {
+                'pocsag': 120,   # Max 2 minutes for POCSAG with RTL-SDR (250 kHz sample rate)
+                'aprs': 300,     # Max 5 minutes for APRS
+                'voice': 600,    # Max 10 minutes for voice transcription
+            }
         max_duration = MAX_DURATIONS.get(mode, 600)
         if duration > max_duration:
             return jsonify({
