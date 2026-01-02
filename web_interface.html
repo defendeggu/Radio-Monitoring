@@ -842,10 +842,20 @@
             const resultDiv = document.getElementById('aprsResult');
             const submitBtn = e.target.querySelector('button[type="submit"]');
 
+            const duration = parseInt(document.getElementById('aprsDuration').value);
+
+            // Check if streaming mode should be used instead
+            if (duration > 300) {
+                alert('⚠️ For durations > 300 seconds, please enable "Continuous Streaming Mode" checkbox above.\n\n' +
+                      'Normal captures are limited to 180-300s to prevent memory issues.\n' +
+                      'Streaming mode supports up to 24 hours (86400s).');
+                return;
+            }
+
             const formData = {
                 frequency: parseInt(document.getElementById('aprsFrequency').value),
                 modulation: 'FM',
-                duration: parseInt(document.getElementById('aprsDuration').value),
+                duration: duration,
                 gain: parseInt(document.getElementById('aprsGain').value),
                 mode: 'aprs'
             };
@@ -910,10 +920,20 @@
             const resultDiv = document.getElementById('pocsagResult');
             const submitBtn = e.target.querySelector('button[type="submit"]');
 
+            const duration = parseInt(document.getElementById('pocsagDuration').value);
+
+            // Check if streaming mode should be used instead
+            if (duration > 120) {
+                alert('⚠️ For durations > 120 seconds, please enable "Continuous Streaming Mode" checkbox above.\n\n' +
+                      'Normal captures are limited to 60-120s to prevent memory issues.\n' +
+                      'Streaming mode supports up to 24 hours (86400s).');
+                return;
+            }
+
             const formData = {
                 frequency: parseInt(document.getElementById('pocsagFrequency').value),
                 modulation: 'FM',
-                duration: parseInt(document.getElementById('pocsagDuration').value),
+                duration: duration,
                 gain: parseInt(document.getElementById('pocsagGain').value),
                 mode: 'pocsag'
             };
