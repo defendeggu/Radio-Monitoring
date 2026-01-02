@@ -167,6 +167,8 @@ services:
         condition: service_healthy
       logstash:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       - ELASTICSEARCH_HOSTS=http://elastic:${ELASTIC_PASSWORD}@elasticsearch:9200
       - LOGSTASH_HOST=http://logstash:9600
@@ -174,6 +176,9 @@ services:
       - LOGSTASH_POCSAG_HOST=http://logstash:9602
       - LOGSTASH_REPEATER_HOST=http://logstash:9603
       - LOGSTASH_METRICS_HOST=http://logstash:9604
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_DB=0
       - API_KEYS=${API_KEYS}
     restart: unless-stopped
 
