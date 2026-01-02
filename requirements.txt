@@ -23,6 +23,9 @@ coverage[toml]==7.6.9
 # Elasticsearch & Data Storage
 elasticsearch==8.11.0
 
+# Redis (for streaming session management)
+redis==5.0.1
+
 # Monitoring (Metricbeat handles metrics, no prometheus needed)
 # prometheus-client==0.21.0 - REMOVED (replaced by Metricbeat)
 # prometheus-flask-exporter==0.23.1 - REMOVED (replaced by Metricbeat)
