@@ -705,12 +705,21 @@
             statusDiv.style.display = 'block';
 
             try {
+                // Create AbortController with 15-minute timeout for long captures
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    throw new Error('Request timeout after 15 minutes');
+                }, 900000); // 15 minutes = 900000ms
+
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(formData),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 const data = await response.json();
 
                 if (response.ok && data.status === 'success') {
@@ -764,12 +773,21 @@
             statusDiv.style.display = 'block';
 
             try {
+                // Create AbortController with 15-minute timeout for long captures
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    throw new Error('Request timeout after 15 minutes');
+                }, 900000); // 15 minutes = 900000ms
+
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(formData),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 const data = await response.json();
 
                 if (response.ok && data.status === 'success') {
@@ -823,12 +841,21 @@
             statusDiv.style.display = 'block';
 
             try {
+                // Create AbortController with 15-minute timeout for long captures
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => {
+                    controller.abort();
+                    throw new Error('Request timeout after 15 minutes');
+                }, 900000); // 15 minutes = 900000ms
+
                 const response = await fetch(API_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(formData),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 const data = await response.json();
 
                 if (response.ok && data.status === 'success') {
@@ -1044,14 +1071,20 @@
             resultsDiv.style.display = 'none';
 
             try {
+                // Timeout for starting the scan (should be quick)
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 seconds
+
                 const response = await fetch('http://localhost:5000/scan-repeaters', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify(formData)
+                    body: JSON.stringify(formData),
+                    signal: controller.signal
                 });
 
+                clearTimeout(timeoutId);
                 const data = await response.json();
 
                 if (data.status === 'success') {
