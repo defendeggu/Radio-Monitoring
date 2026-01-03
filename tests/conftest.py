@@ -49,12 +49,10 @@ def client():
 
 
 @pytest.fixture
-def sample_audio_file(monkeypatch) -> str:
-    """Create a sample WAV file for testing inside RECORDING_DIR"""
-    import api_service
-
-    # Use RECORDING_DIR or create temp dir
-    recording_dir = getattr(api_service, 'RECORDING_DIR', './recordings')
+def sample_audio_file(temp_recording_dir) -> str:
+    """Create a sample WAV file for testing inside temp RECORDING_DIR"""
+    # Use the session-scoped temp directory (same as API uses)
+    recording_dir = temp_recording_dir
     os.makedirs(recording_dir, exist_ok=True)
 
     # Generate 1 second of test audio (16kHz for Whisper compatibility)
@@ -66,7 +64,7 @@ def sample_audio_file(monkeypatch) -> str:
     audio = 0.3 * np.sin(2 * np.pi * 440 * t)  # 440 Hz tone
     audio_int16 = np.int16(audio * 32767)
 
-    # Create file INSIDE recording_dir to pass path validation
+    # Create file INSIDE temp recording_dir
     filename = 'test_audio.wav'
     filepath = os.path.join(recording_dir, filename)
     wavfile.write(filepath, sample_rate, audio_int16)
