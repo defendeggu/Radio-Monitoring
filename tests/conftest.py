@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api_service import app
 from transcription_service import TranscriptionService
-from sdr_hardware import HackRFCapture
+from sdr_hardware import HackRFCapture, SDRType, detect_sdr, get_sdr_instance
 
 
 @pytest.fixture
@@ -32,8 +32,14 @@ def temp_recording_dir():
 
 
 @pytest.fixture
-def sample_audio_file(temp_recording_dir: str) -> str:
-    """Create a sample WAV file for testing"""
+def sample_audio_file(monkeypatch) -> str:
+    """Create a sample WAV file for testing inside RECORDING_DIR"""
+    import api_service
+
+    # Use RECORDING_DIR or create temp dir
+    recording_dir = getattr(api_service, 'RECORDING_DIR', './recordings')
+    os.makedirs(recording_dir, exist_ok=True)
+
     # Generate 1 second of test audio (16kHz for Whisper compatibility)
     sample_rate = 16000
     duration = 1.0
@@ -43,7 +49,8 @@ def sample_audio_file(temp_recording_dir: str) -> str:
     audio = 0.3 * np.sin(2 * np.pi * 440 * t)  # 440 Hz tone
     audio_int16 = np.int16(audio * 32767)
 
-    filepath = os.path.join(temp_recording_dir, 'test_audio.wav')
+    # Create file INSIDE recording_dir to pass path validation
+    filepath = os.path.join(recording_dir, 'test_audio.wav')
     wavfile.write(filepath, sample_rate, audio_int16)
 
     return filepath
@@ -95,3 +102,48 @@ def set_recording_dir(temp_recording_dir: str, monkeypatch):
     monkeypatch.setenv('AUDIO_OUTPUT_DIR', temp_recording_dir)
     import api_service
     monkeypatch.setattr(api_service, 'RECORDING_DIR', temp_recording_dir)
+
+
+@pytest.fixture(autouse=True)
+def mock_sdr_hardware(monkeypatch, temp_recording_dir):
+    """Automatically mock SDR hardware for all tests"""
+    import sdr_hardware
+
+    # Mock detect_sdr to always return HackRF available
+    def mock_detect():
+        return SDRType.HACKRF
+
+    monkeypatch.setattr(sdr_hardware, 'detect_sdr', mock_detect)
+
+    # Mock HackRF.is_available to return True
+    monkeypatch.setattr(HackRFCapture, 'is_available', lambda: True)
+
+    # Mock capture_audio to create a dummy WAV file
+    def mock_capture_audio(self, duration: int, output_file: str, modulation: str = 'FM'):
+        """Create a dummy WAV file instead of capturing"""
+        os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else '.', exist_ok=True)
+
+        # Generate dummy audio
+        sample_rate = 16000
+        t = np.linspace(0, duration, int(sample_rate * duration))
+        audio = 0.1 * np.sin(2 * np.pi * 440 * t)
+        audio_int16 = np.int16(audio * 32767)
+
+        wavfile.write(output_file, sample_rate, audio_int16)
+
+    monkeypatch.setattr(HackRFCapture, 'capture_audio', mock_capture_audio)
+
+    # Mock capture_iq to create a dummy IQ file
+    def mock_capture_iq(self, duration: int, output_file: str):
+        """Create a dummy IQ file instead of capturing"""
+        os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else '.', exist_ok=True)
+
+        # Generate dummy IQ samples
+        num_samples = int(self.sample_rate * duration)
+        iq_data = np.random.randn(num_samples) + 1j * np.random.randn(num_samples)
+        iq_data = iq_data.astype(np.complex64)
+
+        # Save as binary
+        iq_data.tofile(output_file)
+
+    monkeypatch.setattr(HackRFCapture, 'capture_iq', mock_capture_iq)
