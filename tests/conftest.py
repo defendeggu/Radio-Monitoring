@@ -10,6 +10,16 @@ from scipy.io import wavfile
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Create ONE temp directory for the ENTIRE test session
+# This must happen BEFORE any imports
+_TEST_RECORDING_DIR = tempfile.mkdtemp(prefix='pytest-recordings-')
+
+# Set environment variables BEFORE importing api_service
+# This ensures api_service.RECORDING_DIR is set correctly on import
+os.environ['API_KEYS'] = ''
+os.environ['AUDIO_OUTPUT_DIR'] = _TEST_RECORDING_DIR
+
+# NOW import api_service - it will use the env vars we just set
 from api_service import app
 from transcription_service import TranscriptionService
 from sdr_hardware import HackRFCapture, SDRType, detect_sdr, get_sdr_instance
@@ -17,24 +27,15 @@ from sdr_hardware import HackRFCapture, SDRType, detect_sdr, get_sdr_instance
 
 @pytest.fixture(scope='session')
 def temp_recording_dir():
-    """Temporary directory for test recordings (session-wide)"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
+    """Return the pre-created temp directory"""
+    return _TEST_RECORDING_DIR
 
 
-@pytest.fixture(autouse=True)
-def setup_test_environment(monkeypatch, temp_recording_dir):
-    """Setup test environment before any test runs"""
-    # Set environment variables BEFORE importing api_service
-    monkeypatch.setenv('API_KEYS', '')
-    monkeypatch.setenv('AUDIO_OUTPUT_DIR', temp_recording_dir)
-
-    # Import and patch api_service
-    import api_service
-    monkeypatch.setattr(api_service, 'RECORDING_DIR', temp_recording_dir)
-
-    # Ensure the directory exists
-    os.makedirs(temp_recording_dir, exist_ok=True)
+def pytest_sessionfinish(session, exitstatus):
+    """Cleanup temp directory after all tests"""
+    import shutil
+    if os.path.exists(_TEST_RECORDING_DIR):
+        shutil.rmtree(_TEST_RECORDING_DIR)
 
 
 @pytest.fixture
