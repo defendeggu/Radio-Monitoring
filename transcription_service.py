@@ -173,6 +173,31 @@ class TranscriptionService:
 
         return cast(TranscriptionResult, result)
 
+    def transcribe_and_save(self, audio_file: str, output_file: str | None = None,
+                           language: str | None = None) -> TranscriptionResult:
+        """
+        Transcribe an audio file and optionally save to JSON
+
+        Args:
+            audio_file: Path to audio file
+            output_file: Optional path to save JSON results
+            language: Optional language code
+
+        Returns:
+            TranscriptionResult: Transcription result dictionary
+        """
+        # Transcribe
+        result = self.transcribe(audio_file, language)
+
+        # Save to file if requested
+        if output_file:
+            os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+            with open(output_file, 'w') as f:
+                json.dump(result, f, indent=2)
+            print(f"Results saved to: {output_file}")
+
+        return result
+
 
 def main() -> None:
     parser = argparse.ArgumentParser(description='Transcribe audio using faster-whisper')

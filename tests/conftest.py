@@ -16,11 +16,16 @@ from sdr_hardware import HackRFCapture, SDRType, detect_sdr, get_sdr_instance
 
 
 @pytest.fixture
-def client():
+def client(monkeypatch):
     """Flask test client"""
+    # Disable API key authentication for tests
+    monkeypatch.setenv('API_KEYS', '')
+
     app.config['TESTING'] = True
     app.config['DEBUG'] = False
     with app.test_client() as client:
+        # Set test client to use localhost IP
+        client.environ_base['REMOTE_ADDR'] = '127.0.0.1'
         yield client
 
 
@@ -61,34 +66,17 @@ def sample_audio_file(monkeypatch) -> str:
 
 @pytest.fixture(autouse=True)
 def mock_transcription_service(monkeypatch):
-    """Mock TranscriptionService for testing without faster-whisper"""
-    # Mock __init__ to avoid loading the model
+    """Mock TranscriptionService __init__ to avoid loading Whisper model (CUDA errors)"""
+    # Only mock __init__ to prevent model loading, keep real transcribe() method
+    # This allows FileNotFoundError and other real behavior to work
     def mock_init(self, model='base', device='cpu', compute_type='int8'):
         self.model_name = model
         self.device = device
         self.compute_type = compute_type
         self.model = None  # Don't actually load the model
-
-    # Mock transcribe method
-    def mock_transcribe(self, audio_file: str, language: str | None = None):
-        return {
-            'text': 'Test transcription result',
-            'language': 'en',
-            'language_probability': 0.95,
-            'duration': 1.0,
-            'segments': [
-                {
-                    'start': 0.0,
-                    'end': 1.0,
-                    'text': 'Test transcription result'
-                }
-            ],
-            'audio_file': audio_file,
-            'timestamp': '2025-01-01T00:00:00'
-        }
+        self.simulation_mode = True  # Force simulation mode
 
     monkeypatch.setattr(TranscriptionService, '__init__', mock_init)
-    monkeypatch.setattr(TranscriptionService, 'transcribe', mock_transcribe)
 
 
 @pytest.fixture
@@ -116,19 +104,11 @@ def set_recording_dir(temp_recording_dir: str, monkeypatch):
     monkeypatch.setattr(api_service, 'RECORDING_DIR', temp_recording_dir)
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def mock_sdr_hardware(monkeypatch, temp_recording_dir):
-    """Automatically mock SDR hardware for all tests"""
-    import sdr_hardware
-
-    # Mock detect_sdr to always return HackRF available
-    def mock_detect():
-        return SDRType.HACKRF
-
-    monkeypatch.setattr(sdr_hardware, 'detect_sdr', mock_detect)
-
-    # Mock HackRF.is_available to return True (needs self parameter)
-    monkeypatch.setattr(HackRFCapture, 'is_available', lambda self: True)
+    """Mock SDR hardware capture methods (for API tests that need real captures)"""
+    # Only mock the actual hardware capture methods, not is_available()
+    # This allows test_sdr_hardware.py tests to control is_available behavior
 
     # Mock capture_audio to create a dummy WAV file
     def mock_capture_audio(self, duration: int, output_file: str, modulation: str = 'FM'):
