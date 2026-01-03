@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from api_service import app
 from transcription_service import TranscriptionService
-from radio_capture import HackRFCapture
+from sdr_hardware import HackRFCapture
 
 
 @pytest.fixture
