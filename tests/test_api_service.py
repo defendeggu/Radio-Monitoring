@@ -319,9 +319,9 @@ class TestAPIIntegration:
         assert capture_response.status_code == 200
         audio_file = capture_response.get_json()['audio_file']
 
-        # 3. Transcribe
+        # 3. Transcribe (API expects just the filename)
         transcribe_response = client.post('/transcribe', json={
-            'audio_file': audio_file
+            'audio_file': os.path.basename(audio_file)
         })
         assert transcribe_response.status_code == 200
 
