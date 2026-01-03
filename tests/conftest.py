@@ -55,13 +55,13 @@ def sample_audio_file(monkeypatch) -> str:
     audio_int16 = np.int16(audio * 32767)
 
     # Create file INSIDE recording_dir to pass path validation
-    # Use just filename, not full path, to avoid duplication
     filename = 'test_audio.wav'
     filepath = os.path.join(recording_dir, filename)
     wavfile.write(filepath, sample_rate, audio_int16)
 
-    # Return just the filename so API can prepend RECORDING_DIR
-    return filename
+    # Return full path for TranscriptionService tests
+    # API tests will use os.path.basename() to get just the filename
+    return filepath
 
 
 @pytest.fixture(autouse=True)
@@ -106,9 +106,17 @@ def set_recording_dir(temp_recording_dir: str, monkeypatch):
 
 @pytest.fixture
 def mock_sdr_hardware(monkeypatch, temp_recording_dir):
-    """Mock SDR hardware capture methods (for API tests that need real captures)"""
-    # Only mock the actual hardware capture methods, not is_available()
-    # This allows test_sdr_hardware.py tests to control is_available behavior
+    """Mock SDR hardware for API tests"""
+    import sdr_hardware
+
+    # Mock detect_sdr to return HackRF available
+    def mock_detect():
+        return SDRType.HACKRF
+
+    monkeypatch.setattr(sdr_hardware, 'detect_sdr', mock_detect)
+
+    # Mock is_available to return True
+    monkeypatch.setattr(HackRFCapture, 'is_available', lambda self: True)
 
     # Mock capture_audio to create a dummy WAV file
     def mock_capture_audio(self, duration: int, output_file: str, modulation: str = 'FM'):
