@@ -1,10 +1,10 @@
-"""Unit tests for radio_capture.py"""
+"""Unit tests for sdr_hardware.py (formerly radio_capture.py)"""
 
 import os
 import pytest
 import numpy as np
 from scipy.io import wavfile
-from radio_capture import HackRFCapture
+from sdr_hardware import HackRFCapture
 
 
 class TestHackRFCaptureInit:
