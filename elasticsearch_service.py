@@ -7,7 +7,7 @@ Replaces PostgreSQL database with Elasticsearch for scalable storage and analyti
 import os
 import logging
 from datetime import datetime
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, cast
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import NotFoundError, RequestError
 import requests
@@ -280,7 +280,7 @@ class ElasticsearchService:
                 index='radio-aprs-*',
                 query={'range': {'@timestamp': {'gte': f'now-{hours}h'}}},
                 size=0,
-                aggs=aggs_body
+                aggs=cast(Dict[str, Any], aggs_body)
             )
             aggs = result['aggregations']
 
@@ -396,7 +396,7 @@ class ElasticsearchService:
                 index='radio-pocsag-*',
                 query={'range': {'@timestamp': {'gte': f'now-{hours}h'}}},
                 size=0,
-                aggs=aggs_body
+                aggs=cast(Dict[str, Any], aggs_body)
             )
             aggs = result['aggregations']
 
@@ -627,7 +627,8 @@ class ElasticsearchService:
         """
         try:
             result = self.es_client.get(index='radio-repeaters', id=str(repeater_id))
-            return result.get('_source')
+            source = result.get('_source')
+            return cast(Dict[str, Any], source) if source else None
 
         except NotFoundError:
             logger.warning(f"Repeater {repeater_id} not found")
@@ -658,7 +659,7 @@ class ElasticsearchService:
             )
 
             if result['hits']['total']['value'] > 0:
-                return result['hits']['hits'][0]['_source']
+                return cast(Dict[str, Any], result['hits']['hits'][0]['_source'])
             return None
 
         except Exception as e:

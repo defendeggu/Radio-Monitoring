@@ -448,6 +448,7 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
         )
 
     # Create instance
+    instance: SDRCapture
     if sdr_type == SDRType.HACKRF:
         instance = HackRFCapture(frequency, sample_rate, gain)
     elif sdr_type == SDRType.RTLSDR:

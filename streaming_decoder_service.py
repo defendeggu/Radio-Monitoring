@@ -17,7 +17,8 @@ import subprocess
 import numpy as np
 from abc import ABC, abstractmethod
 from datetime import datetime
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, IO
+from numpy.typing import NDArray
 from scipy import signal
 import redis
 import json
@@ -38,10 +39,10 @@ class StreamSession:
         self.sample_rate = sample_rate
         self.status = 'starting'  # starting, running, stopping, completed, failed
         self.start_time = datetime.utcnow()
-        self.end_time = None
+        self.end_time: Optional[datetime] = None
         self.packet_count = 0
-        self.last_packet_time = None
-        self.error = None
+        self.last_packet_time: Optional[datetime] = None
+        self.error: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize session to dict for Redis storage"""
@@ -54,9 +55,9 @@ class StreamSession:
             'sample_rate': self.sample_rate,
             'status': self.status,
             'start_time': self.start_time.isoformat(),
-            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'end_time': self.end_time.isoformat() if self.end_time is not None else None,
             'packet_count': self.packet_count,
-            'last_packet_time': self.last_packet_time.isoformat() if self.last_packet_time else None,
+            'last_packet_time': self.last_packet_time.isoformat() if self.last_packet_time is not None else None,
             'error': self.error
         }
 
@@ -73,20 +74,20 @@ class StreamSession:
         session.session_id = data['session_id']
         session.status = data['status']
         session.start_time = datetime.fromisoformat(data['start_time'])
-        session.end_time = datetime.fromisoformat(data['end_time']) if data['end_time'] else None
+        session.end_time = datetime.fromisoformat(data['end_time']) if data.get('end_time') else None
         session.packet_count = data['packet_count']
-        session.last_packet_time = datetime.fromisoformat(data['last_packet_time']) if data['last_packet_time'] else None
-        session.error = data['error']
+        session.last_packet_time = datetime.fromisoformat(data['last_packet_time']) if data.get('last_packet_time') else None
+        session.error = data.get('error')
         return session
 
 
 class SessionManager:
     """Manages streaming sessions in Redis"""
 
-    def __init__(self, redis_host='localhost', redis_port=6379, redis_db=0):
+    def __init__(self, redis_host: str = 'localhost', redis_port: int = 6379, redis_db: int = 0) -> None:
         self.redis = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
 
-    def save_session(self, session: StreamSession):
+    def save_session(self, session: StreamSession) -> None:
         """Save session to Redis"""
         key = f"stream_session:{session.session_id}"
         self.redis.set(key, json.dumps(session.to_dict()))
@@ -95,12 +96,13 @@ class SessionManager:
     def get_session(self, session_id: str) -> Optional[StreamSession]:
         """Retrieve session from Redis"""
         key = f"stream_session:{session_id}"
-        data = self.redis.get(key)
-        if not data:
+        data_str = self.redis.get(key)
+        if not data_str:
             return None
-        return StreamSession.from_dict(json.loads(data))
+        data = json.loads(str(data_str))
+        return StreamSession.from_dict(data)
 
-    def delete_session(self, session_id: str):
+    def delete_session(self, session_id: str) -> None:
         """Delete session from Redis"""
         key = f"stream_session:{session_id}"
         self.redis.delete(key)
@@ -109,9 +111,10 @@ class SessionManager:
         """List all active sessions"""
         sessions = []
         for key in self.redis.scan_iter("stream_session:*"):
-            data = self.redis.get(key)
-            if data:
-                sessions.append(StreamSession.from_dict(json.loads(data)))
+            data_str = self.redis.get(key)
+            if data_str:
+                data = json.loads(str(data_str))
+                sessions.append(StreamSession.from_dict(data))
         return sessions
 
     def get_user_active_session(self, user_id: str = 'default') -> Optional[StreamSession]:
@@ -131,14 +134,14 @@ class BaseStreamingDecoder(ABC):
         self.duration = duration
         self.gain = gain
         self.sample_rate = sample_rate
-        self.session = None
+        self.session: Optional[StreamSession] = None
         self.stop_event = threading.Event()
-        self.thread = None
-        self.sdr_proc = None
-        self.decoder_proc = None
+        self.thread: Optional[threading.Thread] = None
+        self.sdr_proc: Optional[subprocess.Popen[bytes]] = None
+        self.decoder_proc: Optional[subprocess.Popen[bytes]] = None
 
     @abstractmethod
-    def _start_decoder(self) -> subprocess.Popen:
+    def _start_decoder(self) -> subprocess.Popen[bytes]:
         """Start decoder process (direwolf/multimon-ng)"""
         pass
 
@@ -148,7 +151,7 @@ class BaseStreamingDecoder(ABC):
         pass
 
     @abstractmethod
-    def _index_packet(self, packet: Dict[str, Any]):
+    def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Index packet to Elasticsearch"""
         pass
 
@@ -178,9 +181,10 @@ class BaseStreamingDecoder(ABC):
         """Return mode name (aprs/pocsag)"""
         pass
 
-    def _stream_worker(self, session_manager: SessionManager):
+    def _stream_worker(self, session_manager: SessionManager) -> None:
         """Main streaming worker (runs in background)"""
         try:
+            assert self.session is not None, "Session must be initialized"
             self.session.status = 'running'
             session_manager.save_session(self.session)
 
@@ -197,17 +201,19 @@ class BaseStreamingDecoder(ABC):
 
         except Exception as e:
             logger.error(f"Streaming failed: {e}", exc_info=True)
-            self.session.status = 'failed'
-            self.session.error = str(e)
+            if self.session is not None:
+                self.session.status = 'failed'
+                self.session.error = str(e)
         finally:
             # Cleanup
             self._cleanup()
-            self.session.status = 'completed'
-            self.session.end_time = datetime.utcnow()
-            session_manager.save_session(self.session)
-            logger.info(f"Stream session {self.session.session_id} completed")
+            if self.session is not None:
+                self.session.status = 'completed'
+                self.session.end_time = datetime.utcnow()
+                session_manager.save_session(self.session)
+                logger.info(f"Stream session {self.session.session_id} completed")
 
-    def _start_sdr_capture(self) -> subprocess.Popen:
+    def _start_sdr_capture(self) -> subprocess.Popen[bytes]:
         """Launch hackrf_transfer with stdout pipe"""
         cmd = [
             'hackrf_transfer',
@@ -230,8 +236,11 @@ class BaseStreamingDecoder(ABC):
         )
         return proc
 
-    def _stream_pipeline(self, session_manager: SessionManager):
+    def _stream_pipeline(self, session_manager: SessionManager) -> None:
         """Stream IQ → Audio → Decoder → ES"""
+
+        assert self.sdr_proc is not None and self.decoder_proc is not None
+        assert self.session is not None
 
         # Thread for IQ → Audio conversion
         converter_thread = threading.Thread(
@@ -265,8 +274,9 @@ class BaseStreamingDecoder(ABC):
         converter_thread.join(timeout=10)
         indexer_thread.join(timeout=10)
 
-    def _iq_to_audio_converter(self, iq_stream, audio_sink):
+    def _iq_to_audio_converter(self, iq_stream: Optional[IO[bytes]], audio_sink: Optional[IO[bytes]]) -> None:
         """Convert IQ stream to audio and pipe to decoder"""
+        assert iq_stream is not None and audio_sink is not None
         CHUNK_SIZE = self.sample_rate * 2 * 1  # 1 second (I+Q, int8)
 
         try:
@@ -279,8 +289,8 @@ class BaseStreamingDecoder(ABC):
 
                 # Convert to complex64
                 iq_data = np.frombuffer(iq_bytes, dtype=np.int8)
-                iq_complex = iq_data.astype(np.float32) / 127.0
-                iq_complex = iq_complex[0::2] + 1j * iq_complex[1::2]
+                iq_float = iq_data.astype(np.float32) / 127.0
+                iq_complex: NDArray[np.complex64] = (iq_float[0::2] + 1j * iq_float[1::2]).astype(np.complex64)
 
                 # FM demodulation
                 audio = self._fm_demodulate(iq_complex)
@@ -303,7 +313,7 @@ class BaseStreamingDecoder(ABC):
             except:
                 pass
 
-    def _fm_demodulate(self, iq_complex: np.ndarray) -> np.ndarray:
+    def _fm_demodulate(self, iq_complex: NDArray[np.complex64]) -> NDArray[np.float64]:
         """FM demodulation using phase differentiation"""
         # Phase differentiation
         phase = np.angle(iq_complex)
@@ -313,11 +323,11 @@ class BaseStreamingDecoder(ABC):
         phase_diff = np.unwrap(phase_diff)
 
         # Normalize
-        audio = phase_diff / np.pi
+        audio: NDArray[np.float64] = phase_diff / np.pi
 
         return audio
 
-    def _resample(self, audio: np.ndarray, from_rate: int, to_rate: int) -> np.ndarray:
+    def _resample(self, audio: NDArray[np.float64], from_rate: int, to_rate: int) -> NDArray[np.float64]:
         """Resample audio to target rate"""
         if from_rate == to_rate:
             return audio
@@ -327,20 +337,21 @@ class BaseStreamingDecoder(ABC):
         num_samples = int(len(audio) * ratio)
 
         # Resample using scipy
-        resampled = signal.resample(audio, num_samples)
+        resampled: NDArray[np.float64] = signal.resample(audio, num_samples)
 
         return resampled
 
-    def _decoder_output_indexer(self, decoder_stdout, session_manager: SessionManager):
+    def _decoder_output_indexer(self, decoder_stdout: Optional[IO[bytes]], session_manager: SessionManager) -> None:
         """Parse decoder output and index to Elasticsearch"""
+        assert decoder_stdout is not None
+        assert self.session is not None
         try:
-            for line in decoder_stdout:
+            for line_bytes in decoder_stdout:
                 if self.stop_event.is_set():
                     break
 
-                # Decode bytes to string if needed (binary mode stdin)
-                if isinstance(line, bytes):
-                    line = line.decode('utf-8', errors='ignore')
+                # Decode bytes to string (binary mode stdout from decoder)
+                line = line_bytes.decode('utf-8', errors='ignore') if isinstance(line_bytes, bytes) else str(line_bytes)
 
                 line = line.strip()
                 if not line:
@@ -369,14 +380,15 @@ class BaseStreamingDecoder(ABC):
         except Exception as e:
             logger.error(f"Indexing error: {e}", exc_info=True)
 
-    def stop_stream(self):
+    def stop_stream(self) -> None:
         """Stop streaming gracefully"""
+        assert self.session is not None
         logger.info(f"Stopping stream session {self.session.session_id}")
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=15)
 
-    def _cleanup(self):
+    def _cleanup(self) -> None:
         """Cleanup processes"""
         if self.sdr_proc:
             try:
@@ -399,7 +411,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
     def _get_mode(self) -> str:
         return 'aprs'
 
-    def _start_decoder(self) -> subprocess.Popen:
+    def _start_decoder(self) -> subprocess.Popen[bytes]:
         """Launch direwolf with stdin/stdout pipes"""
         cmd = [
             'direwolf',
@@ -516,7 +528,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
             logger.error(f"Failed to parse APRS line: {line} - {e}")
             return None
 
-    def _index_packet(self, packet: Dict[str, Any]):
+    def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Index APRS packet to Elasticsearch"""
         from elasticsearch_service import get_elasticsearch_service
 
@@ -534,7 +546,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     def _get_mode(self) -> str:
         return 'pocsag'
 
-    def _start_decoder(self) -> subprocess.Popen:
+    def _start_decoder(self) -> subprocess.Popen[bytes]:
         """Launch multimon-ng with stdin/stdout pipes"""
         cmd = [
             'multimon-ng',
@@ -624,7 +636,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             logger.error(f"Failed to parse POCSAG line: {line} - {e}")
             return None
 
-    def _index_packet(self, packet: Dict[str, Any]):
+    def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Index POCSAG packet to Elasticsearch"""
         from elasticsearch_service import get_elasticsearch_service
 
