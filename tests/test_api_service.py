@@ -42,7 +42,7 @@ class TestCaptureEndpoint:
         assert 'error' in data
         assert 'frequency' in data['error'].lower()
 
-    def test_capture_with_minimal_params(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_capture_with_minimal_params(self, client: FlaskClient, mock_sdr_hardware):
         """Test capture with only required parameters"""
         response = client.post('/capture', json={
             'frequency': 100000000
@@ -54,7 +54,7 @@ class TestCaptureEndpoint:
         assert 'audio_file' in data
         assert data['frequency'] == 100000000
 
-    def test_capture_with_all_params(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_capture_with_all_params(self, client: FlaskClient, mock_sdr_hardware):
         """Test capture with all parameters"""
         response = client.post('/capture', json={
             'frequency': 144390000,
@@ -71,7 +71,7 @@ class TestCaptureEndpoint:
         assert data['modulation'] == 'FM'
         assert data['duration'] == 5
 
-    def test_capture_creates_wav_file(self, client: FlaskClient, set_recording_dir, temp_recording_dir: str, mock_sdr_hardware):
+    def test_capture_creates_wav_file(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
         """Test that capture creates actual WAV file"""
         response = client.post('/capture', json={
             'frequency': 100000000,
@@ -85,7 +85,7 @@ class TestCaptureEndpoint:
         assert os.path.exists(audio_file)
         assert audio_file.endswith('.wav')
 
-    def test_capture_different_modulations(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_capture_different_modulations(self, client: FlaskClient, mock_sdr_hardware):
         """Test capture with different modulation types"""
         modulations = ['FM', 'AM', 'USB', 'LSB']
 
@@ -161,7 +161,7 @@ class TestCaptureAndTranscribeEndpoint:
         # Error message should mention the issue (either invalid body or missing frequency)
         assert 'error' in data
 
-    def test_capture_and_transcribe_minimal_params(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_capture_and_transcribe_minimal_params(self, client: FlaskClient, mock_sdr_hardware):
         """Test with minimal parameters"""
         response = client.post('/capture-and-transcribe', json={
             'frequency': 100000000
@@ -174,7 +174,7 @@ class TestCaptureAndTranscribeEndpoint:
         assert 'transcription' in data
         assert 'timestamp' in data
 
-    def test_capture_and_transcribe_full_workflow(self, client: FlaskClient, set_recording_dir, temp_recording_dir: str, mock_sdr_hardware):
+    def test_capture_and_transcribe_full_workflow(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
         """Test complete capture and transcribe workflow"""
         response = client.post('/capture-and-transcribe', json={
             'frequency': 144390000,
@@ -201,7 +201,7 @@ class TestCaptureAndTranscribeEndpoint:
         assert 'language' in transcription
         assert 'segments' in transcription
 
-    def test_capture_and_transcribe_creates_files(self, client: FlaskClient, set_recording_dir, temp_recording_dir: str, mock_sdr_hardware):
+    def test_capture_and_transcribe_creates_files(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
         """Test that both WAV and JSON files are created"""
         response = client.post('/capture-and-transcribe', json={
             'frequency': 100000000,
@@ -228,7 +228,7 @@ class TestCaptureAndTranscribeEndpoint:
 class TestListRecordingsEndpoint:
     """Test /list-recordings endpoint"""
 
-    def test_list_recordings_empty_directory(self, client: FlaskClient, set_recording_dir):
+    def test_list_recordings_empty_directory(self, client: FlaskClient):
         """Test listing when no recordings exist"""
         response = client.get('/list-recordings')
         assert response.status_code == 200
@@ -237,7 +237,7 @@ class TestListRecordingsEndpoint:
         assert 'recordings' in data
         assert isinstance(data['recordings'], list)
 
-    def test_list_recordings_with_files(self, client: FlaskClient, set_recording_dir, temp_recording_dir: str, mock_sdr_hardware):
+    def test_list_recordings_with_files(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
         """Test listing after creating recordings"""
         # First create a recording
         client.post('/capture', json={
@@ -259,7 +259,7 @@ class TestListRecordingsEndpoint:
         assert 'created' in recording
         assert recording['filename'].endswith('.wav')
 
-    def test_list_recordings_sorted_by_date(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_list_recordings_sorted_by_date(self, client: FlaskClient, mock_sdr_hardware):
         """Test that recordings are sorted by creation time (newest first)"""
         # Create multiple recordings
         client.post('/capture', json={'frequency': 100000000, 'duration': 1})
@@ -293,7 +293,7 @@ class TestAPIErrorHandling:
         # Flask might return 400 or process as empty JSON
         assert response.status_code in [400, 500]
 
-    def test_capture_with_invalid_frequency(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_capture_with_invalid_frequency(self, client: FlaskClient, mock_sdr_hardware):
         """Test capture with invalid frequency value"""
         response = client.post('/capture', json={
             'frequency': 'invalid'
@@ -305,7 +305,7 @@ class TestAPIErrorHandling:
 class TestAPIIntegration:
     """Test end-to-end API workflows"""
 
-    def test_complete_workflow(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_complete_workflow(self, client: FlaskClient, mock_sdr_hardware):
         """Test complete workflow: health -> capture -> transcribe -> list"""
         # 1. Check health
         health_response = client.get('/health')
@@ -330,7 +330,7 @@ class TestAPIIntegration:
         assert list_response.status_code == 200
         assert len(list_response.get_json()['recordings']) > 0
 
-    def test_capture_and_transcribe_combined(self, client: FlaskClient, set_recording_dir, mock_sdr_hardware):
+    def test_capture_and_transcribe_combined(self, client: FlaskClient, mock_sdr_hardware):
         """Test combined endpoint vs separate calls"""
         # Combined approach
         combined_response = client.post('/capture-and-transcribe', json={
