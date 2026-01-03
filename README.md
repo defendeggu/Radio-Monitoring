@@ -1574,6 +1574,136 @@ POST /_reindex
 - ✅ Maps: Geospatial visualization for APRS positions
 - ✅ Alerting: Set up alerts based on query conditions (requires X-Pack)
 
+## Development & Testing
+
+### CI/CD Pipeline
+
+The project includes a comprehensive GitHub Actions CI/CD pipeline that runs on every push:
+
+**Pipeline Steps:**
+1. ✅ **Code Checkout**: Clean checkout with full git history
+2. ✅ **MyPy Type Checking**: Static type analysis with strict mode
+3. ✅ **Pytest Test Suite**: 67 tests covering all major components
+4. ✅ **Docker Build**: Verification that Docker image builds successfully
+
+**Test Coverage:**
+- **67 Tests Total** across 3 test suites
+- **API Tests (25)**: Flask endpoints, authentication, error handling
+- **SDR Hardware Tests (26)**: HackRF/RTL-SDR detection, capture, validation
+- **TranscriptionService Tests (16)**: Whisper integration, file handling
+- **Current Coverage**: 27% (target: 15% minimum)
+
+### Running Tests Locally
+
+**Run all tests:**
+```bash
+pytest
+```
+
+**Run with coverage:**
+```bash
+./scripts/run_coverage.sh
+```
+
+**Run type checking:**
+```bash
+./scripts/run_mypy.sh
+```
+
+**Run specific test file:**
+```bash
+pytest tests/test_api_service.py -v
+```
+
+### Test Environment
+
+Tests use an isolated environment with:
+- **Mocked SDR Hardware**: No physical HackRF/RTL-SDR required
+- **Mocked Whisper**: Simulated transcription without CUDA
+- **Temporary Directories**: Session-scoped temp dir for all test files
+- **Disabled API Authentication**: No API keys needed for tests
+
+### Development Setup
+
+**1. Clone and install dependencies:**
+```bash
+git clone <repository-url>
+cd my-project
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+**2. Run tests to verify setup:**
+```bash
+pytest
+```
+
+**3. Run MyPy type checking:**
+```bash
+./scripts/run_mypy.sh
+```
+
+**4. Start development server:**
+```bash
+python api_service.py
+```
+
+### Code Quality
+
+**Type Safety:**
+- Full MyPy strict mode compliance
+- Type hints for all functions and methods
+- Generic types for collections and arrays
+- Optional types for nullable values
+
+**Testing:**
+- Comprehensive unit and integration tests
+- Mocked external dependencies (SDR hardware, Whisper)
+- Isolated test environment
+- Automatic cleanup
+
+**CI/CD:**
+- Automated testing on every push
+- Type checking enforced
+- Docker build verification
+- Coverage reporting
+
+### Project Structure
+
+```
+my-project/
+├── api_service.py                    # Main Flask API with Gunicorn
+├── transcription_service.py          # Whisper transcription service
+├── sdr_hardware.py                   # SDR hardware abstraction (HackRF/RTL-SDR)
+├── aprs_decoder_service.py           # APRS packet decoder
+├── pocsag_decoder_service.py         # POCSAG pager decoder
+├── repeater_activity_analyzer.py     # Swiss repeater scanner
+├── elasticsearch_service.py          # Elasticsearch client
+├── streaming_decoder_service.py      # Real-time streaming decoder
+├── gunicorn_config.py               # Production WSGI config
+├── requirements.txt                  # Python dependencies
+├── pytest.ini                        # Pytest configuration
+├── mypy.ini                          # MyPy type checker config
+├── Dockerfile                        # Container definition
+├── docker-compose.yml               # Local development stack
+├── docker-compose.elk.yml           # ELK stack configuration
+├── tests/                           # Test suite
+│   ├── conftest.py                  # Pytest fixtures and configuration
+│   ├── test_api_service.py         # API endpoint tests
+│   ├── test_sdr_hardware.py        # SDR hardware tests
+│   └── test_transcription_service.py # Transcription tests
+├── scripts/                         # Utility scripts
+│   ├── setup.sh                    # Initial setup script
+│   ├── start.sh                    # Start all services
+│   ├── setup-secrets.sh            # Generate Docker secrets
+│   ├── run_mypy.sh                 # Type checking
+│   ├── run_coverage.sh             # Test coverage
+│   └── test_system.sh              # System integration test
+├── .github/workflows/ci.yml        # GitHub Actions CI/CD
+└── monitoring/kibana/dashboards/   # Kibana dashboard definitions
+```
+
 ## Legal Notice
 
 This software is intended for use with authorized radio frequencies only. Users are responsible for:

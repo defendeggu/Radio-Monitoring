@@ -101,11 +101,60 @@ docker compose restart radio-api
 # Or modify port mapping in docker-compose.yml
 ```
 
+## Development & Testing
+
+**Run the test suite:**
+```bash
+# Activate virtual environment
+source venv/bin/activate
+
+# Run all 67 tests
+pytest
+
+# Run with coverage report
+./scripts/run_coverage.sh
+
+# Run type checking
+./scripts/run_mypy.sh
+```
+
+**Test Results:**
+- ✅ 67 tests covering API, SDR hardware, and transcription
+- ✅ 27% code coverage (target: 15% minimum)
+- ✅ Full MyPy type checking compliance
+- ✅ Automated CI/CD pipeline on GitHub Actions
+
+**Development Mode:**
+```bash
+# Start Flask dev server (port 5000)
+python api_service.py
+
+# In another terminal: Web interface (port 8080)
+python -m http.server 8080
+```
+
+**Production Mode:**
+```bash
+# Docker with Gunicorn + full ELK stack
+docker compose -f docker-compose.yml -f docker-compose.elk.yml up -d
+
+# Access services:
+# - Web Interface: http://localhost:8080
+# - Kibana: http://localhost:5601
+# - N8N: http://localhost:5679
+# - Elasticsearch: http://localhost:9200
+```
+
 ## Next Steps
 
-- Customize settings in `.env` file
-- Import N8N workflow and customize it
-- Add your own frequency presets
-- Integrate with other services
+- ✨ **Explore Kibana Dashboards** at http://localhost:5601
+- 🔧 **Customize settings** in `.env` file
+- 🔄 **Import N8N workflow** and automate captures
+- 📡 **Add frequency presets** for your region
+- 🧪 **Run tests** to verify your changes
+- 📊 **Monitor with ELK** stack for analytics
 
-For detailed documentation, see README.md
+For detailed documentation, see:
+- **README.md** - Complete system documentation
+- **USER_MANUAL.md** - Detailed user guide
+- **STREAMING_MODE.md** - Real-time decoding guide

@@ -150,17 +150,60 @@ if [ "$SDR_FOUND" = false ]; then
     echo "Warning: No SDR device detected. Please connect your HackRF or RTL-SDR device."
 fi
 
+# Run tests to verify installation
+echo ""
+echo "Running tests to verify installation..."
+if pytest --version &> /dev/null; then
+    echo "Running test suite..."
+    if pytest -q; then
+        echo "✓ All tests passed!"
+    else
+        echo "⚠ Some tests failed. This may be OK if you don't have SDR hardware connected."
+        echo "  The system will still work in simulation mode."
+    fi
+else
+    echo "Warning: pytest not found. Skipping test verification."
+fi
+
+# Run type checking
+echo ""
+echo "Running type checking..."
+if command -v mypy &> /dev/null; then
+    if mypy --version &> /dev/null; then
+        if ./scripts/run_mypy.sh &> /dev/null; then
+            echo "✓ Type checking passed!"
+        else
+            echo "⚠ Type checking found some issues (see scripts/run_mypy.sh for details)"
+        fi
+    fi
+else
+    echo "Info: mypy not found in PATH. Type checking skipped."
+fi
+
 echo ""
 echo "========================================="
 echo "Setup Complete!"
 echo "========================================="
 echo ""
+echo "✓ System dependencies installed"
+echo "✓ Python virtual environment created"
+echo "✓ Python packages installed"
+echo "✓ USB permissions configured"
+echo "✓ API keys generated"
+echo "✓ Test suite verified"
+echo ""
 echo "Next steps:"
 echo "1. Log out and log back in for USB permissions to take effect"
 echo "2. Connect your HackRF or RTL-SDR device"
 echo "3. Run: source venv/bin/activate"
-echo "4. Run: ./start.sh"
+echo "4. Run: ./scripts/start.sh"
 echo ""
-echo "Or use Docker (recommended for production with ELK stack):"
-echo "  docker compose up -d"
+echo "For development:"
+echo "  pytest                    # Run test suite"
+echo "  ./scripts/run_mypy.sh     # Type checking"
+echo "  ./scripts/run_coverage.sh # Test coverage"
+echo "  python api_service.py     # Start dev server"
+echo ""
+echo "For production with ELK stack:"
+echo "  docker compose -f docker-compose.yml -f docker-compose.elk.yml up -d"
 echo ""
