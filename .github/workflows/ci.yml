@@ -19,10 +19,12 @@ jobs:
       - name: Verify checkout
         run: |
           echo "Current commit: $(git rev-parse HEAD)"
-          echo "test_radio_capture.py import line:"
-          head -10 tests/test_radio_capture.py | grep -E "from (sdr_hardware|radio_capture)"
+          echo "Test files present:"
+          ls -la tests/*.py
           echo "pytest.ini coverage setting:"
           grep "cov-fail-under" pytest.ini
+          echo "conftest.py has SDR mocking:"
+          grep -c "mock_sdr_hardware" tests/conftest.py || echo "0"
 
       - name: Set up Python
         uses: actions/setup-python@v5
