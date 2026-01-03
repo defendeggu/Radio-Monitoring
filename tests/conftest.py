@@ -15,25 +15,37 @@ from transcription_service import TranscriptionService
 from sdr_hardware import HackRFCapture, SDRType, detect_sdr, get_sdr_instance
 
 
-@pytest.fixture
-def client(monkeypatch):
-    """Flask test client"""
-    # Disable API key authentication for tests
-    monkeypatch.setenv('API_KEYS', '')
+@pytest.fixture(scope='session')
+def temp_recording_dir():
+    """Temporary directory for test recordings (session-wide)"""
+    with tempfile.TemporaryDirectory() as tmpdir:
+        yield tmpdir
 
+
+@pytest.fixture(autouse=True)
+def setup_test_environment(monkeypatch, temp_recording_dir):
+    """Setup test environment before any test runs"""
+    # Set environment variables BEFORE importing api_service
+    monkeypatch.setenv('API_KEYS', '')
+    monkeypatch.setenv('AUDIO_OUTPUT_DIR', temp_recording_dir)
+
+    # Import and patch api_service
+    import api_service
+    monkeypatch.setattr(api_service, 'RECORDING_DIR', temp_recording_dir)
+
+    # Ensure the directory exists
+    os.makedirs(temp_recording_dir, exist_ok=True)
+
+
+@pytest.fixture
+def client():
+    """Flask test client"""
     app.config['TESTING'] = True
     app.config['DEBUG'] = False
     with app.test_client() as client:
         # Set test client to use localhost IP
         client.environ_base['REMOTE_ADDR'] = '127.0.0.1'
         yield client
-
-
-@pytest.fixture
-def temp_recording_dir():
-    """Temporary directory for test recordings"""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        yield tmpdir
 
 
 @pytest.fixture
@@ -94,14 +106,6 @@ def mock_hackrf_capture(monkeypatch):
 
     monkeypatch.setattr(HackRFCapture, '__init__', mock_init)
     monkeypatch.setattr(HackRFCapture, 'capture', mock_capture)
-
-
-@pytest.fixture
-def set_recording_dir(temp_recording_dir: str, monkeypatch):
-    """Set RECORDING_DIR to temporary directory"""
-    monkeypatch.setenv('AUDIO_OUTPUT_DIR', temp_recording_dir)
-    import api_service
-    monkeypatch.setattr(api_service, 'RECORDING_DIR', temp_recording_dir)
 
 
 @pytest.fixture
