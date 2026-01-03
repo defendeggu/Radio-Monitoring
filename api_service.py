@@ -87,7 +87,7 @@ if not API_KEYS or API_KEYS == {''}:
 PUBLIC_ENDPOINTS = {'/health'}
 
 
-def is_trusted_ip(ip_address):
+def is_trusted_ip(ip_address: str) -> bool:
     """
     Check if the request comes from a trusted source.
 
@@ -136,7 +136,7 @@ def is_trusted_ip(ip_address):
 
 
 @app.before_request
-def check_api_key():
+def check_api_key() -> None | tuple[Response, int]:
     """
     Global API key check for all routes except public ones.
 
@@ -153,7 +153,7 @@ def check_api_key():
         return None
 
     # Skip authentication for trusted sources (localhost, Docker network, private networks)
-    if is_trusted_ip(request.remote_addr):
+    if request.remote_addr and is_trusted_ip(request.remote_addr):
         logger.debug(f"Allowing trusted request from {request.remote_addr} to {request.path}")
         return None
 
@@ -288,7 +288,7 @@ def cleanup_old_sessions() -> int:
     return removed_count
 
 
-def session_cleanup_background():
+def session_cleanup_background() -> None:
     """Background thread that periodically cleans up old sessions"""
     while True:
         time.sleep(3600)  # Run every hour
@@ -458,7 +458,7 @@ def capture() -> Response | tuple[Response, int]:
         if 'frequency' not in data:
             return jsonify({'error': 'frequency is required'}), 400
 
-        frequency = float(data['frequency'])
+        frequency = int(float(data['frequency']))
         modulation = data.get('modulation', 'FM')
         duration = int(data.get('duration', 30))
         gain = int(data.get('gain', 20))
@@ -637,8 +637,8 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             # APRS decoding
             try:
                 decode_start = time.time()
-                decoder = get_aprs_decoder()
-                packets = decoder.decode(audio_file)
+                aprs_decoder_instance = get_aprs_decoder()
+                packets = aprs_decoder_instance.decode(audio_file)
                 decode_duration = time.time() - decode_start
 
                 # Save to database
@@ -705,8 +705,8 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             # POCSAG decoding
             try:
                 decode_start = time.time()
-                decoder = get_pocsag_decoder()
-                messages = decoder.decode(audio_file)
+                pocsag_decoder_instance = get_pocsag_decoder()
+                messages = pocsag_decoder_instance.decode(audio_file)
                 decode_duration = time.time() - decode_start
 
                 # Save to database
@@ -773,11 +773,14 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
             # Voice transcription (existing logic)
             transcribe_start = time.time()
             service = get_transcription_service()
-            transcription_result = service.transcribe_and_save(
-                audio_file,
-                json_file,
-                language
+            transcription_result = service.transcribe(
+                audio_file=audio_file,
+                language=language
             )
+            # Save the result to the JSON file
+            with open(json_file, 'w') as f:
+                json.dump(transcription_result, f, indent=2)
+            
             transcribe_duration = time.time() - transcribe_start
 
             # Save to Elasticsearch
@@ -844,7 +847,7 @@ def list_recordings() -> Response | tuple[Response, int]:
         if not os.path.exists(RECORDING_DIR):
             return jsonify({'recordings': []})
 
-        files = []
+        files: list[RecordingInfo] = []
         for filename in os.listdir(RECORDING_DIR):
             if filename.endswith('.wav'):
                 filepath = os.path.join(RECORDING_DIR, filename)
@@ -924,7 +927,7 @@ def get_capture(capture_id: int) -> Response | tuple[Response, int]:
     """Get a single capture by ID"""
     try:
         es = get_elasticsearch_service()
-        result = es.get_capture_by_id(capture_id)
+        result = es.get_capture_by_id(str(capture_id))
 
         if result is None:
             return jsonify({'error': 'Capture not found'}), 404
@@ -1041,13 +1044,13 @@ def get_aprs_map_data() -> Response | tuple[Response, int]:
         hours = request.args.get('hours', 24, type=int)
 
         results = es.search_aprs(
-            start_date=datetime.now().replace(hour=0, minute=0, second=0) if hours == 24 else None,
+            hours=hours,
             limit=1000
         )
 
         # Filter for packets with position data and convert to GeoJSON
         features = []
-        for packet in results:
+        for packet in results.get('hits', []):
             if packet.get('latitude') and packet.get('longitude'):
                 features.append({
                     'type': 'Feature',
@@ -1144,14 +1147,13 @@ def get_pocsag_messages() -> Response | tuple[Response, int]:
     try:
         es = get_elasticsearch_service()
         limit = request.args.get('limit', 50, type=int)
-        offset = request.args.get('offset', 0, type=int)
 
-        results = es.search_pocsag(limit=limit, offset=offset)
+        results = es.search_pocsag(limit=limit)
 
         return jsonify({
             'status': 'success',
-            'count': len(results),
-            'messages': results
+            'count': results['total'],
+            'messages': results['hits']
         })
 
     except Exception as e:
@@ -1164,7 +1166,7 @@ def get_pocsag_messages() -> Response | tuple[Response, int]:
 
 def _scan_repeaters_worker(
     session_id: int,
-    repeaters: list,
+    repeaters: list[Dict[str, Any]],
     scan_duration: int,
     sample_rate: int,
     gain: int
@@ -1252,9 +1254,6 @@ def _scan_repeaters_worker(
                     'scan_end_time': scan_end_time.isoformat(),
                     'metrics': metrics.to_dict() if hasattr(metrics, 'to_dict') else metrics
                 }
-                # Merge with analysis results if they exist
-                if 'analysis_result' in locals():
-                    activity_doc.update(analysis_result)
                 activity_id = es.index_repeater_activity(activity_doc)
 
                 repeaters_scanned += 1
@@ -1627,7 +1626,7 @@ active_decoders = {}  # session_id -> decoder instance
 
 
 @app.route('/stream-decode', methods=['POST'])
-def start_stream_decode():
+def start_stream_decode() -> Response | tuple[Response, int]:
     """
     Start continuous streaming decode session (APRS/POCSAG)
 
@@ -1653,7 +1652,7 @@ def start_stream_decode():
         data = request.get_json()
 
         mode = data.get('mode')
-        frequency = float(data['frequency'])
+        frequency = int(float(data['frequency']))
         duration = int(data.get('duration', 3600))  # Default 1 hour
         gain = int(data.get('gain', 20))
         sample_rate = int(data.get('sample_rate', 2000000))
@@ -1672,6 +1671,7 @@ def start_stream_decode():
             }), 409  # Conflict
 
         # Create decoder instance
+        decoder: StreamingAPRSDecoder | StreamingPOCSAGDecoder
         if mode == 'aprs':
             decoder = StreamingAPRSDecoder(frequency, duration, gain, sample_rate)
         elif mode == 'pocsag':
@@ -1702,7 +1702,7 @@ def start_stream_decode():
 
 
 @app.route('/stream-decode/<session_id>', methods=['GET'])
-def get_stream_status(session_id):
+def get_stream_status(session_id: str) -> Response | tuple[Response, int]:
     """
     Get streaming session status and stats
 
@@ -1754,7 +1754,7 @@ def get_stream_status(session_id):
 
 
 @app.route('/stream-decode/<session_id>', methods=['DELETE'])
-def stop_stream_decode(session_id):
+def stop_stream_decode(session_id: str) -> Response | tuple[Response, int]:
     """
     Stop streaming session gracefully
 
@@ -1799,7 +1799,7 @@ def stop_stream_decode(session_id):
 
 
 @app.route('/stream-decode', methods=['GET'])
-def list_stream_sessions():
+def list_stream_sessions() -> Response | tuple[Response, int]:
     """
     List all streaming sessions (active and recent)
 

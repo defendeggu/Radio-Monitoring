@@ -19,7 +19,8 @@ License: MIT
 import numpy as np
 import gc
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple
+from typing import List, Optional, Tuple, Dict, Any
+from numpy.typing import NDArray
 from pathlib import Path
 import logging
 
@@ -42,7 +43,7 @@ class TransmissionEvent:
     avg_strength: float
     peak_strength: float
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             'start_offset': round(self.start_offset, 3),
@@ -76,7 +77,7 @@ class ActivityMetrics:
     noise_floor: float
     transmissions: List[TransmissionEvent] = field(default_factory=list)
 
-    def to_dict(self) -> dict:
+    def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             'carrier_detected': self.carrier_detected,
@@ -172,7 +173,7 @@ class RepeaterActivityAnalyzer:
 
         return self.analyze_iq_samples(iq_samples)
 
-    def analyze_iq_samples(self, iq_samples: np.ndarray) -> ActivityMetrics:
+    def analyze_iq_samples(self, iq_samples: NDArray[np.complex64]) -> ActivityMetrics:
         """
         Analyze IQ samples to detect repeater activity.
 
@@ -231,15 +232,15 @@ class RepeaterActivityAnalyzer:
         return ActivityMetrics(
             carrier_detected=len(transmissions) > 0,
             transmission_count=len(transmissions),
-            total_active_seconds=total_active_seconds,
-            activity_percentage=activity_percentage,
+            total_active_seconds=float(total_active_seconds),
+            activity_percentage=float(activity_percentage),
             average_signal_strength=avg_strength,
             peak_signal_strength=peak_strength,
             noise_floor=noise_floor_db,
             transmissions=transmissions
         )
 
-    def _calculate_rms_power(self, iq_samples: np.ndarray) -> np.ndarray:
+    def _calculate_rms_power(self, iq_samples: NDArray[np.complex64]) -> NDArray[np.float64]:
         """
         Calculate RMS power using sliding window.
 
@@ -261,9 +262,10 @@ class RepeaterActivityAnalyzer:
 
         logger.debug(f"Calculated RMS power: {num_windows} windows of {self.window_samples} samples")
 
-        return rms_power
+        result: NDArray[np.float64] = rms_power.astype(np.float64)
+        return result
 
-    def _calibrate_noise_floor(self, rms_power: np.ndarray) -> float:
+    def _calibrate_noise_floor(self, rms_power: NDArray[np.float64]) -> float:
         """
         Calibrate noise floor using initial samples.
 
@@ -293,8 +295,8 @@ class RepeaterActivityAnalyzer:
 
     def _find_transmissions(
         self,
-        carrier_active: np.ndarray,
-        rms_power: np.ndarray
+        carrier_active: NDArray[np.bool_],
+        rms_power: NDArray[np.float64]
     ) -> List[TransmissionEvent]:
         """
         Segment carrier activity into individual transmission events.
@@ -308,7 +310,7 @@ class RepeaterActivityAnalyzer:
         Returns:
             List of TransmissionEvent objects
         """
-        transmissions = []
+        transmissions: List[TransmissionEvent] = []
 
         # Find transitions (inactive->active and active->inactive)
         active_padded = np.pad(carrier_active.astype(int), (1, 1), mode='constant', constant_values=0)
@@ -433,7 +435,7 @@ if __name__ == '__main__':
     num_samples = sample_rate * duration
 
     # Generate noise
-    noise = (np.random.randn(num_samples) + 1j * np.random.randn(num_samples)) * 0.1
+    noise: NDArray[np.complex64] = ((np.random.randn(num_samples) + 1j * np.random.randn(num_samples)) * 0.1).astype(np.complex64)
 
     # Add synthetic transmissions
     # Transmission 1: 2.0s - 3.5s (1.5s duration)

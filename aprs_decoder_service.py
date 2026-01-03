@@ -34,7 +34,7 @@ class APRSPacket(TypedDict):
     symbol_code: Optional[str]
     raw_packet: str
     aprs_type: str
-    aprs_data: dict
+    aprs_data: Dict[str, Any]
     timestamp: str
 
 
@@ -218,7 +218,7 @@ class APRSDecoder:
             print(f"Line: {line}")
             return None
 
-    def _parse_payload(self, payload: str) -> tuple:
+    def _parse_payload(self, payload: str) -> tuple[Optional[float], Optional[float], Optional[int], Optional[float], Optional[int], Optional[str]]:
         """
         Parse APRS payload for position and data
 

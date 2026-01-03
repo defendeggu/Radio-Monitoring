@@ -202,11 +202,16 @@ def main() -> None:
     )
 
     # Transcribe
-    result = service.transcribe_and_save(
-        args.input,
-        args.output,
-        args.language
+    result = service.transcribe(
+        audio_file=args.input,
+        language=args.language
     )
+
+    if args.output:
+        os.makedirs(os.path.dirname(args.output) or '.', exist_ok=True)
+        with open(args.output, 'w') as f:
+            json.dump(result, f, indent=2)
+        print(f"Results saved to: {args.output}")
 
     # Print transcription
     print("\n" + "="*50)
