@@ -542,6 +542,224 @@ cat secrets/n8n_basic_auth_password.txt
 
 ---
 
+## 🧪 Entwicklung & Testing
+
+### CI/CD Pipeline
+
+Das Projekt verfügt über eine umfassende GitHub Actions CI/CD-Pipeline, die bei jedem Push ausgeführt wird:
+
+**Pipeline-Schritte:**
+1. ✅ **Code Checkout**: Sauberer Checkout mit vollständiger Git-Historie
+2. ✅ **MyPy Type Checking**: Statische Typanalyse im Strict-Mode
+3. ✅ **Pytest Test Suite**: 67 Tests über alle Hauptkomponenten
+4. ✅ **Docker Build**: Verifizierung dass Docker Image erfolgreich gebaut wird
+
+**Test-Abdeckung:**
+- **67 Tests Total** über 3 Test-Suites
+- **API Tests (25)**: Flask Endpoints, Authentifizierung, Fehlerbehandlung
+- **SDR Hardware Tests (26)**: HackRF/RTL-SDR Erkennung, Capture, Validierung
+- **TranscriptionService Tests (16)**: Whisper Integration, Dateibehandlung
+- **Aktuelle Coverage**: 27% (Ziel: 15% Minimum)
+
+### Tests lokal ausführen
+
+**Vollständige Test-Suite:**
+
+```bash
+# Virtual Environment aktivieren
+source venv/bin/activate
+
+# Alle 67 Tests ausführen
+pytest
+
+# Tests mit Coverage-Report
+./scripts/run_coverage.sh
+
+# Type Checking mit MyPy
+./scripts/run_mypy.sh
+
+# Spezifische Test-Suite ausführen
+pytest tests/test_api.py          # Nur API-Tests
+pytest tests/test_sdr_hardware.py # Nur SDR-Tests
+pytest tests/test_transcription.py # Nur Transkriptions-Tests
+
+# Mit verbose Output
+pytest -v
+
+# Nur failed Tests erneut ausführen
+pytest --lf
+```
+
+**Test-Ergebnisse:**
+- ✅ 67 Tests für API, SDR Hardware und Transkription
+- ✅ 27% Code-Abdeckung (Ziel: 15% Minimum)
+- ✅ Vollständige MyPy Type Checking Compliance
+- ✅ Automatisierte CI/CD Pipeline auf GitHub Actions
+
+### Development vs. Production Mode
+
+**Development Mode (Manuell):**
+
+```bash
+# Flask Development Server starten (Port 5000)
+source venv/bin/activate
+python api_service.py
+
+# In anderem Terminal: Web Interface (Port 8080)
+python -m http.server 8080
+
+# Vorteile:
+# - Schnelle Code-Änderungen
+# - Auto-Reload bei File-Änderungen
+# - Direktes Debugging
+# - Keine API-Keys erforderlich (API_KEYS='')
+```
+
+**Production Mode (Docker):**
+
+```bash
+# Docker mit Gunicorn + kompletter ELK Stack
+docker compose -f docker-compose.yml -f docker-compose.elk.yml up -d
+
+# Services zugreifen:
+# - Web Interface: http://localhost:8080
+# - Kibana:        http://localhost:5601
+# - N8N:           http://localhost:5679
+# - Elasticsearch: http://localhost:9200
+
+# Vorteile:
+# - Gunicorn WSGI Server (production-ready)
+# - Gevent Workers für Concurrency
+# - ELK Stack für Monitoring
+# - API-Key Authentifizierung aktiv
+# - Container-Isolation
+# - Automatisches Restart
+```
+
+### Test-Umgebung Details
+
+**Mocking & Simulation:**
+
+Das Test-System nutzt umfassende Mocking-Strategien:
+
+- **SDR Hardware**: Automatische Simulation wenn keine Hardware vorhanden
+- **Whisper Model**: Mock zur Vermeidung von CUDA-Fehlern
+- **Temporäre Verzeichnisse**: Session-scoped für saubere Tests
+- **API-Keys**: Automatisch deaktiviert in Tests (API_KEYS='')
+
+**Test-Fixtures:**
+- `client`: Flask Test Client mit localhost IP
+- `sample_audio_file`: Generiert 1s Test-Audio (16kHz, 440Hz Ton)
+- `temp_recording_dir`: Session-scoped temp directory
+- `mock_sdr_hardware`: HackRF/RTL-SDR Simulation
+- `mock_transcription_service`: Whisper Model Mock
+
+### Code-Qualitätsstandards
+
+**Type Checking:**
+
+```bash
+# MyPy Strict Mode
+./scripts/run_mypy.sh
+
+# Prüft:
+# - Vollständige Typ-Annotationen
+# - Type Safety
+# - Optional/None Handling
+# - Return Types
+```
+
+**Coverage:**
+
+```bash
+# Coverage Report generieren
+./scripts/run_coverage.sh
+
+# Öffnet HTML-Report:
+# - Zeile-für-Zeile Coverage
+# - Branch Coverage
+# - Fehlende Coverage rot markiert
+
+# Ziel: Minimum 15% (aktuell: 27%)
+```
+
+**Kontinuierliche Integration:**
+
+Die GitHub Actions Pipeline stellt sicher:
+- ✅ Alle Tests bestehen vor Merge
+- ✅ Type Checking ohne Fehler
+- ✅ Docker Image baut erfolgreich
+- ✅ Code-Standards eingehalten
+
+### Development-Workflow
+
+**Typischer Entwicklungs-Zyklus:**
+
+1. **Feature Branch erstellen:**
+   ```bash
+   git checkout -b feature/neue-funktionalität
+   ```
+
+2. **Code ändern und testen:**
+   ```bash
+   # Tests während Entwicklung
+   pytest tests/test_mein_feature.py -v
+
+   # Type Checking
+   ./scripts/run_mypy.sh
+   ```
+
+3. **Vollständige Tests vor Commit:**
+   ```bash
+   # Alle Tests
+   pytest
+
+   # Coverage prüfen
+   ./scripts/run_coverage.sh
+   ```
+
+4. **Commit & Push:**
+   ```bash
+   git add .
+   git commit -m "feat: Neue Funktionalität XYZ"
+   git push origin feature/neue-funktionalität
+   ```
+
+5. **CI/CD prüft automatisch:**
+   - MyPy Type Checking
+   - Pytest Suite (67 Tests)
+   - Docker Build
+
+6. **Merge nach erfolgreicher CI:**
+   ```bash
+   gh pr create
+   gh pr merge
+   ```
+
+### Hilfreiche Development-Befehle
+
+```bash
+# Tests mit Watch-Mode (bei Änderung neu ausführen)
+pytest-watch
+
+# Test Coverage nur für geänderte Files
+pytest --cov=. --cov-report=term-missing
+
+# Spezifischen Test mit Output ausführen
+pytest tests/test_api.py::test_health -v -s
+
+# Debug-Modus (Breakpoints erlaubt)
+pytest --pdb
+
+# Performance-Profiling
+pytest --durations=10
+
+# Parallel Tests (schneller)
+pytest -n auto
+```
+
+---
+
 ## 📚 Für technische Details
 
 Siehe **README.md** für:
@@ -551,9 +769,11 @@ Siehe **README.md** für:
 - Datenbank-Schema
 - Secrets-Management
 - Troubleshooting (erweitert)
+- Vollständige Projekt-Struktur
+- Erweiterte Entwicklungs-Dokumentation
 
 ---
 
 **Version:** 4.0
-**Letztes Update:** Dezember 2025
-**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, Secrets Management
+**Letztes Update:** Januar 2026
+**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, Secrets Management, CI/CD Pipeline
