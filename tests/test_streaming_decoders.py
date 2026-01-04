@@ -17,7 +17,7 @@ import sys
 import pytest
 import json
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any
 from unittest.mock import Mock, patch, MagicMock
 from flask.testing import FlaskClient
@@ -118,7 +118,7 @@ class TestStreamSession:
             'gain': 30,
             'sample_rate': 2000000,
             'status': 'running',
-            'start_time': datetime.utcnow().isoformat(),
+            'start_time': datetime.now(timezone.utc).isoformat(),
             'end_time': None,
             'packet_count': 5,
             'last_packet_time': None,
@@ -327,7 +327,6 @@ class TestStreamingAPRSDecoder:
             assert session_id is not None
             assert isinstance(session_id, str)
 
-    @pytest.mark.skip(reason="stop() method not yet implemented")
     def test_aprs_stop_stream(self):
         """Test stopping APRS stream"""
         decoder = StreamingAPRSDecoder(144800000, 300, 20, 2000000)
@@ -400,7 +399,6 @@ class TestStreamingPOCSAGDecoder:
             assert session_id is not None
             assert isinstance(session_id, str)
 
-    @pytest.mark.skip(reason="stop() method not yet implemented")
     def test_pocsag_stop_stream(self):
         """Test stopping POCSAG stream"""
         decoder = StreamingPOCSAGDecoder(147325000, 600, 30, 2000000)

@@ -6,7 +6,7 @@ Replaces PostgreSQL database with Elasticsearch for scalable storage and analyti
 
 import os
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, List, Optional, Any, cast
 from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import NotFoundError, RequestError
@@ -72,7 +72,7 @@ class ElasticsearchService:
         try:
             # Add timestamp if not present
             if '@timestamp' not in capture:
-                capture['@timestamp'] = capture.get('created_at') or datetime.utcnow().isoformat()
+                capture['@timestamp'] = capture.get('created_at') or datetime.now(timezone.utc).isoformat()
 
             # Calculate frequency_mhz
             if 'frequency' in capture:
@@ -189,7 +189,7 @@ class ElasticsearchService:
         """Index APRS message via Logstash"""
         try:
             if '@timestamp' not in message:
-                message['@timestamp'] = message.get('timestamp') or datetime.utcnow().isoformat()
+                message['@timestamp'] = message.get('timestamp') or datetime.now(timezone.utc).isoformat()
 
             # Build geo_point if lat/lon present
             if message.get('latitude') and message.get('longitude'):
@@ -309,7 +309,7 @@ class ElasticsearchService:
         """Index POCSAG message via Logstash"""
         try:
             if '@timestamp' not in message:
-                message['@timestamp'] = message.get('timestamp') or datetime.utcnow().isoformat()
+                message['@timestamp'] = message.get('timestamp') or datetime.now(timezone.utc).isoformat()
 
             if 'frequency' in message:
                 message['frequency_mhz'] = message['frequency'] / 1_000_000.0
@@ -429,7 +429,7 @@ class ElasticsearchService:
         """Index repeater activity data via Logstash"""
         try:
             if '@timestamp' not in activity:
-                activity['@timestamp'] = activity.get('created_at') or datetime.utcnow().isoformat()
+                activity['@timestamp'] = activity.get('created_at') or datetime.now(timezone.utc).isoformat()
 
             if 'frequency' in activity:
                 activity['frequency_mhz'] = activity['frequency'] / 1_000_000.0

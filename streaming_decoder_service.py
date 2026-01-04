@@ -16,7 +16,7 @@ import threading
 import subprocess
 import numpy as np
 from abc import ABC, abstractmethod
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional, Dict, Any, IO
 from numpy.typing import NDArray
 from scipy import signal
@@ -38,7 +38,7 @@ class StreamSession:
         self.gain = gain
         self.sample_rate = sample_rate
         self.status = 'starting'  # starting, running, stopping, completed, failed
-        self.start_time = datetime.utcnow()
+        self.start_time = datetime.now(timezone.utc)
         self.end_time: Optional[datetime] = None
         self.packet_count = 0
         self.last_packet_time: Optional[datetime] = None
@@ -209,7 +209,7 @@ class BaseStreamingDecoder(ABC):
             self._cleanup()
             if self.session is not None:
                 self.session.status = 'completed'
-                self.session.end_time = datetime.utcnow()
+                self.session.end_time = datetime.now(timezone.utc)
                 session_manager.save_session(self.session)
                 logger.info(f"Stream session {self.session.session_id} completed")
 
@@ -364,7 +364,7 @@ class BaseStreamingDecoder(ABC):
 
                 # Add session metadata
                 packet['session_id'] = self.session.session_id
-                packet['timestamp'] = datetime.utcnow().isoformat()
+                packet['timestamp'] = datetime.now(timezone.utc).isoformat()
                 packet['frequency'] = int(self.frequency)
 
                 # Index to Elasticsearch
@@ -372,7 +372,7 @@ class BaseStreamingDecoder(ABC):
 
                 # Update session stats
                 self.session.packet_count += 1
-                self.session.last_packet_time = datetime.utcnow()
+                self.session.last_packet_time = datetime.now(timezone.utc)
                 session_manager.save_session(self.session)
 
                 logger.info(f"Packet #{self.session.packet_count} indexed")
@@ -539,6 +539,13 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
         except Exception as e:
             logger.error(f"Failed to index APRS packet: {e}")
 
+    def stop(self) -> None:
+        """Stop streaming (alias for stop_stream that works without session)"""
+        logger.info(f"Stopping APRS stream")
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=15)
+
 
 class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     """Streaming POCSAG decoder using multimon-ng"""
@@ -646,3 +653,10 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             logger.info(f"Indexed POCSAG message to address {packet.get('address')}")
         except Exception as e:
             logger.error(f"Failed to index POCSAG packet: {e}")
+
+    def stop(self) -> None:
+        """Stop streaming (alias for stop_stream that works without session)"""
+        logger.info(f"Stopping POCSAG stream")
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=15)
