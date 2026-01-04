@@ -709,36 +709,75 @@ curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10" 
 
 ### Environment Variables
 
-Edit `.env` file to customize:
+The project includes a **comprehensive `.env.example`** file with all configuration options, helpful comments, and security best practices.
 
+**Quick Setup:**
 ```bash
-# API Security (REQUIRED)
+# 1. Copy the template
+cp .env.example .env
+
+# 2. Generate API keys
+python3 scripts/generate_api_keys.py
+
+# 3. Generate ELK credentials (if using full stack)
+./setup-elk-security.sh
+
+# 4. Edit .env with your generated values
+nano .env
+```
+
+**Key Configuration Categories:**
+
+The `.env.example` file (247 lines) includes complete documentation for:
+
+- ✅ **HackRF/RTL-SDR Configuration** - Frequency, sample rate, modulation, gain
+- ✅ **API Security** - API keys for authentication (REQUIRED for production)
+- ✅ **Whisper Transcription** - Model size, device (CPU/GPU), compute type
+- ✅ **Elasticsearch/ELK Stack** - Connection URLs, credentials, index configuration
+- ✅ **Redis** - Session management for streaming decoders
+- ✅ **Logstash Pipelines** - Separate endpoints for captures, APRS, POCSAG, repeater data
+- ✅ **Streaming Decoders** - Session timeouts, concurrent limits
+- ✅ **Repeater Scanner** - Scan limits, session cleanup
+- ✅ **N8N Automation** - Webhook URLs, workflow integration
+- ✅ **Flask/Gunicorn** - Production WSGI server configuration
+
+**Example: Essential Variables**
+```bash
+# API Security (REQUIRED for production)
 # Generate with: python3 scripts/generate_api_keys.py
-API_KEYS=your-key-1,your-key-2   # Comma-separated list of valid API keys
+API_KEYS=your-generated-key-1,your-generated-key-2
 
 # Radio Configuration
 DEFAULT_FREQUENCY=100000000      # 100 MHz
 DEFAULT_SAMPLE_RATE=2000000      # 2 MHz
 DEFAULT_MODULATION=FM
-DEFAULT_GAIN=20                  # 0-47 dB
+DEFAULT_GAIN=20                  # 0-40 dB (HackRF), 0-50 dB (RTL-SDR)
 
 # Whisper Configuration
 WHISPER_MODEL=base               # tiny, base, small, medium, large
-WHISPER_DEVICE=cpu               # cpu or cuda
-WHISPER_COMPUTE_TYPE=int8        # int8, int16, float16, float32
-
-# Recording Configuration
-RECORDING_DURATION=30            # seconds
-AUDIO_OUTPUT_DIR=./recordings
+WHISPER_DEVICE=cpu               # cpu or cuda (GPU)
+WHISPER_COMPUTE_TYPE=int8        # int8 (fastest), float16, float32
 
 # Elasticsearch Configuration
-ELASTICSEARCH_HOSTS=http://elasticsearch:9200  # Elasticsearch cluster hosts (comma-separated)
-LOGSTASH_HOST=http://logstash:9600            # Logstash HTTP input endpoint
+ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+ELASTICSEARCH_URL=http://elastic:${ELASTIC_PASSWORD}@elasticsearch:9200
+
+# Redis Configuration (for streaming sessions)
+REDIS_HOST=redis
+REDIS_PORT=6379
+REDIS_DB=0
 
 # N8N Configuration
 N8N_WEBHOOK_URL=http://localhost:5678/webhook/radio-transcription
-RADIO_API_KEY=your-api-key-here  # API key for N8N to access the Radio API
+RADIO_API_KEY=your-api-key-here  # Use one of your API_KEYS
 ```
+
+**💡 See `.env.example` for:**
+- Complete variable list (50+ variables documented)
+- Detailed explanations for each option
+- Security best practices and warnings
+- Docker vs. manual setup differences
+- Quick start guide and examples
 
 ### Frequency Presets
 
