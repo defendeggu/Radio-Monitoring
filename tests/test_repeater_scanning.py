@@ -502,20 +502,24 @@ class TestProgressTracking:
     def test_progress_updates_during_scan(self, client: FlaskClient, monkeypatch):
         """Test that progress updates are available during scan"""
         # This test verifies the structure, actual scanning tested elsewhere
+        from scan_session_manager import RepeaterScanSession
         import api_service
 
-        # Mock session with progress
-        mock_session = {
-            'status': 'in_progress',
-            'total_repeaters': 10,
-            'scanned': 3,
-            'current_repeater': 'HB9TEST',
-            'start_time': time.time() - 100
-        }
-
-        # Simulate session in memory
+        # Create test session
         session_id = 999
-        api_service.scan_sessions[session_id] = mock_session
+        session = RepeaterScanSession(
+            session_id=session_id,
+            repeaters_total=10,
+            duration_per_repeater=120,
+            sample_rate=2000000,
+            gain=20
+        )
+        session.repeaters_scanned = 3
+        session.current_repeater = 'HB9TEST'
+        session.current_index = 3
+
+        # Save to Redis
+        api_service.scan_session_manager.save_session(session)
 
         response = client.get(f'/scan-repeaters/{session_id}/progress')
 
@@ -523,18 +527,30 @@ class TestProgressTracking:
             data = response.get_json()
             assert 'progress' in data or 'scanned' in data
 
+        # Cleanup
+        api_service.scan_session_manager.delete_session(session_id)
+
     def test_completed_scan_has_results(self, client: FlaskClient, monkeypatch):
         """Test that completed scans have results available"""
+        from scan_session_manager import RepeaterScanSession
         import api_service
 
-        # Mock completed session
+        # Create completed test session
         session_id = 998
-        api_service.scan_sessions[session_id] = {
-            'status': 'completed',
-            'results': [
-                {'callsign': 'HB9TEST', 'activity_percentage': 12.5}
-            ]
-        }
+        session = RepeaterScanSession(
+            session_id=session_id,
+            repeaters_total=1,
+            duration_per_repeater=120,
+            sample_rate=2000000,
+            gain=20
+        )
+
+        # Mark as completed with results
+        results = [{'callsign': 'HB9TEST', 'activity_percentage': 12.5}]
+        session.complete(results)
+
+        # Save to Redis
+        api_service.scan_session_manager.save_session(session)
 
         response = client.get(f'/scan-repeaters/{session_id}')
 
@@ -545,6 +561,9 @@ class TestProgressTracking:
             assert 'session' in data
             assert data['session']['status'] == 'completed'
             assert 'results' in data['session']
+
+        # Cleanup
+        api_service.scan_session_manager.delete_session(session_id)
 
 
 # ============================================================================
