@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 import uuid
 from typing import TypedDict, Any, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
-from itertools import count
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from sdr_hardware import get_sdr_instance, detect_sdr, SDRType
@@ -27,6 +26,7 @@ from streaming_decoder_service import (
     StreamingPOCSAGDecoder,
     SessionManager
 )
+from scan_session_manager import get_scan_session_manager, RepeaterScanSession
 from dotenv import load_dotenv
 
 # Configure logging
@@ -231,18 +231,14 @@ WHISPER_MODEL = os.getenv('WHISPER_MODEL', 'base')
 WHISPER_DEVICE = os.getenv('WHISPER_DEVICE', 'cpu')
 WHISPER_COMPUTE_TYPE = os.getenv('WHISPER_COMPUTE_TYPE', 'int8')
 
-# Repeater scan sessions tracking
-scan_sessions: Dict[int, Dict[str, Any]] = {}
-scan_sessions_lock = threading.Lock()
+# Repeater scan sessions tracking (Redis-based)
+scan_session_manager = get_scan_session_manager()
 
 # Thread pool for scan operations (max 1 worker - only 1 SDR device)
 scan_thread_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="scan-worker")
 
-# Atomic session ID counter (thread-safe)
-_session_id_counter = count(1)
-
 # Session cleanup configuration
-MAX_SESSIONS = 100  # Maximum number of sessions to keep in memory
+MAX_SESSIONS = 100  # Maximum number of concurrent scan sessions
 SESSION_MAX_AGE_HOURS = 24  # Remove sessions older than 24 hours
 
 
@@ -253,63 +249,24 @@ def has_active_scan() -> bool:
     Returns:
         True if a scan is in progress, False otherwise
     """
-    with scan_sessions_lock:
-        return any(
-            session.get('status') == 'in_progress'
-            for session in scan_sessions.values()
-        )
+    active_sessions = scan_session_manager.get_active_sessions()
+    return len(active_sessions) > 0
 
 
 def cleanup_old_sessions() -> int:
     """
-    Remove old and excess scan sessions to prevent memory leak
+    Remove old scan sessions from Redis
 
-    Removes:
-    1. Sessions older than SESSION_MAX_AGE_HOURS
-    2. Oldest sessions if total exceeds MAX_SESSIONS
+    Removes sessions older than SESSION_MAX_AGE_HOURS.
+    Note: Redis TTL (24h) provides automatic cleanup, this is for explicit cleanup.
 
     Returns:
         Number of sessions removed
     """
-    removed_count = 0
-    current_time = time.time()
-    max_age_seconds = SESSION_MAX_AGE_HOURS * 3600
+    removed_count = scan_session_manager.cleanup_old_sessions(SESSION_MAX_AGE_HOURS)
 
-    with scan_sessions_lock:
-        # Phase 1: Remove sessions older than max age
-        sessions_to_remove = []
-        for session_id, session in scan_sessions.items():
-            session_age = current_time - session.get('start_time', current_time)
-            if session_age > max_age_seconds:
-                sessions_to_remove.append(session_id)
-
-        for session_id in sessions_to_remove:
-            del scan_sessions[session_id]
-            removed_count += 1
-
-        # Phase 2: If still too many sessions, remove oldest completed/failed ones
-        if len(scan_sessions) > MAX_SESSIONS:
-            # Separate completed/failed sessions from in-progress
-            completed_sessions = [
-                (sid, s) for sid, s in scan_sessions.items()
-                if s.get('status') in ['completed', 'failed']
-            ]
-
-            if completed_sessions:
-                # Sort by start time (oldest first)
-                completed_sessions.sort(key=lambda x: x[1].get('start_time', 0))
-
-                # Remove oldest until we're under the limit
-                sessions_to_keep = MAX_SESSIONS - sum(
-                    1 for s in scan_sessions.values()
-                    if s.get('status') == 'in_progress'
-                )
-
-                for i in range(len(completed_sessions) - sessions_to_keep):
-                    session_id = completed_sessions[i][0]
-                    if session_id in scan_sessions:
-                        del scan_sessions[session_id]
-                        removed_count += 1
+    if removed_count > 0:
+        logger.info(f"Cleaned up {removed_count} old scan sessions from Redis")
 
     return removed_count
 
@@ -1342,12 +1299,16 @@ def _scan_repeaters_worker(
 
     try:
         for idx, repeater in enumerate(repeaters):
-            # Update progress
-            with scan_sessions_lock:
-                if session_id in scan_sessions:
-                    scan_sessions[session_id]['current_index'] = idx
-                    scan_sessions[session_id]['current_repeater'] = repeater['callsign']
-                    scan_sessions[session_id]['elapsed_time'] = time.time() - scan_sessions[session_id]['start_time']
+            # Update progress in Redis
+            session_obj = scan_session_manager.get_session(session_id)
+            if session_obj:
+                elapsed_seconds = (datetime.now(timezone.utc) - session_obj.start_time).total_seconds()
+                session_obj.update_progress(
+                    current_index=idx,
+                    current_repeater=repeater['callsign'],
+                    elapsed_time=elapsed_seconds
+                )
+                scan_session_manager.save_session(session_obj)
 
             frequency = repeater['output_frequency']
             callsign = repeater['callsign']
@@ -1424,12 +1385,13 @@ def _scan_repeaters_worker(
                 }
                 results.append(result)
 
-                # Update session with partial results
-                with scan_sessions_lock:
-                    if session_id in scan_sessions:
-                        scan_sessions[session_id]['results'] = results
-                        scan_sessions[session_id]['repeaters_scanned'] = repeaters_scanned
-                        scan_sessions[session_id]['repeaters_with_activity'] = repeaters_with_activity
+                # Update session with partial results in Redis
+                session_obj = scan_session_manager.get_session(session_id)
+                if session_obj:
+                    session_obj.results = results
+                    session_obj.repeaters_scanned = repeaters_scanned
+                    session_obj.repeaters_with_activity = repeaters_with_activity
+                    scan_session_manager.save_session(session_obj)
 
                 # Clean up IQ file to save disk space (prevents disk filling)
                 try:
@@ -1448,12 +1410,11 @@ def _scan_repeaters_worker(
                     'error': str(e)
                 })
 
-        # Mark session as completed
-        with scan_sessions_lock:
-            if session_id in scan_sessions:
-                scan_sessions[session_id]['status'] = 'completed'
-                scan_sessions[session_id]['end_time'] = time.time()
-                scan_sessions[session_id]['results'] = results
+        # Mark session as completed in Redis
+        session_obj = scan_session_manager.get_session(session_id)
+        if session_obj:
+            session_obj.complete(results)
+            scan_session_manager.save_session(session_obj)
 
         # Update database
         # Scan sessions are in-memory only
@@ -1467,10 +1428,11 @@ def _scan_repeaters_worker(
         print(f"Scan session {session_id} failed: {e}")
         print("Full traceback:")
         traceback.print_exc()
-        with scan_sessions_lock:
-            if session_id in scan_sessions:
-                scan_sessions[session_id]['status'] = 'failed'
-                scan_sessions[session_id]['error'] = str(e)
+        # Mark session as failed in Redis
+        session_obj = scan_session_manager.get_session(session_id)
+        if session_obj:
+            session_obj.fail(str(e))
+            scan_session_manager.save_session(session_obj)
 
         # Scan sessions are in-memory only (removed db.update_scan_session)
 
@@ -1543,22 +1505,18 @@ def scan_repeaters() -> Response | tuple[Response, int]:
                 'message': 'No repeaters found matching criteria'
             }), 404
 
-        # Generate thread-safe session ID using atomic counter
-        session_id = next(_session_id_counter)
+        # Generate session ID using Redis atomic counter
+        session_id = scan_session_manager.get_next_session_id()
 
-        # Initialize session tracking
-        with scan_sessions_lock:
-            scan_sessions[session_id] = {
-                'status': 'in_progress',
-                'start_time': time.time(),
-                'repeaters_total': len(repeaters),
-                'repeaters_scanned': 0,
-                'repeaters_with_activity': 0,
-                'current_index': 0,
-                'current_repeater': None,
-                'elapsed_time': 0,
-                'results': []
-            }
+        # Create and save session to Redis
+        session = RepeaterScanSession(
+            session_id=session_id,
+            repeaters_total=len(repeaters),
+            duration_per_repeater=duration_per_repeater,
+            sample_rate=sample_rate,
+            gain=gain
+        )
+        scan_session_manager.save_session(session)
 
         # Submit scan to thread pool (max 1 concurrent scan)
         scan_thread_pool.submit(
@@ -1606,19 +1564,19 @@ def get_scan_progress(session_id: int) -> Response | tuple[Response, int]:
     }
     """
     try:
-        with scan_sessions_lock:
-            if session_id not in scan_sessions:
-                return jsonify({
-                    'status': 'error',
-                    'message': 'Scan session not found'
-                }), 404
+        # Get session from Redis
+        session_obj = scan_session_manager.get_session(session_id)
 
-            session = scan_sessions[session_id].copy()
+        if not session_obj:
+            return jsonify({
+                'status': 'error',
+                'message': 'Scan session not found'
+            }), 404
 
         # Calculate progress
-        current = session.get('current_index', 0)
-        total = session.get('repeaters_total', 0)
-        elapsed = session.get('elapsed_time', 0)
+        current = session_obj.current_index
+        total = session_obj.repeaters_total
+        elapsed = session_obj.elapsed_time
 
         # Estimate remaining time
         if current > 0 and elapsed > 0:
@@ -1629,22 +1587,22 @@ def get_scan_progress(session_id: int) -> Response | tuple[Response, int]:
             estimated_remaining = 0
 
         response = {
-            'status': session.get('status', 'unknown'),
+            'status': session_obj.status,
             'session_id': session_id,
             'progress': {
                 'current_repeater': current + 1,  # 1-indexed for display
                 'total_repeaters': total,
-                'current_callsign': session.get('current_repeater'),
+                'current_callsign': session_obj.current_repeater,
                 'elapsed_seconds': int(elapsed),
                 'estimated_remaining_seconds': estimated_remaining,
-                'repeaters_scanned': session.get('repeaters_scanned', 0),
-                'repeaters_with_activity': session.get('repeaters_with_activity', 0)
+                'repeaters_scanned': session_obj.repeaters_scanned,
+                'repeaters_with_activity': session_obj.repeaters_with_activity
             },
-            'results': session.get('results', [])
+            'results': session_obj.results
         }
 
-        if session.get('status') == 'failed':
-            response['error'] = session.get('error')
+        if session_obj.status == 'failed':
+            response['error'] = session_obj.error
 
         return jsonify(response)
 
@@ -1664,11 +1622,10 @@ def get_scan_session_details(session_id: int) -> Response | tuple[Response, int]
     }
     """
     try:
-        es = get_elasticsearch_service()
-        # Get session from in-memory dict (removed db.get_scan_session)
-        session = scan_sessions.get(session_id)
+        # Get session from Redis
+        session_obj = scan_session_manager.get_session(session_id)
 
-        if not session:
+        if not session_obj:
             return jsonify({
                 'status': 'error',
                 'message': 'Scan session not found'
@@ -1676,7 +1633,7 @@ def get_scan_session_details(session_id: int) -> Response | tuple[Response, int]
 
         return jsonify({
             'status': 'success',
-            'session': session
+            'session': session_obj.to_dict()
         })
 
     except Exception as e:
