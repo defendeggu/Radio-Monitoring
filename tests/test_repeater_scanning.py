@@ -540,9 +540,11 @@ class TestProgressTracking:
 
         if response.status_code == 200:
             data = response.get_json()
-            # API returns 'success' instead of 'completed'
-            assert data['status'] in ['completed', 'success']
-            assert 'results' in data
+            # API returns nested structure with top-level status and session object
+            assert data['status'] == 'success'
+            assert 'session' in data
+            assert data['session']['status'] == 'completed'
+            assert 'results' in data['session']
 
 
 # ============================================================================
