@@ -9,7 +9,7 @@ import json
 import time
 import threading
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 import uuid
 from typing import TypedDict, Any, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
@@ -394,7 +394,7 @@ def health() -> Response:
     return jsonify({
         'status': 'healthy',
         'service': 'radio-transcription-api',
-        'timestamp': datetime.utcnow().isoformat(),
+        'timestamp': datetime.now(timezone.utc).isoformat(),
         'version': '2.0.0',  # Incremented for Gunicorn migration
     })
 
@@ -649,7 +649,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 capture_uuid = str(uuid.uuid4())
                 capture_doc: Dict[str, Any] = {
                     'uuid': capture_uuid,
-                    'created_at': datetime.utcnow().isoformat(),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
                     'frequency': frequency,
                     'modulation': modulation,
                     'duration_seconds': duration,
@@ -672,7 +672,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     packet_doc: Dict[str, Any] = {
                         'uuid': str(uuid.uuid4()),
                         'capture_id': capture_uuid,
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'frequency': frequency,
                         **packet
                     }
@@ -717,7 +717,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 capture_uuid = str(uuid.uuid4())
                 capture_doc = {
                     'uuid': capture_uuid,
-                    'created_at': datetime.utcnow().isoformat(),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
                     'frequency': frequency,
                     'modulation': modulation,
                     'duration_seconds': duration,
@@ -740,7 +740,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                     message_doc: Dict[str, Any] = {
                         'uuid': str(uuid.uuid4()),
                         'capture_id': capture_uuid,
-                        'timestamp': datetime.utcnow().isoformat(),
+                        'timestamp': datetime.now(timezone.utc).isoformat(),
                         'frequency': frequency,
                         **message
                     }
@@ -790,7 +790,7 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
 
                 capture_doc = {
                     'uuid': str(uuid.uuid4()),
-                    'created_at': datetime.utcnow().isoformat(),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
                     'frequency': frequency,
                     'modulation': modulation,
                     'duration_seconds': duration,
@@ -1222,7 +1222,7 @@ def _scan_repeaters_worker(
                 capture_uuid = str(uuid.uuid4())
                 capture_doc = {
                     'uuid': capture_uuid,
-                    'created_at': datetime.utcnow().isoformat(),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
                     'frequency': frequency,
                     'modulation': 'FM',
                     'duration_seconds': scan_duration,
@@ -1242,7 +1242,7 @@ def _scan_repeaters_worker(
                 # Index repeater activity
                 activity_doc = {
                     'uuid': str(uuid.uuid4()),
-                    'created_at': datetime.utcnow().isoformat(),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
                     'capture_id': capture_uuid,
                     'repeater_id': repeater.get('uuid', repeater.get('id')),
                     'repeater_callsign': repeater.get('callsign'),
@@ -1730,7 +1730,7 @@ def get_stream_status(session_id: str) -> Response | tuple[Response, int]:
         if session.end_time:
             elapsed = (session.end_time - session.start_time).total_seconds()
         else:
-            elapsed = (datetime.utcnow() - session.start_time).total_seconds()
+            elapsed = (datetime.now(timezone.utc) - session.start_time).total_seconds()
 
         return jsonify({
             'session_id': session.session_id,

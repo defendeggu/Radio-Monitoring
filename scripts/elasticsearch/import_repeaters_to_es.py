@@ -11,7 +11,7 @@ import sys
 import uuid
 from pathlib import Path
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 # Add parent directory to path for imports
 sys.path.insert(0, str(Path(__file__).parent / 'services'))
@@ -113,8 +113,8 @@ def import_csv(csv_file: str) -> int:
                     'location_name': location if location else None,
                     'canton': canton if canton else None,
                     'status': status,
-                    'created_at': datetime.utcnow().isoformat(),
-                    'updated_at': datetime.utcnow().isoformat()
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat()
                 }
 
                 # Index to Elasticsearch
