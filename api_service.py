@@ -362,63 +362,22 @@ def get_pocsag_decoder() -> POCSAGDecoder:
     return pocsag_decoder
 
 
-@app.route('/health', methods=['GET'])
-def health() -> Response:
-    """
-    Health check endpoint for load balancers and monitoring
+# ============================================================================
+# Blueprint Registration
+# ============================================================================
 
-    Returns:
-    - status: healthy/unhealthy
-    - service: service name
-    - timestamp: current UTC time
-    - version: API version
-    - uptime: seconds since startup
-    """
-    return jsonify({
-        'status': 'healthy',
-        'service': 'radio-transcription-api',
-        'timestamp': datetime.now(timezone.utc).isoformat(),
-        'version': '2.0.0',  # Incremented for Gunicorn migration
-    })
+# Import blueprints
+from blueprints.health import health_bp
+from blueprints.sdr import sdr_bp
+
+# Register blueprints
+app.register_blueprint(health_bp)
+app.register_blueprint(sdr_bp)
 
 
-@app.route('/sdr/detect', methods=['GET'])
-def detect_sdr_hardware() -> Response | tuple[Response, int]:
-    """
-    Detect available SDR hardware and return capabilities
-
-    Returns:
-        JSON response with SDR type and frequency range
-    """
-    try:
-        sdr_type = detect_sdr()
-
-        if sdr_type == SDRType.UNKNOWN:
-            return jsonify({
-                'error': 'No SDR hardware detected',
-                'message': 'Please connect HackRF One or RTL-SDR device'
-            }), 404
-
-        # Create temporary instance to get capabilities
-        instance = get_sdr_instance(frequency=100_000_000, sdr_type=sdr_type)
-        min_freq, max_freq = instance.get_frequency_range()
-        max_rate = instance.get_max_sample_rate()
-
-        return jsonify({
-            'type': sdr_type.value,
-            'frequency_range': {
-                'min_hz': min_freq,
-                'max_hz': max_freq,
-                'min_mhz': min_freq / 1e6,
-                'max_mhz': max_freq / 1e6
-            },
-            'max_sample_rate_hz': max_rate,
-            'max_sample_rate_mhz': max_rate / 1e6
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
+# ============================================================================
+# API Endpoints (Legacy - being migrated to blueprints)
+# ============================================================================
 
 @app.route('/capture', methods=['POST'])
 def capture() -> Response | tuple[Response, int]:
