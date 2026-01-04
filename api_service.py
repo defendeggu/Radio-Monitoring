@@ -91,10 +91,14 @@ def is_trusted_ip(ip_address: str) -> bool:
     """
     Check if the request comes from a trusted source.
 
-    Trusted sources:
+    Default trusted sources (always included):
     - localhost (127.0.0.1, ::1)
     - Docker network (172.16.0.0/12 - includes 172.18.0.0/16)
     - Private networks (10.0.0.0/8, 192.168.0.0/16)
+
+    Additional trusted sources can be configured via TRUSTED_IPS environment variable:
+    - Supports individual IPs: TRUSTED_IPS=192.168.1.100,10.0.0.50
+    - Supports CIDR networks: TRUSTED_IPS=192.168.1.0/24,10.0.0.0/8
 
     Args:
         ip_address: IP address string
@@ -110,7 +114,7 @@ def is_trusted_ip(ip_address: str) -> bool:
     try:
         ip = ipaddress.ip_address(ip_address)
 
-        # Localhost
+        # Localhost (always trusted)
         if ip.is_loopback:
             return True
 
@@ -119,7 +123,7 @@ def is_trusted_ip(ip_address: str) -> bool:
         if ip in docker_network:
             return True
 
-        # Private networks
+        # Private networks (always trusted)
         private_networks = [
             ipaddress.ip_network('10.0.0.0/8'),
             ipaddress.ip_network('192.168.0.0/16'),
@@ -128,6 +132,28 @@ def is_trusted_ip(ip_address: str) -> bool:
         for network in private_networks:
             if ip in network:
                 return True
+
+        # Check custom trusted IPs from environment variable
+        trusted_ips_str = os.getenv('TRUSTED_IPS', '')
+        if trusted_ips_str:
+            for trusted_ip in trusted_ips_str.split(','):
+                trusted_ip = trusted_ip.strip()
+                if not trusted_ip:
+                    continue
+
+                try:
+                    # Check if it's a network (CIDR notation)
+                    if '/' in trusted_ip:
+                        trusted_network = ipaddress.ip_network(trusted_ip)
+                        if ip in trusted_network:
+                            return True
+                    else:
+                        # Single IP address
+                        if ip == ipaddress.ip_address(trusted_ip):
+                            return True
+                except ValueError:
+                    logger.warning(f"Invalid TRUSTED_IP entry: {trusted_ip}")
+                    continue
 
         return False
     except ValueError:
