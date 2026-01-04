@@ -1080,6 +1080,69 @@ def get_aprs_map_data() -> Response | tuple[Response, int]:
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/aprs/decode', methods=['POST'])
+def decode_aprs() -> Response | tuple[Response, int]:
+    """
+    Decode APRS packets from audio file
+
+    Request body (JSON):
+    {
+        "audio_file": "/path/to/audio.wav",
+        "frequency": 144800000,  // Optional: frequency in Hz
+        "index_to_es": true      // Optional: index to Elasticsearch (default: true)
+    }
+
+    Returns:
+    {
+        "status": "success",
+        "count": 5,
+        "packets": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'Missing JSON body'}), 400
+
+        audio_file = data.get('audio_file')
+        if not audio_file:
+            return jsonify({'error': 'Missing required field: audio_file'}), 400
+
+        frequency = data.get('frequency')
+        index_to_es = data.get('index_to_es', True)
+
+        # Decode APRS packets
+        decoder = get_aprs_decoder()
+        packets = decoder.decode(audio_file)
+
+        # Add metadata to packets
+        for packet in packets:
+            if frequency:
+                packet['frequency'] = frequency
+
+        # Index to Elasticsearch if requested
+        if index_to_es and packets:
+            es = get_elasticsearch_service()
+            for packet in packets:
+                try:
+                    es.index_aprs(packet)
+                except Exception as e:
+                    logger.warning(f"Failed to index APRS packet: {e}")
+
+        return jsonify({
+            'status': 'success',
+            'count': len(packets),
+            'packets': packets
+        })
+
+    except FileNotFoundError as e:
+        return jsonify({'error': f'Audio file not found: {str(e)}'}), 404
+    except Exception as e:
+        logger.error(f"APRS decode failed: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/pocsag/search', methods=['GET'])
 def search_pocsag() -> Response | tuple[Response, int]:
     """
@@ -1157,6 +1220,69 @@ def get_pocsag_messages() -> Response | tuple[Response, int]:
         })
 
     except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/pocsag/decode', methods=['POST'])
+def decode_pocsag() -> Response | tuple[Response, int]:
+    """
+    Decode POCSAG messages from audio file
+
+    Request body (JSON):
+    {
+        "audio_file": "/path/to/audio.wav",
+        "frequency": 147325000,  // Optional: frequency in Hz
+        "index_to_es": true      // Optional: index to Elasticsearch (default: true)
+    }
+
+    Returns:
+    {
+        "status": "success",
+        "count": 3,
+        "messages": [...]
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'Missing JSON body'}), 400
+
+        audio_file = data.get('audio_file')
+        if not audio_file:
+            return jsonify({'error': 'Missing required field: audio_file'}), 400
+
+        frequency = data.get('frequency')
+        index_to_es = data.get('index_to_es', True)
+
+        # Decode POCSAG messages
+        decoder = get_pocsag_decoder()
+        messages = decoder.decode(audio_file)
+
+        # Add metadata to messages
+        for message in messages:
+            if frequency:
+                message['frequency'] = frequency
+
+        # Index to Elasticsearch if requested
+        if index_to_es and messages:
+            es = get_elasticsearch_service()
+            for message in messages:
+                try:
+                    es.index_pocsag(message)
+                except Exception as e:
+                    logger.warning(f"Failed to index POCSAG message: {e}")
+
+        return jsonify({
+            'status': 'success',
+            'count': len(messages),
+            'messages': messages
+        })
+
+    except FileNotFoundError as e:
+        return jsonify({'error': f'Audio file not found: {str(e)}'}), 404
+    except Exception as e:
+        logger.error(f"POCSAG decode failed: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
 
 
@@ -1623,6 +1749,140 @@ session_manager = SessionManager(
 
 # Track active decoders in memory
 active_decoders = {}  # session_id -> decoder instance
+
+
+@app.route('/stream/aprs/start', methods=['POST'])
+def start_aprs_stream() -> Response | tuple[Response, int]:
+    """
+    Start APRS streaming decode session
+
+    Request body:
+    {
+        "frequency": 144800000,
+        "duration": 3600,
+        "gain": 20,
+        "sample_rate": 2000000  # optional
+    }
+
+    Returns:
+    {
+        "status": "started",
+        "session_id": "uuid",
+        "mode": "aprs",
+        "frequency": 144800000,
+        "duration": 3600
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'Missing JSON body'}), 400
+
+        frequency = int(float(data['frequency']))
+        duration = int(data.get('duration', 3600))  # Default 1 hour
+        gain = int(data.get('gain', 20))
+        sample_rate = int(data.get('sample_rate', 2000000))
+
+        # Check if user already has an active session (max 1 per user)
+        existing_session = session_manager.get_user_active_session()
+        if existing_session:
+            return jsonify({
+                'error': 'Active streaming session already exists',
+                'active_session_id': existing_session.session_id,
+                'message': 'Stop the active session before starting a new one'
+            }), 409  # Conflict
+
+        # Create APRS decoder instance
+        decoder = StreamingAPRSDecoder(frequency, duration, gain, sample_rate)
+
+        # Start streaming
+        session_id = decoder.start_stream(session_manager)
+        active_decoders[session_id] = decoder
+
+        logger.info(f"Started APRS streaming session {session_id} @ {frequency/1e6:.3f} MHz")
+
+        return jsonify({
+            'status': 'started',
+            'session_id': session_id,
+            'mode': 'aprs',
+            'frequency': frequency,
+            'duration': duration,
+            'message': 'APRS streaming session started. Check /stream-decode/<session_id> for status.'
+        })
+
+    except KeyError as e:
+        return jsonify({'error': f'Missing required parameter: {str(e)}'}), 400
+    except Exception as e:
+        logger.error(f"Failed to start APRS streaming: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/stream/pocsag/start', methods=['POST'])
+def start_pocsag_stream() -> Response | tuple[Response, int]:
+    """
+    Start POCSAG streaming decode session
+
+    Request body:
+    {
+        "frequency": 147325000,
+        "duration": 3600,
+        "gain": 30,
+        "sample_rate": 2000000  # optional
+    }
+
+    Returns:
+    {
+        "status": "started",
+        "session_id": "uuid",
+        "mode": "pocsag",
+        "frequency": 147325000,
+        "duration": 3600
+    }
+    """
+    try:
+        data = request.get_json()
+
+        if not data:
+            return jsonify({'error': 'Missing JSON body'}), 400
+
+        frequency = int(float(data['frequency']))
+        duration = int(data.get('duration', 3600))  # Default 1 hour
+        gain = int(data.get('gain', 30))
+        sample_rate = int(data.get('sample_rate', 2000000))
+
+        # Check if user already has an active session (max 1 per user)
+        existing_session = session_manager.get_user_active_session()
+        if existing_session:
+            return jsonify({
+                'error': 'Active streaming session already exists',
+                'active_session_id': existing_session.session_id,
+                'message': 'Stop the active session before starting a new one'
+            }), 409  # Conflict
+
+        # Create POCSAG decoder instance
+        decoder = StreamingPOCSAGDecoder(frequency, duration, gain, sample_rate)
+
+        # Start streaming
+        session_id = decoder.start_stream(session_manager)
+        active_decoders[session_id] = decoder
+
+        logger.info(f"Started POCSAG streaming session {session_id} @ {frequency/1e6:.3f} MHz")
+
+        return jsonify({
+            'status': 'started',
+            'session_id': session_id,
+            'mode': 'pocsag',
+            'frequency': frequency,
+            'duration': duration,
+            'message': 'POCSAG streaming session started. Check /stream-decode/<session_id> for status.'
+        })
+
+    except KeyError as e:
+        return jsonify({'error': f'Missing required parameter: {str(e)}'}), 400
+    except Exception as e:
+        logger.error(f"Failed to start POCSAG streaming: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/stream-decode', methods=['POST'])
