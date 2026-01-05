@@ -9,6 +9,7 @@ Provides endpoints for APRS (Automatic Packet Reporting System) decoding:
 """
 
 from flask import Blueprint, request, jsonify, Response
+from typing import Any, cast
 from api_service import get_elasticsearch_service, get_aprs_decoder
 import logging
 
@@ -170,7 +171,7 @@ def decode_aprs() -> Response | tuple[Response, int]:
             es = get_elasticsearch_service()
             for packet in packets:
                 try:
-                    es.index_aprs(packet)
+                    es.index_aprs(cast(dict[str, Any], packet))
                 except Exception as e:
                     logger.warning(f"Failed to index APRS packet: {e}")
 

@@ -9,6 +9,7 @@ Provides endpoints for POCSAG (pager protocol) decoding:
 """
 
 from flask import Blueprint, request, jsonify, Response
+from typing import Any, cast
 from api_service import get_elasticsearch_service, get_pocsag_decoder
 import logging
 
@@ -144,7 +145,7 @@ def decode_pocsag() -> Response | tuple[Response, int]:
             es = get_elasticsearch_service()
             for message in messages:
                 try:
-                    es.index_pocsag(message)
+                    es.index_pocsag(cast(dict[str, Any], message))
                 except Exception as e:
                     logger.warning(f"Failed to index POCSAG message: {e}")
 
