@@ -18,6 +18,7 @@ _TEST_RECORDING_DIR = tempfile.mkdtemp(prefix='pytest-recordings-')
 # This ensures api_service.RECORDING_DIR is set correctly on import
 os.environ['API_KEYS'] = ''
 os.environ['AUDIO_OUTPUT_DIR'] = _TEST_RECORDING_DIR
+os.environ['SKIP_REDIS_CHECK'] = '1'  # Skip Redis connection check in tests
 
 # NOW import api_service - it will use the env vars we just set
 from api_service import app

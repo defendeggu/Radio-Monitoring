@@ -162,15 +162,15 @@ class ScanSessionManager:
         )
 
         # Test connection (skip in test mode)
-        test_mode = os.getenv('PYTEST_CURRENT_TEST') is not None
+        skip_redis_check = os.getenv('SKIP_REDIS_CHECK') == '1'
         try:
-            if not test_mode:
+            if not skip_redis_check:
                 self.redis.ping()
                 logger.info(f"Connected to Redis at {redis_host}:{redis_port} (db={redis_db})")
             else:
-                logger.info("Running in test mode - skipping Redis connection check")
+                logger.info("Skipping Redis connection check (test mode)")
         except redis.ConnectionError as e:
-            if not test_mode:
+            if not skip_redis_check:
                 logger.error(f"Failed to connect to Redis: {e}")
                 raise
             else:
