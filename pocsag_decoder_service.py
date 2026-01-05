@@ -12,7 +12,7 @@ from typing import TypedDict, Optional, List
 from datetime import datetime
 
 
-class POCSAGMessage(TypedDict):
+class POCSAGMessage(TypedDict, total=False):
     """Type definition for decoded POCSAG message"""
     address: int                    # Numeric pager address (e.g., 1234567)
     function_code: int              # Function code 0-3
@@ -21,6 +21,7 @@ class POCSAGMessage(TypedDict):
     baud_rate: int                  # 512, 1200, or 2400
     raw_line: str                   # Raw output from multimon-ng
     timestamp: str                  # ISO format timestamp
+    frequency: Optional[int]        # Optional frequency in Hz
 
 
 class POCSAGDecoder:

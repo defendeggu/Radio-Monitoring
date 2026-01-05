@@ -19,7 +19,7 @@ from datetime import datetime
 import os
 
 
-class APRSPacket(TypedDict):
+class APRSPacket(TypedDict, total=False):
     """Type definition for decoded APRS packet"""
     source_callsign: str
     destination_callsign: str
@@ -36,6 +36,7 @@ class APRSPacket(TypedDict):
     aprs_type: str
     aprs_data: Dict[str, Any]
     timestamp: str
+    frequency: Optional[int]  # Optional frequency in Hz
 
 
 class APRSDecoder:

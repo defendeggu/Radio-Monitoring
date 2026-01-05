@@ -11,6 +11,7 @@ Provides endpoints for real-time streaming decoding:
 """
 
 from flask import Blueprint, request, jsonify, Response
+from typing import Union
 from streaming_decoder_service import (
     StreamingAPRSDecoder,
     StreamingPOCSAGDecoder
@@ -166,6 +167,7 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
             return jsonify({'error': 'mode must be "aprs" or "pocsag"'}), 400
 
         # Create appropriate decoder
+        decoder: Union[StreamingAPRSDecoder, StreamingPOCSAGDecoder]
         if mode == 'aprs':
             decoder = StreamingAPRSDecoder(
                 frequency=frequency,
