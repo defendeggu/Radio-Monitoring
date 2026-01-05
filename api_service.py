@@ -367,13 +367,13 @@ def get_pocsag_decoder() -> POCSAGDecoder:
 # ============================================================================
 
 # Import blueprints
-from blueprints.health import health_bp
-from blueprints.sdr import sdr_bp
-from blueprints.capture import capture_bp
-from blueprints.aprs import aprs_bp
-from blueprints.pocsag import pocsag_bp
-from blueprints.repeater import repeater_bp
-from blueprints.streaming import streaming_bp
+from blueprints.health import health_bp  # type: ignore[import]
+from blueprints.sdr import sdr_bp  # type: ignore[import]
+from blueprints.capture import capture_bp  # type: ignore[import]
+from blueprints.aprs import aprs_bp  # type: ignore[import]
+from blueprints.pocsag import pocsag_bp  # type: ignore[import]
+from blueprints.repeater import repeater_bp  # type: ignore[import]
+from blueprints.streaming import streaming_bp  # type: ignore[import]
 
 # Register blueprints
 app.register_blueprint(health_bp)
