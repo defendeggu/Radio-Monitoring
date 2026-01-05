@@ -19,6 +19,7 @@ open http://localhost:8080
 **Access Points:**
 - Web Interface: http://localhost:8080
 - Kibana Dashboards: http://localhost:5601
+- Portainer (Docker Management): http://localhost:9000 or https://localhost:9443
 - API: http://localhost:5000
 
 ## Option 2: Manual Setup
@@ -136,11 +137,12 @@ python -m http.server 8080
 **Production Mode:**
 ```bash
 # Docker with Gunicorn + full ELK stack
-docker compose -f docker-compose.yml -f docker-compose.elk.yml up -d
+docker compose up -d
 
 # Access services:
 # - Web Interface: http://localhost:8080
 # - Kibana: http://localhost:5601
+# - Portainer: http://localhost:9000 (HTTP) or https://localhost:9443 (HTTPS)
 # - N8N: http://localhost:5679
 # - Elasticsearch: http://localhost:9200
 ```
@@ -148,6 +150,7 @@ docker compose -f docker-compose.yml -f docker-compose.elk.yml up -d
 ## Next Steps
 
 - ✨ **Explore Kibana Dashboards** at http://localhost:5601
+- 🐳 **Manage Docker containers** with Portainer at http://localhost:9000
 - 🔧 **Customize settings** in `.env` file
 - 🔄 **Import N8N workflow** and automate captures
 - 📡 **Add frequency presets** for your region

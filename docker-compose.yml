@@ -225,10 +225,29 @@ services:
       - radio-network
     restart: unless-stopped
 
+  # ===========================================================================
+  # Portainer - Docker Management UI
+  # ===========================================================================
+  portainer:
+    image: portainer/portainer-ce:latest
+    container_name: radio-portainer
+    command: -H unix:///var/run/docker.sock
+    ports:
+      - "9443:9443"  # HTTPS UI
+      - "9000:9000"  # HTTP UI
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - portainer-data:/data
+    networks:
+      - radio-network
+    restart: unless-stopped
+
 volumes:
   elasticsearch-data:
     driver: local
   redis-data:
+    driver: local
+  portainer-data:
     driver: local
 
 networks:

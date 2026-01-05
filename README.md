@@ -46,11 +46,12 @@ A complete professional radio monitoring system for capturing radio signals from
 ## Architecture
 
 ```
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  Web Interface  │   │     Kibana      │   │      N8N        │
-│   (HTML/JS)     │   │   Dashboards    │   │   Workflows     │
-│   Port 8080     │   │   Port 5601     │   │   Port 5679     │
-└────────┬────────┘   └────────┬────────┘   └────────┬────────┘
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│  Web Interface  │   │     Kibana      │   │      N8N        │   │   Portainer     │
+│   (HTML/JS)     │   │   Dashboards    │   │   Workflows     │   │  Docker Mgmt    │
+│   Port 8080     │   │   Port 5601     │   │   Port 5679     │   │  Ports 9000/    │
+│                 │   │                 │   │                 │   │       9443      │
+└────────┬────────┘   └────────┬────────┘   └────────┬────────┘   └─────────────────┘
          │                     │                      │
          │            ┌────────┴────────┐             │
          │            │                 │             │
@@ -201,6 +202,7 @@ The system automatically detects which SDR is connected:
 6. **Access the interfaces**
    - Web Interface: http://localhost:8080
    - Kibana Dashboards: http://localhost:5601
+   - Portainer (Docker Management): http://localhost:9000 or https://localhost:9443
    - Elasticsearch API: http://localhost:9200
    - Logstash Pipelines: http://localhost:9600-9604
    - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
@@ -258,6 +260,60 @@ python api_service.py
 ```
 
 **Note**: The development server shows a warning that it's not suitable for production. Use Docker with Gunicorn for production deployments.
+
+## Docker Container Management
+
+### Portainer
+
+The stack includes **Portainer Community Edition**, a web-based Docker management UI that provides:
+
+- 📊 **Container Management**: Start, stop, restart, and monitor all containers
+- 📈 **Resource Monitoring**: CPU, memory, and network usage for each container
+- 📝 **Log Viewing**: Real-time container logs with search and filtering
+- 🔍 **Image Management**: View, pull, and manage Docker images
+- 🌐 **Network Management**: Inspect and manage Docker networks
+- 💾 **Volume Management**: View and manage persistent storage volumes
+- 📋 **Stack Management**: Deploy and manage multi-container applications
+
+**Access Portainer:**
+- HTTP: http://localhost:9000
+- HTTPS: https://localhost:9443
+
+**First-Time Setup:**
+
+On first access, Portainer will ask you to create an admin account:
+
+1. Open http://localhost:9000
+2. Create admin username and password
+3. Select "Docker" as the environment to manage
+4. Click "Connect" to start managing your containers
+
+**Common Tasks:**
+
+```bash
+# View all running containers
+Navigate to: Containers → All containers
+
+# View container logs
+Click on container name → Logs
+
+# Restart a container
+Click on container name → Restart container
+
+# Monitor resource usage
+Dashboard → View real-time stats
+
+# Access container shell
+Click on container name → Console → Connect
+```
+
+**Why Portainer?**
+
+- ✅ **Visual Overview**: See all containers, images, volumes, and networks at a glance
+- ✅ **Easy Troubleshooting**: Quick access to logs and container stats
+- ✅ **No CLI Required**: Manage Docker without memorizing commands
+- ✅ **Persistent Configuration**: Stores settings in a Docker volume
+- ✅ **Lightweight**: Minimal resource overhead (~50 MB memory)
 
 ## Secrets Management
 
