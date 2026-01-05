@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 class MockRedis:
     """Mock Redis client for testing"""
-    def __init__(self):
+    def __init__(self) -> None:
         self._data: Dict[str, str] = {}
 
     def set(self, key: str, value: str, ex: Optional[int] = None) -> None:
@@ -40,6 +40,13 @@ class MockRedis:
         # Simple pattern matching for scan_session:*
         if pattern.endswith('*'):
             prefix = pattern[:-1]
+            return [k for k in self._data.keys() if k.startswith(prefix)]
+        return list(self._data.keys())
+
+    def scan_iter(self, match: Optional[str] = None) -> List[str]:
+        """Iterate over keys matching pattern"""
+        if match and match.endswith('*'):
+            prefix = match[:-1]
             return [k for k in self._data.keys() if k.startswith(prefix)]
         return list(self._data.keys())
 
@@ -197,7 +204,7 @@ class ScanSessionManager:
 
         if skip_redis_check:
             logger.info("Using mock Redis client (test mode)")
-            self.redis = MockRedis()  # type: ignore[assignment]
+            self.redis: Any = MockRedis()
         else:
             self.redis = redis.Redis(
                 host=redis_host,
@@ -335,7 +342,7 @@ class ScanSessionManager:
             Next session ID
         """
         counter_value = self.redis.incr('scan_session_counter')
-        return int(counter_value)  # type: ignore[arg-type]
+        return int(counter_value)
 
 
 # ============================================================================
