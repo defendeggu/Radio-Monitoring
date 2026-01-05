@@ -44,7 +44,7 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
         data = request.get_json() or {}
 
         frequency = data.get('frequency', 144800000)
-        sample_rate = data.get('sample_rate', 2000000)
+        sample_rate = data.get('sample_rate', 250000)  # Reduced from 2MHz to 250kHz for stability
         gain = data.get('gain', 20)
         duration = data.get('duration', 3600)  # Default: 1 hour
 
@@ -99,7 +99,7 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
         data = request.get_json() or {}
 
         frequency = data.get('frequency', 147325000)
-        sample_rate = data.get('sample_rate', 2000000)
+        sample_rate = data.get('sample_rate', 250000)  # Reduced from 2MHz to 250kHz for stability
         gain = data.get('gain', 20)
         duration = data.get('duration', 3600)  # Default: 1 hour
 
@@ -156,7 +156,7 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
 
         mode = data.get('mode', 'aprs')
         frequency = data.get('frequency')
-        sample_rate = data.get('sample_rate', 2000000)
+        sample_rate = data.get('sample_rate', 250000)  # Reduced from 2MHz to 250kHz for stability
         gain = data.get('gain', 20)
         duration = data.get('duration', 3600)  # Default: 1 hour
 
@@ -247,16 +247,30 @@ def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
                 'message': 'Session not found'
             }), 404
 
-        # Kill any running SDR/decoder processes
+        # Gracefully terminate any running SDR/decoder processes
         # Note: We don't have direct access to decoder instances from Redis
-        # So we kill all processes as a workaround
+        # So we terminate all processes as a workaround
         import subprocess
+        import time
         try:
+            # First try graceful termination with SIGTERM
+            logger.info("Attempting graceful process termination...")
+            subprocess.run(['pkill', '-TERM', 'hackrf_transfer'], timeout=2)
+            subprocess.run(['pkill', '-TERM', 'rtl_sdr'], timeout=2)
+            subprocess.run(['pkill', '-TERM', 'multimon-ng'], timeout=2)
+            subprocess.run(['pkill', '-TERM', 'direwolf'], timeout=2)
+
+            # Wait 3 seconds for processes to terminate gracefully
+            time.sleep(3)
+
+            # Force kill any remaining processes
+            logger.info("Force killing any remaining processes...")
             subprocess.run(['pkill', '-9', 'hackrf_transfer'], timeout=2)
+            subprocess.run(['pkill', '-9', 'rtl_sdr'], timeout=2)
             subprocess.run(['pkill', '-9', 'multimon-ng'], timeout=2)
             subprocess.run(['pkill', '-9', 'direwolf'], timeout=2)
-        except:
-            pass
+        except Exception as e:
+            logger.warning(f"Error during process cleanup: {e}")
 
         # Delete session
         session_manager.delete_session(session_id)

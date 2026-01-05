@@ -26,6 +26,9 @@ elasticsearch==8.11.0
 # Redis (for streaming session management)
 redis==5.0.1
 
+# System resource monitoring (for memory/CPU checks)
+psutil==5.9.8
+
 # Production WSGI Server
 gunicorn==21.2.0
 gevent==24.2.1
