@@ -15,6 +15,9 @@ import logging
 import threading
 import subprocess
 import numpy as np
+import gc
+import psutil
+import select
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, IO
@@ -318,8 +321,10 @@ class BaseStreamingDecoder(ABC):
                 logger.info(f"Stream session {self.session.session_id} completed")
 
     def _start_sdr_capture(self) -> subprocess.Popen[bytes]:
-        """Launch hackrf_transfer with stdout pipe"""
+        """Launch hackrf_transfer with stdout pipe and reduced priority"""
+        # Use nice to reduce CPU priority (prevents CPU saturation)
         cmd = [
+            'nice', '-n', '10',  # Lower priority (normal=0, lower=positive)
             'hackrf_transfer',
             '-r', '-',  # Write to stdout
             '-f', str(int(self.frequency)),
@@ -327,7 +332,7 @@ class BaseStreamingDecoder(ABC):
             '-l', str(self.gain),
             '-g', str(self.gain)
         ]
-        logger.debug(f"Executing SDR command: {cmd}")
+        logger.debug(f"Executing SDR command with reduced priority: {cmd}")
 
         # Duration limit (optional - or run until stop)
         if self.duration:
@@ -337,8 +342,14 @@ class BaseStreamingDecoder(ABC):
         proc = subprocess.Popen(
             cmd,
             stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE
+            stderr=subprocess.PIPE,
+            # Set process group for easier cleanup
+            preexec_fn=os.setsid if hasattr(os, 'setsid') else None
         )
+
+        # Log process info
+        logger.info(f"Started SDR process (PID: {proc.pid}) with nice +10 priority")
+
         return proc
 
     def _stream_pipeline(self, session_manager: SessionManager) -> None:
@@ -382,12 +393,25 @@ class BaseStreamingDecoder(ABC):
     def _iq_to_audio_converter(self, iq_stream: Optional[IO[bytes]], audio_sink: Optional[IO[bytes]]) -> None:
         """Convert IQ stream to audio and pipe to decoder"""
         assert iq_stream is not None and audio_sink is not None
-        CHUNK_SIZE = self.sample_rate * 2 * 1  # 1 second (I+Q, int8)
+        # Reduced chunk size from 1 second to 0.1 seconds to prevent memory exhaustion
+        CHUNK_DURATION = 0.1  # seconds
+        CHUNK_SIZE = int(self.sample_rate * 2 * CHUNK_DURATION)  # I+Q, int8
+
+        chunk_count = 0
+        last_gc_time = time.time()
 
         try:
             while not self.stop_event.is_set():
-                # Read IQ chunk
-                iq_bytes = iq_stream.read(CHUNK_SIZE)
+                # Check memory usage every 10 chunks (~1 second)
+                if chunk_count % 10 == 0:
+                    memory_percent = psutil.virtual_memory().percent
+                    if memory_percent > 85:
+                        logger.error(f"Memory usage critical: {memory_percent}% - stopping stream")
+                        self.stop_event.set()
+                        break
+
+                # Read IQ chunk with timeout support
+                iq_bytes = self._read_with_timeout(iq_stream, CHUNK_SIZE, timeout=5.0)
                 if not iq_bytes or len(iq_bytes) == 0:
                     logger.info("SDR stream ended")
                     break
@@ -410,6 +434,21 @@ class BaseStreamingDecoder(ABC):
                 audio_sink.write(audio_int16.tobytes())
                 audio_sink.flush()
 
+                # Cleanup arrays to free memory immediately
+                del iq_bytes, iq_data, iq_float, iq_complex, audio, audio_48k, audio_int16
+
+                chunk_count += 1
+
+                # Force garbage collection every 5 seconds to prevent memory buildup
+                current_time = time.time()
+                if current_time - last_gc_time > 5.0:
+                    gc.collect()
+                    last_gc_time = current_time
+                    logger.debug(f"GC: Processed {chunk_count} chunks, Memory: {psutil.virtual_memory().percent}%")
+
+                # CPU throttling: small sleep to prevent CPU saturation
+                time.sleep(0.001)  # 1ms sleep to allow other processes to run
+
         except Exception as e:
             logger.error(f"IQ conversion error: {e}", exc_info=True)
         finally:
@@ -417,6 +456,19 @@ class BaseStreamingDecoder(ABC):
                 audio_sink.close()
             except:
                 pass
+            # Final cleanup
+            gc.collect()
+
+    def _read_with_timeout(self, stream: IO[bytes], size: int, timeout: float) -> bytes:
+        """Read from stream with timeout support using select"""
+        if hasattr(stream, 'fileno'):
+            # Use select for timeout support on file descriptors
+            ready, _, _ = select.select([stream], [], [], timeout)
+            if not ready:
+                logger.warning(f"Read timeout after {timeout}s")
+                return b''
+        # Fallback to regular read (for non-fd streams)
+        return stream.read(size)
 
     def _fm_demodulate(self, iq_complex: NDArray[np.complex64]) -> NDArray[np.float64]:
         """FM demodulation using phase differentiation"""
@@ -451,9 +503,37 @@ class BaseStreamingDecoder(ABC):
         assert decoder_stdout is not None
         assert self.session is not None
         try:
-            for line_bytes in decoder_stdout:
-                if self.stop_event.is_set():
-                    break
+            line_count = 0
+            last_activity = time.time()
+
+            # Set non-blocking mode for timeout support
+            if hasattr(decoder_stdout, 'fileno'):
+                import fcntl
+                fd = decoder_stdout.fileno()
+                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+            while not self.stop_event.is_set():
+                # Check for data with timeout
+                if hasattr(decoder_stdout, 'fileno'):
+                    ready, _, _ = select.select([decoder_stdout], [], [], 1.0)
+                    if not ready:
+                        # Check if we've been idle too long
+                        if time.time() - last_activity > 300:  # 5 minutes
+                            logger.warning("No decoder output for 5 minutes, continuing...")
+                        continue
+
+                try:
+                    line_bytes = decoder_stdout.readline()
+                    if not line_bytes:
+                        # End of stream
+                        break
+                except (BlockingIOError, IOError):
+                    # No data available yet
+                    time.sleep(0.1)
+                    continue
+
+                last_activity = time.time()
 
                 # Decode bytes to string (binary mode stdout from decoder)
                 line = line_bytes.decode('utf-8', errors='ignore') if isinstance(line_bytes, bytes) else str(line_bytes)
@@ -482,6 +562,12 @@ class BaseStreamingDecoder(ABC):
 
                 logger.info(f"Packet #{self.session.packet_count} indexed")
 
+                line_count += 1
+
+                # CPU throttling every 10 packets
+                if line_count % 10 == 0:
+                    time.sleep(0.01)  # Small sleep to prevent CPU saturation
+
         except Exception as e:
             logger.error(f"Indexing error: {e}", exc_info=True)
 
@@ -494,34 +580,89 @@ class BaseStreamingDecoder(ABC):
             self.thread.join(timeout=15)
 
     def _cleanup(self) -> None:
-        """Cleanup processes"""
+        """Cleanup processes with graceful termination"""
+        # Graceful shutdown for SDR process
         if self.sdr_proc:
             try:
-                # Read any remaining stderr output
+                # Read any remaining stderr output (non-blocking)
                 if self.sdr_proc.stderr is not None:
-                    stderr_output = self.sdr_proc.stderr.read().decode('utf-8', errors='ignore').strip()
-                    if stderr_output:
-                        logger.error(f"SDR process stderr: {stderr_output}")
+                    try:
+                        # Set non-blocking mode
+                        import fcntl
+                        fd = self.sdr_proc.stderr.fileno()
+                        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                        fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
+                        stderr_output = self.sdr_proc.stderr.read()
+                        if stderr_output:
+                            logger.error(f"SDR process stderr: {stderr_output.decode('utf-8', errors='ignore').strip()}")
+                    except (BlockingIOError, IOError):
+                        pass  # No data available
+
+                # Graceful termination: SIGTERM first
+                logger.info("Sending SIGTERM to SDR process...")
                 self.sdr_proc.terminate()
-                self.sdr_proc.wait(timeout=5)
+
+                try:
+                    # Wait up to 5 seconds for graceful shutdown
+                    self.sdr_proc.wait(timeout=5)
+                    logger.info("SDR process terminated gracefully")
+                except subprocess.TimeoutExpired:
+                    # Force kill if not responding
+                    logger.warning("SDR process not responding, sending SIGKILL...")
+                    self.sdr_proc.kill()
+                    self.sdr_proc.wait(timeout=2)
+                    logger.info("SDR process killed")
+
             except Exception as e:
                 logger.error(f"Error terminating SDR process: {e}")
-                self.sdr_proc.kill()
+                try:
+                    self.sdr_proc.kill()
+                except:
+                    pass
 
+        # Graceful shutdown for decoder process
         if self.decoder_proc:
             try:
-                # Read any remaining stderr output
+                # Read any remaining stderr output (non-blocking)
                 if self.decoder_proc.stderr is not None:
-                    stderr_output = self.decoder_proc.stderr.read().decode('utf-8', errors='ignore').strip()
-                    if stderr_output:
-                        logger.error(f"Decoder process stderr: {stderr_output}")
+                    try:
+                        # Set non-blocking mode
+                        import fcntl
+                        fd = self.decoder_proc.stderr.fileno()
+                        flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                        fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
 
+                        stderr_output = self.decoder_proc.stderr.read()
+                        if stderr_output:
+                            logger.error(f"Decoder process stderr: {stderr_output.decode('utf-8', errors='ignore').strip()}")
+                    except (BlockingIOError, IOError):
+                        pass  # No data available
+
+                # Graceful termination: SIGTERM first
+                logger.info("Sending SIGTERM to decoder process...")
                 self.decoder_proc.terminate()
-                self.decoder_proc.wait(timeout=5)
+
+                try:
+                    # Wait up to 5 seconds for graceful shutdown
+                    self.decoder_proc.wait(timeout=5)
+                    logger.info("Decoder process terminated gracefully")
+                except subprocess.TimeoutExpired:
+                    # Force kill if not responding
+                    logger.warning("Decoder process not responding, sending SIGKILL...")
+                    self.decoder_proc.kill()
+                    self.decoder_proc.wait(timeout=2)
+                    logger.info("Decoder process killed")
+
             except Exception as e:
                 logger.error(f"Error terminating decoder process: {e}")
-                self.decoder_proc.kill()
+                try:
+                    self.decoder_proc.kill()
+                except:
+                    pass
+
+        # Final cleanup
+        logger.info("Process cleanup completed")
 
 
 class StreamingAPRSDecoder(BaseStreamingDecoder):
