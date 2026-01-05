@@ -458,9 +458,10 @@ class BaseStreamingDecoder(ABC):
         if self.sdr_proc:
             try:
                 # Read any remaining stderr output
-                stderr_output = self.sdr_proc.stderr.read().decode('utf-8', errors='ignore').strip()
-                if stderr_output:
-                    logger.error(f"SDR process stderr: {stderr_output}")
+                if self.sdr_proc.stderr is not None:
+                    stderr_output = self.sdr_proc.stderr.read().decode('utf-8', errors='ignore').strip()
+                    if stderr_output:
+                        logger.error(f"SDR process stderr: {stderr_output}")
 
                 self.sdr_proc.terminate()
                 self.sdr_proc.wait(timeout=5)
@@ -471,9 +472,10 @@ class BaseStreamingDecoder(ABC):
         if self.decoder_proc:
             try:
                 # Read any remaining stderr output
-                stderr_output = self.decoder_proc.stderr.read().decode('utf-8', errors='ignore').strip()
-                if stderr_output:
-                    logger.error(f"Decoder process stderr: {stderr_output}")
+                if self.decoder_proc.stderr is not None:
+                    stderr_output = self.decoder_proc.stderr.read().decode('utf-8', errors='ignore').strip()
+                    if stderr_output:
+                        logger.error(f"Decoder process stderr: {stderr_output}")
 
                 self.decoder_proc.terminate()
                 self.decoder_proc.wait(timeout=5)
