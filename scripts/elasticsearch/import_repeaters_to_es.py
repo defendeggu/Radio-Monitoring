@@ -3,18 +3,19 @@
 Import repeaters from CSV into Elasticsearch
 
 Usage:
-    python3 import_repeaters_to_es.py scripts/example_repeaters.csv
+    python3 import_repeaters_to_es.py scripts/example_repeaters.csv --es-hosts <host>
 """
 
 import csv
 import sys
 import uuid
+import argparse
 from pathlib import Path
-from typing import Optional
+from typing import Optional, List
 from datetime import datetime, timezone
 
-# Add parent directory to path for imports
-sys.path.insert(0, str(Path(__file__).parent / 'services'))
+# Add project root to path to allow importing 'elasticsearch_service'
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
 from elasticsearch_service import ElasticsearchService
 
@@ -38,12 +39,13 @@ def parse_optional_float(value: str) -> Optional[float]:
         return None
 
 
-def import_csv(csv_file: str) -> int:
+def import_csv(csv_file: str, es_hosts: List[str]) -> int:
     """
     Import repeaters from CSV file into Elasticsearch.
 
     Args:
         csv_file: Path to CSV file
+        es_hosts: List of Elasticsearch hosts
 
     Returns:
         Number of repeaters imported
@@ -52,7 +54,7 @@ def import_csv(csv_file: str) -> int:
         print(f"Error: File '{csv_file}' not found")
         return 0
 
-    es = ElasticsearchService()
+    es = ElasticsearchService(hosts=es_hosts)
 
     imported = 0
     errors = 0
@@ -140,19 +142,17 @@ def import_csv(csv_file: str) -> int:
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python3 import_repeaters_to_es.py <csv_file>")
-        print("Example: python3 import_repeaters_to_es.py scripts/example_repeaters.csv")
-        sys.exit(1)
-
-    csv_file = sys.argv[1]
+    parser = argparse.ArgumentParser(description='Import Swiss repeaters from CSV file to Elasticsearch')
+    parser.add_argument('csv_file', help='Path to CSV file')
+    parser.add_argument('--es-hosts', help='Elasticsearch hosts', required=True)
+    args = parser.parse_args()
 
     print("=" * 60)
     print("Repeater CSV Import to Elasticsearch")
     print("=" * 60)
     print()
 
-    imported = import_csv(csv_file)
+    imported = import_csv(args.csv_file, [args.es_hosts])
 
     sys.exit(0 if imported > 0 else 1)
 
