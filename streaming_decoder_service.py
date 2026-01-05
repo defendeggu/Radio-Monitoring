@@ -125,6 +125,26 @@ class SessionManager:
                 return session
         return None
 
+    def create_session(self, decoder_type: str, decoder: 'BaseStreamingDecoder',
+                      frequency: int, sample_rate: int, gain: int) -> str:
+        """Create a new streaming session"""
+        # Create session from decoder parameters
+        session = StreamSession(
+            mode=decoder_type,
+            frequency=frequency,
+            duration=decoder.duration,
+            gain=gain,
+            sample_rate=sample_rate
+        )
+
+        # Save to Redis
+        self.save_session(session)
+
+        # Store session in decoder
+        decoder.session = session
+
+        return session.session_id
+
 
 class BaseStreamingDecoder(ABC):
     """Base class for streaming decoders"""
@@ -181,6 +201,50 @@ class BaseStreamingDecoder(ABC):
         """Return mode name (aprs/pocsag)"""
         pass
 
+    def start(self) -> None:
+        """Start streaming (without creating session - session already created)"""
+        # Start background thread
+        assert self.session is not None, "Session must be initialized before calling start()"
+
+        self.thread = threading.Thread(target=self._stream_worker_simple)
+        self.thread.daemon = False
+        self.thread.start()
+
+    def _stream_worker_simple(self) -> None:
+        """Simplified streaming worker when session already exists"""
+        from api_service import session_manager
+
+        try:
+            assert self.session is not None, "Session must be initialized"
+            self.session.status = 'running'
+            session_manager.save_session(self.session)
+
+            # 1. Start SDR process (stdout pipe)
+            self.sdr_proc = self._start_sdr_capture()
+            logger.info(f"SDR capture started for session {self.session.session_id}")
+
+            # 2. Start decoder process (stdin/stdout pipes)
+            self.decoder_proc = self._start_decoder()
+            logger.info(f"Decoder started for session {self.session.session_id}")
+
+            # 3. Stream IQ → Audio → Decoder → ES
+            self._stream_pipeline(session_manager)
+
+        except Exception as e:
+            logger.error(f"Streaming failed: {e}", exc_info=True)
+            if self.session is not None:
+                self.session.status = 'failed'
+                self.session.error = str(e)
+                session_manager.save_session(self.session)
+        finally:
+            # Cleanup
+            self._cleanup()
+            if self.session is not None:
+                self.session.status = 'completed'
+                self.session.end_time = datetime.now(timezone.utc)
+                session_manager.save_session(self.session)
+                logger.info(f"Stream session {self.session.session_id} completed")
+
     def _stream_worker(self, session_manager: SessionManager) -> None:
         """Main streaming worker (runs in background)"""
         try:
@@ -223,6 +287,7 @@ class BaseStreamingDecoder(ABC):
             '-l', str(self.gain),
             '-g', str(self.gain)
         ]
+        logger.debug(f"Executing SDR command: {cmd}")
 
         # Duration limit (optional - or run until stop)
         if self.duration:
@@ -392,16 +457,28 @@ class BaseStreamingDecoder(ABC):
         """Cleanup processes"""
         if self.sdr_proc:
             try:
+                # Read any remaining stderr output
+                stderr_output = self.sdr_proc.stderr.read().decode('utf-8', errors='ignore').strip()
+                if stderr_output:
+                    logger.error(f"SDR process stderr: {stderr_output}")
+
                 self.sdr_proc.terminate()
                 self.sdr_proc.wait(timeout=5)
-            except:
+            except Exception as e:
+                logger.error(f"Error terminating SDR process: {e}")
                 self.sdr_proc.kill()
 
         if self.decoder_proc:
             try:
+                # Read any remaining stderr output
+                stderr_output = self.decoder_proc.stderr.read().decode('utf-8', errors='ignore').strip()
+                if stderr_output:
+                    logger.error(f"Decoder process stderr: {stderr_output}")
+
                 self.decoder_proc.terminate()
                 self.decoder_proc.wait(timeout=5)
-            except:
+            except Exception as e:
+                logger.error(f"Error terminating decoder process: {e}")
                 self.decoder_proc.kill()
 
 
@@ -563,12 +640,13 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             '-t', 'raw',  # Raw format
             '-'           # Read from stdin
         ]
+        logger.debug(f"Executing Decoder command: {cmd}")
 
         proc = subprocess.Popen(
             cmd,
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
             text=False  # Binary mode for stdin (audio data)
             # bufsize default (binary mode doesn't support line buffering)
         )

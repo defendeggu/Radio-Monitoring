@@ -145,7 +145,7 @@ services:
       dockerfile: Dockerfile
     container_name: radio-transcription-api
     # Security: Removed privileged mode, using explicit device access instead
-    # privileged: true
+    privileged: true
     env_file:
       - .env.elk
     # Memory limits to prevent OOM crashes during long captures

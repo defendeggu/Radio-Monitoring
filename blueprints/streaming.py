@@ -45,10 +45,12 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
         frequency = data.get('frequency', 144800000)
         sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
+        duration = data.get('duration', 3600)  # Default: 1 hour
 
         # Create streaming decoder
         decoder = StreamingAPRSDecoder(
             frequency=frequency,
+            duration=duration,
             sample_rate=sample_rate,
             gain=gain
         )
@@ -98,10 +100,12 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
         frequency = data.get('frequency', 147325000)
         sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
+        duration = data.get('duration', 3600)  # Default: 1 hour
 
         # Create streaming decoder
         decoder = StreamingPOCSAGDecoder(
             frequency=frequency,
+            duration=duration,
             sample_rate=sample_rate,
             gain=gain
         )
@@ -153,6 +157,7 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
         frequency = data.get('frequency')
         sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
+        duration = data.get('duration', 3600)  # Default: 1 hour
 
         if not frequency:
             return jsonify({'error': 'frequency is required'}), 400
@@ -164,12 +169,14 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
         if mode == 'aprs':
             decoder = StreamingAPRSDecoder(
                 frequency=frequency,
+                duration=duration,
                 sample_rate=sample_rate,
                 gain=gain
             )
         else:  # pocsag
             decoder = StreamingPOCSAGDecoder(
                 frequency=frequency,
+                duration=duration,
                 sample_rate=sample_rate,
                 gain=gain
             )
@@ -216,7 +223,7 @@ def get_streaming_session(session_id: str) -> Response | tuple[Response, int]:
 
         return jsonify({
             'status': 'success',
-            'session': session
+            'session': session.to_dict()
         })
 
     except Exception as e:
@@ -238,10 +245,16 @@ def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
                 'message': 'Session not found'
             }), 404
 
-        # Stop decoder
-        decoder = session.get('decoder')
-        if decoder:
-            decoder.stop()
+        # Kill any running SDR/decoder processes
+        # Note: We don't have direct access to decoder instances from Redis
+        # So we kill all processes as a workaround
+        import subprocess
+        try:
+            subprocess.run(['pkill', '-9', 'hackrf_transfer'], timeout=2)
+            subprocess.run(['pkill', '-9', 'multimon-ng'], timeout=2)
+            subprocess.run(['pkill', '-9', 'direwolf'], timeout=2)
+        except:
+            pass
 
         # Delete session
         session_manager.delete_session(session_id)
@@ -268,7 +281,7 @@ def list_streaming_sessions() -> Response | tuple[Response, int]:
         return jsonify({
             'status': 'success',
             'count': len(sessions),
-            'sessions': sessions
+            'sessions': [s.to_dict() for s in sessions]
         })
 
     except Exception as e:
