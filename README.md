@@ -973,9 +973,19 @@ The API can be integrated with:
 ├── aprs_decoder_service.py          # APRS decoder using direwolf
 ├── pocsag_decoder_service.py        # POCSAG decoder using multimon-ng
 ├── repeater_activity_analyzer.py    # Repeater activity signal processing
-├── api_service.py                   # Flask REST API with Elasticsearch integration
+├── api_service.py                   # Flask REST API with blueprint registration
 ├── elasticsearch_service.py         # Elasticsearch client and indexing service
+├── streaming_decoder_service.py     # Real-time APRS/POCSAG streaming decoders
 ├── web_interface.html               # Web control panel (tabbed: Voice/APRS/POCSAG/Repeater)
+├── blueprints/                      # Modular API endpoint blueprints
+│   ├── __init__.py                  # Blueprint package initialization
+│   ├── health.py                    # Health check endpoint
+│   ├── sdr.py                       # SDR hardware detection
+│   ├── capture.py                   # Audio capture endpoints
+│   ├── aprs.py                      # APRS decoder endpoints
+│   ├── pocsag.py                    # POCSAG decoder endpoints
+│   ├── repeater.py                  # Repeater scanning endpoints
+│   └── streaming.py                 # Streaming decoder endpoints
 ├── scripts/
 │   ├── import_repeaters_csv.py     # CSV import tool for repeater data
 │   ├── migrate_pg_to_elasticsearch.py  # PostgreSQL to Elasticsearch migration script
@@ -1777,6 +1787,15 @@ my-project/
 ├── elasticsearch_service.py          # Elasticsearch client
 ├── streaming_decoder_service.py      # Real-time streaming decoder
 ├── gunicorn_config.py               # Production WSGI config
+├── blueprints/                      # Modular API endpoint blueprints
+│   ├── __init__.py                  # Blueprint package initialization
+│   ├── health.py                    # Health check endpoint
+│   ├── sdr.py                       # SDR hardware detection
+│   ├── capture.py                   # Audio capture endpoints
+│   ├── aprs.py                      # APRS decoder endpoints
+│   ├── pocsag.py                    # POCSAG decoder endpoints
+│   ├── repeater.py                  # Repeater scanning endpoints
+│   └── streaming.py                 # Streaming decoder endpoints
 ├── requirements.txt                  # Python dependencies
 ├── pytest.ini                        # Pytest configuration
 ├── mypy.ini                          # MyPy type checker config
