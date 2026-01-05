@@ -14,14 +14,19 @@ This package contains modular blueprints for organizing API endpoints:
 
 from flask import Blueprint
 
-# Blueprints are imported from their respective modules
-# They will be registered in api_service.py
+# Import blueprints for type checking
+from blueprints.health import health_bp  # type: ignore[import]
+from blueprints.sdr import sdr_bp  # type: ignore[import]
+from blueprints.capture import capture_bp  # type: ignore[import]
+from blueprints.aprs import aprs_bp  # type: ignore[import]
+from blueprints.pocsag import pocsag_bp  # type: ignore[import]
+from blueprints.repeater import repeater_bp  # type: ignore[import]
+from blueprints.streaming import streaming_bp  # type: ignore[import]
 
 __all__ = [
     'health_bp',
     'sdr_bp',
     'capture_bp',
-    'stats_bp',
     'aprs_bp',
     'pocsag_bp',
     'repeater_bp',

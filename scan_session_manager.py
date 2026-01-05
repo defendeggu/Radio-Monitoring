@@ -289,7 +289,8 @@ class ScanSessionManager:
         Returns:
             Next session ID
         """
-        return int(self.redis.incr('scan_session_counter'))
+        counter_value = self.redis.incr('scan_session_counter')
+        return int(counter_value)  # type: ignore[arg-type]
 
 
 # ============================================================================
