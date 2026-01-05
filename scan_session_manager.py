@@ -17,6 +17,45 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
+class MockRedis:
+    """Mock Redis client for testing"""
+    def __init__(self):
+        self._data: Dict[str, str] = {}
+
+    def set(self, key: str, value: str, ex: Optional[int] = None) -> None:
+        self._data[key] = value
+
+    def get(self, key: str) -> Optional[str]:
+        return self._data.get(key)
+
+    def delete(self, *keys: str) -> int:
+        count = 0
+        for key in keys:
+            if key in self._data:
+                del self._data[key]
+                count += 1
+        return count
+
+    def keys(self, pattern: str = '*') -> List[str]:
+        # Simple pattern matching for scan_session:*
+        if pattern.endswith('*'):
+            prefix = pattern[:-1]
+            return [k for k in self._data.keys() if k.startswith(prefix)]
+        return list(self._data.keys())
+
+    def incr(self, key: str) -> int:
+        current = int(self._data.get(key, '0'))
+        new_value = current + 1
+        self._data[key] = str(new_value)
+        return new_value
+
+    def expire(self, key: str, seconds: int) -> None:
+        pass  # Mock doesn't implement expiry
+
+    def ping(self) -> bool:
+        return True
+
+
 class RepeaterScanSession:
     """Represents a repeater scanning session"""
 
@@ -153,28 +192,27 @@ class ScanSessionManager:
             redis_db: Redis database number
             redis_password: Redis password (optional)
         """
-        self.redis = redis.Redis(
-            host=redis_host,
-            port=redis_port,
-            db=redis_db,
-            password=redis_password if redis_password else None,
-            decode_responses=True
-        )
-
-        # Test connection (skip in test mode)
+        # Use mock Redis in test mode
         skip_redis_check = os.getenv('SKIP_REDIS_CHECK') == '1'
-        try:
-            if not skip_redis_check:
+
+        if skip_redis_check:
+            logger.info("Using mock Redis client (test mode)")
+            self.redis = MockRedis()  # type: ignore[assignment]
+        else:
+            self.redis = redis.Redis(
+                host=redis_host,
+                port=redis_port,
+                db=redis_db,
+                password=redis_password if redis_password else None,
+                decode_responses=True
+            )
+            # Test connection
+            try:
                 self.redis.ping()
                 logger.info(f"Connected to Redis at {redis_host}:{redis_port} (db={redis_db})")
-            else:
-                logger.info("Skipping Redis connection check (test mode)")
-        except redis.ConnectionError as e:
-            if not skip_redis_check:
+            except redis.ConnectionError as e:
                 logger.error(f"Failed to connect to Redis: {e}")
                 raise
-            else:
-                logger.warning(f"Redis not available in test mode: {e}")
 
     def save_session(self, session: RepeaterScanSession) -> None:
         """
