@@ -17,6 +17,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY *.py ./
 COPY mypy.ini pytest.ini .coveragerc ./
 
+# Copy blueprints module
+COPY blueprints/ ./blueprints/
+
 # Copy tests
 COPY tests/ ./tests/
 
