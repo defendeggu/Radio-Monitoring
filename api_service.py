@@ -40,6 +40,22 @@ logger = logging.getLogger(__name__)
 # Load environment variables
 load_dotenv()
 
+# Explicitly export shared utilities for blueprints
+__all__ = [
+    'app',
+    'get_elasticsearch_service',
+    'get_aprs_decoder',
+    'get_pocsag_decoder',
+    'get_transcription_service',
+    'session_manager',
+    'validate_file_path',
+    'RECORDING_DIR',
+    'RecordingInfo',
+    'scan_thread_pool',
+    'has_active_scan',
+    '_scan_repeaters_worker',
+]
+
 
 class CaptureRequest(TypedDict, total=False):
     """Type definition for capture request parameters"""
@@ -367,13 +383,13 @@ def get_pocsag_decoder() -> POCSAGDecoder:
 # ============================================================================
 
 # Import blueprints
-from blueprints.health import health_bp  # type: ignore[import-not-found]
-from blueprints.sdr import sdr_bp  # type: ignore[import-not-found]
-from blueprints.capture import capture_bp  # type: ignore[import-not-found]
-from blueprints.aprs import aprs_bp  # type: ignore[import-not-found]
-from blueprints.pocsag import pocsag_bp  # type: ignore[import-not-found]
-from blueprints.repeater import repeater_bp  # type: ignore[import-not-found]
-from blueprints.streaming import streaming_bp  # type: ignore[import-not-found]
+from blueprints.health import health_bp
+from blueprints.sdr import sdr_bp
+from blueprints.capture import capture_bp
+from blueprints.aprs import aprs_bp
+from blueprints.pocsag import pocsag_bp
+from blueprints.repeater import repeater_bp
+from blueprints.streaming import streaming_bp
 
 # Register blueprints
 app.register_blueprint(health_bp)

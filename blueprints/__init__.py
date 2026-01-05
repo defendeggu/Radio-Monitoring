@@ -15,13 +15,13 @@ This package contains modular blueprints for organizing API endpoints:
 from flask import Blueprint
 
 # Import blueprints for type checking
-from blueprints.health import health_bp  # type: ignore[import-not-found]
-from blueprints.sdr import sdr_bp  # type: ignore[import-not-found]
-from blueprints.capture import capture_bp  # type: ignore[import-not-found]
-from blueprints.aprs import aprs_bp  # type: ignore[import-not-found]
-from blueprints.pocsag import pocsag_bp  # type: ignore[import-not-found]
-from blueprints.repeater import repeater_bp  # type: ignore[import-not-found]
-from blueprints.streaming import streaming_bp  # type: ignore[import-not-found]
+from blueprints.health import health_bp
+from blueprints.sdr import sdr_bp
+from blueprints.capture import capture_bp
+from blueprints.aprs import aprs_bp
+from blueprints.pocsag import pocsag_bp
+from blueprints.repeater import repeater_bp
+from blueprints.streaming import streaming_bp
 
 __all__ = [
     'health_bp',
