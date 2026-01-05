@@ -36,10 +36,12 @@ COPY streaming_decoder_service.py .
 COPY api_service.py .
 COPY elasticsearch_service.py .
 COPY repeater_activity_analyzer.py .
+COPY scan_session_manager.py .
 COPY gunicorn_config.py .
 COPY direwolf.conf .
 COPY .env.example .env
 COPY scripts/ scripts/
+COPY blueprints/ blueprints/
 
 # Create recordings directory
 RUN mkdir -p recordings captures
