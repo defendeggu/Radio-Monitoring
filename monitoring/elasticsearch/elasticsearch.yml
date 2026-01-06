@@ -1,0 +1,58 @@
+# Elasticsearch Configuration
+# Performance tuning for radio monitoring workload
+
+# Cluster settings
+cluster.name: radio-monitoring-cluster
+node.name: radio-elasticsearch
+
+# Performance: Increase bulk queue size for high-throughput indexing
+thread_pool.write.queue_size: 1000
+
+# Performance: Increase search queue size
+thread_pool.search.queue_size: 3000
+
+# Performance: Optimize refresh interval (default is 1s, we can relax to 5s for better indexing)
+# Individual indices can override this setting
+index.refresh_interval: 5s
+
+# Performance: Increase bulk request size limits
+http.max_content_length: 200mb
+
+# Performance: Translog settings for durability vs performance trade-off
+# sync on every request by default, we can relax for better performance
+index.translog.durability: async
+index.translog.sync_interval: 30s
+
+# Performance: Number of shards for new indices (default: 1 for single node)
+index.number_of_shards: 1
+index.number_of_replicas: 0
+
+# Memory: Use mmapfs for better performance with large heap
+index.store.type: mmapfs
+
+# Monitoring: Enable slow query logging
+index.search.slowlog.threshold.query.warn: 10s
+index.search.slowlog.threshold.query.info: 5s
+index.indexing.slowlog.threshold.index.warn: 10s
+index.indexing.slowlog.threshold.index.info: 5s
+
+# Network settings
+network.host: 0.0.0.0
+http.port: 9200
+
+# Discovery (single-node mode is set via docker-compose environment)
+discovery.type: single-node
+
+# Security (configured via docker-compose environment variables)
+xpack.security.enabled: true
+xpack.security.enrollment.enabled: false
+xpack.security.http.ssl.enabled: false
+xpack.security.transport.ssl.enabled: false
+
+# Disable ML and other unused features to save memory
+xpack.ml.enabled: false
+xpack.graph.enabled: false
+xpack.watcher.enabled: false
+
+# Enable monitoring
+xpack.monitoring.collection.enabled: true

@@ -166,6 +166,37 @@ The system automatically detects which SDR is connected:
 - 🐳 Docker and Docker Compose (recommended)
 - 🐍 OR Python 3.11+ with system dependencies
 
+### 💾 System Requirements
+
+**Memory Requirements:**
+
+The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires significant memory for optimal performance:
+
+| Component | Heap Size | Container Overhead | Total Memory |
+|-----------|-----------|-------------------|--------------|
+| Elasticsearch | 4 GB | ~1 GB | ~5 GB |
+| Logstash | 2 GB | ~0.5 GB | ~2.5 GB |
+| Kibana | - | ~0.5 GB | ~0.5 GB |
+| Radio API | - | ~1 GB | ~1 GB |
+| Redis | - | ~0.1 GB | ~0.1 GB |
+| Metricbeat | - | ~0.1 GB | ~0.1 GB |
+| **Total** | **6 GB** | **~3.2 GB** | **~9.2 GB** |
+
+**Recommended System Specifications:**
+- 💻 **Minimum RAM**: 12 GB (allows OS + other processes)
+- 🚀 **Recommended RAM**: 16 GB or higher
+- 💾 **Disk Space**: 50 GB minimum (for logs and audio recordings)
+- 🔄 **SSD**: Strongly recommended for Elasticsearch performance
+
+**Performance Notes:**
+- Elasticsearch heap is set to 4 GB for fast indexing and search
+- Logstash heap is set to 2 GB for high-throughput data ingestion
+- System uses multi-stage Docker builds for 34% smaller image sizes
+- Elasticsearch configured with optimized settings:
+  - Index refresh interval: 5 seconds (vs default 1s)
+  - Async translog for better write performance
+  - Disabled unused features (ML, Graph, Watcher) to save memory
+
 ## 🚀 Quick Start with Docker
 
 1. **Clone the repository**
@@ -207,6 +238,227 @@ The system automatically detects which SDR is connected:
    - Logstash Pipelines: http://localhost:9600-9604
    - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
    - API: http://localhost:5000
+
+## 📡 RTL-SDR Quick Start Guide
+
+New to RTL-SDR? This section will help you get started quickly!
+
+### 📦 What You Need
+
+- **RTL-SDR USB Dongle** (~$25-40 USD)
+  - R820T/R820T2 tuner (most common)
+  - Software: rtl-sdr tools (included in Docker image)
+- **Antenna** (usually included with RTL-SDR)
+  - Telescopic antenna for VHF/UHF
+  - Longer antenna for better reception
+- **USB Extension Cable** (recommended)
+  - Reduces USB noise interference
+  - Allows better antenna positioning
+
+### 🔌 First-Time Setup
+
+1. **Connect RTL-SDR Device**
+   ```bash
+   # Plug in RTL-SDR USB dongle
+   # Extend antenna to appropriate length for your frequency
+   ```
+
+2. **Verify Device Detection**
+   ```bash
+   # Check if device is detected
+   rtl_test -t
+
+   # Expected output:
+   # Found 1 device(s):
+   #   0:  Realtek, RTL2838UHIDIR, SN: 00000001
+   ```
+
+3. **Test Reception** (Optional)
+   ```bash
+   # Listen to local FM radio station (e.g., 100.7 MHz)
+   rtl_fm -f 100.7M -M fm -s 200k - | aplay -r 200k -f S16_LE
+   # Press Ctrl+C to stop
+   ```
+
+### 🎯 Common Frequencies to Try
+
+#### FM Radio (87.5-108 MHz)
+Perfect for testing your RTL-SDR setup!
+
+```bash
+# Example: Monitor FM radio at 100.7 MHz
+curl -X POST http://localhost:5000/capture-and-transcribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency": 100700000,
+    "modulation": "fm",
+    "duration": 30
+  }'
+```
+
+#### APRS (Amateur Radio Position Reporting)
+
+**Europe:** 144.800 MHz | **North America:** 144.390 MHz | **Australia:** 145.175 MHz
+
+```bash
+# Start APRS monitoring (Europe)
+curl -X POST http://localhost:5000/stream-decode/aprs \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency": 144800000
+  }'
+
+# Check decoded APRS packets
+curl http://localhost:5000/aprs/search?hours=1
+```
+
+#### Amateur Radio Repeaters
+
+**2m Band (144-146 MHz)** | **70cm Band (430-440 MHz)**
+
+```bash
+# Scan Swiss 2m repeaters for activity
+curl -X POST http://localhost:5000/scan-repeaters \
+  -H "Content-Type: application/json" \
+  -d '{
+    "band": "2m",
+    "canton": "all"
+  }'
+```
+
+#### Aviation Band (118-137 MHz)
+
+```bash
+# Monitor emergency frequency 121.5 MHz
+curl -X POST http://localhost:5000/capture-and-transcribe \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency": 121500000,
+    "modulation": "am",
+    "duration": 60
+  }'
+```
+
+#### Weather Satellites (NOAA APT)
+
+**NOAA-15:** 137.620 MHz | **NOAA-18:** 137.9125 MHz | **NOAA-19:** 137.100 MHz
+
+### 📝 RTL-SDR Configuration File
+
+Copy the example configuration file to get started with common frequencies:
+
+```bash
+cp rtlsdr-example.conf rtlsdr.conf
+# Edit rtlsdr.conf to customize frequencies for your region
+```
+
+The configuration file includes:
+- Common frequency presets (FM, Aviation, Marine, Amateur Radio)
+- APRS frequencies by region
+- POCSAG pager frequencies
+- Swiss repeater channels
+- PPM calibration settings
+- Gain settings guide
+
+### 🔧 Frequency Correction (PPM)
+
+RTL-SDR devices have small frequency errors. Calibrate for better accuracy:
+
+1. **Find your PPM error:**
+   - Tune to a known frequency (e.g., local FM station at 100.7 MHz)
+   - Note the actual frequency where signal is strongest
+   - PPM error = (actual - expected) / expected * 1000000
+
+2. **Apply correction:**
+   ```bash
+   # Set in rtlsdr.conf
+   FREQUENCY_CORRECTION=52  # Example: 52 PPM
+   ```
+
+3. **Or use kalibrate-rtl:**
+   ```bash
+   kal -s GSM900
+   # Use the displayed PPM value in your configuration
+   ```
+
+### 🔀 Multiple RTL-SDR Devices
+
+Have multiple RTL-SDR dongles? You can use them simultaneously!
+
+See the [Multi-Device Setup Guide](MULTI_DEVICE.md) for detailed instructions on:
+- Setting unique serial numbers with `rtl_eeprom`
+- Using multiple devices for parallel monitoring
+- Dedicated APRS, Voice, and POCSAG devices
+- USB hub requirements and power considerations
+
+Quick example:
+```bash
+# Set unique serial numbers
+rtl_eeprom -d 0 -s RTLSDR_APRS
+rtl_eeprom -d 1 -s RTLSDR_VOICE
+
+# Use specific device in API calls
+curl -X POST http://localhost:5000/aprs/decode \
+  -H "Content-Type: application/json" \
+  -d '{
+    "frequency": 144800000,
+    "device_serial": "RTLSDR_APRS",
+    "duration": 300
+  }'
+```
+
+### 🛠️ Troubleshooting
+
+**Problem:** No RTL-SDR devices found
+```bash
+# Check USB connection
+lsusb | grep RTL
+
+# Add user to plugdev group (Linux)
+sudo usermod -a -G plugdev $USER
+# Log out and log back in
+```
+
+**Problem:** Poor reception quality
+- Extend antenna fully
+- Try different antenna positions (near window, higher elevation)
+- Use USB extension cable to reduce noise
+- Check for interference from computers, power supplies
+
+**Problem:** Device busy error
+- Close GQRX, SDR#, or other SDR software
+- Only one application can use RTL-SDR at a time
+- Stop any active streaming sessions
+
+**Problem:** Wrong frequency received
+- Calibrate PPM error (see above)
+- Check antenna is connected
+- Verify frequency is within RTL-SDR range (24 MHz - 1.766 GHz)
+
+### 📚 Learning Resources
+
+- **RTL-SDR Official Guide:** https://www.rtl-sdr.com/rtl-sdr-quick-start-guide/
+- **APRS Information:** http://aprs.org/
+- **Frequency Databases:**
+  - https://www.radioreference.com/ (North America)
+  - https://www.repeatermap.de/ (Europe)
+- **Swiss Repeaters:** https://www.uska.ch/
+
+### 💡 Usage Tips
+
+1. **Start Simple:** Begin with strong local FM stations to verify everything works
+2. **Check Antenna:** Proper antenna length and positioning greatly affects reception
+3. **Monitor Dashboards:** Use Kibana dashboards to visualize captured data
+4. **Experiment:** Try different frequencies, modulations, and gain settings
+5. **Be Patient:** Some frequencies (like APRS) may have sporadic activity
+
+### ⚖️ Legal Notice
+
+Always comply with local laws regarding radio monitoring:
+- Listening to unencrypted signals is generally legal
+- Do not decrypt encrypted communications
+- Do not retransmit or rebroadcast received signals (RTL-SDR is receive-only)
+- Respect privacy and applicable regulations in your jurisdiction
 
 ## 🚀 Production Deployment
 
