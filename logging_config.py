@@ -21,7 +21,7 @@ class CorrelationIdFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Add correlation_id to log record"""
-        record.correlation_id = correlation_id_ctx.get() or 'N/A'  # type: ignore
+        record.correlation_id = correlation_id_ctx.get() or 'N/A'
         return True
 
 
