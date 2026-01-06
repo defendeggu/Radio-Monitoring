@@ -1,47 +1,47 @@
-# Radio Message Transcription System
+# 📻 Radio Message Transcription System
 
 A complete professional radio monitoring system for capturing radio signals from **HackRF One** or **RTL-SDR** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
 
-## Features
+## ✨ Features
 
-### Core Capabilities
-- **Dual SDR Support**: Automatic detection and support for HackRF One and RTL-SDR devices
-- **Radio Capture**: Capture radio signals with configurable frequency and modulation
-- **Hardware Abstraction**: Transparent hardware switching with frequency range validation
-- **Multiple Modulation Support**: FM, AM, USB, LSB
-- **Speech-to-Text**: Automatic transcription using faster-whisper
-- **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
-- **POCSAG Pager Decoding**: Decode POCSAG pager messages (512, 1200, 2400 baud) using multimon-ng
-- **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters (NEW)
-- **Quad Processing Modes**: Voice transcription, APRS packet decoding, POCSAG pager decoding, or Repeater Activity scanning
-- **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, and Repeater Scan
-- **N8N Integration**: Workflow automation for orchestrating capture and transcription
-- **REST API**: Flask-based API for programmatic access
-- **Docker Support**: Complete Docker setup for easy deployment
+### 🎯 Core Capabilities
+- 📡 **Dual SDR Support**: Automatic detection and support for HackRF One and RTL-SDR devices
+- 📻 **Radio Capture**: Capture radio signals with configurable frequency and modulation
+- 🔄 **Hardware Abstraction**: Transparent hardware switching with frequency range validation
+- 📊 **Multiple Modulation Support**: FM, AM, USB, LSB
+- 🎤 **Speech-to-Text**: Automatic transcription using faster-whisper
+- 📍 **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
+- 📟 **POCSAG Pager Decoding**: Decode POCSAG pager messages (512, 1200, 2400 baud) using multimon-ng
+- 🔁 **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters (NEW)
+- ⚡ **Quad Processing Modes**: Voice transcription, APRS packet decoding, POCSAG pager decoding, or Repeater Activity scanning
+- 🌐 **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, and Repeater Scan
+- 🔄 **N8N Integration**: Workflow automation for orchestrating capture and transcription
+- 🔌 **REST API**: Flask-based API for programmatic access
+- 🐳 **Docker Support**: Complete Docker setup for easy deployment
 
-### Data Storage & Analytics (ELK Stack)
-- **Elasticsearch**: Time-series data storage with daily indices for all captures, APRS, POCSAG, and repeater activity
-- **Full-Text Search**: Advanced multi-language search (English, German, French, Spanish) with analyzers and stemming
-- **APRS Message Storage**: Dedicated index for APRS packets with callsign, geo-point position, message data
-- **POCSAG Message Storage**: Dedicated index for POCSAG pager messages with address, function code, message type, and baud rate
-- **Repeater Activity Storage**: Time-series index for repeater scans with transmission counts, signal strength, activity percentages
-- **Geospatial Queries**: Native geo_point mapping for APRS station positions with map visualization support
-- **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, band, canton, date range
-- **Index Lifecycle Management**: Automatic data retention with hot/warm/cold/delete phases (configurable retention period)
-- **REST API**: Logstash HTTP input endpoints for data ingestion with multi-pipeline architecture
-- **Statistics & Analytics**: Real-time aggregations for frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends
-- **Data Migration**: Bulk import from PostgreSQL to Elasticsearch with schema transformation
+### 💾 Data Storage & Analytics (ELK Stack)
+- 🗄️ **Elasticsearch**: Time-series data storage with daily indices for all captures, APRS, POCSAG, and repeater activity
+- 🔍 **Full-Text Search**: Advanced multi-language search (English, German, French, Spanish) with analyzers and stemming
+- 📍 **APRS Message Storage**: Dedicated index for APRS packets with callsign, geo-point position, message data
+- 📟 **POCSAG Message Storage**: Dedicated index for POCSAG pager messages with address, function code, message type, and baud rate
+- 📡 **Repeater Activity Storage**: Time-series index for repeater scans with transmission counts, signal strength, activity percentages
+- 🗺️ **Geospatial Queries**: Native geo_point mapping for APRS station positions with map visualization support
+- 🎛️ **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, band, canton, date range
+- ♻️ **Index Lifecycle Management**: Automatic data retention with hot/warm/cold/delete phases (configurable retention period)
+- 🔌 **REST API**: Logstash HTTP input endpoints for data ingestion with multi-pipeline architecture
+- 📊 **Statistics & Analytics**: Real-time aggregations for frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends
+- 📦 **Data Migration**: Bulk import from PostgreSQL to Elasticsearch with schema transformation
 
-### Monitoring & Visualization (ELK Stack)
-- **Kibana Dashboards**: Professional data visualization and analytics platform
-- **Captures Dashboard**: Interactive dashboard to browse, search, and filter all radio captures with full-text search
-- **APRS Dashboard**: Dedicated dashboard with geospatial map, packet statistics, callsign analytics, and message timeline
-- **POCSAG Dashboard**: Dedicated dashboard with pager address analytics, message type distribution, baud rate statistics, and timeline visualization
-- **Repeater Activity Dashboard**: Dashboard showing most active repeaters, activity trends by band/canton, scan statistics, and signal quality metrics
-- **System Metrics Dashboard**: Real-time system performance monitoring powered by Metricbeat
-- **Kibana Dev Tools**: Console for direct Elasticsearch queries and index management
-- **Metricbeat**: Automated system and container metrics collection (replaces Prometheus + cAdvisor)
-- **Logstash Pipelines**: Data ingestion and transformation with 5 dedicated pipelines (captures, APRS, POCSAG, repeater activity, metrics)
+### 📈 Monitoring & Visualization (ELK Stack)
+- 📊 **Kibana Dashboards**: Professional data visualization and analytics platform
+- 🎙️ **Captures Dashboard**: Interactive dashboard to browse, search, and filter all radio captures with full-text search
+- 📍 **APRS Dashboard**: Dedicated dashboard with geospatial map, packet statistics, callsign analytics, and message timeline
+- 📟 **POCSAG Dashboard**: Dedicated dashboard with pager address analytics, message type distribution, baud rate statistics, and timeline visualization
+- 📡 **Repeater Activity Dashboard**: Dashboard showing most active repeaters, activity trends by band/canton, scan statistics, and signal quality metrics
+- 💻 **System Metrics Dashboard**: Real-time system performance monitoring powered by Metricbeat
+- 🛠️ **Kibana Dev Tools**: Console for direct Elasticsearch queries and index management
+- 📈 **Metricbeat**: Automated system and container metrics collection (replaces Prometheus + cAdvisor)
+- 🔄 **Logstash Pipelines**: Data ingestion and transformation with 5 dedicated pipelines (captures, APRS, POCSAG, repeater activity, metrics)
 
 ## Architecture
 
@@ -115,11 +115,11 @@ A complete professional radio monitoring system for capturing radio signals from
             └─────────────────────────────────┘
 ```
 
-## Requirements
+## 📋 Requirements
 
-### Hardware
+### 🔧 Hardware
 
-**SDR Device (one of the following):**
+**📡 SDR Device (one of the following):**
 
 The system supports both HackRF One and RTL-SDR with **automatic hardware detection**. Choose based on your frequency coverage needs:
 
@@ -135,12 +135,12 @@ The system supports both HackRF One and RTL-SDR with **automatic hardware detect
 **Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies)
 **Recommended for advanced users:** HackRF One (full spectrum coverage, higher performance)
 
-**Additional Hardware:**
-- USB cable
-- Computer with USB port
-- Appropriate antenna for target frequencies
+**🔌 Additional Hardware:**
+- 🔌 USB cable
+- 💻 Computer with USB port
+- 📡 Appropriate antenna for target frequencies
 
-### Hardware Detection
+### 🔍 Hardware Detection
 
 The system automatically detects which SDR is connected:
 - Prefers HackRF if both are connected (better specs)
@@ -148,25 +148,25 @@ The system automatically detects which SDR is connected:
 - Shows detected device in web interface
 - Prevents invalid captures for device limitations
 
-### Frequency Coverage Examples
+### 📊 Frequency Coverage Examples
 
-**HackRF One can receive:**
+**📻 HackRF One can receive:**
 - ✅ HF bands (1-30 MHz): Shortwave, amateur HF
 - ✅ VHF (30-300 MHz): FM radio, aviation, APRS, amateur 2m
 - ✅ UHF (300-3000 MHz): Amateur 70cm, PMR, POCSAG pagers
 - ✅ Microwave (>3 GHz): Satellite, radar, WiFi, 23cm amateur
 
-**RTL-SDR can receive:**
+**📡 RTL-SDR can receive:**
 - ❌ HF bands (<24 MHz): Not supported
 - ✅ VHF (24-300 MHz): FM radio (88-108 MHz), aviation (118-137 MHz), APRS (144.8 MHz), amateur 2m
 - ✅ UHF (300-1766 MHz): Amateur 70cm (430-440 MHz), PMR (446 MHz), POCSAG pagers (147 MHz)
 - ❌ Microwave (>1.766 GHz): Not supported
 
-### Software
-- Docker and Docker Compose (recommended)
-- OR Python 3.11+ with system dependencies
+### 💻 Software
+- 🐳 Docker and Docker Compose (recommended)
+- 🐍 OR Python 3.11+ with system dependencies
 
-## Quick Start with Docker
+## 🚀 Quick Start with Docker
 
 1. **Clone the repository**
    ```bash
@@ -208,11 +208,11 @@ The system automatically detects which SDR is connected:
    - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
    - API: http://localhost:5000
 
-## Production Deployment
+## 🚀 Production Deployment
 
 The API service runs with **Gunicorn**, a production-ready WSGI HTTP server optimized for long-running streaming sessions.
 
-### Why Gunicorn?
+### ⚡ Why Gunicorn?
 
 - ✅ **Production-ready**: Stable, battle-tested WSGI server
 - ✅ **Asynchronous I/O**: Gevent workers handle long-running streaming sessions (1-24 hours)
@@ -220,7 +220,7 @@ The API service runs with **Gunicorn**, a production-ready WSGI HTTP server opti
 - ✅ **Auto-recovery**: Workers automatically restart if they crash
 - ✅ **Graceful restarts**: No dropped connections during updates
 
-### Configuration
+### ⚙️ Configuration
 
 Worker count and other settings can be configured via environment variables in `docker-compose.yml`:
 
@@ -232,7 +232,7 @@ environment:
 
 Or modify `gunicorn_config.py` directly for advanced settings.
 
-### Health Checks
+### 🏥 Health Checks
 
 The API includes a health check endpoint for monitoring:
 
@@ -250,7 +250,7 @@ Returns:
 }
 ```
 
-### Local Development (Flask Dev Server)
+### 🛠️ Local Development (Flask Dev Server)
 
 For local development without Docker, the Flask development server can still be used:
 
@@ -261,9 +261,9 @@ python api_service.py
 
 **Note**: The development server shows a warning that it's not suitable for production. Use Docker with Gunicorn for production deployments.
 
-## Docker Container Management
+## 🐳 Docker Container Management
 
-### Portainer
+### 🎛️ Portainer
 
 The stack includes **Portainer Community Edition**, a web-based Docker management UI that provides:
 
@@ -275,11 +275,11 @@ The stack includes **Portainer Community Edition**, a web-based Docker managemen
 - 💾 **Volume Management**: View and manage persistent storage volumes
 - 📋 **Stack Management**: Deploy and manage multi-container applications
 
-**Access Portainer:**
-- HTTP: http://localhost:9000
-- HTTPS: https://localhost:9443
+**🌐 Access Portainer:**
+- 🌐 HTTP: http://localhost:9000
+- 🔒 HTTPS: https://localhost:9443
 
-**First-Time Setup:**
+**⚡ First-Time Setup:**
 
 On first access, Portainer will ask you to create an admin account:
 
@@ -288,7 +288,7 @@ On first access, Portainer will ask you to create an admin account:
 3. Select "Docker" as the environment to manage
 4. Click "Connect" to start managing your containers
 
-**Common Tasks:**
+**📋 Common Tasks:**
 
 ```bash
 # View all running containers
@@ -307,7 +307,7 @@ Dashboard → View real-time stats
 Click on container name → Console → Connect
 ```
 
-**Why Portainer?**
+**💡 Why Portainer?**
 
 - ✅ **Visual Overview**: See all containers, images, volumes, and networks at a glance
 - ✅ **Easy Troubleshooting**: Quick access to logs and container stats
@@ -315,18 +315,18 @@ Click on container name → Console → Connect
 - ✅ **Persistent Configuration**: Stores settings in a Docker volume
 - ✅ **Lightweight**: Minimal resource overhead (~50 MB memory)
 
-## Secrets Management
+## 🔐 Secrets Management
 
 This project uses **Docker Secrets** for secure credential management, similar to Kubernetes Secrets.
 
-### 🔐 Why Docker Secrets?
+### 🔒 Why Docker Secrets?
 
 - **Security**: Passwords are stored in separate files, not in docker-compose.yml
 - **Git-safe**: Secret files are automatically excluded from version control
 - **Kubernetes-like**: Familiar pattern if you're used to K8s
 - **Auditable**: Easy to track which services use which secrets
 
-### Quick Setup
+### ⚡ Quick Setup
 
 Run the setup script to generate all required secrets:
 
@@ -341,7 +341,7 @@ This creates:
 
 **⚠️ Important**: Save the displayed credentials to your password manager!
 
-### Secret Files
+### 📁 Secret Files
 
 All secrets are stored in `secrets/*.txt` files:
 
@@ -353,7 +353,7 @@ secrets/
 
 **Note**: The ELK stack (Elasticsearch, Logstash, Kibana) in this fork runs without authentication for simplicity. For production deployments, enable X-Pack Security.
 
-### How It Works
+### ⚙️ How It Works
 
 Docker mounts secret files into containers at `/run/secrets/`:
 
@@ -376,14 +376,14 @@ def read_secret(secret_name: str) -> Optional[str]:
     return None
 ```
 
-### Viewing Your Credentials
+### 👀 Viewing Your Credentials
 
 ```bash
 # N8N
 cat secrets/n8n_basic_auth_password.txt
 ```
 
-### Changing Passwords
+### 🔄 Changing Passwords
 
 1. Update the secret file:
    ```bash
@@ -397,20 +397,20 @@ cat secrets/n8n_basic_auth_password.txt
 
 For more details, see [`secrets/README.md`](secrets/README.md).
 
-## API Security
+## 🔒 API Security
 
 The Radio Transcription API uses **API key authentication** to protect all endpoints (except `/health`).
 
-### Why API Keys?
+### 🔑 Why API Keys?
 
 - **Access Control**: Prevent unauthorized access to your radio monitoring system
 - **Audit Trail**: Track which API key was used for each request
 - **Multiple Keys**: Issue separate keys for different integrations (N8N, scripts, etc.)
 - **Revocable**: Disable compromised keys without changing all credentials
 
-### Setup API Keys
+### ⚙️ Setup API Keys
 
-**Automatic (Recommended):**
+**✨ Automatic (Recommended):**
 
 Run the setup script which automatically generates API keys:
 ```bash
@@ -422,7 +422,7 @@ The script will:
 2. Add them to your `.env` file as `API_KEYS=key1,key2`
 3. Display the keys for you to save
 
-**Manual:**
+**🔧 Manual:**
 
 Generate API keys manually:
 ```bash
@@ -437,7 +437,7 @@ API_KEYS=hAqaR34FS4oSanOQCiijqXhEd8bCIy6Z7L1CYrvX5Ns,VPdlHcd6qHBDR4luLGGyK_PufpH
 
 **Important:** Save your API keys to a password manager! You'll need them for all API requests.
 
-### Using API Keys
+### 🔑 Using API Keys
 
 All API requests (except `/health`) require the `X-API-Key` header:
 
@@ -460,14 +460,14 @@ curl -X POST http://localhost:5000/capture \
   -d '{...}'
 ```
 
-### Public Endpoints
+### 🌐 Public Endpoints
 
 The following endpoints do **not** require authentication:
 - `GET /health` - Health check for monitoring
 
 All other endpoints require a valid API key.
 
-### N8N Integration
+### 🔄 N8N Integration
 
 Configure N8N to use API keys:
 
@@ -490,7 +490,7 @@ Configure N8N to use API keys:
    }
    ```
 
-### Container Security
+### 🛡️ Container Security
 
 The Docker container runs as a **non-root user** (`radiouser`, UID 1000) for enhanced security:
 
@@ -500,7 +500,7 @@ The Docker container runs as a **non-root user** (`radiouser`, UID 1000) for enh
 
 This is automatically configured in the Dockerfile and requires no user action.
 
-### Security Best Practices
+### ✅ Security Best Practices
 
 1. **Never commit `.env`** to version control (already in `.gitignore`)
 2. **Rotate API keys periodically** by regenerating and updating `.env`
@@ -509,9 +509,9 @@ This is automatically configured in the Dockerfile and requires no user action.
 5. **Monitor access logs** in Elasticsearch for suspicious activity
 6. **Enable X-Pack Security** for Elasticsearch/Kibana in production
 
-## Manual Installation
+## 🛠️ Manual Installation
 
-### System Dependencies
+### 📦 System Dependencies
 
 **Ubuntu/Debian:**
 ```bash
@@ -535,13 +535,13 @@ sudo apt-get install -y \
 brew install hackrf rtl-sdr direwolf multimon-ng
 ```
 
-### Python Dependencies
+### 🐍 Python Dependencies
 
 ```bash
 pip install -r requirements.txt
 ```
 
-### Start Services
+### ▶️ Start Services
 
 1. **Start Flask API**
    ```bash
@@ -558,11 +558,11 @@ pip install -r requirements.txt
    python -m http.server 8080
    ```
 
-## Usage
+## 📖 Usage
 
-### Web Interface
+### 🌐 Web Interface
 
-**Voice/APRS/POCSAG Modes:**
+**🎙️ Voice/APRS/POCSAG Modes:**
 1. Open http://localhost:8080 in your browser
 2. Use preset buttons or enter custom frequency
 3. Select modulation type (FM, AM, USB, LSB)
@@ -570,7 +570,7 @@ pip install -r requirements.txt
 5. Click "Start Recording & Transcription"
 6. Wait for the transcription to complete
 
-**Repeater Activity Scanning (NEW):**
+**📡 Repeater Activity Scanning (NEW):**
 1. Open http://localhost:8080 and click the "📻 Repeater Scan" tab
 2. Select band (2m, 70cm) and optionally filter by canton (ZH, BE, etc.)
 3. Set scan duration per repeater (30-300s, recommended: 120s)
@@ -583,7 +583,7 @@ pip install -r requirements.txt
    - Signal strength (dB)
 7. Analyze historical data in Kibana Repeater Activity Dashboard
 
-**Importing Repeater Data:**
+**📥 Importing Repeater Data:**
 ```bash
 # Import from CSV (recommended)
 docker exec radio-transcription-api python /app/scripts/import_repeaters_csv.py /app/scripts/example_repeaters.csv
@@ -594,9 +594,9 @@ python scripts/import_repeaters_csv.py scripts/my_repeaters.csv
 
 See `scripts/README.md` for CSV format and detailed instructions.
 
-### Command Line
+### 💻 Command Line
 
-**Capture radio signal:**
+**📻 Capture radio signal:**
 ```bash
 # The sdr_hardware.py module automatically detects HackRF or RTL-SDR
 # Use via API service (recommended) or import in Python scripts
@@ -609,7 +609,7 @@ capture = get_sdr_instance(frequency=100_000_000, sample_rate=2_000_000, gain=20
 capture.capture_audio(duration=30, output_file='recordings/capture.wav', modulation='FM')
 ```
 
-**Transcribe audio:**
+**🎤 Transcribe audio:**
 ```bash
 python transcription_service.py \
     --input recordings/capture.wav \
@@ -617,11 +617,11 @@ python transcription_service.py \
     --output recordings/capture.json
 ```
 
-### API Endpoints
+### 🔌 API Endpoints
 
-**Note:** All endpoints (except `/health`) require the `X-API-Key` header. See [API Security](#api-security) section.
+**⚠️ Note:** All endpoints (except `/health`) require the `X-API-Key` header. See [API Security](#api-security) section.
 
-**Capture only:**
+**📻 Capture only:**
 ```bash
 curl -X POST http://localhost:5000/capture \
   -H "Content-Type: application/json" \
@@ -634,7 +634,7 @@ curl -X POST http://localhost:5000/capture \
   }'
 ```
 
-**Transcribe only:**
+**🎤 Transcribe only:**
 ```bash
 curl -X POST http://localhost:5000/transcribe \
   -H "Content-Type: application/json" \
@@ -644,7 +644,7 @@ curl -X POST http://localhost:5000/transcribe \
   }'
 ```
 
-**Capture and transcribe (Voice mode):**
+**🎙️ Capture and transcribe (Voice mode):**
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
@@ -659,7 +659,7 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
   }'
 ```
 
-**Capture and decode APRS:**
+**📍 Capture and decode APRS:**
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
@@ -673,25 +673,25 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
   }'
 ```
 
-**Search APRS messages:**
+**🔍 Search APRS messages:**
 ```bash
 curl -X GET "http://localhost:5000/aprs/search?callsign=N0CALL&limit=50" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Get APRS statistics:**
+**📊 Get APRS statistics:**
 ```bash
 curl -X GET "http://localhost:5000/aprs/stats" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Get APRS map data (GeoJSON):**
+**🗺️ Get APRS map data (GeoJSON):**
 ```bash
 curl -X GET "http://localhost:5000/aprs/map" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Capture and decode POCSAG:**
+**📟 Capture and decode POCSAG:**
 ```bash
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
@@ -705,25 +705,25 @@ curl -X POST http://localhost:5000/capture-and-transcribe \
   }'
 ```
 
-**Search POCSAG messages:**
+**🔍 Search POCSAG messages:**
 ```bash
 curl -X GET "http://localhost:5000/pocsag/search?address=1234567&limit=50" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Get POCSAG statistics:**
+**📊 Get POCSAG statistics:**
 ```bash
 curl -X GET "http://localhost:5000/pocsag/stats" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Get recent POCSAG messages:**
+**📝 Get recent POCSAG messages:**
 ```bash
 curl -X GET "http://localhost:5000/pocsag/messages?limit=20" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Start repeater activity scan:**
+**📡 Start repeater activity scan:**
 ```bash
 curl -X POST http://localhost:5000/scan-repeaters \
   -H "Content-Type: application/json" \
@@ -736,38 +736,38 @@ curl -X POST http://localhost:5000/scan-repeaters \
   }'
 ```
 
-**Get scan progress:**
+**📊 Get scan progress:**
 ```bash
 curl -X GET "http://localhost:5000/scan-repeaters/1/progress" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**List available repeaters:**
+**📋 List available repeaters:**
 ```bash
 curl -X GET "http://localhost:5000/repeaters?band=2m&canton=ZH" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-**Get repeater activity summary:**
+**📈 Get repeater activity summary:**
 ```bash
 curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10" \
   -H "X-API-Key: your-api-key-here"
 ```
 
-### N8N Workflow
+### 🔄 N8N Workflow
 
 1. Access N8N at http://localhost:5678
 2. Import the workflow from `n8n-workflow.json`
 3. The workflow provides a webhook endpoint at: `http://localhost:5678/webhook/radio-transcription`
 4. Send POST requests with radio parameters to trigger capture and transcription
 
-## Configuration
+## ⚙️ Configuration
 
-### Environment Variables
+### 🔧 Environment Variables
 
 The project includes a **comprehensive `.env.example`** file with all configuration options, helpful comments, and security best practices.
 
-**Quick Setup:**
+**⚡ Quick Setup:**
 ```bash
 # 1. Copy the template
 cp .env.example .env
@@ -782,7 +782,7 @@ python3 scripts/generate_api_keys.py
 nano .env
 ```
 
-**Key Configuration Categories:**
+**🔑 Key Configuration Categories:**
 
 The `.env.example` file (247 lines) includes complete documentation for:
 
@@ -797,7 +797,7 @@ The `.env.example` file (247 lines) includes complete documentation for:
 - ✅ **N8N Automation** - Webhook URLs, workflow integration
 - ✅ **Flask/Gunicorn** - Production WSGI server configuration
 
-**Example: Essential Variables**
+**📝 Example: Essential Variables**
 ```bash
 # API Security (REQUIRED for production)
 # Generate with: python3 scripts/generate_api_keys.py
@@ -835,24 +835,24 @@ RADIO_API_KEY=your-api-key-here  # Use one of your API_KEYS
 - Docker vs. manual setup differences
 - Quick start guide and examples
 
-### Frequency Presets
+### 📻 Frequency Presets
 
 The web interface includes common frequency presets:
 
-**Voice Transcription:**
+**🎙️ Voice Transcription:**
 - **FM Radio**: 88.5 MHz (FM)
 - **Flugfunk (Aviation)**: 118.00 MHz (AM)
 - **Amateur 2m**: 145.500 MHz (FM)
 - **Amateur 70cm**: 433.50 MHz (FM)
 - **PMR**: 446.00625 MHz (FM)
 
-**APRS Decoding:**
+**📍 APRS Decoding:**
 - **APRS Europe**: 144.800 MHz (FM) - Default
 - **APRS North America**: 144.390 MHz (FM)
 - **APRS Japan**: 144.660 MHz (FM)
 - **APRS Australia**: 145.175 MHz (FM)
 
-**POCSAG Pager Decoding:**
+**📟 POCSAG Pager Decoding:**
 - **Switzerland**: 147.325 MHz (FM) - Primary Swiss pager frequency
 - **Preset 2**: 466.075 MHz (FM)
 - **Preset 3**: 439.9875 MHz (FM)
@@ -861,18 +861,18 @@ The web interface includes common frequency presets:
 
 Note: POCSAG frequency presets can be customized in `web_interface.html`. Consult your local frequency allocation guides for active pager frequencies in your region.
 
-## Modulation Types
+## 📊 Modulation Types
 
 - **FM (Frequency Modulation)**: Used for broadcast radio, amateur radio, marine VHF
 - **AM (Amplitude Modulation)**: Used for AM broadcast radio, aviation
 - **USB (Upper Sideband)**: Used for HF amateur radio, marine SSB
 - **LSB (Lower Sideband)**: Used for HF amateur radio below 10 MHz
 
-## Troubleshooting
+## 🔧 Troubleshooting
 
-### SDR Hardware Not Detected
+### 📡 SDR Hardware Not Detected
 
-**Check HackRF One:**
+**🔍 Check HackRF One:**
 ```bash
 # Verify HackRF is connected
 hackrf_info
@@ -881,7 +881,7 @@ hackrf_info
 # If not found, check USB connection and permissions
 ```
 
-**Check RTL-SDR:**
+**🔍 Check RTL-SDR:**
 ```bash
 # Verify RTL-SDR is connected
 rtl_test -t
@@ -890,7 +890,7 @@ rtl_test -t
 # Press Ctrl+C to stop the test
 ```
 
-**Fix USB Permissions (Linux):**
+**🔧 Fix USB Permissions (Linux):**
 ```bash
 # Add user to plugdev group
 sudo usermod -a -G plugdev $USER
@@ -902,26 +902,26 @@ sudo udevadm control --reload-rules
 sudo udevadm trigger
 ```
 
-**Check in Web Interface:**
+**🌐 Check in Web Interface:**
 - Open http://localhost:8080
 - Look for SDR indicator at top of page
 - Should show: "✅ SDR: HACKRF (1.0-6000 MHz)" or "✅ SDR: RTLSDR (24.0-1766 MHz)"
 - If red error message, SDR not detected
 
-### Frequency Out of Range Error
+### ⚠️ Frequency Out of Range Error
 
-**Error:** "Frequency X MHz is out of range for RTL-SDR"
+**❌ Error:** "Frequency X MHz is out of range for RTL-SDR"
 
-**Solution:**
+**✅ Solution:**
 - RTL-SDR only supports 24-1766 MHz
 - For frequencies outside this range, use HackRF One
 - Or choose a different frequency within RTL-SDR range
 
-**Common Workarounds:**
+**💡 Common Workarounds:**
 - HF shortwave (<24 MHz): Requires HackRF One or upconverter for RTL-SDR
 - Microwave (>1.766 GHz): Requires HackRF One
 
-### No Audio Captured
+### 🔇 No Audio Captured
 
 - Check antenna is connected
 - Verify frequency is correct
@@ -929,14 +929,14 @@ sudo udevadm trigger
 - Try different modulation type
 - Check for nearby interference
 
-### Transcription Fails
+### ❌ Transcription Fails
 
 - Ensure audio file exists and is valid WAV format
 - Check faster-whisper is installed correctly
 - Try different Whisper model (tiny for speed, large for accuracy)
 - Verify audio contains speech
 
-### Docker USB Access Issues
+### 🐳 Docker USB Access Issues
 
 ```bash
 # USB device access is configured in docker-compose.yml
@@ -944,9 +944,9 @@ sudo udevadm trigger
 docker run --device=/dev/bus/usb/XXX/YYY ...
 ```
 
-## Advanced Usage
+## 🚀 Advanced Usage
 
-### Custom N8N Workflows
+### 🔄 Custom N8N Workflows
 
 You can extend the N8N workflow to:
 - Send transcriptions to Slack/Discord/Email
@@ -955,7 +955,7 @@ You can extend the N8N workflow to:
 - Schedule automatic recordings
 - Post-process transcriptions with AI
 
-### Integration with Other Services
+### 🔌 Integration with Other Services
 
 The API can be integrated with:
 - Home automation systems
@@ -964,7 +964,7 @@ The API can be integrated with:
 - Alert systems
 - Machine learning pipelines
 
-## File Structure
+## 📁 File Structure
 
 ```
 .
@@ -1026,9 +1026,9 @@ The API can be integrated with:
 └── USER_MANUAL.md                  # Complete user documentation
 ```
 
-## API Reference
+## 📚 API Reference
 
-**Authentication:** All endpoints (except `/health`) require the `X-API-Key` header.
+**🔒 Authentication:** All endpoints (except `/health`) require the `X-API-Key` header.
 
 ### POST /capture
 Capture radio signal to WAV file.
@@ -1354,9 +1354,9 @@ Get detailed information about a specific capture.
 }
 ```
 
-## Database Features
+## 💾 Database Features
 
-### Elasticsearch Storage
+### 🗄️ Elasticsearch Storage
 
 All radio data is stored in Elasticsearch time-series indices with:
 - Full metadata (frequency, modulation, duration, gain, sample rate, SDR type)
@@ -1366,20 +1366,20 @@ All radio data is stored in Elasticsearch time-series indices with:
 - Automatic @timestamp field for time-series queries
 - UUID-based document IDs (_id field)
 
-**Daily Index Patterns:**
+**📅 Daily Index Patterns:**
 - **radio-captures-YYYY.MM.DD**: Voice transcription captures
 - **radio-aprs-YYYY.MM.DD**: APRS packet messages with geo_point positions
 - **radio-pocsag-YYYY.MM.DD**: POCSAG pager messages
 - **radio-repeater-activity-YYYY.MM.DD**: Repeater activity records with nested transmissions
 - **radio-metrics-YYYY.MM.DD**: System and application metrics
 
-**Index Features:**
+**✨ Index Features:**
 - Optimized mappings for each data type
 - Index Lifecycle Management (ILM) for automatic retention
 - Keyword + text multi-fields for flexible querying
 - Geo-spatial indexing for APRS positions
 
-### Full-Text Search
+### 🔍 Full-Text Search
 
 The database supports powerful text search capabilities:
 
@@ -1391,7 +1391,7 @@ curl "http://localhost:5000/search?text=amateur"
 curl "http://localhost:5000/search?text=weat"  # matches "weather"
 ```
 
-### Advanced Filtering
+### 🎛️ Advanced Filtering
 
 Combine multiple filters for precise queries:
 
@@ -1403,11 +1403,11 @@ curl "http://localhost:5000/search?modulation=FM&language=de&text=antenna"
 curl "http://localhost:5000/search?frequency=145500000"
 ```
 
-### Database Migration
+### 🔄 Database Migration
 
 Import existing JSON transcription files into the database:
 
-**Using the migration script:**
+**🚀 Using the migration script:**
 ```bash
 # From inside the Docker container
 docker exec -it radio-api python migrate_json_to_db.py
@@ -1420,9 +1420,9 @@ for json_file in recordings/*.json; do
 done
 ```
 
-### Data Backup and Export
+### 💾 Data Backup and Export
 
-**Export data from Elasticsearch:**
+**📤 Export data from Elasticsearch:**
 ```bash
 # Export all captures from last 30 days
 curl -X GET "localhost:9200/radio-captures-*/_search?pretty&size=10000" \
@@ -1434,7 +1434,7 @@ curl -X GET "localhost:9200/radio-captures-*/_search?pretty&size=10000" \
 curl -X GET "localhost:9200/radio-aprs-*/_search?pretty&size=10000" > aprs_backup.json
 ```
 
-**Snapshot and Restore (recommended for large datasets):**
+**📸 Snapshot and Restore (recommended for large datasets):**
 ```bash
 # Configure snapshot repository
 curl -X PUT "localhost:9200/_snapshot/radio_backup" \
@@ -1448,20 +1448,20 @@ curl -X PUT "localhost:9200/_snapshot/radio_backup/snapshot_1?wait_for_completio
 curl -X POST "localhost:9200/_snapshot/radio_backup/snapshot_1/_restore"
 ```
 
-## Kibana Dashboards
+## 📊 Kibana Dashboards
 
-### Accessing Kibana
+### 🌐 Accessing Kibana
 
 Open http://localhost:5601 in your browser. No authentication is required by default (enable X-Pack Security for production).
 
-### Available Dashboards
+### 📈 Available Dashboards
 
-**Note**: Kibana dashboards are created using the Discover, Visualize, and Dashboard features. The following dashboards mirror the functionality from the original Grafana implementation:
+**📝 Note**: Kibana dashboards are created using the Discover, Visualize, and Dashboard features. The following dashboards mirror the functionality from the original Grafana implementation:
 
-#### Radio Captures Explorer
-**Access**: Kibana → Discover → Index Pattern: `radio-captures-*`
+#### 🎙️ Radio Captures Explorer
+**🌐 Access**: Kibana → Discover → Index Pattern: `radio-captures-*`
 
-**Features:**
+**✨ Features:**
 - View all captures with full-text search across transcriptions
 - Filter by modulation type (FM, AM, USB, LSB)
 - Filter by detected language (en, de, es, etc.)
@@ -1476,10 +1476,10 @@ Open http://localhost:5601 in your browser. No authentication is required by def
 3. Click on time range selector to change time window
 4. Enable auto-refresh for real-time monitoring
 
-#### APRS Monitoring Dashboard
-**Access**: Kibana → Dashboard → APRS Activity
+#### 📍 APRS Monitoring Dashboard
+**🌐 Access**: Kibana → Dashboard → APRS Activity
 
-**Visualizations:**
+**📊 Visualizations:**
 - **Total APRS Packets**: Metric showing total packet count
 - **Unique Callsigns**: Metric showing distinct source callsigns
 - **Packets with Position**: Count of packets with geo-location data
@@ -1495,16 +1495,16 @@ Open http://localhost:5601 in your browser. No authentication is required by def
 3. Filter by clicking on pie chart segments or bar chart elements
 4. Dashboards auto-refresh every 30 seconds
 
-#### Repeater Activity Dashboard
-**Access**: Kibana → Dashboard → Repeater Activity Monitoring
+#### 📡 Repeater Activity Dashboard
+**🌐 Access**: Kibana → Dashboard → Repeater Activity Monitoring
 
-**Visualizations:**
+**📊 Visualizations:**
 - **Most Active Repeaters (24h)**: Data table aggregated by callsign with avg activity percentage
 - **Activity by Band**: Pie chart showing 2m vs 70cm activity distribution
 - **Scan Rate**: Line chart showing scan operations over time
 - **Recent Scans**: Data table of last 100 repeater activity records
 
-**Aggregation Examples (Kibana Dev Tools):**
+**💻 Aggregation Examples (Kibana Dev Tools):**
 ```json
 POST /radio-repeater-activity-*/_search
 {
@@ -1533,7 +1533,7 @@ POST /radio-repeater-activity-*/_search
 }
 ```
 
-### Creating Custom Dashboards
+### 🎨 Creating Custom Dashboards
 
 Create custom visualizations and dashboards in Kibana:
 
@@ -1543,7 +1543,7 @@ Create custom visualizations and dashboards in Kibana:
 4. Configure metrics and buckets/aggregations
 5. Save visualization and add to dashboard
 
-**Example Aggregation - Recent FM Captures:**
+**📝 Example Aggregation - Recent FM Captures:**
 ```json
 POST /radio-captures-*/_search
 {
@@ -1561,15 +1561,15 @@ POST /radio-captures-*/_search
 }
 ```
 
-## Kibana Dev Tools
+## 🛠️ Kibana Dev Tools
 
-### Accessing Dev Tools
+### 🌐 Accessing Dev Tools
 
 Open Kibana → Dev Tools (http://localhost:5601/app/dev_tools#/console) for direct Elasticsearch API access.
 
-### Using the Console
+### 💻 Using the Console
 
-**Browse Indices:**
+**📚 Browse Indices:**
 ```json
 # List all radio indices
 GET /_cat/indices/radio-*?v
@@ -1581,7 +1581,7 @@ GET /radio-captures-*/_mapping
 GET /radio-captures-*/_count
 ```
 
-**Run Queries:**
+**🔍 Run Queries:**
 ```json
 # Get all captures from last 24 hours
 POST /radio-captures-*/_search
@@ -1635,7 +1635,7 @@ POST /radio-captures-*/_search
 }
 ```
 
-**Export Data:**
+**📤 Export Data:**
 ```json
 # Export to JSON (use scroll API for large datasets)
 POST /radio-captures-*/_search?scroll=5m
@@ -1652,7 +1652,7 @@ POST /_search/scroll
 }
 ```
 
-**Index Management:**
+**⚙️ Index Management:**
 ```json
 # View index stats
 GET /radio-captures-*/_stats
@@ -1668,7 +1668,7 @@ POST /_reindex
 }
 ```
 
-### Kibana Features
+### ✨ Kibana Features
 
 - ✅ Discover: Interactive log exploration with full-text search
 - ✅ Visualize: Create charts, graphs, maps, and metrics
@@ -1679,48 +1679,48 @@ POST /_reindex
 - ✅ Maps: Geospatial visualization for APRS positions
 - ✅ Alerting: Set up alerts based on query conditions (requires X-Pack)
 
-## Development & Testing
+## 🧪 Development & Testing
 
-### CI/CD Pipeline
+### 🔄 CI/CD Pipeline
 
 The project includes a comprehensive GitHub Actions CI/CD pipeline that runs on every push:
 
-**Pipeline Steps:**
+**⚙️ Pipeline Steps:**
 1. ✅ **Code Checkout**: Clean checkout with full git history
 2. ✅ **MyPy Type Checking**: Static type analysis with strict mode
 3. ✅ **Pytest Test Suite**: 67 tests covering all major components
 4. ✅ **Docker Build**: Verification that Docker image builds successfully
 
-**Test Coverage:**
+**📊 Test Coverage:**
 - **67 Tests Total** across 3 test suites
 - **API Tests (25)**: Flask endpoints, authentication, error handling
 - **SDR Hardware Tests (26)**: HackRF/RTL-SDR detection, capture, validation
 - **TranscriptionService Tests (16)**: Whisper integration, file handling
 - **Current Coverage**: 27% (target: 15% minimum)
 
-### Running Tests Locally
+### 🧪 Running Tests Locally
 
-**Run all tests:**
+**▶️ Run all tests:**
 ```bash
 pytest
 ```
 
-**Run with coverage:**
+**📊 Run with coverage:**
 ```bash
 ./scripts/run_coverage.sh
 ```
 
-**Run type checking:**
+**🔍 Run type checking:**
 ```bash
 ./scripts/run_mypy.sh
 ```
 
-**Run specific test file:**
+**🎯 Run specific test file:**
 ```bash
 pytest tests/test_api_service.py -v
 ```
 
-### Test Environment
+### 🧪 Test Environment
 
 Tests use an isolated environment with:
 - **Mocked SDR Hardware**: No physical HackRF/RTL-SDR required
@@ -1728,9 +1728,9 @@ Tests use an isolated environment with:
 - **Temporary Directories**: Session-scoped temp dir for all test files
 - **Disabled API Authentication**: No API keys needed for tests
 
-### Development Setup
+### 🛠️ Development Setup
 
-**1. Clone and install dependencies:**
+**1️⃣ Clone and install dependencies:**
 ```bash
 git clone <repository-url>
 cd my-project
@@ -1739,42 +1739,42 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**2. Run tests to verify setup:**
+**2️⃣ Run tests to verify setup:**
 ```bash
 pytest
 ```
 
-**3. Run MyPy type checking:**
+**3️⃣ Run MyPy type checking:**
 ```bash
 ./scripts/run_mypy.sh
 ```
 
-**4. Start development server:**
+**4️⃣ Start development server:**
 ```bash
 python api_service.py
 ```
 
-### Code Quality
+### ✨ Code Quality
 
-**Type Safety:**
+**🔒 Type Safety:**
 - Full MyPy strict mode compliance
 - Type hints for all functions and methods
 - Generic types for collections and arrays
 - Optional types for nullable values
 
-**Testing:**
+**🧪 Testing:**
 - Comprehensive unit and integration tests
 - Mocked external dependencies (SDR hardware, Whisper)
 - Isolated test environment
 - Automatic cleanup
 
-**CI/CD:**
+**🔄 CI/CD:**
 - Automated testing on every push
 - Type checking enforced
 - Docker build verification
 - Coverage reporting
 
-### Project Structure
+### 📂 Project Structure
 
 ```
 my-project/
@@ -1818,7 +1818,7 @@ my-project/
 └── monitoring/kibana/dashboards/   # Kibana dashboard definitions
 ```
 
-## Legal Notice
+## ⚖️ Legal Notice
 
 This software is intended for use with authorized radio frequencies only. Users are responsible for:
 - Complying with local radio regulations
@@ -1828,15 +1828,15 @@ This software is intended for use with authorized radio frequencies only. Users 
 
 **This is a receive-only application and does not transmit radio signals.**
 
-## License
+## 📄 License
 
 MIT License - See LICENSE file for details
 
-## Contributing
+## 🤝 Contributing
 
 Contributions are welcome! Please feel free to submit issues and pull requests.
 
-## Support
+## 💬 Support
 
 For issues and questions:
 - Check the Troubleshooting section
@@ -1849,7 +1849,7 @@ For issues and questions:
 - Review Kibana documentation: https://www.elastic.co/guide/en/kibana/current/index.html
 - Review Logstash documentation: https://www.elastic.co/guide/en/logstash/current/index.html
 
-## Acknowledgments
+## 🙏 Acknowledgments
 
 - HackRF One by Great Scott Gadgets
 - RTL-SDR project and community
