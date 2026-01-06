@@ -8,9 +8,9 @@ Includes correlation IDs for request tracing and consistent log formatting.
 import logging
 import logging.config
 import uuid
-from typing import Optional
+from typing import Optional, Dict, Any
 from contextvars import ContextVar
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger import jsonlogger  # type: ignore[import-untyped]
 
 # Context variable for request correlation ID
 correlation_id_ctx: ContextVar[Optional[str]] = ContextVar('correlation_id', default=None)
@@ -21,14 +21,14 @@ class CorrelationIdFilter(logging.Filter):
 
     def filter(self, record: logging.LogRecord) -> bool:
         """Add correlation_id to log record"""
-        record.correlation_id = correlation_id_ctx.get() or 'N/A'  # type: ignore
+        record.correlation_id = correlation_id_ctx.get() or 'N/A'  # type: ignore[attr-defined]
         return True
 
 
-class CustomJsonFormatter(jsonlogger.JsonFormatter):
+class CustomJsonFormatter(jsonlogger.JsonFormatter):  # type: ignore[misc]
     """Custom JSON formatter with additional fields"""
 
-    def add_fields(self, log_record: dict, record: logging.LogRecord, message_dict: dict) -> None:
+    def add_fields(self, log_record: Dict[str, Any], record: logging.LogRecord, message_dict: Dict[str, Any]) -> None:
         """Add custom fields to JSON log output"""
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
 
