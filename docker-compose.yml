@@ -14,7 +14,7 @@ services:
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
-      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
+      - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
       - bootstrap.memory_lock=true
     ulimits:
       memlock:
@@ -25,6 +25,7 @@ services:
         hard: 65536
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
+      - ./monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - ./monitoring/elasticsearch/index-templates:/usr/share/elasticsearch/index-templates:ro
       - ./monitoring/elasticsearch/ilm-policies:/usr/share/elasticsearch/ilm-policies:ro
     ports:
@@ -57,7 +58,7 @@ services:
       - "9603:9603"  # radio-repeater pipeline
       - "9604:9604"  # radio-metrics pipeline
     environment:
-      - "LS_JAVA_OPTS=-Xmx1g -Xms1g"
+      - "LS_JAVA_OPTS=-Xmx2g -Xms2g"
       - ELASTICSEARCH_USERNAME=logstash_system
       - ELASTICSEARCH_PASSWORD=${LOGSTASH_SYSTEM_PASSWORD}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200

@@ -1,31 +1,49 @@
-FROM python:3.11-slim
+# Multi-stage build for optimized image size
+# Stage 1: Builder - Install build dependencies and compile Python packages
+FROM python:3.11-slim AS builder
 
-# Install system dependencies (HackRF + RTL-SDR)
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
-    libusb-1.0-0-dev \
-    libhackrf-dev \
-    hackrf \
-    rtl-sdr \
-    librtlsdr-dev \
     build-essential \
     git \
-    direwolf \
-    multimon-ng \
-    libasound2-dev \
     cmake \
+    libusb-1.0-0-dev \
+    libhackrf-dev \
+    librtlsdr-dev \
+    libasound2-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Set working directory
 WORKDIR /app
 
-# Copy requirements
-COPY requirements.txt .
-
 # Upgrade pip to fix CVE-2025-8869
 RUN pip install --upgrade pip==25.3
 
-# Install Python dependencies
+# Copy and install Python dependencies
+COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Stage 2: Runtime - Minimal image with only runtime dependencies
+FROM python:3.11-slim
+
+# Install only runtime dependencies (no -dev packages, no build tools)
+RUN apt-get update && apt-get install -y \
+    libusb-1.0-0 \
+    libhackrf0 \
+    hackrf \
+    rtl-sdr \
+    librtlsdr0 \
+    direwolf \
+    multimon-ng \
+    libasound2 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Set working directory
+WORKDIR /app
+
+# Copy Python packages from builder
+COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
 
 # Copy application files
 COPY sdr_hardware.py .

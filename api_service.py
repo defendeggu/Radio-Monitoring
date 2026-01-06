@@ -28,17 +28,21 @@ from streaming_decoder_service import (
 )
 from scan_session_manager import get_scan_session_manager, RepeaterScanSession
 from dotenv import load_dotenv
+from logging_config import setup_logging, set_correlation_id, clear_correlation_id
 
-# Configure logging
-logging.basicConfig(level=logging.INFO)
+# Load environment variables first
+load_dotenv()
+
+# Configure structured JSON logging for ELK stack
+# Use JSON format in production, plain text for development
+json_logging = os.getenv('JSON_LOGGING', 'true').lower() == 'true'
+log_level = os.getenv('LOG_LEVEL', 'INFO')
+setup_logging(log_level=log_level, json_format=json_logging)
 logger = logging.getLogger(__name__)
 
 # Prometheus metrics removed - replaced by Metricbeat
 # from prometheus_flask_exporter import PrometheusMetrics
 # from prometheus_client import Counter, Histogram, Gauge
-
-# Load environment variables
-load_dotenv()
 
 # Explicitly export shared utilities for blueprints
 __all__ = [
@@ -84,6 +88,58 @@ app = Flask(__name__)
 
 # Enable CORS for all routes
 CORS(app)
+
+# ============================================================================
+# Request Correlation ID Middleware
+# ============================================================================
+
+@app.before_request
+def setup_request_correlation():
+    """Set correlation ID for request tracing before each request"""
+    # Try to get correlation ID from request header
+    correlation_id = request.headers.get('X-Correlation-ID')
+    if not correlation_id:
+        # Generate new correlation ID if not provided
+        correlation_id = str(uuid.uuid4())
+
+    # Set correlation ID in context for this request
+    set_correlation_id(correlation_id)
+
+    # Log request start with correlation ID
+    logger.info(
+        'Request started',
+        extra={
+            'method': request.method,
+            'path': request.path,
+            'remote_addr': request.remote_addr,
+            'user_agent': request.headers.get('User-Agent')
+        }
+    )
+
+
+@app.after_request
+def add_correlation_id_header(response):
+    """Add correlation ID to response headers and clear from context"""
+    from logging_config import get_correlation_id
+
+    # Add correlation ID to response headers for client tracking
+    correlation_id = get_correlation_id()
+    response.headers['X-Correlation-ID'] = correlation_id
+
+    # Log request completion
+    logger.info(
+        'Request completed',
+        extra={
+            'status_code': response.status_code,
+            'content_length': response.content_length
+        }
+    )
+
+    # Clear correlation ID from context
+    clear_correlation_id()
+
+    return response
+
 
 # ============================================================================
 # API Security Configuration
