@@ -94,7 +94,7 @@ CORS(app)
 # ============================================================================
 
 @app.before_request
-def setup_request_correlation():
+def setup_request_correlation() -> None:
     """Set correlation ID for request tracing before each request"""
     # Try to get correlation ID from request header
     correlation_id = request.headers.get('X-Correlation-ID')
@@ -118,7 +118,7 @@ def setup_request_correlation():
 
 
 @app.after_request
-def add_correlation_id_header(response):
+def add_correlation_id_header(response: Response) -> Response:
     """Add correlation ID to response headers and clear from context"""
     from logging_config import get_correlation_id
 

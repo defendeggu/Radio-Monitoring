@@ -19,16 +19,16 @@ correlation_id_ctx: ContextVar[Optional[str]] = ContextVar('correlation_id', def
 class CorrelationIdFilter(logging.Filter):
     """Add correlation ID to log records for request tracing"""
 
-    def filter(self, record):
+    def filter(self, record: logging.LogRecord) -> bool:
         """Add correlation_id to log record"""
-        record.correlation_id = correlation_id_ctx.get() or 'N/A'
+        record.correlation_id = correlation_id_ctx.get() or 'N/A'  # type: ignore
         return True
 
 
 class CustomJsonFormatter(jsonlogger.JsonFormatter):
     """Custom JSON formatter with additional fields"""
 
-    def add_fields(self, log_record, record, message_dict):
+    def add_fields(self, log_record: dict, record: logging.LogRecord, message_dict: dict) -> None:
         """Add custom fields to JSON log output"""
         super(CustomJsonFormatter, self).add_fields(log_record, record, message_dict)
 
@@ -56,15 +56,19 @@ class CustomJsonFormatter(jsonlogger.JsonFormatter):
         }
 
 
-def setup_logging(log_level: str = 'INFO', json_format: bool = True):
+def setup_logging(log_level: str = 'INFO', json_format: bool = True) -> logging.Logger:
     """
     Configure logging for the application
 
     Args:
         log_level: Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)
         json_format: Use JSON format (True) or plain text (False)
+
+    Returns:
+        Configured root logger
     """
 
+    formatter: logging.Formatter
     if json_format:
         # JSON format for ELK stack
         formatter = CustomJsonFormatter(
@@ -97,12 +101,15 @@ def setup_logging(log_level: str = 'INFO', json_format: bool = True):
     return root_logger
 
 
-def set_correlation_id(correlation_id: Optional[str] = None):
+def set_correlation_id(correlation_id: Optional[str] = None) -> str:
     """
     Set correlation ID for current context (request/task)
 
     Args:
         correlation_id: Custom correlation ID or None to generate UUID
+
+    Returns:
+        The correlation ID that was set
     """
     if correlation_id is None:
         correlation_id = str(uuid.uuid4())
@@ -115,7 +122,7 @@ def get_correlation_id() -> str:
     return correlation_id_ctx.get() or 'N/A'
 
 
-def clear_correlation_id():
+def clear_correlation_id() -> None:
     """Clear correlation ID from current context"""
     correlation_id_ctx.set(None)
 
