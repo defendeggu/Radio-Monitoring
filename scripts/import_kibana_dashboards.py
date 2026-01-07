@@ -12,6 +12,8 @@ from pathlib import Path
 
 # Configuration
 KIBANA_URL = os.getenv('KIBANA_URL', 'http://localhost:5601')
+KIBANA_USERNAME = os.getenv('KIBANA_USERNAME', 'elastic')
+KIBANA_PASSWORD = os.getenv('ELASTIC_PASSWORD', '')
 DASHBOARDS_DIR = Path(__file__).parent.parent / 'monitoring' / 'kibana' / 'dashboards'
 
 def import_ndjson_file(file_path: Path) -> bool:
@@ -20,11 +22,12 @@ def import_ndjson_file(file_path: Path) -> bool:
 
     url = f"{KIBANA_URL}/api/saved_objects/_import"
     headers = {'kbn-xsrf': 'true'}
+    auth = (KIBANA_USERNAME, KIBANA_PASSWORD) if KIBANA_PASSWORD else None
 
     try:
         with open(file_path, 'rb') as f:
             files = {'file': (file_path.name, f, 'application/ndjson')}
-            response = requests.post(url, headers=headers, files=files, timeout=30)
+            response = requests.post(url, headers=headers, files=files, auth=auth, timeout=30)
 
         if response.status_code == 200:
             result = response.json()
@@ -54,8 +57,9 @@ def main():
     print()
 
     # Check if Kibana is reachable
+    auth = (KIBANA_USERNAME, KIBANA_PASSWORD) if KIBANA_PASSWORD else None
     try:
-        response = requests.get(f"{KIBANA_URL}/api/status", timeout=10)
+        response = requests.get(f"{KIBANA_URL}/api/status", auth=auth, timeout=10)
         if response.status_code != 200:
             print(f"✗ Kibana is not ready (HTTP {response.status_code})")
             sys.exit(1)
