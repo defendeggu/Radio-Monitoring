@@ -44,7 +44,7 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
         data = request.get_json() or {}
 
         frequency = data.get('frequency', 144800000)
-        sample_rate = data.get('sample_rate', 250000)  # Reduced from 2MHz to 250kHz for stability
+        sample_rate = data.get('sample_rate', 2000000)  # 2 MHz for HackRF compatibility (minimum)
         gain = data.get('gain', 20)
         duration = data.get('duration', 3600)  # Default: 1 hour
 
@@ -99,7 +99,7 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
         data = request.get_json() or {}
 
         frequency = data.get('frequency', 147325000)
-        sample_rate = data.get('sample_rate', 250000)  # Reduced from 2MHz to 250kHz for stability
+        sample_rate = data.get('sample_rate', 2000000)  # 2 MHz for HackRF compatibility (minimum)
         gain = data.get('gain', 20)
         duration = data.get('duration', 3600)  # Default: 1 hour
 
@@ -156,7 +156,7 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
 
         mode = data.get('mode', 'aprs')
         frequency = data.get('frequency')
-        sample_rate = data.get('sample_rate', 250000)  # Reduced from 2MHz to 250kHz for stability
+        sample_rate = data.get('sample_rate', 2000000)  # 2 MHz for HackRF compatibility (minimum)
         gain = data.get('gain', 20)
         duration = data.get('duration', 3600)  # Default: 1 hour
 
