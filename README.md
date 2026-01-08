@@ -1083,7 +1083,8 @@ DEFAULT_MODULATION=FM
 DEFAULT_GAIN=20                  # 0-40 dB (HackRF), 0-50 dB (RTL-SDR)
 
 # Whisper Configuration
-WHISPER_MODEL=base               # tiny, base, small, medium, large
+WHISPER_MODEL=small              # tiny, base, small, medium, large
+                                 # Recommended: small (good accuracy, lower RAM)
 WHISPER_DEVICE=cpu               # cpu or cuda (GPU)
 WHISPER_COMPUTE_TYPE=int8        # int8 (fastest), float16, float32
 
@@ -2114,8 +2115,7 @@ my-project/
 ├── pytest.ini                        # Pytest configuration
 ├── mypy.ini                          # MyPy type checker config
 ├── Dockerfile                        # Container definition
-├── docker-compose.yml               # Local development stack
-├── docker-compose.elk.yml           # ELK stack configuration
+├── docker-compose.yml               # Docker stack (API + ELK + all services)
 ├── tests/                           # Test suite
 │   ├── conftest.py                  # Pytest fixtures and configuration
 │   ├── test_api_service.py         # API endpoint tests
