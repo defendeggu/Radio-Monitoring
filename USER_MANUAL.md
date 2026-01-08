@@ -619,19 +619,21 @@ python -m http.server 8080
 
 ```bash
 # Docker mit Gunicorn + kompletter ELK Stack
-docker compose -f docker-compose.yml -f docker-compose.elk.yml up -d
+docker compose up -d
 
 # Services zugreifen:
 # - Web Interface: http://localhost:8080
+# - API:           http://localhost:5000
 # - Kibana:        http://localhost:5601
-# - N8N:           http://localhost:5679
 # - Elasticsearch: http://localhost:9200
+# - Portainer:     http://localhost:9000
 
 # Vorteile:
 # - Gunicorn WSGI Server (production-ready)
 # - Gevent Workers für Concurrency
 # - ELK Stack für Monitoring
 # - API-Key Authentifizierung aktiv
+# - Memory Limits (API: 4 GB)
 # - Container-Isolation
 # - Automatisches Restart
 ```
