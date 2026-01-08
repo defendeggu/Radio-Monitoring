@@ -230,14 +230,35 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    docker compose up -d
    ```
 
-6. **Access the interfaces**
-   - Web Interface: http://localhost:8080
-   - Kibana Dashboards: http://localhost:5601
-   - Portainer (Docker Management): http://localhost:9000 or https://localhost:9443
-   - Elasticsearch API: http://localhost:9200
-   - Logstash Pipelines: http://localhost:9600-9604
-   - N8N Workflow: http://localhost:5679 (credentials from setup-secrets.sh)
-   - API: http://localhost:5000
+6. **Run post-setup to import Kibana dashboards**
+   ```bash
+   ./scripts/post-docker-setup.sh
+   ```
+   This automated script will:
+   - ✅ Wait for all services to be healthy (Elasticsearch, Kibana)
+   - 📊 Import all Kibana dashboards automatically (APRS, POCSAG, Repeater Activity, Radio Overview)
+   - ✅ Verify API is responding
+   - 📋 Display all service URLs and credentials
+
+   **Manual alternative** (if you prefer to import dashboards later):
+   ```bash
+   # Import dashboards manually at any time
+   ./scripts/import-kibana-dashboards.sh
+   ```
+
+7. **Access the interfaces**
+   - 🌐 **Web Interface**: http://localhost:8080
+   - 📊 **Kibana Dashboards**: http://localhost:5601 (elastic / [password from .env.elk])
+     - Pre-configured dashboards:
+       - 📡 Radio Monitoring Overview
+       - 📍 APRS Activity Dashboard (with geospatial map)
+       - 📟 POCSAG Pager Monitoring
+       - 🔁 Repeater Activity Dashboard
+   - 🐳 **Portainer** (Docker Management): http://localhost:9000 or https://localhost:9443
+   - 🔍 **Elasticsearch API**: http://localhost:9200
+   - 🔌 **Logstash Pipelines**: http://localhost:9600-9604
+   - 🔄 **N8N Workflow**: http://localhost:5679 (credentials from setup-secrets.sh)
+   - 🔌 **API**: http://localhost:5000
 
 ## 📡 RTL-SDR Quick Start Guide
 
@@ -1702,9 +1723,50 @@ curl -X POST "localhost:9200/_snapshot/radio_backup/snapshot_1/_restore"
 
 ## 📊 Kibana Dashboards
 
+### 🚀 Automatic Dashboard Import
+
+The system includes pre-configured Kibana dashboards that are **automatically imported** during setup.
+
+**Automated Import (Recommended):**
+```bash
+# Run after docker compose up -d
+./scripts/post-docker-setup.sh
+```
+
+This script automatically:
+- ✅ Waits for Kibana to be ready
+- 📊 Imports all dashboard NDJSON files
+- ✅ Creates index patterns (radio-captures-\*, radio-aprs-\*, radio-pocsag-\*, radio-repeater-activity-\*)
+- 📈 Imports all visualizations and dashboards
+
+**Manual Import (Alternative):**
+```bash
+# Import dashboards at any time
+./scripts/import-kibana-dashboards.sh
+
+# Or use Python script directly
+python3 scripts/import_kibana_dashboards.py
+```
+
+**Dashboard Files Location:**
+- `monitoring/kibana/dashboards/index-patterns.ndjson` - Index patterns for all data types
+- `monitoring/kibana/dashboards/radio-overview-dashboard.ndjson` - Main radio monitoring dashboard
+- `monitoring/kibana/dashboards/aprs-dashboard.ndjson` - APRS activity with geospatial map
+- `monitoring/kibana/dashboards/pocsag-dashboard.ndjson` - POCSAG pager monitoring
+- `monitoring/kibana/dashboards/repeater-activity-dashboard.ndjson` - Repeater activity analytics
+
 ### 🌐 Accessing Kibana
 
-Open http://localhost:5601 in your browser. No authentication is required by default (enable X-Pack Security for production).
+Open http://localhost:5601 in your browser.
+
+**Login Credentials:**
+- Username: `elastic`
+- Password: See `ELASTIC_PASSWORD` in `.env` or `.env.elk`
+
+**First-Time Access:**
+1. Log in with elastic credentials
+2. Navigate to **Analytics → Dashboard**
+3. All dashboards are pre-imported and ready to use!
 
 ### 📈 Available Dashboards
 
