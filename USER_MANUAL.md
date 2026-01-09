@@ -446,6 +446,18 @@ hackrf_info
 docker compose restart
 ```
 
+### HackRF Capture bricht nach ~13 Sekunden ab
+
+**Problem:** Bei langen Captures (>120s) kann HackRF USB-Transfer-Probleme haben.
+
+**Ursache:** USB-Bandbreite bei 2 MHz Sample Rate (~4 MB/s sustained) kann instabil werden.
+
+**Lösungen:**
+1. **RTL-SDR verwenden** (empfohlen für lange Captures >120s) - exzellente USB-Stabilität
+2. **Kürzere Captures** (<60s) verwenden mit HackRF
+3. **Powered USB Hub** verwenden für stabilere Stromversorgung
+4. **USB-Kabel** tauschen (hochwertiges, kurzes Kabel verwenden)
+
 ### Kibana zeigt keine Daten
 
 **Ursachen:**

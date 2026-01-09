@@ -419,6 +419,11 @@ class BaseStreamingDecoder(ABC):
                 # Convert to complex64
                 iq_data = np.frombuffer(iq_bytes, dtype=np.int8)
                 iq_float = iq_data.astype(np.float32) / 127.0
+
+                # Ensure even number of samples for I/Q splitting
+                if len(iq_float) % 2 != 0:
+                    iq_float = iq_float[:-1]  # Drop last sample if odd
+
                 iq_complex: NDArray[np.complex64] = (iq_float[0::2] + 1j * iq_float[1::2]).astype(np.complex64)
 
                 # FM demodulation
