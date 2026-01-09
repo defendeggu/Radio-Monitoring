@@ -130,10 +130,12 @@ The system supports both HackRF One and RTL-SDR with **automatic hardware detect
 | **Max Sample Rate** | 20 MHz | 3.2 MHz |
 | **Price** | ~$300 USD | ~$25 USD |
 | **Best For** | Full-spectrum monitoring, HF/VHF/UHF/microwave | Budget VHF/UHF monitoring (FM radio, APRS, aviation) |
-| **Limitations** | Higher cost | Cannot receive HF (<24 MHz) or microwave (>1.766 GHz) |
+| **Limitations** | Higher cost, USB bandwidth issues on long captures (>120s) | Cannot receive HF (<24 MHz) or microwave (>1.766 GHz) |
+| **USB Stability** | May experience transfer issues on captures >120s at 2MHz sample rate | Excellent stability, tested up to 660s continuous streaming |
 
-**Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies)
-**Recommended for advanced users:** HackRF One (full spectrum coverage, higher performance)
+**Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies, excellent USB stability)
+**Recommended for advanced users:** HackRF One (full spectrum coverage, best for short captures <60s)
+**Recommended for long captures (>120s):** RTL-SDR (superior USB stability, no transfer timeouts)
 
 **🔌 Additional Hardware:**
 - 🔌 USB cable
