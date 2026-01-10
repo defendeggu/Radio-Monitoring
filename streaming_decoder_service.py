@@ -25,6 +25,7 @@ from numpy.typing import NDArray
 from scipy import signal
 import redis
 import json
+from sdr_hardware import detect_sdr, SDRType, get_sdr_instance
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -321,23 +322,46 @@ class BaseStreamingDecoder(ABC):
                 logger.info(f"Stream session {self.session.session_id} completed")
 
     def _start_sdr_capture(self) -> subprocess.Popen[bytes]:
-        """Launch hackrf_transfer with stdout pipe and reduced priority"""
+        """Launch SDR capture with stdout pipe and reduced priority (supports HackRF and RTL-SDR)"""
         # Use nice to reduce CPU priority (prevents CPU saturation)
-        cmd = [
-            'nice', '-n', '10',  # Lower priority (normal=0, lower=positive)
-            'hackrf_transfer',
-            '-r', '-',  # Write to stdout
-            '-f', str(int(self.frequency)),
-            '-s', str(self.sample_rate),
-            '-l', str(self.gain),
-            '-g', str(self.gain)
-        ]
-        logger.debug(f"Executing SDR command with reduced priority: {cmd}")
 
-        # Duration limit (optional - or run until stop)
-        if self.duration:
-            samples = int(self.sample_rate * self.duration)
-            cmd.extend(['-n', str(samples * 2)])  # *2 for I+Q
+        if self.sdr_type == SDRType.HACKRF:
+            # HackRF command
+            cmd = [
+                'nice', '-n', '10',
+                'hackrf_transfer',
+                '-r', '-',  # Write to stdout
+                '-f', str(int(self.frequency)),
+                '-s', str(self.sample_rate),
+                '-l', str(self.gain),
+                '-g', str(self.gain)
+            ]
+            # Duration limit (optional - or run until stop)
+            if self.duration:
+                samples = int(self.sample_rate * self.duration)
+                cmd.extend(['-n', str(samples * 2)])  # *2 for I+Q
+
+        elif self.sdr_type == SDRType.RTLSDR:
+            # RTL-SDR command
+            cmd = [
+                'nice', '-n', '10',
+                'rtl_sdr',
+                '-f', str(int(self.frequency)),
+                '-s', str(self.sample_rate),
+                '-g', str(self.gain)
+            ]
+            # Duration limit (optional - or run until stop)
+            if self.duration:
+                # rtl_sdr -n parameter is in bytes (already accounts for I+Q)
+                num_bytes = int(self.sample_rate * self.duration * 2)
+                cmd.extend(['-n', str(num_bytes)])
+
+            cmd.append('-')  # Output to stdout (must be last)
+
+        else:
+            raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
+
+        logger.debug(f"Executing {self.sdr_type.name} SDR command: {cmd}")
 
         proc = subprocess.Popen(
             cmd,
@@ -348,7 +372,7 @@ class BaseStreamingDecoder(ABC):
         )
 
         # Log process info
-        logger.info(f"Started SDR process (PID: {proc.pid}) with nice +10 priority")
+        logger.info(f"Started {self.sdr_type.name} SDR process (PID: {proc.pid}) with nice +10 priority")
 
         return proc
 
@@ -402,11 +426,12 @@ class BaseStreamingDecoder(ABC):
 
         try:
             while not self.stop_event.is_set():
-                # Check memory usage every 10 chunks (~1 second)
+                # Check process memory usage every 10 chunks (~1 second)
                 if chunk_count % 10 == 0:
-                    memory_percent = psutil.virtual_memory().percent
-                    if memory_percent > 85:
-                        logger.error(f"Memory usage critical: {memory_percent}% - stopping stream")
+                    process = psutil.Process()
+                    process_mem_mb = process.memory_info().rss / (1024 * 1024)
+                    if process_mem_mb > 500:
+                        logger.error(f"Process memory critical: {process_mem_mb:.1f} MB - stopping stream")
                         self.stop_event.set()
                         break
 
@@ -416,9 +441,17 @@ class BaseStreamingDecoder(ABC):
                     logger.info("SDR stream ended")
                     break
 
-                # Convert to complex64
-                iq_data = np.frombuffer(iq_bytes, dtype=np.int8)
-                iq_float = iq_data.astype(np.float32) / 127.0
+                # Convert to complex64 with SDR-specific normalization
+                if self.sdr_type == SDRType.HACKRF:
+                    # HackRF: int8 signed (-128 to 127)
+                    iq_data = np.frombuffer(iq_bytes, dtype=np.int8)
+                    iq_float = iq_data.astype(np.float32) / 127.0
+                elif self.sdr_type == SDRType.RTLSDR:
+                    # RTL-SDR: uint8 unsigned (0 to 255)
+                    iq_data = np.frombuffer(iq_bytes, dtype=np.uint8)
+                    iq_float = (iq_data.astype(np.float32) - 127.5) / 127.5
+                else:
+                    raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
 
                 # Ensure even number of samples for I/Q splitting
                 if len(iq_float) % 2 != 0:
@@ -673,6 +706,27 @@ class BaseStreamingDecoder(ABC):
 class StreamingAPRSDecoder(BaseStreamingDecoder):
     """Streaming APRS decoder using direwolf"""
 
+    def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int):
+        super().__init__(frequency, duration, gain, sample_rate)
+
+        # Detect SDR hardware
+        self.sdr_type = detect_sdr()
+        if self.sdr_type == SDRType.UNKNOWN:
+            raise ValueError("No SDR hardware detected (HackRF or RTL-SDR required)")
+
+        # Validate frequency and sample rate against detected hardware
+        try:
+            _ = get_sdr_instance(
+                frequency=frequency,
+                sample_rate=sample_rate,
+                gain=gain,
+                sdr_type=self.sdr_type
+            )
+        except ValueError as e:
+            raise ValueError(f"Invalid parameters for {self.sdr_type.name}: {e}")
+
+        logger.info(f"Using {self.sdr_type.name} for APRS streaming session")
+
     def _get_mode(self) -> str:
         return 'aprs'
 
@@ -814,6 +868,27 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
 
 class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     """Streaming POCSAG decoder using multimon-ng"""
+
+    def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int):
+        super().__init__(frequency, duration, gain, sample_rate)
+
+        # Detect SDR hardware
+        self.sdr_type = detect_sdr()
+        if self.sdr_type == SDRType.UNKNOWN:
+            raise ValueError("No SDR hardware detected (HackRF or RTL-SDR required)")
+
+        # Validate frequency and sample rate against detected hardware
+        try:
+            _ = get_sdr_instance(
+                frequency=frequency,
+                sample_rate=sample_rate,
+                gain=gain,
+                sdr_type=self.sdr_type
+            )
+        except ValueError as e:
+            raise ValueError(f"Invalid parameters for {self.sdr_type.name}: {e}")
+
+        logger.info(f"Using {self.sdr_type.name} for POCSAG streaming session")
 
     def _get_mode(self) -> str:
         return 'pocsag'
