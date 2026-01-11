@@ -18,7 +18,7 @@ source venv/bin/activate
 # Create recordings directory
 mkdir -p recordings
 
-# Check if SDR is connected (HackRF or RTL-SDR)
+# Check if SDR is connected (HackRF, RTL-SDR, or Airspy HF+)
 echo "Checking SDR device connection..."
 SDR_DETECTED=false
 
@@ -29,6 +29,11 @@ fi
 
 if timeout 1 rtl_test -t &> /dev/null 2>&1; then
     echo "✓ RTL-SDR detected"
+    SDR_DETECTED=true
+fi
+
+if airspyhf_info &> /dev/null 2>&1; then
+    echo "✓ Airspy HF+ detected"
     SDR_DETECTED=true
 fi
 
