@@ -26,6 +26,7 @@ class SDRType(Enum):
     """Supported SDR hardware types"""
     HACKRF = "hackrf"
     RTLSDR = "rtlsdr"
+    AIRSPYHF = "airspyhf"
     UNKNOWN = "unknown"
 
 
@@ -397,20 +398,133 @@ class RTLSDRCapture(SDRCapture):
                 os.unlink(raw_audio_file)
 
 
+class AirspyHFCapture(SDRCapture):
+    """Airspy HF+ implementation"""
+
+    def is_available(self) -> bool:
+        """Check if Airspy HF+ is connected"""
+        try:
+            result = subprocess.run(
+                ['airspyhf_info'],
+                capture_output=True,
+                text=True,
+                timeout=5
+            )
+            return result.returncode == 0 and b"S/N:" in result.stdout.encode()
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
+    def get_frequency_range(self) -> Tuple[int, int]:
+        """
+        Airspy HF+ covers 0.5 kHz to 31 MHz (HF) and 60-260 MHz (VHF)
+        Note: Gap between 31-60 MHz is not supported by hardware
+        """
+        return (500, 260_000_000)
+
+    def get_max_sample_rate(self) -> int:
+        """Airspy HF+ max sample rate is 912 kHz (we use 768 kHz as standard)"""
+        return 912_000
+
+    def capture_iq(self, duration: int, output_file: str) -> None:
+        """Capture raw IQ samples using Airspy HF+"""
+        self.logger.info(f"Airspy HF+ IQ capture: {self.frequency/1e6:.3f} MHz, {duration}s")
+
+        # Calculate number of samples (I+Q pairs)
+        num_samples = int(duration * self.sample_rate * 2)  # * 2 for I and Q
+
+        with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
+            raw_file = tmpfile.name
+
+        try:
+            # Airspy HF+ capture command
+            # Frequency in MHz, -m on enables HF AGC
+            cmd = [
+                'airspyhf_rx',
+                '-r', raw_file,
+                '-f', f"{self.frequency / 1_000_000:.6f}",  # Frequency in MHz
+                '-n', str(num_samples),
+                '-m', 'on'  # Enable HF AGC
+            ]
+
+            self.logger.info(f"Running: {' '.join(cmd)}")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=duration * 2 + 15
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"airspyhf_rx failed: {result.stderr}")
+
+            # Read raw IQ samples (int16 signed)
+            iq_data = np.fromfile(raw_file, dtype=np.int16)
+
+            # Convert to complex64 (Airspy HF+ normalization: divide by 32768.0)
+            i_samples = iq_data[0::2].astype(np.float32) / 32768.0
+            q_samples = iq_data[1::2].astype(np.float32) / 32768.0
+            iq_samples = (i_samples + 1j * q_samples).astype(np.complex64)
+
+            # Save IQ samples
+            os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+            iq_samples.tofile(output_file)
+
+            self.logger.info(f"IQ capture complete: {len(iq_samples)} samples, "
+                           f"{os.path.getsize(output_file) / 1024 / 1024:.1f} MB")
+
+        finally:
+            if os.path.exists(raw_file):
+                os.unlink(raw_file)
+
+    def capture_audio(self, duration: int, output_file: str, modulation: str = 'FM') -> None:
+        """Capture and demodulate to audio using Airspy HF+"""
+        self.logger.info(f"Airspy HF+ audio capture: {self.frequency/1e6:.3f} MHz, "
+                        f"{modulation}, {duration}s")
+
+        # Capture IQ samples to temp file
+        with tempfile.NamedTemporaryFile(suffix='.iq', delete=False) as tmpfile:
+            iq_file = tmpfile.name
+
+        try:
+            self.capture_iq(duration, iq_file)
+
+            # Load and demodulate
+            iq_samples = np.fromfile(iq_file, dtype=np.complex64)
+            audio = self._demodulate(iq_samples, modulation)
+            self._save_wav(audio, output_file)
+
+            # Force garbage collection to free memory from large arrays
+            del iq_samples, audio
+            gc.collect()
+
+            self.logger.info(f"Audio capture complete: {output_file}")
+
+        finally:
+            if os.path.exists(iq_file):
+                os.unlink(iq_file)
+
+
 def detect_sdr() -> SDRType:
     """
     Auto-detect available SDR hardware
-    Prefer HackRF if both are connected (better specs)
+    Priority: HackRF > Airspy HF+ > RTL-SDR
     """
     logger.info("Detecting SDR hardware...")
 
-    # Check HackRF first (preferred)
+    # Check HackRF first (broadest frequency range: 1 MHz - 6 GHz)
     hackrf = HackRFCapture(frequency=100_000_000)
     if hackrf.is_available():
         logger.info("Detected: HackRF One")
         return SDRType.HACKRF
 
-    # Check RTL-SDR
+    # Check Airspy HF+ second (best HF coverage: 0.5 kHz - 31 MHz + VHF)
+    airspyhf = AirspyHFCapture(frequency=100_000_000)
+    if airspyhf.is_available():
+        logger.info("Detected: Airspy HF+")
+        return SDRType.AIRSPYHF
+
+    # Check RTL-SDR last (budget option: 24 MHz - 1.766 GHz)
     rtlsdr = RTLSDRCapture(frequency=100_000_000)
     if rtlsdr.is_available():
         logger.info("Detected: RTL-SDR")
@@ -444,13 +558,22 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
 
     if sdr_type == SDRType.UNKNOWN:
         raise RuntimeError(
-            "No SDR hardware detected. Please connect HackRF One or RTL-SDR."
+            "No SDR hardware detected. Please connect HackRF One, RTL-SDR, or Airspy HF+."
         )
 
     # Create instance
     instance: SDRCapture
     if sdr_type == SDRType.HACKRF:
         instance = HackRFCapture(frequency, sample_rate, gain)
+    elif sdr_type == SDRType.AIRSPYHF:
+        # Airspy HF+ has lower max sample rate - clamp if needed
+        clamped_rate = min(sample_rate, 912_000)
+        if clamped_rate != sample_rate:
+            logger.warning(
+                f"Sample rate clamped from {sample_rate/1e6:.3f} MHz to "
+                f"{clamped_rate/1e6:.3f} MHz (Airspy HF+ max)"
+            )
+        instance = AirspyHFCapture(frequency, clamped_rate, gain)
     elif sdr_type == SDRType.RTLSDR:
         instance = RTLSDRCapture(frequency, sample_rate, gain)
     else:

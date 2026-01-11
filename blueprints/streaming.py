@@ -257,6 +257,7 @@ def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
             logger.info("Attempting graceful process termination...")
             subprocess.run(['pkill', '-TERM', 'hackrf_transfer'], timeout=2)
             subprocess.run(['pkill', '-TERM', 'rtl_sdr'], timeout=2)
+            subprocess.run(['pkill', '-TERM', 'airspyhf_rx'], timeout=2)
             subprocess.run(['pkill', '-TERM', 'multimon-ng'], timeout=2)
             subprocess.run(['pkill', '-TERM', 'direwolf'], timeout=2)
 
@@ -267,6 +268,7 @@ def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
             logger.info("Force killing any remaining processes...")
             subprocess.run(['pkill', '-9', 'hackrf_transfer'], timeout=2)
             subprocess.run(['pkill', '-9', 'rtl_sdr'], timeout=2)
+            subprocess.run(['pkill', '-9', 'airspyhf_rx'], timeout=2)
             subprocess.run(['pkill', '-9', 'multimon-ng'], timeout=2)
             subprocess.run(['pkill', '-9', 'direwolf'], timeout=2)
         except Exception as e:
