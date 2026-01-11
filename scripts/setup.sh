@@ -30,6 +30,8 @@ sudo apt-get install -y \
     hackrf \
     rtl-sdr \
     librtlsdr-dev \
+    libairspyhf-dev \
+    airspyhf \
     build-essential \
     python3-pip \
     python3-venv \
@@ -103,7 +105,7 @@ fi
 
 # Add user to plugdev group for USB access
 echo ""
-echo "Setting up USB permissions for SDR devices (HackRF/RTL-SDR)..."
+echo "Setting up USB permissions for SDR devices (HackRF/RTL-SDR/Airspy HF+)..."
 sudo usermod -a -G plugdev $USER
 
 # Create udev rules for HackRF
@@ -122,6 +124,13 @@ echo "Creating udev rules for RTL-SDR..."
 sudo tee /etc/udev/rules.d/20-rtlsdr.rules > /dev/null <<EOF
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2832", GROUP="plugdev", MODE="0666", SYMLINK+="rtl_sdr"
 SUBSYSTEM=="usb", ATTRS{idVendor}=="0bda", ATTRS{idProduct}=="2838", GROUP="plugdev", MODE="0666", SYMLINK+="rtl_sdr"
+EOF
+
+# Create udev rules for Airspy HF+
+echo ""
+echo "Creating udev rules for Airspy HF+..."
+sudo tee /etc/udev/rules.d/52-airspyhf.rules > /dev/null <<EOF
+SUBSYSTEM=="usb", ATTRS{idVendor}=="03eb", ATTRS{idProduct}=="800c", GROUP="plugdev", MODE="0666", SYMLINK+="airspyhf-%k"
 EOF
 
 sudo udevadm control --reload-rules
@@ -146,8 +155,15 @@ if command -v rtl_test &> /dev/null; then
     fi
 fi
 
+if command -v airspyhf_info &> /dev/null; then
+    if airspyhf_info &> /dev/null; then
+        echo "✓ Airspy HF+ detected"
+        SDR_FOUND=true
+    fi
+fi
+
 if [ "$SDR_FOUND" = false ]; then
-    echo "Warning: No SDR device detected. Please connect your HackRF or RTL-SDR device."
+    echo "Warning: No SDR device detected. Please connect your HackRF, RTL-SDR, or Airspy HF+ device."
 fi
 
 # Run tests to verify installation
@@ -194,7 +210,7 @@ echo "✓ Test suite verified"
 echo ""
 echo "Next steps:"
 echo "1. Log out and log back in for USB permissions to take effect"
-echo "2. Connect your HackRF or RTL-SDR device"
+echo "2. Connect your HackRF, RTL-SDR, or Airspy HF+ device"
 echo "3. Run: source venv/bin/activate"
 echo "4. Run: ./scripts/start.sh"
 echo ""
