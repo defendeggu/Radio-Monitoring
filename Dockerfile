@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y \
     libusb-1.0-0-dev \
     libhackrf-dev \
     librtlsdr-dev \
+    libairspyhf-dev \
     libasound2-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -27,12 +28,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM python:3.11-slim
 
 # Install only runtime dependencies (no -dev packages, no build tools)
+# Updated: Added Airspy HF+ support (libairspyhf1, airspyhf)
 RUN apt-get update && apt-get install -y \
     libusb-1.0-0 \
     libhackrf0 \
     hackrf \
     rtl-sdr \
     librtlsdr0 \
+    libairspyhf1 \
+    airspyhf \
     direwolf \
     multimon-ng \
     libasound2 \

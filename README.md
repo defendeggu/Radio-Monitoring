@@ -1,11 +1,11 @@
 # 📻 Radio Message Transcription System
 
-A complete professional radio monitoring system for capturing radio signals from **HackRF One** or **RTL-SDR** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
+A complete professional radio monitoring system for capturing radio signals from **HackRF One**, **RTL-SDR**, or **Airspy HF+** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
 
 ## ✨ Features
 
 ### 🎯 Core Capabilities
-- 📡 **Dual SDR Support**: Automatic detection and support for HackRF One and RTL-SDR devices
+- 📡 **Triple SDR Support**: Automatic detection and support for HackRF One, RTL-SDR, and Airspy HF+ devices
 - 📻 **Radio Capture**: Capture radio signals with configurable frequency and modulation
 - 🔄 **Hardware Abstraction**: Transparent hardware switching with frequency range validation
 - 📊 **Multiple Modulation Support**: FM, AM, USB, LSB
@@ -100,7 +100,7 @@ A complete professional radio monitoring system for capturing radio signals from
             │  /stats (Analytics)             │
             │  /sdr/detect (Hardware Info)    │
             ├─────────────────────────────────┤
-            │      Radio Capture              │◄─── HackRF One / RTL-SDR
+            │      Radio Capture              │◄─── HackRF One / RTL-SDR / Airspy HF+
             │   (Hardware Abstraction Layer)  │     (Auto-detection)
             ├─────────────────────────────────┤
             │ Voice  │ APRS  │POCSAG │Repeater│
@@ -121,21 +121,23 @@ A complete professional radio monitoring system for capturing radio signals from
 
 **📡 SDR Device (one of the following):**
 
-The system supports both HackRF One and RTL-SDR with **automatic hardware detection**. Choose based on your frequency coverage needs:
+The system supports HackRF One, RTL-SDR, and Airspy HF+ with **automatic hardware detection**. Choose based on your frequency coverage needs:
 
-| Feature | HackRF One | RTL-SDR |
-|---------|------------|---------|
-| **Frequency Range** | 1 MHz - 6 GHz | 24 MHz - 1.766 GHz |
-| **TX Capability** | Yes (transmit) | No (receive-only) |
-| **Max Sample Rate** | 20 MHz | 3.2 MHz |
-| **Price** | ~$300 USD | ~$25 USD |
-| **Best For** | Full-spectrum monitoring, HF/VHF/UHF/microwave | Budget VHF/UHF monitoring (FM radio, APRS, aviation) |
-| **Limitations** | Higher cost, USB bandwidth issues on long captures (>120s) | Cannot receive HF (<24 MHz) or microwave (>1.766 GHz) |
-| **USB Stability** | May experience transfer issues on captures >120s at 2MHz sample rate | Excellent stability, tested up to 660s continuous streaming |
+| Feature | HackRF One | RTL-SDR | Airspy HF+ |
+|---------|------------|---------|------------|
+| **Frequency Range** | 1 MHz - 6 GHz | 24 MHz - 1.766 GHz | 0.5 kHz - 31 MHz (HF)<br>60 - 260 MHz (VHF) |
+| **TX Capability** | Yes (transmit) | No (receive-only) | No (receive-only) |
+| **Max Sample Rate** | 20 MHz | 3.2 MHz | 912 kHz |
+| **Price** | ~$300 USD | ~$25 USD | ~$200 USD |
+| **Best For** | Full-spectrum monitoring | Budget VHF/UHF | Professional HF/VHF reception |
+| **Strengths** | Widest frequency coverage | Affordable, stable | Best HF sensitivity (-141 dBm) |
+| **Limitations** | USB bandwidth issues >120s | No HF (<24 MHz) | Frequency gap 31-60 MHz, lower max sample rate |
+| **USB Stability** | Transfer issues >120s @ 2MHz | Excellent up to 660s | Excellent stability |
 
+**Recommended for HF monitoring (shortwave, amateur HF):** Airspy HF+ (0.5 kHz - 31 MHz, excellent sensitivity)
 **Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies, excellent USB stability)
 **Recommended for advanced users:** HackRF One (full spectrum coverage, best for short captures <60s)
-**Recommended for long captures (>120s):** RTL-SDR (superior USB stability, no transfer timeouts)
+**Recommended for long captures (>120s):** RTL-SDR or Airspy HF+ (superior USB stability, no transfer timeouts)
 
 **🔌 Additional Hardware:**
 - 🔌 USB cable
@@ -145,9 +147,10 @@ The system supports both HackRF One and RTL-SDR with **automatic hardware detect
 ### 🔍 Hardware Detection
 
 The system automatically detects which SDR is connected:
-- Prefers HackRF if both are connected (better specs)
+- **Detection priority**: HackRF > Airspy HF+ > RTL-SDR (when multiple devices connected)
 - Validates frequency range at runtime
 - Shows detected device in web interface
+- Automatic sample rate clamping for device capabilities
 - Prevents invalid captures for device limitations
 
 ### 📊 Frequency Coverage Examples
@@ -163,6 +166,12 @@ The system automatically detects which SDR is connected:
 - ✅ VHF (24-300 MHz): FM radio (88-108 MHz), aviation (118-137 MHz), APRS (144.8 MHz), amateur 2m
 - ✅ UHF (300-1766 MHz): Amateur 70cm (430-440 MHz), PMR (446 MHz), POCSAG pagers (147 MHz)
 - ❌ Microwave (>1.766 GHz): Not supported
+
+**📻 Airspy HF+ can receive:**
+- ✅ HF bands (0.5 kHz - 31 MHz): **Best sensitivity** - Shortwave, amateur HF (160m, 80m, 40m, 20m, 10m), broadcast
+- ❌ Gap (31-60 MHz): Not supported by hardware
+- ✅ VHF (60-260 MHz): FM radio (88-108 MHz), aviation (118-137 MHz), APRS (144.8 MHz), amateur 2m
+- ❌ UHF (>260 MHz): Not supported
 
 ### 💻 Software
 - 🐳 Docker and Docker Compose (recommended)

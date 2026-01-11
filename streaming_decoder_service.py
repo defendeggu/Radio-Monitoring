@@ -358,6 +358,21 @@ class BaseStreamingDecoder(ABC):
 
             cmd.append('-')  # Output to stdout (must be last)
 
+        elif self.sdr_type == SDRType.AIRSPYHF:
+            # Airspy HF+ command
+            cmd = [
+                'nice', '-n', '10',
+                'airspyhf_rx',
+                '-f', f"{self.frequency / 1_000_000:.6f}",  # Frequency in MHz
+                '-m', 'on',  # Enable HF AGC
+                '-r', '-'  # Output to stdout
+            ]
+            # Duration limit (optional - or run until stop)
+            if self.duration:
+                num_samples = int(self.sample_rate * self.duration * 2)  # I+Q
+                cmd.insert(-1, '-n')  # Insert before '-'
+                cmd.insert(-1, str(num_samples))
+
         else:
             raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
 
@@ -450,6 +465,10 @@ class BaseStreamingDecoder(ABC):
                     # RTL-SDR: uint8 unsigned (0 to 255)
                     iq_data = np.frombuffer(iq_bytes, dtype=np.uint8)
                     iq_float = (iq_data.astype(np.float32) - 127.5) / 127.5
+                elif self.sdr_type == SDRType.AIRSPYHF:
+                    # Airspy HF+: int16 signed (-32768 to 32767)
+                    iq_data = np.frombuffer(iq_bytes, dtype=np.int16)
+                    iq_float = iq_data.astype(np.float32) / 32768.0
                 else:
                     raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
 
@@ -712,7 +731,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
         # Detect SDR hardware
         self.sdr_type = detect_sdr()
         if self.sdr_type == SDRType.UNKNOWN:
-            raise ValueError("No SDR hardware detected (HackRF or RTL-SDR required)")
+            raise ValueError("No SDR hardware detected (HackRF, RTL-SDR, or Airspy HF+ required)")
 
         # Validate frequency and sample rate against detected hardware
         try:
@@ -875,7 +894,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
         # Detect SDR hardware
         self.sdr_type = detect_sdr()
         if self.sdr_type == SDRType.UNKNOWN:
-            raise ValueError("No SDR hardware detected (HackRF or RTL-SDR required)")
+            raise ValueError("No SDR hardware detected (HackRF, RTL-SDR, or Airspy HF+ required)")
 
         # Validate frequency and sample rate against detected hardware
         try:
