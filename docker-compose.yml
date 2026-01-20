@@ -13,7 +13,7 @@ services:
       - xpack.security.enrollment.enabled=false
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
-      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
+      - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-}
       - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
       - bootstrap.memory_lock=true
     ulimits:
@@ -28,6 +28,11 @@ services:
       - ./monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
       - ./monitoring/elasticsearch/index-templates:/usr/share/elasticsearch/index-templates:ro
       - ./monitoring/elasticsearch/ilm-policies:/usr/share/elasticsearch/ilm-policies:ro
+      - ./monitoring/elasticsearch/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
+    command: ["elasticsearch"]
+    secrets:
+      - elasticsearch_password
     ports:
       - "9200:9200"
     networks:
@@ -51,6 +56,10 @@ services:
       - ./monitoring/logstash/pipelines:/usr/share/logstash/pipeline:ro
       - ./monitoring/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
       - ./monitoring/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - ./monitoring/logstash/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
+    secrets:
+      - logstash_password
     ports:
       - "9600:9600"  # radio-captures pipeline
       - "9601:9601"  # radio-aprs pipeline
@@ -60,7 +69,7 @@ services:
     environment:
       - "LS_JAVA_OPTS=-Xmx2g -Xms2g"
       - ELASTICSEARCH_USERNAME=logstash_system
-      - ELASTICSEARCH_PASSWORD=${LOGSTASH_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_PASSWORD=${LOGSTASH_SYSTEM_PASSWORD:-}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     networks:
       - radio-network
@@ -85,12 +94,16 @@ services:
     environment:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=kibana_system
-      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD:-}
       - SERVER_NAME=radio-kibana
       - XPACK_SECURITY_ENABLED=true
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=min-32-byte-long-strong-encryption-key-here-for-kibana
     volumes:
       - ./monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - ./monitoring/kibana/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+    entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
+    secrets:
+      - kibana_password
     ports:
       - "5601:5601"
     networks:
@@ -254,3 +267,14 @@ volumes:
 networks:
   radio-network:
     driver: bridge
+
+# Docker Secrets for secure credential management
+secrets:
+  elasticsearch_password:
+    file: ./.secrets/elasticsearch_password.txt
+  kibana_password:
+    file: ./.secrets/kibana_password.txt
+  logstash_password:
+    file: ./.secrets/logstash_password.txt
+  beats_password:
+    file: ./.secrets/beats_password.txt

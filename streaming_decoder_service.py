@@ -348,15 +348,11 @@ class BaseStreamingDecoder(ABC):
                 'rtl_sdr',
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
-                '-g', str(self.gain)
+                '-g', str(self.gain),
+                '-'  # Output to stdout
             ]
-            # Duration limit (optional - or run until stop)
-            if self.duration:
-                # rtl_sdr -n parameter is in bytes (already accounts for I+Q)
-                num_bytes = int(self.sample_rate * self.duration * 2)
-                cmd.extend(['-n', str(num_bytes)])
-
-            cmd.append('-')  # Output to stdout (must be last)
+            # NOTE: Don't use -n parameter for duration - let the timer handle it
+            # Using -n causes the process to end immediately, leaving threads hanging
 
         elif self.sdr_type == SDRType.AIRSPYHF:
             # Airspy HF+ command
@@ -417,6 +413,20 @@ class BaseStreamingDecoder(ABC):
             # Check if duration exceeded
             if self.duration and (time.time() - start_time) >= self.duration:
                 logger.info(f"Duration limit reached: {self.duration}s")
+                self.stop_event.set()  # Signal threads to stop
+
+                # Terminate SDR and decoder processes to unblock threads
+                if self.sdr_proc and self.sdr_proc.poll() is None:
+                    logger.info("Terminating SDR process...")
+                    self.sdr_proc.terminate()
+                if self.decoder_proc and self.decoder_proc.poll() is None:
+                    logger.info("Terminating decoder process...")
+                    self.decoder_proc.terminate()
+                break
+
+            # Check if threads are still alive - exit if both died
+            if not converter_thread.is_alive() and not indexer_thread.is_alive():
+                logger.info("Both worker threads completed - ending session")
                 break
 
             # Update session status periodically
