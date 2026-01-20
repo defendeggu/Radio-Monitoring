@@ -422,11 +422,27 @@ class BaseStreamingDecoder(ABC):
                 if self.decoder_proc and self.decoder_proc.poll() is None:
                     logger.info("Terminating decoder process...")
                     self.decoder_proc.terminate()
+
+                # Explicitly mark session as completed (don't rely on finally block)
+                if self.session is not None:
+                    self.session.status = 'completed'
+                    self.session.end_time = datetime.now(timezone.utc)
+                    session_manager.save_session(self.session)
+                    logger.info(f"Session {self.session.session_id} marked as completed via duration timeout")
+
                 break
 
             # Check if threads are still alive - exit if both died
             if not converter_thread.is_alive() and not indexer_thread.is_alive():
                 logger.info("Both worker threads completed - ending session")
+
+                # Explicitly mark session as completed
+                if self.session is not None:
+                    self.session.status = 'completed'
+                    self.session.end_time = datetime.now(timezone.utc)
+                    session_manager.save_session(self.session)
+                    logger.info(f"Session {self.session.session_id} marked as completed via thread completion")
+
                 break
 
             # Update session status periodically
