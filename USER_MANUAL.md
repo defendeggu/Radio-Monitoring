@@ -14,6 +14,35 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ---
 
+## 🆕 Neueste Updates (Januar 2026)
+
+### ✅ Behobene Fehler
+
+**Duration Bug behoben (20.01.2026)**
+- Streaming-Decoder-Sessions (APRS/POCSAG) beenden sich jetzt korrekt nach der konfigurierten Zeit
+- Sessions bleiben nicht mehr im "running"-Status hängen
+- Automatische Bereinigung funktioniert nun zuverlässig
+
+**RTL-SDR Erkennung verbessert (20.01.2026)**
+- RTL-SDR Geräte werden nun auf allen Systemen zuverlässig erkannt
+- Unicode-Fehler bei der Hardware-Erkennung behoben
+
+### 🔒 Sicherheitsverbesserungen (20.01.2026)
+
+**Docker Secrets implementiert**
+- Produktionsreife Verwaltung von Passwörtern und Zugangsdaten
+- Alle sensiblen Daten sind jetzt in separaten Dateien mit eingeschränkten Berechtigungen
+- Automatische Konfiguration der ELK-Stack-Passwörter
+
+### 📖 Weitere Informationen
+
+Detaillierte technische Dokumentation:
+- `FINAL_SUMMARY_20260120.md` - Vollständige Session-Zusammenfassung
+- `TEST_REPORT_20260120.md` - Live-Streaming-Testergebnisse
+- `README.md` - Technische Dokumentation und API-Referenz
+
+---
+
 ## 🔐 Sicherheit & API-Keys
 
 ### Was sind API-Keys?
