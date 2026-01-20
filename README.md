@@ -217,9 +217,11 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
 2. **Setup Secrets** (Required for first-time setup)
    ```bash
-   ./setup-secrets.sh
+   ./scripts/setup-secrets.sh
    ```
-   This script generates secure passwords for all services. Save the displayed credentials!
+   This script generates secure passwords for all services (N8N). Save the displayed credentials!
+
+   **Note**: The ELK stack passwords are configured in `.env.elk` and `.secrets/` directory (created automatically during first run).
 
 3. **Configure environment** (optional)
    ```bash
@@ -268,8 +270,53 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    - 🐳 **Portainer** (Docker Management): http://localhost:9000 or https://localhost:9443
    - 🔍 **Elasticsearch API**: http://localhost:9200
    - 🔌 **Logstash Pipelines**: http://localhost:9600-9604
-   - 🔄 **N8N Workflow**: http://localhost:5679 (credentials from setup-secrets.sh)
+   - 🔄 **N8N Workflow**: http://localhost:5679 (credentials from scripts/setup-secrets.sh)
    - 🔌 **API**: http://localhost:5000
+
+## 📝 Recent Updates (January 2026)
+
+### ✅ Bug Fixes
+
+**Duration Bug Fix (2026-01-20)**
+- **Fixed**: Streaming decoder sessions (APRS/POCSAG) now properly complete at configured duration
+- **Issue**: Sessions remained in "running" state indefinitely, requiring manual cleanup
+- **Solution**: Added explicit session completion markers in both duration timeout and thread completion paths
+- **Impact**: Sessions automatically transition to "completed" status with proper end timestamps
+- **Commit**: `d1f40c4` - Fix duration bug: Explicitly mark streaming sessions as completed
+
+**RTL-SDR Unicode Detection Fix (2026-01-20)**
+- **Fixed**: RTL-SDR detection failed with Unicode decode error on certain systems
+- **Issue**: `rtl_test -t` output contains non-UTF-8 bytes causing detection failure
+- **Solution**: Removed `text=True` from subprocess call, handle bytes directly
+- **Impact**: RTL-SDR devices now detected reliably across all systems
+- **File**: `sdr_hardware.py:249`
+
+### 🔒 Security Improvements
+
+**Docker Secrets Implementation (2026-01-20)**
+- Implemented production-ready credential management using Docker Secrets pattern
+- Passwords stored in `.secrets/` directory with restrictive permissions (600/700)
+- Hybrid approach: Docker Secrets in production, ENV variables fallback for development
+- Created entrypoint wrappers for all ELK services to inject secrets at runtime
+- All secrets excluded from git via `.gitignore`
+- **Files**:
+  - `.secrets/` directory structure
+  - `monitoring/*/docker-entrypoint-wrapper.sh`
+  - Updated `docker-compose.yml` with secrets configuration
+- **Commit**: `337043a` - Add Docker Secrets support, RTL-SDR Unicode fix, streaming improvements
+
+### 🐳 Infrastructure Updates
+
+**Docker Image Rebuild**
+- All recent fixes permanently baked into production Docker image
+- Container runs with non-root user (`radiouser`) for enhanced security
+- Memory limits configured to prevent OOM: API (4GB), Elasticsearch (5GB)
+- Multi-stage build process for optimized image size
+
+For detailed session summary and test reports, see:
+- `FINAL_SUMMARY_20260120.md` - Complete session summary
+- `TEST_REPORT_20260120.md` - Live streaming test results
+- `OPTIMIZATION_ROADMAP.md` - Future improvement plans
 
 ## 📡 RTL-SDR Quick Start Guide
 
@@ -615,11 +662,11 @@ This project uses **Docker Secrets** for secure credential management, similar t
 Run the setup script to generate all required secrets:
 
 ```bash
-./setup-secrets.sh
+./scripts/setup-secrets.sh
 ```
 
 This creates:
-- Strong random passwords for all services
+- Strong random passwords for N8N
 - Secret files in the `secrets/` directory
 - Proper file permissions (600 - owner read/write only)
 
@@ -627,15 +674,26 @@ This creates:
 
 ### 📁 Secret Files
 
-All secrets are stored in `secrets/*.txt` files:
+Secrets are organized in two directories:
 
+**N8N Secrets** (`secrets/`):
 ```
 secrets/
 ├── n8n_basic_auth_user.txt
 └── n8n_basic_auth_password.txt
 ```
 
-**Note**: The ELK stack (Elasticsearch, Logstash, Kibana) in this fork runs without authentication for simplicity. For production deployments, enable X-Pack Security.
+**ELK Stack Secrets** (`.secrets/` - created automatically):
+```
+.secrets/
+├── elasticsearch_password.txt
+├── kibana_password.txt
+├── logstash_password.txt
+├── beats_password.txt
+└── README.md
+```
+
+**Note**: ELK passwords are automatically configured in `.env.elk` and injected via Docker Secrets at runtime using entrypoint wrappers. See `.secrets/README.md` for details.
 
 ### ⚙️ How It Works
 
