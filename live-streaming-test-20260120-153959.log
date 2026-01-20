@@ -1,0 +1,23 @@
+[0;34m[15:39:59][0m =========================================
+[0;34m[15:39:59][0m Live Streaming Test - APRS and POCSAG
+[0;34m[15:39:59][0m =========================================
+[0;34m[15:39:59][0m Start time: Tue Jan 20 03:39:59 PM CET 2026
+[0;34m[15:39:59][0m Log file: live-streaming-test-20260120-153959.log
+[0;34m[15:39:59][0m 
+[0;34m[15:39:59][0m Checking API health...
+[0;32m[15:39:59] ✓[0m API is healthy
+[0;34m[15:39:59][0m Detecting SDR hardware...
+[0;32m[15:40:00] ✓[0m Detected: rtlsdr
+{"frequency_range":{"max_hz":1766000000,"max_mhz":1766.0,"min_hz":24000000,"min_mhz":24.0},"max_sample_rate_hz":3200000,"max_sample_rate_mhz":3.2,"type":"rtlsdr"}
+[0;34m[15:40:00][0m 
+[0;34m[15:40:00][0m =========================================
+[0;34m[15:40:00][0m Test 1: APRS Streaming
+[0;34m[15:40:00][0m =========================================
+[0;34m[15:40:00][0m Starting aprs streaming session...
+[0;34m[15:40:00][0m Frequency: 144.800 MHz, Gain: 32dB, Duration: 720s
+[0;32m[15:40:01] ✓[0m aprs session started: 0e6be18a-6273-49cb-9d85-664694a53dcb
+{"frequency":144800000,"message":"APRS streaming started","session_id":"0e6be18a-6273-49cb-9d85-664694a53dcb","status":"success"}
+[0;34m[15:40:01][0m Monitoring aprs session [0;34m[15:40:00][0m Starting aprs streaming session...
+[0;34m[15:40:00][0m Frequency: 144.800 MHz, Gain: 32dB, Duration: 720s
+[0;32m[15:40:01] ✓[0m aprs session started: 0e6be18a-6273-49cb-9d85-664694a53dcb
+0e6be18a-6273-49cb-9d85-664694a53dcb...

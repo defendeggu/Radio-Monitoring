@@ -1,0 +1,11 @@
+[0;34m[15:29:03][0m =========================================
+[0;34m[15:29:03][0m Live Streaming Test - APRS and POCSAG
+[0;34m[15:29:03][0m =========================================
+[0;34m[15:29:03][0m Start time: Tue Jan 20 03:29:03 PM CET 2026
+[0;34m[15:29:03][0m Log file: live-streaming-test-20260120-152903.log
+[0;34m[15:29:03][0m 
+[0;34m[15:29:03][0m Checking API health...
+[0;32m[15:29:03] ✓[0m API is healthy
+[0;34m[15:29:03][0m Detecting SDR hardware...
+[0;31m[15:29:04] ✗[0m No SDR detected
+[0;31m[15:29:04] ✗[0m SDR detection failed. Exiting.
