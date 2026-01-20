@@ -1,0 +1,229 @@
+[0;34m[12:29:51][0m =========================================
+[0;34m[12:29:51][0m Hardware Test Suite - High Gain Streaming
+[0;34m[12:29:51][0m =========================================
+[0;34m[12:29:51][0m Start time: Fri Jan  9 12:29:51 PM CET 2026
+[0;34m[12:29:51][0m Log file: /home/spia/my-project/hardware-test-streaming-highgain-20260109-122951.log
+[0;34m[12:29:51][0m 
+[0;34m[12:29:51][0m Parameter Changes:
+[0;34m[12:29:51][0m   - APRS Gain: 24 dB -> 44.5 dB (high sensitivity)
+[0;34m[12:29:51][0m   - POCSAG Gain: 24 dB -> 48.0 dB (maximum sensitivity)
+[0;34m[12:29:51][0m   - Duration: 600s -> 660s (11 minutes)
+
+[0;34m[12:29:51][0m =========================================
+[0;34m[12:29:51][0m PRE-TEST: RTL-SDR Connection Check
+[0;34m[12:29:51][0m =========================================
+[0;34m[12:29:51][0m Checking RTL-SDR connection...
+[0;32m[12:29:51] ✓[0m RTL-SDR detected on USB bus (Host)
+[0;32m[12:29:52] ✓[0m RTL-SDR accessible in container
+[0;34m[12:29:52][0m Device: Using device 0: Generic RTL2832U OEM
+
+[0;34m[12:29:52][0m Checking system status...
+=== Memory Status ===
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi        11Gi       1.9Gi       186Mi       1.9Gi       3.8Gi
+Swap:          4.0Gi       1.8Gi       2.2Gi
+
+=== Docker Container Status ===
+NAME                      IMAGE                                                                     COMMAND                  SERVICE         CREATED        STATUS                       PORTS
+radio-elasticsearch       docker.elastic.co/elasticsearch/elasticsearch:8.11.3                      "/bin/tini -- /usr/l…"   elasticsearch   14 hours ago   Up 14 hours (healthy)        0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp, 9300/tcp
+radio-kibana              docker.elastic.co/kibana/kibana:8.11.3                                    "/bin/tini -- /usr/l…"   kibana          14 hours ago   Up 14 hours (healthy)        0.0.0.0:5601->5601/tcp, [::]:5601->5601/tcp
+radio-logstash            docker.elastic.co/logstash/logstash:8.11.3                                "/usr/local/bin/dock…"   logstash        14 hours ago   Up 14 hours (healthy)        5044/tcp, 0.0.0.0:9600-9604->9600-9604/tcp, [::]:9600-9604->9600-9604/tcp
+radio-metricbeat          docker.elastic.co/beats/metricbeat:8.11.3                                 "/usr/bin/tini -- /u…"   metricbeat      14 hours ago   Up 14 hours                  
+radio-portainer           portainer/portainer-ce:latest                                             "/portainer -H unix:…"   portainer       14 hours ago   Up 3 hours                   0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp, 8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp
+radio-redis               redis:7-alpine                                                            "docker-entrypoint.s…"   redis           14 hours ago   Up 14 hours (healthy)        0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+radio-transcription-api   sha256:22ea4fe083db1ddc71568db7d8200db9f628cb0e4f81148e42bb441f281f9afc   "gunicorn --config g…"   radio-api       14 hours ago   Up About an hour (healthy)   0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp
+radio-web-interface       nginx:alpine                                                              "/docker-entrypoint.…"   web-interface   14 hours ago   Up 14 hours                  0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+
+=== Container Memory Usage ===
+NAME                      MEM USAGE / LIMIT     MEM %     CPU %
+radio-transcription-api   464.4MiB / 4GiB       11.34%    0.09%
+radio-metricbeat          60MiB / 15.57GiB      0.38%     0.00%
+radio-logstash            1.536GiB / 15.57GiB   9.87%     0.98%
+radio-kibana              502MiB / 15.57GiB     3.15%     6.32%
+radio-redis               8.016MiB / 15.57GiB   0.05%     0.44%
+radio-web-interface       5.621MiB / 15.57GiB   0.04%     0.00%
+radio-portainer           18.45MiB / 15.57GiB   0.12%     0.04%
+radio-elasticsearch       4.816GiB / 15.57GiB   30.93%    10.91%
+
+[0;34m[12:29:55][0m =========================================
+[0;34m[12:29:55][0m TEST 1/2: APRS Continuous Streaming (660s)
+[0;34m[12:29:55][0m =========================================
+[0;34m[12:29:55][0m Frequency: 144.800 MHz (European APRS)
+[0;34m[12:29:55][0m Duration: 660s (11 minutes)
+[0;34m[12:29:55][0m Gain: 44.5 dB (HIGH - improved sensitivity)
+[0;34m[12:29:55][0m Sample Rate: 2.048 MHz
+[0;34m[12:29:55][0m SDR: RTL-SDR (24 MHz - 1.766 GHz)
+
+[0;34m[12:29:55][0m Starting APRS streaming session...
+{"frequency":144800000,"message":"APRS streaming started","session_id":"5a7b53cd-e6a4-4210-bb70-0dedc0c09386","status":"success"}
+[0;32m[12:29:55] ✓[0m APRS streaming started (Session: 5a7b53cd-e6a4-4210-bb70-0dedc0c09386)
+[0;34m[12:29:55][0m Waiting 660s for APRS streaming...
+[0;34m[12:30:25][0m   Progress: 30/660s | Available RAM: 3833 MB
+[0;34m[12:30:55][0m   Progress: 60/660s | Available RAM: 3838 MB
+[0;34m[12:31:25][0m   Progress: 90/660s | Available RAM: 4102 MB
+[0;34m[12:31:55][0m   Progress: 120/660s | Available RAM: 3682 MB
+[0;34m[12:32:25][0m   Progress: 150/660s | Available RAM: 4120 MB
+[0;34m[12:32:55][0m   Progress: 180/660s | Available RAM: 4761 MB
+[0;34m[12:33:25][0m   Progress: 210/660s | Available RAM: 4888 MB
+[0;34m[12:33:55][0m   Progress: 240/660s | Available RAM: 4790 MB
+[0;34m[12:34:25][0m   Progress: 270/660s | Available RAM: 4879 MB
+[0;34m[12:34:55][0m   Progress: 300/660s | Available RAM: 4788 MB
+[0;34m[12:35:25][0m   Progress: 330/660s | Available RAM: 4892 MB
+[0;34m[12:35:55][0m   Progress: 360/660s | Available RAM: 4778 MB
+[0;34m[12:36:25][0m   Progress: 390/660s | Available RAM: 4923 MB
+[0;34m[12:36:55][0m   Progress: 420/660s | Available RAM: 4842 MB
+[0;34m[12:37:25][0m   Progress: 450/660s | Available RAM: 4928 MB
+[0;34m[12:37:55][0m   Progress: 480/660s | Available RAM: 4829 MB
+[0;34m[12:38:25][0m   Progress: 510/660s | Available RAM: 4905 MB
+[0;34m[12:38:55][0m   Progress: 540/660s | Available RAM: 4900 MB
+[0;34m[12:39:25][0m   Progress: 570/660s | Available RAM: 4933 MB
+[0;34m[12:39:55][0m   Progress: 600/660s | Available RAM: 4928 MB
+[0;34m[12:40:25][0m   Progress: 630/660s | Available RAM: 4922 MB
+[0;34m[12:40:55][0m   Progress: 660/660s | Available RAM: 4922 MB
+[0;32m[12:40:55] ✓[0m Completed APRS streaming
+[0;34m[12:40:55][0m Checking session status...
+{"session":{"duration":660,"end_time":null,"error":null,"frequency":144800000,"gain":44.5,"last_packet_time":null,"mode":"aprs","packet_count":0,"sample_rate":2048000,"session_id":"5a7b53cd-e6a4-4210-bb70-0dedc0c09386","start_time":"2026-01-09T11:29:55.159006+00:00","status":"running"},"status":"success"}
+[0;34m[12:40:55][0m Total APRS packets decoded: 0
+[0;34m[12:41:00][0m Checking Kibana data for APRS Streaming...
+[1;33m[12:41:00] ⚠[0m No data found in Elasticsearch (radio-aprs-*)
+[0;34m[12:41:00][0m Test 1 duration: 665s
+
+[0;34m[12:41:00][0m =========================================
+[0;34m[12:41:00][0m POST-TEST 1: RTL-SDR Connection Check
+[0;34m[12:41:00][0m =========================================
+[0;34m[12:41:00][0m Checking RTL-SDR connection...
+[0;32m[12:41:00] ✓[0m RTL-SDR detected on USB bus (Host)
+[0;32m[12:41:01] ✓[0m RTL-SDR accessible in container
+[0;34m[12:41:02][0m Device: Using device 0: Generic RTL2832U OEM
+
+[0;34m[12:41:02][0m Checking system status...
+=== Memory Status ===
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi        10Gi       2.4Gi        91Mi       2.0Gi       4.7Gi
+Swap:          4.0Gi       1.8Gi       2.2Gi
+
+=== Docker Container Status ===
+NAME                      IMAGE                                                                     COMMAND                  SERVICE         CREATED        STATUS                       PORTS
+radio-elasticsearch       docker.elastic.co/elasticsearch/elasticsearch:8.11.3                      "/bin/tini -- /usr/l…"   elasticsearch   14 hours ago   Up 14 hours (healthy)        0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp, 9300/tcp
+radio-kibana              docker.elastic.co/kibana/kibana:8.11.3                                    "/bin/tini -- /usr/l…"   kibana          14 hours ago   Up 14 hours (healthy)        0.0.0.0:5601->5601/tcp, [::]:5601->5601/tcp
+radio-logstash            docker.elastic.co/logstash/logstash:8.11.3                                "/usr/local/bin/dock…"   logstash        14 hours ago   Up 14 hours (healthy)        5044/tcp, 0.0.0.0:9600-9604->9600-9604/tcp, [::]:9600-9604->9600-9604/tcp
+radio-metricbeat          docker.elastic.co/beats/metricbeat:8.11.3                                 "/usr/bin/tini -- /u…"   metricbeat      14 hours ago   Up 14 hours                  
+radio-portainer           portainer/portainer-ce:latest                                             "/portainer -H unix:…"   portainer       14 hours ago   Up 3 hours                   0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp, 8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp
+radio-redis               redis:7-alpine                                                            "docker-entrypoint.s…"   redis           14 hours ago   Up 14 hours (healthy)        0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+radio-transcription-api   sha256:22ea4fe083db1ddc71568db7d8200db9f628cb0e4f81148e42bb441f281f9afc   "gunicorn --config g…"   radio-api       14 hours ago   Up About an hour (healthy)   0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp
+radio-web-interface       nginx:alpine                                                              "/docker-entrypoint.…"   web-interface   14 hours ago   Up 14 hours                  0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+
+=== Container Memory Usage ===
+NAME                      MEM USAGE / LIMIT     MEM %     CPU %
+radio-transcription-api   465.1MiB / 4GiB       11.36%    0.10%
+radio-metricbeat          60.35MiB / 15.57GiB   0.38%     0.00%
+radio-logstash            1.537GiB / 15.57GiB   9.87%     1.29%
+radio-kibana              510MiB / 15.57GiB     3.20%     5.25%
+radio-redis               8.031MiB / 15.57GiB   0.05%     0.66%
+radio-web-interface       5.621MiB / 15.57GiB   0.04%     0.00%
+radio-portainer           16.85MiB / 15.57GiB   0.11%     0.04%
+radio-elasticsearch       4.82GiB / 15.57GiB    30.96%    2.37%
+
+[0;34m[12:41:05][0m Waiting 30s before next test...
+[0;34m[12:41:35][0m =========================================
+[0;34m[12:41:35][0m TEST 2/2: POCSAG Continuous Streaming (660s)
+[0;34m[12:41:35][0m =========================================
+[0;34m[12:41:35][0m Frequency: 147.375 MHz
+[0;34m[12:41:35][0m Duration: 660s (11 minutes)
+[0;34m[12:41:35][0m Gain: 48.0 dB (MAXIMUM - best sensitivity)
+[0;34m[12:41:35][0m Sample Rate: 2.048 MHz
+[0;34m[12:41:35][0m SDR: RTL-SDR (24 MHz - 1.766 GHz)
+
+[0;34m[12:41:35][0m Starting POCSAG streaming session...
+{"frequency":147375000,"message":"POCSAG streaming started","session_id":"6c40ab82-21e5-4ca3-88e1-6397348332a7","status":"success"}
+[0;32m[12:41:35] ✓[0m POCSAG streaming started (Session: 6c40ab82-21e5-4ca3-88e1-6397348332a7)
+[0;34m[12:41:35][0m Waiting 660s for POCSAG streaming...
+[0;34m[12:42:05][0m   Progress: 30/660s | Available RAM: 4830 MB
+[0;34m[12:42:35][0m   Progress: 60/660s | Available RAM: 4895 MB
+[0;34m[12:43:05][0m   Progress: 90/660s | Available RAM: 4843 MB
+[0;34m[12:43:35][0m   Progress: 120/660s | Available RAM: 4937 MB
+[0;34m[12:44:05][0m   Progress: 150/660s | Available RAM: 4935 MB
+[0;34m[12:44:35][0m   Progress: 180/660s | Available RAM: 4958 MB
+[0;34m[12:45:05][0m   Progress: 210/660s | Available RAM: 4968 MB
+[0;34m[12:45:35][0m   Progress: 240/660s | Available RAM: 4943 MB
+[0;34m[12:46:05][0m   Progress: 270/660s | Available RAM: 4969 MB
+[0;34m[12:46:35][0m   Progress: 300/660s | Available RAM: 4960 MB
+[0;34m[12:47:05][0m   Progress: 330/660s | Available RAM: 4945 MB
+[0;34m[12:47:35][0m   Progress: 360/660s | Available RAM: 4952 MB
+[0;34m[12:48:05][0m   Progress: 390/660s | Available RAM: 4902 MB
+[0;34m[12:48:35][0m   Progress: 420/660s | Available RAM: 4936 MB
+[0;34m[12:49:05][0m   Progress: 450/660s | Available RAM: 4936 MB
+[0;34m[12:49:35][0m   Progress: 480/660s | Available RAM: 4929 MB
+[0;34m[12:50:05][0m   Progress: 510/660s | Available RAM: 4900 MB
+[0;34m[12:50:35][0m   Progress: 540/660s | Available RAM: 4899 MB
+[0;34m[12:51:05][0m   Progress: 570/660s | Available RAM: 4940 MB
+[0;34m[12:51:35][0m   Progress: 600/660s | Available RAM: 4923 MB
+[0;34m[12:52:05][0m   Progress: 630/660s | Available RAM: 4923 MB
+[0;34m[12:52:35][0m   Progress: 660/660s | Available RAM: 4905 MB
+[0;32m[12:52:35] ✓[0m Completed POCSAG streaming
+[0;34m[12:52:35][0m Checking session status...
+{"session":{"duration":660,"end_time":null,"error":null,"frequency":147375000,"gain":48.0,"last_packet_time":null,"mode":"pocsag","packet_count":0,"sample_rate":2048000,"session_id":"6c40ab82-21e5-4ca3-88e1-6397348332a7","start_time":"2026-01-09T11:41:35.586762+00:00","status":"running"},"status":"success"}
+[0;34m[12:52:36][0m Total POCSAG packets decoded: 0
+[0;34m[12:52:41][0m Checking Kibana data for POCSAG Streaming...
+[1;33m[12:52:41] ⚠[0m No data found in Elasticsearch (radio-pocsag-*)
+[0;34m[12:52:41][0m Test 2 duration: 666s
+
+[0;34m[12:52:41][0m =========================================
+[0;34m[12:52:41][0m POST-TEST 2: RTL-SDR Connection Check (Final)
+[0;34m[12:52:41][0m =========================================
+[0;34m[12:52:41][0m Checking RTL-SDR connection...
+[0;32m[12:52:41] ✓[0m RTL-SDR detected on USB bus (Host)
+[0;32m[12:52:41] ✓[0m RTL-SDR accessible in container
+[0;34m[12:52:41][0m Device: Using device 0: Generic RTL2832U OEM
+[0;32m[12:52:41] ✓[0m RTL-SDR still connected after all tests
+
+[0;34m[12:52:41][0m =========================================
+[0;34m[12:52:41][0m Final System Status
+[0;34m[12:52:41][0m =========================================
+[0;34m[12:52:41][0m Checking system status...
+=== Memory Status ===
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi        10Gi       2.4Gi        90Mi       2.0Gi       4.8Gi
+Swap:          4.0Gi       1.8Gi       2.2Gi
+
+=== Docker Container Status ===
+NAME                      IMAGE                                                                     COMMAND                  SERVICE         CREATED        STATUS                  PORTS
+radio-elasticsearch       docker.elastic.co/elasticsearch/elasticsearch:8.11.3                      "/bin/tini -- /usr/l…"   elasticsearch   14 hours ago   Up 14 hours (healthy)   0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp, 9300/tcp
+radio-kibana              docker.elastic.co/kibana/kibana:8.11.3                                    "/bin/tini -- /usr/l…"   kibana          14 hours ago   Up 14 hours (healthy)   0.0.0.0:5601->5601/tcp, [::]:5601->5601/tcp
+radio-logstash            docker.elastic.co/logstash/logstash:8.11.3                                "/usr/local/bin/dock…"   logstash        14 hours ago   Up 14 hours (healthy)   5044/tcp, 0.0.0.0:9600-9604->9600-9604/tcp, [::]:9600-9604->9600-9604/tcp
+radio-metricbeat          docker.elastic.co/beats/metricbeat:8.11.3                                 "/usr/bin/tini -- /u…"   metricbeat      14 hours ago   Up 14 hours             
+radio-portainer           portainer/portainer-ce:latest                                             "/portainer -H unix:…"   portainer       14 hours ago   Up 4 hours              0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp, 8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp
+radio-redis               redis:7-alpine                                                            "docker-entrypoint.s…"   redis           14 hours ago   Up 14 hours (healthy)   0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+radio-transcription-api   sha256:22ea4fe083db1ddc71568db7d8200db9f628cb0e4f81148e42bb441f281f9afc   "gunicorn --config g…"   radio-api       14 hours ago   Up 2 hours (healthy)    0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp
+radio-web-interface       nginx:alpine                                                              "/docker-entrypoint.…"   web-interface   14 hours ago   Up 14 hours             0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+
+=== Container Memory Usage ===
+NAME                      MEM USAGE / LIMIT     MEM %     CPU %
+radio-transcription-api   466MiB / 4GiB         11.38%    0.10%
+radio-metricbeat          60.4MiB / 15.57GiB    0.38%     0.04%
+radio-logstash            1.538GiB / 15.57GiB   9.88%     1.12%
+radio-kibana              504.2MiB / 15.57GiB   3.16%     1.19%
+radio-redis               8.039MiB / 15.57GiB   0.05%     0.53%
+radio-web-interface       5.621MiB / 15.57GiB   0.04%     0.00%
+radio-portainer           18.47MiB / 15.57GiB   0.12%     0.00%
+radio-elasticsearch       4.823GiB / 15.57GiB   30.98%    5.12%
+
+[0;34m[12:52:44][0m =========================================
+[0;34m[12:52:44][0m Test Suite Summary
+[0;34m[12:52:44][0m =========================================
+[0;34m[12:52:44][0m Test 1 (APRS Stream 660s @ 44.5dB):  665s
+[0;34m[12:52:44][0m Test 2 (POCSAG Stream 660s @ 48dB):  666s
+[0;34m[12:52:44][0m Total duration:                       1369s (22 minutes)
+[0;34m[12:52:44][0m 
+[0;34m[12:52:44][0m Completed at: Fri Jan  9 12:52:44 PM CET 2026
+[0;34m[12:52:44][0m Log file: /home/spia/my-project/hardware-test-streaming-highgain-20260109-122951.log
+[0;34m[12:52:44][0m 
+[0;32m[12:52:44] ✓[0m All tests completed successfully!
+[0;34m[12:52:44][0m 
+[0;34m[12:52:44][0m Next steps:
+[0;34m[12:52:44][0m 1. Check Kibana dashboards: http://localhost:5601/app/dashboards
+[0;34m[12:52:44][0m 2. Verify APRS data: radio-aprs-* index
+[0;34m[12:52:44][0m 3. Verify POCSAG data: radio-pocsag-* index
+[0;34m[12:52:44][0m 4. Review log file: /home/spia/my-project/hardware-test-streaming-highgain-20260109-122951.log
+[0;34m[12:52:44][0m 5. Check Docker logs: docker logs radio-transcription-api
+[0;34m[12:52:44][0m =========================================

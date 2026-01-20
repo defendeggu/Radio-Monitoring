@@ -1,0 +1,50 @@
+[0;34m[10:52:51][0m =========================================
+[0;34m[10:52:51][0m Hardware Test Suite - Retry with HackRF Checks
+[0;34m[10:52:51][0m =========================================
+[0;34m[10:52:51][0m Start time: Fri Jan  9 10:52:51 AM CET 2026
+[0;34m[10:52:51][0m Log file: /home/spia/my-project/hardware-test-retry-20260109-105251.log
+
+[0;34m[10:52:51][0m =========================================
+[0;34m[10:52:51][0m PRE-TEST: HackRF Connection Check
+[0;34m[10:52:51][0m =========================================
+[0;34m[10:52:51][0m Checking HackRF connection...
+[0;32m[10:52:51] ✓[0m HackRF detected on USB bus (Host)
+[0;32m[10:52:51] ✓[0m HackRF accessible in container
+[0;34m[10:52:51][0m Serial: 0000000000000000436c63dc2f684763
+
+[0;34m[10:52:51][0m Checking system status...
+=== Memory Status ===
+               total        used        free      shared  buff/cache   available
+Mem:            15Gi        11Gi       2.3Gi        60Mi       1.9Gi       4.2Gi
+Swap:          4.0Gi       1.6Gi       2.4Gi
+
+=== Docker Container Status ===
+NAME                      IMAGE                                                                     COMMAND                  SERVICE         CREATED        STATUS                    PORTS
+radio-elasticsearch       docker.elastic.co/elasticsearch/elasticsearch:8.11.3                      "/bin/tini -- /usr/l…"   elasticsearch   12 hours ago   Up 12 hours (healthy)     0.0.0.0:9200->9200/tcp, [::]:9200->9200/tcp, 9300/tcp
+radio-kibana              docker.elastic.co/kibana/kibana:8.11.3                                    "/bin/tini -- /usr/l…"   kibana          12 hours ago   Up 12 hours (healthy)     0.0.0.0:5601->5601/tcp, [::]:5601->5601/tcp
+radio-logstash            docker.elastic.co/logstash/logstash:8.11.3                                "/usr/local/bin/dock…"   logstash        12 hours ago   Up 12 hours (healthy)     5044/tcp, 0.0.0.0:9600-9604->9600-9604/tcp, [::]:9600-9604->9600-9604/tcp
+radio-metricbeat          docker.elastic.co/beats/metricbeat:8.11.3                                 "/usr/bin/tini -- /u…"   metricbeat      12 hours ago   Up 12 hours               
+radio-portainer           portainer/portainer-ce:latest                                             "/portainer -H unix:…"   portainer       12 hours ago   Up 2 hours                0.0.0.0:9000->9000/tcp, [::]:9000->9000/tcp, 8000/tcp, 0.0.0.0:9443->9443/tcp, [::]:9443->9443/tcp
+radio-redis               redis:7-alpine                                                            "docker-entrypoint.s…"   redis           12 hours ago   Up 12 hours (healthy)     0.0.0.0:6379->6379/tcp, [::]:6379->6379/tcp
+radio-transcription-api   sha256:22ea4fe083db1ddc71568db7d8200db9f628cb0e4f81148e42bb441f281f9afc   "gunicorn --config g…"   radio-api       12 hours ago   Up 30 seconds (healthy)   0.0.0.0:5000->5000/tcp, [::]:5000->5000/tcp
+radio-web-interface       nginx:alpine                                                              "/docker-entrypoint.…"   web-interface   12 hours ago   Up 12 hours               0.0.0.0:8080->80/tcp, [::]:8080->80/tcp
+
+=== Container Memory Usage ===
+NAME                      MEM USAGE / LIMIT     MEM %     CPU %
+radio-transcription-api   441.2MiB / 4GiB       10.77%    0.09%
+radio-metricbeat          70.81MiB / 15.57GiB   0.44%     0.02%
+radio-logstash            1.691GiB / 15.57GiB   10.86%    1.23%
+radio-kibana              536.5MiB / 15.57GiB   3.36%     3.07%
+radio-redis               7.68MiB / 15.57GiB    0.05%     0.47%
+radio-web-interface       5.621MiB / 15.57GiB   0.04%     0.00%
+radio-portainer           39.43MiB / 15.57GiB   0.25%     0.00%
+radio-elasticsearch       4.919GiB / 15.57GiB   31.59%    3.83%
+
+[0;34m[10:52:54][0m =========================================
+[0;34m[10:52:54][0m TEST 1/4: APRS One-Shot Capture (120s)
+[0;34m[10:52:54][0m =========================================
+[0;34m[10:52:54][0m Frequency: 144.800 MHz (European APRS)
+[0;34m[10:52:54][0m Duration: 120s
+[0;34m[10:52:54][0m Gain: 24 dB
+
+[0;34m[10:52:54][0m Starting APRS capture...
