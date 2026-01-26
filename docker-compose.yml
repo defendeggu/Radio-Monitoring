@@ -66,10 +66,11 @@ services:
       - "9602:9602"  # radio-pocsag pipeline
       - "9603:9603"  # radio-repeater pipeline
       - "9604:9604"  # radio-metrics pipeline
+      - "9605:9605"  # intercept pipeline
     environment:
       - "LS_JAVA_OPTS=-Xmx2g -Xms2g"
-      - ELASTICSEARCH_USERNAME=logstash_system
-      - ELASTICSEARCH_PASSWORD=${LOGSTASH_SYSTEM_PASSWORD:-}
+      - ELASTICSEARCH_USERNAME=logstash_writer
+      - ELASTICSEARCH_PASSWORD=LogstashWriter2026
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     networks:
       - radio-network
@@ -77,7 +78,7 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9600 || exit 1"]
+      test: ["CMD-SHELL", "curl -f http://localhost:9606 || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
@@ -223,6 +224,52 @@ services:
       interval: 10s
       timeout: 3s
       retries: 3
+    restart: unless-stopped
+
+  # ===========================================================================
+  # Mosquitto MQTT Broker - For Intercept Integration
+  # ===========================================================================
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: radio-mosquitto
+    volumes:
+      - ./mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./mosquitto/data:/mosquitto/data
+      - ./mosquitto/log:/mosquitto/log
+    ports:
+      - "1883:1883"
+    networks:
+      - radio-network
+    healthcheck:
+      test: ["CMD-SHELL", "mosquitto_sub -h localhost -t '$$SYS/#' -C 1 -W 3 || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    restart: unless-stopped
+
+  # ===========================================================================
+  # MQTT to Logstash Bridge - Forwards Intercept data to Elasticsearch
+  # ===========================================================================
+  mqtt-bridge:
+    image: python:3.11-slim
+    container_name: radio-mqtt-bridge
+    working_dir: /app
+    command: >
+      sh -c "pip install --quiet paho-mqtt && python mqtt_to_logstash_bridge.py"
+    volumes:
+      - ./scripts/mqtt_to_logstash_bridge.py:/app/mqtt_to_logstash_bridge.py:ro
+    environment:
+      - MQTT_HOST=mosquitto
+      - MQTT_PORT=1883
+      - MQTT_TOPIC=intercept/#
+      - LOGSTASH_URL=http://logstash:9605
+    networks:
+      - radio-network
+    depends_on:
+      mosquitto:
+        condition: service_healthy
+      logstash:
+        condition: service_healthy
     restart: unless-stopped
 
   # ===========================================================================
