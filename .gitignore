@@ -26,3 +26,7 @@ secrets/
 claude.md
 CLAUDE.md
 .env.elk
+
+# Mosquitto runtime data
+mosquitto/data/
+mosquitto/log/
