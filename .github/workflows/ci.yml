@@ -2,9 +2,9 @@ name: CI Pipeline
 
 on:
   push:
-    branches: [ fork-rtlsdr-elk ]
+    branches: [ main ]
   pull_request:
-    branches: [ fork-rtlsdr-elk ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
