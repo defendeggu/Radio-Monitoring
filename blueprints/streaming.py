@@ -16,7 +16,7 @@ from streaming_decoder_service import (
     StreamingAPRSDecoder,
     StreamingPOCSAGDecoder
 )
-# Note: session_manager is imported at runtime in each route to avoid circular imports
+from session_store import session_manager
 import logging
 
 logger = logging.getLogger(__name__)
@@ -38,8 +38,6 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
     }
     """
     try:
-        # Import at runtime to avoid circular dependency
-        from api_service import session_manager
 
         data = request.get_json() or {}
 
@@ -66,7 +64,7 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
         )
 
         # Start streaming
-        decoder.start()
+        decoder.start(session_manager)
 
         return jsonify({
             'status': 'success',
@@ -93,8 +91,6 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
     }
     """
     try:
-        # Import at runtime to avoid circular dependency
-        from api_service import session_manager
 
         data = request.get_json() or {}
 
@@ -121,7 +117,7 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
         )
 
         # Start streaming
-        decoder.start()
+        decoder.start(session_manager)
 
         return jsonify({
             'status': 'success',
@@ -149,8 +145,6 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
     }
     """
     try:
-        # Import at runtime to avoid circular dependency
-        from api_service import session_manager
 
         data = request.get_json() or {}
 
@@ -193,7 +187,7 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
         )
 
         # Start streaming
-        decoder.start()
+        decoder.start(session_manager)
 
         return jsonify({
             'status': 'success',
@@ -212,8 +206,6 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
 def get_streaming_session(session_id: str) -> Response | tuple[Response, int]:
     """Get status and results of a streaming decode session"""
     try:
-        # Import at runtime to avoid circular dependency
-        from api_service import session_manager
 
         session = session_manager.get_session(session_id)
 
@@ -236,8 +228,6 @@ def get_streaming_session(session_id: str) -> Response | tuple[Response, int]:
 def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
     """Stop a streaming decode session"""
     try:
-        # Import at runtime to avoid circular dependency
-        from api_service import session_manager
 
         session = session_manager.get_session(session_id)
 
@@ -291,8 +281,6 @@ def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
 def list_streaming_sessions() -> Response | tuple[Response, int]:
     """List all active streaming decode sessions"""
     try:
-        # Import at runtime to avoid circular dependency
-        from api_service import session_manager
 
         sessions = session_manager.list_sessions()
 

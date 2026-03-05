@@ -18,7 +18,6 @@ from numpy.typing import NDArray
 from scipy import signal
 from scipy.io import wavfile
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
