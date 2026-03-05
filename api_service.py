@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Flask API Service for Radio Transcription
-Provides REST API endpoints for N8N integration
+Provides REST API endpoints for Radio Monitoring
 """
 
 import os
@@ -349,7 +349,7 @@ def session_cleanup_background() -> None:
         time.sleep(3600)  # Run every hour
         removed = cleanup_old_sessions()
         if removed > 0:
-            print(f"Session cleanup: Removed {removed} old sessions")
+            logger.info(f"Session cleanup: Removed {removed} old sessions")
 
 
 # Start background cleanup thread
@@ -857,7 +857,7 @@ def _scan_repeaters_worker(
             frequency = repeater['output_frequency']
             callsign = repeater['callsign']
 
-            print(f"Scanning repeater {idx+1}/{len(repeaters)}: {callsign} ({frequency/1e6:.4f} MHz)")
+            logger.info(f"Scanning repeater {idx+1}/{len(repeaters)}: {callsign} ({frequency/1e6:.4f} MHz)")
 
             try:
                 # Generate output filename for IQ samples
@@ -941,12 +941,12 @@ def _scan_repeaters_worker(
                 try:
                     if os.path.exists(iq_file):
                         os.remove(iq_file)
-                        print(f"Cleaned up IQ file: {iq_file}")
+                        logger.debug(f"Cleaned up IQ file: {iq_file}")
                 except Exception as cleanup_error:
-                    print(f"Warning: Failed to cleanup IQ file {iq_file}: {cleanup_error}")
+                    logger.warning(f"Failed to cleanup IQ file {iq_file}: {cleanup_error}")
 
             except Exception as e:
-                print(f"Error scanning {callsign}: {e}")
+                logger.error(f"Error scanning {callsign}: {e}")
                 results.append({
                     'repeater_id': repeater.get('uuid', repeater.get('id')),
                     'callsign': callsign,
@@ -965,13 +965,10 @@ def _scan_repeaters_worker(
         # # REMOVED: db.update_scan_session() - using in-memory scan_sessions dict instead
 
         # Record completion metrics
-        print(f"Scan session {session_id} completed: {repeaters_scanned} scanned, {repeaters_with_activity} with activity")
+        logger.info(f"Scan session {session_id} completed: {repeaters_scanned} scanned, {repeaters_with_activity} with activity")
 
     except Exception as e:
-        import traceback
-        print(f"Scan session {session_id} failed: {e}")
-        print("Full traceback:")
-        traceback.print_exc()
+        logger.exception(f"Scan session {session_id} failed: {e}")
         # Mark session as failed in Redis
         session_obj = scan_session_manager.get_session(session_id)
         if session_obj:

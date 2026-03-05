@@ -15,7 +15,6 @@ A complete professional radio monitoring system for capturing radio signals from
 - 🔁 **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters (NEW)
 - ⚡ **Quad Processing Modes**: Voice transcription, APRS packet decoding, POCSAG pager decoding, or Repeater Activity scanning
 - 🌐 **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, and Repeater Scan
-- 🔄 **N8N Integration**: Workflow automation for orchestrating capture and transcription
 - 🔌 **REST API**: Flask-based API for programmatic access
 - 🐳 **Docker Support**: Complete Docker setup for easy deployment
 
@@ -46,12 +45,12 @@ A complete professional radio monitoring system for capturing radio signals from
 
 ```
 ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  Web Interface  │   │     Kibana      │   │      N8N        │   │   Portainer     │
-│   (HTML/JS)     │   │   Dashboards    │   │   Workflows     │   │  Docker Mgmt    │
-│   Port 8080     │   │   Port 5601     │   │   Port 5679     │   │  Ports 9000/    │
-│                 │   │                 │   │                 │   │       9443      │
-└────────┬────────┘   └────────┬────────┘   └────────┬────────┘   └─────────────────┘
-         │                     │                      │
+│  Web Interface  │   │     Kibana      │   │   Portainer     │
+│   (HTML/JS)     │   │   Dashboards    │   │  Docker Mgmt    │
+│   Port 8080     │   │   Port 5601     │   │  Ports 9000/    │
+│                 │   │                 │   │       9443      │
+└────────┬────────┘   └────────┬────────┘   └─────────────────┘
+         │                     │
          │            ┌────────┴────────┐             │
          │            │                 │             │
          │            ▼                 ▼             │
@@ -216,9 +215,9 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
 2. **Setup Secrets** (Required for first-time setup)
    ```bash
-   ./scripts/setup-secrets.sh
+   ./scripts/setup-elk-security.sh
    ```
-   This script generates secure passwords for all services (N8N). Save the displayed credentials!
+   This script generates secure passwords for all ELK services. Save the credentials shown!
 
    **Note**: The ELK stack passwords are configured in `.env.elk` and `.secrets/` directory (created automatically during first run).
 
@@ -269,7 +268,6 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    - 🐳 **Portainer** (Docker Management): http://localhost:9000 or https://localhost:9443
    - 🔍 **Elasticsearch API**: http://localhost:9200
    - 🔌 **Logstash Pipelines**: http://localhost:9600-9604
-   - 🔄 **N8N Workflow**: http://localhost:5679 (credentials from scripts/setup-secrets.sh)
    - 🔌 **API**: http://localhost:5000
 
 ## 📝 Recent Updates (January 2026)
@@ -661,26 +659,19 @@ This project uses **Docker Secrets** for secure credential management, similar t
 Run the setup script to generate all required secrets:
 
 ```bash
-./scripts/setup-secrets.sh
+./scripts/setup-elk-security.sh
 ```
 
 This creates:
-- Strong random passwords for N8N
-- Secret files in the `secrets/` directory
+- Strong random passwords for all ELK services
+- Secret files in the `.secrets/` directory
 - Proper file permissions (600 - owner read/write only)
 
 **⚠️ Important**: Save the displayed credentials to your password manager!
 
 ### 📁 Secret Files
 
-Secrets are organized in two directories:
-
-**N8N Secrets** (`secrets/`):
-```
-secrets/
-├── n8n_basic_auth_user.txt
-└── n8n_basic_auth_password.txt
-```
+The ELK credentials are stored in:
 
 **ELK Stack Secrets** (`.secrets/` - created automatically):
 ```
@@ -696,18 +687,7 @@ secrets/
 
 ### ⚙️ How It Works
 
-Docker mounts secret files into containers at `/run/secrets/`:
-
-```yaml
-services:
-  postgres:
-    secrets:
-      - postgres_password
-    environment:
-      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
-```
-
-The application reads secrets automatically:
+Docker mounts secret files into containers at `/run/secrets/`. The application reads secrets automatically:
 
 ```python
 def read_secret(secret_name: str) -> Optional[str]:
@@ -720,23 +700,21 @@ def read_secret(secret_name: str) -> Optional[str]:
 ### 👀 Viewing Your Credentials
 
 ```bash
-# N8N
-cat secrets/n8n_basic_auth_password.txt
+cat .secrets/elasticsearch_password.txt
+cat .env.elk
 ```
 
 ### 🔄 Changing Passwords
 
-1. Update the secret file:
+1. Regenerate credentials:
    ```bash
-   echo "new_strong_password" > secrets/n8n_basic_auth_password.txt
+   ./scripts/setup-elk-security.sh
    ```
 
-2. Restart the service:
+2. Restart the services:
    ```bash
-   docker compose restart n8n
+   docker compose restart
    ```
-
-For more details, see [`secrets/README.md`](secrets/README.md).
 
 ## 🔒 API Security
 
@@ -746,7 +724,7 @@ The Radio Transcription API uses **API key authentication** to protect all endpo
 
 - **Access Control**: Prevent unauthorized access to your radio monitoring system
 - **Audit Trail**: Track which API key was used for each request
-- **Multiple Keys**: Issue separate keys for different integrations (N8N, scripts, etc.)
+- **Multiple Keys**: Issue separate keys for different integrations (scripts, services, etc.)
 - **Revocable**: Disable compromised keys without changing all credentials
 
 ### ⚙️ Setup API Keys
@@ -808,29 +786,6 @@ The following endpoints do **not** require authentication:
 
 All other endpoints require a valid API key.
 
-### 🔄 N8N Integration
-
-Configure N8N to use API keys:
-
-1. Set environment variable in N8N container:
-   ```bash
-   RADIO_API_KEY=your-api-key-here
-   ```
-
-2. Use `X-API-Key` header in HTTP request nodes (already configured in `n8n-workflow.json`):
-   ```json
-   {
-     "headerParameters": {
-       "parameters": [
-         {
-           "name": "X-API-Key",
-           "value": "={{ $env.RADIO_API_KEY }}"
-         }
-       ]
-     }
-   }
-   ```
-
 ### 🛡️ Container Security
 
 The Docker container runs as a **non-root user** (`radiouser`, UID 1000) for enhanced security:
@@ -889,12 +844,7 @@ pip install -r requirements.txt
    python api_service.py
    ```
 
-2. **Start N8N** (in another terminal)
-   ```bash
-   npx n8n
-   ```
-
-3. **Serve Web Interface** (in another terminal)
+2. **Serve Web Interface** (in another terminal)
    ```bash
    python -m http.server 8080
    ```
@@ -923,17 +873,6 @@ pip install -r requirements.txt
    - Activity percentage
    - Signal strength (dB)
 7. Analyze historical data in Kibana Repeater Activity Dashboard
-
-**📥 Importing Repeater Data:**
-```bash
-# Import from CSV (recommended)
-docker exec radio-transcription-api python /app/scripts/import_repeaters_csv.py /app/scripts/example_repeaters.csv
-
-# Or from host machine (if secrets are configured)
-python scripts/import_repeaters_csv.py scripts/my_repeaters.csv
-```
-
-See `scripts/README.md` for CSV format and detailed instructions.
 
 ### 💻 Command Line
 
@@ -1095,13 +1034,6 @@ curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10" 
   -H "X-API-Key: your-api-key-here"
 ```
 
-### 🔄 N8N Workflow
-
-1. Access N8N at http://localhost:5678
-2. Import the workflow from `n8n-workflow.json`
-3. The workflow provides a webhook endpoint at: `http://localhost:5678/webhook/radio-transcription`
-4. Send POST requests with radio parameters to trigger capture and transcription
-
 ## ⚙️ Configuration
 
 ### 🔧 Environment Variables
@@ -1135,7 +1067,6 @@ The `.env.example` file (247 lines) includes complete documentation for:
 - ✅ **Logstash Pipelines** - Separate endpoints for captures, APRS, POCSAG, repeater data
 - ✅ **Streaming Decoders** - Session timeouts, concurrent limits
 - ✅ **Repeater Scanner** - Scan limits, session cleanup
-- ✅ **N8N Automation** - Webhook URLs, workflow integration
 - ✅ **Flask/Gunicorn** - Production WSGI server configuration
 
 **📝 Example: Essential Variables**
@@ -1165,8 +1096,6 @@ REDIS_HOST=redis
 REDIS_PORT=6379
 REDIS_DB=0
 
-# N8N Configuration
-N8N_WEBHOOK_URL=http://localhost:5678/webhook/radio-transcription
 RADIO_API_KEY=your-api-key-here  # Use one of your API_KEYS
 ```
 
@@ -1288,15 +1217,6 @@ docker run --device=/dev/bus/usb/XXX/YYY ...
 
 ## 🚀 Advanced Usage
 
-### 🔄 Custom N8N Workflows
-
-You can extend the N8N workflow to:
-- Send transcriptions to Slack/Discord/Email
-- Save to database
-- Trigger alerts on specific keywords
-- Schedule automatic recordings
-- Post-process transcriptions with AI
-
 ### 🔌 Integration with Other Services
 
 The API can be integrated with:
@@ -1330,7 +1250,6 @@ The API can be integrated with:
 │   ├── repeater.py                  # Repeater scanning endpoints
 │   └── streaming.py                 # Streaming decoder endpoints
 ├── scripts/
-│   ├── import_repeaters_csv.py     # CSV import tool for repeater data
 │   ├── example_repeaters.csv       # Example Swiss repeater data
 │   └── README.md                   # Script documentation
 ├── monitoring/
@@ -1358,7 +1277,6 @@ The API can be integrated with:
 │   │   └── dashboards/             # Kibana dashboard exports (ndjson format)
 │   └── metricbeat/
 │       └── metricbeat.yml          # Container metrics configuration
-├── n8n-workflow.json                # N8N workflow definition
 ├── requirements.txt                 # Python dependencies
 ├── Dockerfile                       # Docker image definition
 ├── mqtt-bridge/
@@ -1841,8 +1759,6 @@ Open http://localhost:5601 in your browser.
 
 ### 📈 Available Dashboards
 
-**📝 Note**: Kibana dashboards are created using the Discover, Visualize, and Dashboard features. The following dashboards mirror the functionality from the original Grafana implementation:
-
 #### 🎙️ Radio Captures Explorer
 **🌐 Access**: Kibana → Discover → Index Pattern: `radio-captures-*`
 
@@ -2194,7 +2110,7 @@ my-project/
 ├── scripts/                         # Utility scripts
 │   ├── setup.sh                    # Initial setup script
 │   ├── start.sh                    # Start all services
-│   ├── setup-secrets.sh            # Generate Docker secrets
+│   ├── setup-elk-security.sh       # Generate ELK credentials
 │   ├── run_mypy.sh                 # Type checking
 │   ├── run_coverage.sh             # Test coverage
 │   └── test_system.sh              # System integration test
@@ -2228,7 +2144,6 @@ For issues and questions:
 - Review HackRF documentation: https://hackrf.readthedocs.io/
 - Review RTL-SDR documentation: https://www.rtl-sdr.com/about-rtl-sdr/
 - Review faster-whisper documentation: https://github.com/guillaumekln/faster-whisper
-- Review N8N documentation: https://docs.n8n.io/
 - Review Elasticsearch documentation: https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html
 - Review Kibana documentation: https://www.elastic.co/guide/en/kibana/current/index.html
 - Review Logstash documentation: https://www.elastic.co/guide/en/logstash/current/index.html
@@ -2239,7 +2154,6 @@ For issues and questions:
 - RTL-SDR project and community
 - faster-whisper by Guillaume Klein
 - Whisper by OpenAI
-- N8N workflow automation platform
 - Elasticsearch by Elastic
 - Logstash by Elastic
 - Kibana by Elastic

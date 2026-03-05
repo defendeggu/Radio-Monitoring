@@ -185,12 +185,10 @@ fi
 echo ""
 echo "Running type checking..."
 if command -v mypy &> /dev/null; then
-    if mypy --version &> /dev/null; then
-        if ./scripts/run_mypy.sh &> /dev/null; then
-            echo "✓ Type checking passed!"
-        else
-            echo "⚠ Type checking found some issues (see scripts/run_mypy.sh for details)"
-        fi
+    if ./scripts/run_mypy.sh; then
+        echo "✓ Type checking passed!"
+    else
+        echo "⚠ Type checking found some issues (see above for details)"
     fi
 else
     echo "Info: mypy not found in PATH. Type checking skipped."
@@ -221,6 +219,6 @@ echo "  ./scripts/run_coverage.sh # Test coverage"
 echo "  python api_service.py     # Start dev server"
 echo ""
 echo "For production with ELK stack:"
-echo "  ./scripts/setup-secrets.sh  # Generate secure passwords (first time only)"
+echo "  ./scripts/setup-elk-security.sh  # Generate secure passwords (first time only)"
 echo "  docker compose up -d"
 echo ""
