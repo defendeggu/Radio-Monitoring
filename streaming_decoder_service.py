@@ -123,12 +123,12 @@ class StreamSession:
 class SessionManager:
     """Manages streaming sessions in Redis"""
 
-    def __init__(self, redis_host: str = 'localhost', redis_port: int = 6379, redis_db: int = 0) -> None:
+    def __init__(self, redis_host: str = 'localhost', redis_port: int = 6379, redis_db: int = 0, redis_password: Optional[str] = None) -> None:
         # Use mock Redis in test mode
         if os.getenv('SKIP_REDIS_CHECK') == '1':
             self.redis: Any = MockRedis()
         else:
-            self.redis = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+            self.redis = redis.Redis(host=redis_host, port=redis_port, db=redis_db, password=redis_password, decode_responses=True)
 
     def save_session(self, session: StreamSession) -> None:
         """Save session to Redis"""

@@ -98,7 +98,7 @@ services:
       - ELASTICSEARCH_PASSWORD=${KIBANA_SYSTEM_PASSWORD:-}
       - SERVER_NAME=radio-kibana
       - XPACK_SECURITY_ENABLED=true
-      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=min-32-byte-long-strong-encryption-key-here-for-kibana
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
     volumes:
       - ./monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
       - ./monitoring/kibana/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
@@ -192,6 +192,7 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_DB=0
+      - REDIS_PASSWORD=${REDIS_PASSWORD}
       - API_KEYS=${API_KEYS}
       # Gunicorn configuration (optional overrides)
       - GUNICORN_WORKERS=5
@@ -210,7 +211,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: radio-redis
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --requirepass ${REDIS_PASSWORD}
     volumes:
       - redis-data:/data
     ports:

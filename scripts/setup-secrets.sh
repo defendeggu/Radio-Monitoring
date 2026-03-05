@@ -47,32 +47,12 @@ create_secret() {
 echo -e "${BLUE}Creating secret files...${NC}"
 echo ""
 
-# PostgreSQL Secrets
-echo -e "${BLUE}PostgreSQL Secrets:${NC}"
-create_secret "postgres_user.txt" "radio_user"
-create_secret "postgres_password.txt" "$(generate_password)"
-create_secret "postgres_db.txt" "radio_monitoring"
-
-echo ""
-
-# Grafana Secrets
-echo -e "${BLUE}Grafana Secrets:${NC}"
-create_secret "grafana_admin_user.txt" "admin"
-create_secret "grafana_admin_password.txt" "$(generate_password)"
-
-echo ""
-
-# N8N Secrets
-echo -e "${BLUE}N8N Secrets:${NC}"
-create_secret "n8n_basic_auth_user.txt" "admin"
-create_secret "n8n_basic_auth_password.txt" "$(generate_password)"
-
-echo ""
-
-# pgAdmin Secrets
-echo -e "${BLUE}pgAdmin Secrets:${NC}"
-create_secret "pgadmin_email.txt" "admin@admin.com"
-create_secret "pgadmin_password.txt" "$(generate_password)"
+# Elasticsearch Secrets
+echo -e "${BLUE}Elasticsearch Secrets:${NC}"
+create_secret "elasticsearch_password.txt" "$(generate_password)"
+create_secret "kibana_password.txt" "$(generate_password)"
+create_secret "logstash_password.txt" "$(generate_password)"
+create_secret "beats_password.txt" "$(generate_password)"
 
 echo ""
 echo -e "${GREEN}=========================================${NC}"
@@ -85,22 +65,11 @@ echo -e "Your credentials have been generated and stored in: ${BLUE}$SECRETS_DIR
 echo ""
 echo -e "${YELLOW}To view your credentials:${NC}"
 echo ""
-echo -e "  ${BLUE}PostgreSQL:${NC}"
-echo -e "    User:     $(cat $SECRETS_DIR/postgres_user.txt 2>/dev/null || echo 'Not set')"
-echo -e "    Password: $(cat $SECRETS_DIR/postgres_password.txt 2>/dev/null || echo 'Not set')"
-echo -e "    Database: $(cat $SECRETS_DIR/postgres_db.txt 2>/dev/null || echo 'Not set')"
-echo ""
-echo -e "  ${BLUE}Grafana (http://localhost:3000):${NC}"
-echo -e "    User:     $(cat $SECRETS_DIR/grafana_admin_user.txt 2>/dev/null || echo 'Not set')"
-echo -e "    Password: $(cat $SECRETS_DIR/grafana_admin_password.txt 2>/dev/null || echo 'Not set')"
-echo ""
-echo -e "  ${BLUE}N8N (http://localhost:5679):${NC}"
-echo -e "    User:     $(cat $SECRETS_DIR/n8n_basic_auth_user.txt 2>/dev/null || echo 'Not set')"
-echo -e "    Password: $(cat $SECRETS_DIR/n8n_basic_auth_password.txt 2>/dev/null || echo 'Not set')"
-echo ""
-echo -e "  ${BLUE}pgAdmin (http://localhost:5050):${NC}"
-echo -e "    Email:    $(cat $SECRETS_DIR/pgadmin_email.txt 2>/dev/null || echo 'Not set')"
-echo -e "    Password: $(cat $SECRETS_DIR/pgadmin_password.txt 2>/dev/null || echo 'Not set')"
+echo -e "  ${BLUE}Elasticsearch:${NC}"
+echo -e "    elastic password:  $(cat $SECRETS_DIR/elasticsearch_password.txt 2>/dev/null || echo 'Not set')"
+echo -e "    kibana_system:     $(cat $SECRETS_DIR/kibana_password.txt 2>/dev/null || echo 'Not set')"
+echo -e "    logstash_writer:   $(cat $SECRETS_DIR/logstash_password.txt 2>/dev/null || echo 'Not set')"
+echo -e "    beats_system:      $(cat $SECRETS_DIR/beats_password.txt 2>/dev/null || echo 'Not set')"
 echo ""
 echo -e "${RED}⚠ SECURITY NOTICE:${NC}"
 echo -e "  • These files contain sensitive information"
@@ -110,6 +79,6 @@ echo -e "  • Never commit these files to version control"
 echo ""
 echo -e "${GREEN}Next steps:${NC}"
 echo -e "  1. Save these credentials to your password manager"
-echo -e "  2. Run: ${BLUE}docker compose down${NC}"
+echo -e "  2. Run: ${BLUE}./setup-elk-security.sh${NC} to apply credentials to the ELK stack"
 echo -e "  3. Run: ${BLUE}docker compose up -d${NC}"
 echo ""
