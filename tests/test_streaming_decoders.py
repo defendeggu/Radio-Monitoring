@@ -25,12 +25,14 @@ from flask.testing import FlaskClient
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+import streaming_decoder_service
 from streaming_decoder_service import (
     StreamSession,
     SessionManager,
     StreamingAPRSDecoder,
     StreamingPOCSAGDecoder
 )
+from sdr_hardware import SDRType
 
 
 # ============================================================================
@@ -271,6 +273,11 @@ class TestSessionManager:
 class TestStreamingAPRSDecoder:
     """Tests for StreamingAPRSDecoder"""
 
+    @pytest.fixture(autouse=True)
+    def mock_detect_sdr(self, monkeypatch):
+        """Mock detect_sdr so decoder can be instantiated without SDR hardware"""
+        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda: SDRType.HACKRF)
+
     def test_aprs_decoder_initialization(self):
         """Test APRS decoder initialization"""
         decoder = StreamingAPRSDecoder(
@@ -343,6 +350,11 @@ class TestStreamingAPRSDecoder:
 
 class TestStreamingPOCSAGDecoder:
     """Tests for StreamingPOCSAGDecoder"""
+
+    @pytest.fixture(autouse=True)
+    def mock_detect_sdr(self, monkeypatch):
+        """Mock detect_sdr so decoder can be instantiated without SDR hardware"""
+        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda: SDRType.HACKRF)
 
     def test_pocsag_decoder_initialization(self):
         """Test POCSAG decoder initialization"""
@@ -464,6 +476,8 @@ class TestStreamingAPI:
 
     def test_streaming_concurrent_session_limit(self, client: FlaskClient, monkeypatch):
         """Test that concurrent streaming sessions are limited"""
+        # Mock detect_sdr so decoder instantiation works without SDR hardware in CI
+        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda: SDRType.HACKRF)
         # Mock active session
         def mock_get_user_active_session(*args, **kwargs):
             session = StreamSession('aprs', 144800000, 300, 20, 2000000)

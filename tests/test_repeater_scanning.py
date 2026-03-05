@@ -369,7 +369,7 @@ class TestRepeaterScanningAPI:
 
         # Import and patch
         import api_service
-        monkeypatch.setattr('api_service.get_elasticsearch_service', lambda: type('obj', (object,), {
+        monkeypatch.setattr('blueprints.repeater.get_elasticsearch_service', lambda: type('obj', (object,), {
             'get_repeaters': mock_get_repeaters
         })())
 
@@ -391,7 +391,7 @@ class TestRepeaterScanningAPI:
             return True
 
         import api_service
-        monkeypatch.setattr('api_service.has_active_scan', mock_has_active_scan)
+        monkeypatch.setattr('blueprints.repeater.has_active_scan', mock_has_active_scan)
 
         response = client.post('/scan-repeaters', json={})
 
@@ -423,7 +423,7 @@ class TestRepeaterScanningAPI:
             return []
 
         import api_service
-        monkeypatch.setattr('api_service.get_elasticsearch_service', lambda: type('obj', (object,), {
+        monkeypatch.setattr('blueprints.repeater.get_elasticsearch_service', lambda: type('obj', (object,), {
             'get_repeaters': mock_get_repeaters
         })())
 
@@ -442,7 +442,7 @@ class TestRepeaterScanningAPI:
             return []
 
         import api_service
-        monkeypatch.setattr('api_service.get_elasticsearch_service', lambda: type('obj', (object,), {
+        monkeypatch.setattr('blueprints.repeater.get_elasticsearch_service', lambda: type('obj', (object,), {
             'get_repeaters': mock_get_repeaters
         })())
 

@@ -41,8 +41,9 @@ class TestSDRDetection(unittest.TestCase):
         """Test successful RTL-SDR detection when HackRF not present"""
         # First call (HackRF check) fails, second call (RTL-SDR check) succeeds
         mock_run.side_effect = [
-            Mock(returncode=1, stdout=""),  # HackRF not found
-            Mock(returncode=0, stdout="Found Rafael Micro R820T tuner")  # RTL-SDR found
+            Mock(returncode=1, stdout=""),    # HackRF not found
+            Mock(returncode=1, stdout=""),    # Airspy HF+ not found
+            Mock(returncode=0, stdout=b""),   # RTL-SDR found (returncode=0 short-circuits)
         ]
 
         result = detect_sdr()
@@ -51,7 +52,11 @@ class TestSDRDetection(unittest.TestCase):
     @patch('subprocess.run')
     def test_detect_no_sdr(self, mock_run):
         """Test no SDR hardware detected"""
-        mock_run.return_value = Mock(returncode=1, stdout="")
+        mock_run.side_effect = [
+            Mock(returncode=1, stdout=""),   # HackRF not found (text=True -> str)
+            Mock(returncode=1, stdout=""),   # Airspy HF+ not found (text=True -> str)
+            Mock(returncode=1, stdout=b""),  # RTL-SDR not found (bytes)
+        ]
 
         result = detect_sdr()
         self.assertEqual(result, SDRType.UNKNOWN)
@@ -155,7 +160,7 @@ class TestRTLSDRCapture(unittest.TestCase):
     @patch('subprocess.run')
     def test_is_available_false(self, mock_run):
         """Test RTL-SDR availability check returns False"""
-        mock_run.return_value = Mock(returncode=1, stdout="")
+        mock_run.return_value = Mock(returncode=1, stdout=b"")
 
         rtlsdr = RTLSDRCapture(frequency=100_000_000)
         self.assertFalse(rtlsdr.is_available())
