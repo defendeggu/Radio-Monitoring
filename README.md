@@ -30,7 +30,6 @@ A complete professional radio monitoring system for capturing radio signals from
 - ♻️ **Index Lifecycle Management**: Automatic data retention with hot/warm/cold/delete phases (configurable retention period)
 - 🔌 **REST API**: Logstash HTTP input endpoints for data ingestion with multi-pipeline architecture
 - 📊 **Statistics & Analytics**: Real-time aggregations for frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends
-- 📦 **Data Migration**: Bulk import from PostgreSQL to Elasticsearch with schema transformation
 
 ### 📈 Monitoring & Visualization (ELK Stack)
 - 📊 **Kibana Dashboards**: Professional data visualization and analytics platform
@@ -1318,6 +1317,7 @@ The API can be integrated with:
 ├── repeater_activity_analyzer.py    # Repeater activity signal processing
 ├── api_service.py                   # Flask REST API with blueprint registration
 ├── elasticsearch_service.py         # Elasticsearch client and indexing service
+├── session_store.py                 # Shared session_manager instance (avoids circular imports)
 ├── streaming_decoder_service.py     # Real-time APRS/POCSAG streaming decoders
 ├── web_interface.html               # Web control panel (tabbed: Voice/APRS/POCSAG/Repeater)
 ├── blueprints/                      # Modular API endpoint blueprints
@@ -1331,7 +1331,6 @@ The API can be integrated with:
 │   └── streaming.py                 # Streaming decoder endpoints
 ├── scripts/
 │   ├── import_repeaters_csv.py     # CSV import tool for repeater data
-│   ├── migrate_pg_to_elasticsearch.py  # PostgreSQL to Elasticsearch migration script
 │   ├── example_repeaters.csv       # Example Swiss repeater data
 │   └── README.md                   # Script documentation
 ├── monitoring/
@@ -1362,6 +1361,8 @@ The API can be integrated with:
 ├── n8n-workflow.json                # N8N workflow definition
 ├── requirements.txt                 # Python dependencies
 ├── Dockerfile                       # Docker image definition
+├── mqtt-bridge/
+│   └── Dockerfile               # Dedicated image for MQTT-to-Logstash bridge
 ├── docker-compose.yml           # Docker Compose with ELK stack
 ├── .env.example                     # Environment variables template
 ├── .gitignore                      # Git ignore rules

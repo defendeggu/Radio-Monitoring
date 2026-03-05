@@ -41,6 +41,7 @@ ELASTIC_PASSWORD=$(generate_password)
 KIBANA_PASSWORD=$(generate_password)
 LOGSTASH_PASSWORD=$(generate_password)
 BEATS_PASSWORD=$(generate_password)
+LOGSTASH_WRITER_PASSWORD=$(generate_password)
 
 # Create .env.elk file
 cat > "$ENV_FILE" << EOF
@@ -61,6 +62,7 @@ ELASTIC_PASSWORD=${ELASTIC_PASSWORD}
 KIBANA_SYSTEM_PASSWORD=${KIBANA_PASSWORD}
 LOGSTASH_SYSTEM_PASSWORD=${LOGSTASH_PASSWORD}
 BEATS_SYSTEM_PASSWORD=${BEATS_PASSWORD}
+LOGSTASH_WRITER_PASSWORD=${LOGSTASH_WRITER_PASSWORD}
 
 # Elasticsearch connection URLs (with authentication)
 ELASTICSEARCH_URL=http://elastic:\${ELASTIC_PASSWORD}@elasticsearch:9200

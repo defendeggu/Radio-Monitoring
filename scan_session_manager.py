@@ -13,7 +13,6 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
 import redis
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 

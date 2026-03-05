@@ -11,7 +11,11 @@ import json
 from datetime import datetime
 from typing import TypedDict, cast, Any, Dict, Optional
 
+import logging
+
 from faster_whisper import WhisperModel
+
+logger = logging.getLogger(__name__)
 
 
 class SegmentDict(TypedDict):
@@ -48,7 +52,7 @@ class TranscriptionService:
         self.model: WhisperModel | None = None
         self.simulation_mode: bool = False  # Track if simulation mode is active
 
-        print(f"Initializing Whisper model: {model}")
+        logger.info(f"Initializing Whisper model: {model}")
         self._load_model()
 
     def _load_model(self) -> None:
@@ -61,16 +65,11 @@ class TranscriptionService:
                 device=self.device,
                 compute_type=self.compute_type
             )
-            print("Model loaded successfully")
+            logger.info("Model loaded successfully")
 
         except ImportError:
-            print("="*80)
-            print("⚠️  WARNING: SIMULATION MODE ACTIVE ⚠️")
-            print("faster-whisper not available - using MOCK transcriptions")
-            print("All transcriptions will be simulated and NOT REAL!")
-            print("Install faster-whisper to enable real transcriptions:")
-            print("  pip install faster-whisper")
-            print("="*80)
+            logger.warning("SIMULATION MODE ACTIVE: faster-whisper not available - using MOCK transcriptions")
+            logger.warning("Install faster-whisper to enable real transcriptions: pip install faster-whisper")
             self.model = None
             self.simulation_mode = True
 
@@ -85,7 +84,7 @@ class TranscriptionService:
         Returns:
             dict: Transcription result with text and metadata
         """
-        print(f"Transcribing: {audio_file}")
+        logger.info(f"Transcribing: {audio_file}")
 
         if not os.path.exists(audio_file):
             raise FileNotFoundError(f"Audio file not found: {audio_file}")
@@ -125,27 +124,18 @@ class TranscriptionService:
                 "timestamp": datetime.now().isoformat()
             }
 
-            print(f"Transcription complete:")
-            print(f"  Language: {result['language']} ({result['language_probability']:.2%})")
-            print(f"  Duration: {result['duration']:.2f}s")
-            print(f"  Text: {result['text'][:100]}...")
+            logger.info(f"Transcription complete: language={result['language']} ({result['language_probability']:.2%}), duration={result['duration']:.2f}s")
+            logger.info(f"Text preview: {result['text'][:100]}...")
 
             return cast(TranscriptionResult, result)
 
         except Exception as e:
-            print("="*80)
-            print(f"⚠️  TRANSCRIPTION ERROR: {e}")
-            print("⚠️  Falling back to SIMULATION MODE")
-            print("⚠️  The returned transcription will be SIMULATED, not real!")
-            print("="*80)
+            logger.error(f"Transcription error: {e} - Falling back to SIMULATION MODE")
             return self._simulate_transcription(audio_file)
 
     def _simulate_transcription(self, audio_file: str) -> TranscriptionResult:
         """Simulate transcription for testing"""
-        print("="*80)
-        print("⚠️  SIMULATION MODE: Generating MOCK transcription ⚠️")
-        print("⚠️  This is NOT a real transcription! ⚠️")
-        print("="*80)
+        logger.warning("SIMULATION MODE: Generating MOCK transcription - NOT a real transcription!")
 
         result = {
             "text": "[SIMULATED] This is a simulated transcription of a radio message. "
@@ -194,7 +184,7 @@ class TranscriptionService:
             os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
             with open(output_file, 'w') as f:
                 json.dump(result, f, indent=2)
-            print(f"Results saved to: {output_file}")
+            logger.info(f"Results saved to: {output_file}")
 
         return result
 

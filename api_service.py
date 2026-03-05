@@ -985,12 +985,9 @@ def _scan_repeaters_worker(
 # Session Manager Initialization
 # ===========================================================================
 
-# Initialize session manager (Redis connection)
-session_manager = SessionManager(
-    redis_host=os.getenv('REDIS_HOST', 'localhost'),
-    redis_port=int(os.getenv('REDIS_PORT', 6379)),
-    redis_db=int(os.getenv('REDIS_DB', 0))
-)
+# session_manager is defined in session_store.py to avoid circular imports
+# with blueprints/streaming.py
+from session_store import session_manager
 
 
 def main() -> None:

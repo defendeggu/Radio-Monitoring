@@ -12,7 +12,6 @@ from elasticsearch import Elasticsearch, helpers
 from elasticsearch.exceptions import NotFoundError, RequestError
 import requests
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
