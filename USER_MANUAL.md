@@ -14,32 +14,33 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ---
 
-## 🆕 Neueste Updates (Januar 2026)
+## 🆕 Neueste Updates
 
-### ✅ Behobene Fehler
+### März 2026
+
+**Projekt-Cleanup & Sicherheitshärtung**
+- Alle toten Code-Bereiche entfernt (N8N, Grafana, PostgreSQL-Skripte)
+- Kibana Encryption Key und Redis-Passwort werden jetzt von `setup-elk-security.sh` generiert
+- 20 CI-Test-Fehler behoben (Streaming Decoder, SDR Hardware, Repeater Scanning)
+- Branch von `fork-rtlsdr-elk` auf `main` umbenannt
+
+### Januar 2026
 
 **Duration Bug behoben (20.01.2026)**
 - Streaming-Decoder-Sessions (APRS/POCSAG) beenden sich jetzt korrekt nach der konfigurierten Zeit
 - Sessions bleiben nicht mehr im "running"-Status hängen
-- Automatische Bereinigung funktioniert nun zuverlässig
 
 **RTL-SDR Erkennung verbessert (20.01.2026)**
 - RTL-SDR Geräte werden nun auf allen Systemen zuverlässig erkannt
 - Unicode-Fehler bei der Hardware-Erkennung behoben
 
-### 🔒 Sicherheitsverbesserungen (20.01.2026)
-
-**Docker Secrets implementiert**
+**Docker Secrets implementiert (20.01.2026)**
 - Produktionsreife Verwaltung von Passwörtern und Zugangsdaten
-- Alle sensiblen Daten sind jetzt in separaten Dateien mit eingeschränkten Berechtigungen
-- Automatische Konfiguration der ELK-Stack-Passwörter
+- Alle sensiblen Daten sind in separaten Dateien mit eingeschränkten Berechtigungen
 
 ### 📖 Weitere Informationen
 
-Detaillierte technische Dokumentation:
-- `FINAL_SUMMARY_20260120.md` - Vollständige Session-Zusammenfassung
-- `TEST_REPORT_20260120.md` - Live-Streaming-Testergebnisse
-- `README.md` - Technische Dokumentation und API-Referenz
+Detaillierte technische Dokumentation unter `docs/current/` und `README.md`.
 
 ---
 
@@ -96,10 +97,6 @@ curl -X POST http://localhost:5000/capture \
   -H "X-API-Key: dein-api-key-hier" \
   -d '{...}'
 ```
-
-**In N8N:**
-- Umgebungsvariable `RADIO_API_KEY` setzen
-- N8N Workflow verwendet automatisch den Key (bereits konfiguriert in `n8n-workflow.json`)
 
 ### Container-Sicherheit
 
@@ -246,21 +243,13 @@ Das Web-Interface hat 4 Tabs:
 - **Beste Resultate:** Scans zu aktiven Zeiten (Wochenende, Abend)
 - **Keine Aktivität?** Normal - viele Repeater sind selten genutzt
 
-**Repeater-Daten importieren:**
-```bash
-# CSV mit Repeater-Liste importieren
-docker exec radio-transcription-api python /app/scripts/import_repeaters_csv.py /app/scripts/example_repeaters.csv
-```
-
-Siehe `scripts/README.md` für CSV-Format.
-
 ---
 
 ## 📊 Kibana Dashboards
 
 **Zugriff:** http://localhost:5601
 
-**Login:** Keine Authentifizierung erforderlich (für Produktion X-Pack Security aktivieren)
+**Login:** `elastic` / Passwort aus `.secrets/elasticsearch_password.txt` (X-Pack Security ist aktiv)
 
 ### Was zeigt Kibana?
 
@@ -330,7 +319,7 @@ Siehe `scripts/README.md` für CSV-Format.
 
 **Zugriff:** http://localhost:5601/app/dev_tools#/console
 
-**Login:** Keine Authentifizierung erforderlich
+**Login:** `elastic` / Passwort aus `.secrets/elasticsearch_password.txt`
 
 ### Indices ansehen
 
@@ -563,23 +552,16 @@ cat .env | grep API_KEYS
 # API-Keys generieren (neu)
 python3 scripts/generate_api_keys.py
 
-# Credentials ansehen (N8N, etc.)
-cat secrets/n8n_basic_auth_user.txt
-cat secrets/n8n_basic_auth_password.txt
+# Elasticsearch Passwort ansehen
+cat .secrets/elasticsearch_password.txt
 ```
 
 ### Zugangsdaten
 
 **Kibana:** http://localhost:5601
-- Keine Authentifizierung erforderlich
+- User: `elastic`, Passwort: `cat .secrets/elasticsearch_password.txt`
 
-**N8N:** http://localhost:5679
-```bash
-cat secrets/n8n_basic_auth_user.txt
-cat secrets/n8n_basic_auth_password.txt
-```
-
-**Hinweis:** Für Produktion X-Pack Security für Elasticsearch/Kibana aktivieren
+**Hinweis:** Alle ELK-Passwörter werden von `scripts/setup-elk-security.sh` generiert und in `.secrets/` gespeichert.
 
 ---
 
@@ -592,15 +574,18 @@ Das Projekt verfügt über eine umfassende GitHub Actions CI/CD-Pipeline, die be
 **Pipeline-Schritte:**
 1. ✅ **Code Checkout**: Sauberer Checkout mit vollständiger Git-Historie
 2. ✅ **MyPy Type Checking**: Statische Typanalyse im Strict-Mode
-3. ✅ **Pytest Test Suite**: 67 Tests über alle Hauptkomponenten
+3. ✅ **Pytest Test Suite**: 200 Tests über alle Hauptkomponenten
 4. ✅ **Docker Build**: Verifizierung dass Docker Image erfolgreich gebaut wird
 
 **Test-Abdeckung:**
-- **67 Tests Total** über 3 Test-Suites
+- **200 Tests Total** über 7 Test-Suites
 - **API Tests (25)**: Flask Endpoints, Authentifizierung, Fehlerbehandlung
-- **SDR Hardware Tests (26)**: HackRF/RTL-SDR Erkennung, Capture, Validierung
-- **TranscriptionService Tests (16)**: Whisper Integration, Dateibehandlung
-- **Aktuelle Coverage**: 27% (Ziel: 15% Minimum)
+- **SDR Hardware Tests (25)**: HackRF/RTL-SDR/Airspy Erkennung, Capture, Validierung
+- **Transcription Tests (17)**: Whisper Integration, Dateibehandlung
+- **APRS Decoder Tests (37)**: APRS-Paket-Dekodierung
+- **POCSAG Decoder Tests (34)**: Pager-Nachrichten-Dekodierung
+- **Streaming Decoder Tests (34)**: Echtzeit-Streaming-Sessions
+- **Repeater Scanning Tests (28)**: Repeater-Aktivitäts-Analyse
 
 ### Tests lokal ausführen
 
@@ -610,7 +595,7 @@ Das Projekt verfügt über eine umfassende GitHub Actions CI/CD-Pipeline, die be
 # Virtual Environment aktivieren
 source venv/bin/activate
 
-# Alle 67 Tests ausführen
+# Alle 200 Tests ausführen
 pytest
 
 # Tests mit Coverage-Report
@@ -632,8 +617,7 @@ pytest --lf
 ```
 
 **Test-Ergebnisse:**
-- ✅ 67 Tests für API, SDR Hardware und Transkription
-- ✅ 27% Code-Abdeckung (Ziel: 15% Minimum)
+- ✅ 200 Tests über alle 7 Test-Suites
 - ✅ Vollständige MyPy Type Checking Compliance
 - ✅ Automatisierte CI/CD Pipeline auf GitHub Actions
 
@@ -723,7 +707,7 @@ Das Test-System nutzt umfassende Mocking-Strategien:
 # - Branch Coverage
 # - Fehlende Coverage rot markiert
 
-# Ziel: Minimum 15% (aktuell: 27%)
+# Öffnet HTML-Report mit Zeile-für-Zeile Coverage
 ```
 
 **Kontinuierliche Integration:**
@@ -770,7 +754,7 @@ Die GitHub Actions Pipeline stellt sicher:
 
 5. **CI/CD prüft automatisch:**
    - MyPy Type Checking
-   - Pytest Suite (67 Tests)
+   - Pytest Suite (200 Tests)
    - Docker Build
 
 6. **Merge nach erfolgreicher CI:**
@@ -817,6 +801,6 @@ Siehe **README.md** für:
 
 ---
 
-**Version:** 4.0
-**Letztes Update:** Januar 2026
-**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, Secrets Management, CI/CD Pipeline
+**Version:** 5.0
+**Letztes Update:** März 2026
+**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, ELK Stack, Docker Secrets, CI/CD Pipeline
