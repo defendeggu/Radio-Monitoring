@@ -17,7 +17,6 @@ monitoring.ui.container.elasticsearch.enabled: true
 
 # Security
 xpack.security.enabled: true
-xpack.encryptedSavedObjects.encryptionKey: "radio_monitoring_kibana_encryption_key_min_32_chars"
 
 # Logging (Kibana 8.x format)
 logging:
