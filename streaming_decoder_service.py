@@ -27,7 +27,6 @@ import redis
 import json
 from sdr_hardware import detect_sdr, SDRType, get_sdr_instance
 
-logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
@@ -245,19 +244,17 @@ class BaseStreamingDecoder(ABC):
         """Return mode name (aprs/pocsag)"""
         pass
 
-    def start(self) -> None:
+    def start(self, session_manager: 'SessionManager') -> None:
         """Start streaming (without creating session - session already created)"""
         # Start background thread
         assert self.session is not None, "Session must be initialized before calling start()"
 
-        self.thread = threading.Thread(target=self._stream_worker_simple)
+        self.thread = threading.Thread(target=self._stream_worker_simple, args=(session_manager,))
         self.thread.daemon = False
         self.thread.start()
 
-    def _stream_worker_simple(self) -> None:
+    def _stream_worker_simple(self, session_manager: 'SessionManager') -> None:
         """Simplified streaming worker when session already exists"""
-        from api_service import session_manager
-
         try:
             assert self.session is not None, "Session must be initialized"
             self.session.status = 'running'

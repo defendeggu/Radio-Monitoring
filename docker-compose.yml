@@ -70,7 +70,7 @@ services:
     environment:
       - "LS_JAVA_OPTS=-Xmx2g -Xms2g"
       - ELASTICSEARCH_USERNAME=logstash_writer
-      - ELASTICSEARCH_PASSWORD=***REMOVED***
+      - ELASTICSEARCH_PASSWORD=${LOGSTASH_WRITER_PASSWORD}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     networks:
       - radio-network
@@ -159,8 +159,6 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: radio-transcription-api
-    # Security: Removed privileged mode, using explicit device access instead
-    privileged: true
     env_file:
       - .env.elk
     # Memory limits to prevent OOM crashes during long captures
@@ -251,11 +249,10 @@ services:
   # MQTT to Logstash Bridge - Forwards Intercept data to Elasticsearch
   # ===========================================================================
   mqtt-bridge:
-    image: python:3.11-slim
+    build:
+      context: ./mqtt-bridge
+      dockerfile: Dockerfile
     container_name: radio-mqtt-bridge
-    working_dir: /app
-    command: >
-      sh -c "pip install --quiet paho-mqtt && python mqtt_to_logstash_bridge.py"
     volumes:
       - ./scripts/mqtt_to_logstash_bridge.py:/app/mqtt_to_logstash_bridge.py:ro
     environment:
