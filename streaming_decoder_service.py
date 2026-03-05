@@ -202,6 +202,7 @@ class BaseStreamingDecoder(ABC):
         self.thread: Optional[threading.Thread] = None
         self.sdr_proc: Optional[subprocess.Popen[bytes]] = None
         self.decoder_proc: Optional[subprocess.Popen[bytes]] = None
+        self.sdr_type: SDRType = SDRType.UNKNOWN  # Set by subclass __init__
 
     @abstractmethod
     def _start_decoder(self) -> subprocess.Popen[bytes]:
