@@ -25,7 +25,7 @@ from numpy.typing import NDArray
 from scipy import signal
 import redis
 import json
-from sdr_hardware import detect_sdr, SDRType, get_sdr_instance
+from sdr_hardware import detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction
 
 logger = logging.getLogger(__name__)
 
@@ -501,6 +501,8 @@ class BaseStreamingDecoder(ABC):
                     iq_float = iq_float[:-1]  # Drop last sample if odd
 
                 iq_complex: NDArray[np.complex64] = (iq_float[0::2] + 1j * iq_float[1::2]).astype(np.complex64)
+                if self.sdr_type == SDRType.HACKRF:
+                    iq_complex = apply_hackrf_iq_correction(iq_complex)
 
                 # FM demodulation
                 audio = self._fm_demodulate(iq_complex)

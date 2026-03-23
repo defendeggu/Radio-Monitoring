@@ -128,7 +128,7 @@ The system supports HackRF One, RTL-SDR, and Airspy HF+ with **automatic hardwar
 | **Max Sample Rate** | 20 MHz | 3.2 MHz | 912 kHz |
 | **Price** | ~$300 USD | ~$25 USD | ~$200 USD |
 | **Best For** | Full-spectrum monitoring | Budget VHF/UHF | Professional HF/VHF reception |
-| **Strengths** | Widest frequency coverage | Affordable, stable | Best HF sensitivity (-141 dBm) |
+| **Strengths** | Widest frequency coverage; automatic IQ/DC correction | Affordable, stable | Best HF sensitivity (-141 dBm) |
 | **Limitations** | USB bandwidth issues >120s | No HF (<24 MHz) | Frequency gap 31-60 MHz, lower max sample rate |
 | **USB Stability** | Transfer issues >120s @ 2MHz | Excellent up to 660s | Excellent stability |
 
@@ -150,6 +150,7 @@ The system automatically detects which SDR is connected:
 - Shows detected device in web interface
 - Automatic sample rate clamping for device capabilities
 - Prevents invalid captures for device limitations
+- **HackRF**: Automatic software IQ correction (DC offset removal + IQ imbalance correction) applied to every capture
 
 ### 📊 Frequency Coverage Examples
 
