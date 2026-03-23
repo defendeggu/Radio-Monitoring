@@ -18,7 +18,8 @@ from sdr_hardware import (
     HackRFCapture,
     RTLSDRCapture,
     detect_sdr,
-    get_sdr_instance
+    get_sdr_instance,
+    apply_hackrf_iq_correction,
 )
 
 
@@ -126,6 +127,53 @@ class TestHackRFCapture(unittest.TestCase):
         self.assertAlmostEqual(expected[0].imag, -1.007874, places=5)  # -128/127
         self.assertAlmostEqual(expected[1].real, 0.0, places=5)
         self.assertAlmostEqual(expected[1].imag, 0.503937, places=5)  # 64/127
+
+
+class TestIQCorrection(unittest.TestCase):
+    """Test apply_hackrf_iq_correction"""
+
+    def _make_signal(self, n: int = 4096) -> np.ndarray:
+        """Return a balanced, zero-mean complex tone."""
+        t = np.arange(n, dtype=np.float32)
+        return (np.cos(2 * np.pi * t / 64) + 1j * np.sin(2 * np.pi * t / 64)).astype(np.complex64)
+
+    def test_dc_offset_removal(self):
+        """After correction, I and Q mean must be essentially zero."""
+        sig = self._make_signal()
+        sig_biased = (sig.real + 0.15 + 1j * (sig.imag - 0.07)).astype(np.complex64)
+        result = apply_hackrf_iq_correction(sig_biased)
+        self.assertAlmostEqual(float(np.mean(result.real)), 0.0, places=5)
+        self.assertAlmostEqual(float(np.mean(result.imag)), 0.0, places=5)
+
+    def test_amplitude_imbalance_correction(self):
+        """After correction, I and Q power must be equal."""
+        n = 4096
+        t = np.arange(n, dtype=np.float32)
+        i = np.cos(2 * np.pi * t / 64)
+        q = 0.5 * np.sin(2 * np.pi * t / 64)  # Q at half amplitude
+        sig = (i + 1j * q).astype(np.complex64)
+        result = apply_hackrf_iq_correction(sig)
+        i_power = float(np.mean(result.real ** 2))
+        q_power = float(np.mean(result.imag ** 2))
+        self.assertAlmostEqual(i_power, q_power, places=3)
+
+    def test_phase_imbalance_correction(self):
+        """After correction, cross-correlation mean(I*Q) must be near zero."""
+        n = 4096
+        t = np.arange(n, dtype=np.float32)
+        i = np.cos(2 * np.pi * t / 64)
+        q = np.sin(2 * np.pi * t / 64) + 0.2 * i  # I leaks into Q
+        sig = (i + 1j * q).astype(np.complex64)
+        result = apply_hackrf_iq_correction(sig)
+        cross = float(np.abs(np.mean(result.real * result.imag)))
+        self.assertLess(cross, 1e-4)
+
+    def test_zero_array_safety(self):
+        """Function must not raise on an all-zero input."""
+        sig = np.zeros(100, dtype=np.complex64)
+        result = apply_hackrf_iq_correction(sig)
+        self.assertEqual(result.shape, sig.shape)
+        self.assertEqual(result.dtype, np.complex64)
 
 
 class TestRTLSDRCapture(unittest.TestCase):
