@@ -18,6 +18,9 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**Automatische IQ-Korrektur für HackRF**
+- Softwareseitige DC-Offset-Entfernung, Amplituden- und Phasen-Imbalance-Korrektur für alle HackRF-Captures
+
 **Projekt-Cleanup & Sicherheitshärtung**
 - Alle toten Code-Bereiche entfernt (N8N, Grafana, PostgreSQL-Skripte)
 - Kibana Encryption Key und Redis-Passwort werden jetzt von `setup-elk-security.sh` generiert
@@ -463,6 +466,16 @@ hackrf_info
 ```bash
 docker compose restart
 ```
+
+### HackRF: DC-Spike / IQ-Artefakte im Spektrum
+
+HackRF verwendet eine Direct-Conversion-Architektur (Zero-IF), die ohne Korrektur einen DC-Spike bei der Mittenfrequenz und IQ-Imbalance erzeugt. Das System wendet bei jedem HackRF-Capture automatisch eine softwareseitige IQ-Korrektur an:
+
+1. DC-Offset-Entfernung (I- und Q-Mittelwert subtrahieren)
+2. Amplituden-Imbalance-Korrektur
+3. Phasen-Imbalance-Korrektur (Gram-Schmidt)
+
+Es sind keine manuellen Einstellungen erforderlich.
 
 ### HackRF Capture bricht nach ~13 Sekunden ab
 

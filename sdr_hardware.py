@@ -21,6 +21,33 @@ from scipy.io import wavfile
 logger = logging.getLogger(__name__)
 
 
+def apply_hackrf_iq_correction(iq: NDArray[np.complex64]) -> NDArray[np.complex64]:
+    """Apply 3-step IQ correction for HackRF zero-IF (direct-conversion) hardware.
+
+    Step 1 - DC offset removal: subtract mean of I and Q independently.
+    Step 2 - Amplitude imbalance correction: scale Q to match I power.
+    Step 3 - Phase imbalance correction: Gram-Schmidt orthogonalisation.
+    """
+    i = iq.real.copy()
+    q = iq.imag.copy()
+
+    # Step 1: DC-Offset entfernen
+    i -= np.mean(i)
+    q -= np.mean(q)
+
+    # Step 2: Amplituden-Imbalance korrigieren
+    i_power = float(np.mean(i * i))
+    q_power = float(np.mean(q * q))
+    if q_power > 0:
+        q *= np.sqrt(i_power / q_power)
+
+    # Step 3: Phasen-Imbalance korrigieren (Gram-Schmidt)
+    if i_power > 0:
+        q -= (float(np.mean(i * q)) / i_power) * i
+
+    return (i + 1j * q).astype(np.complex64)
+
+
 class SDRType(Enum):
     """Supported SDR hardware types"""
     HACKRF = "hackrf"
@@ -199,6 +226,7 @@ class HackRFCapture(SDRCapture):
             i_samples = iq_data[0::2].astype(np.float32) / 127.0
             q_samples = iq_data[1::2].astype(np.float32) / 127.0
             iq_samples = (i_samples + 1j * q_samples).astype(np.complex64)
+            iq_samples = apply_hackrf_iq_correction(iq_samples)
 
             # Save IQ samples
             os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
