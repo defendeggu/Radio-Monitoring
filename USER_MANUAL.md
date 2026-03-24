@@ -18,6 +18,10 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**Bugfixes Web-Interface & Kibana-Import (24.03.2026)**
+- `/help`-Seite gab 404 → behoben durch nginx-Konfiguration mit `.html`-Fallback
+- Kibana-Dashboard-Import ignorierte Fehler still → behoben, alle Dashboards werden jetzt vollständig importiert
+
 **Hilfe-Button, Filebeat & neue Kibana-Dashboards (24.03.2026)**
 - **❓ Hilfe-Button** oben rechts im Web-Interface: öffnet das Benutzerhandbuch als gerenderte Webseite in einem neuen Tab
 - **Filebeat** sammelt Logs aller Docker-Container (API, Elasticsearch, Logstash, Kibana, etc.) und speichert sie in `radio-logs-*` in Elasticsearch
