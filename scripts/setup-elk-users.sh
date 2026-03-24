@@ -85,6 +85,40 @@ curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
   }" > /dev/null
 echo "✅ logstash_writer user created"
 
+
+# Create logs ILM policy (7-day retention for Filebeat and Metricbeat indices)
+echo "Creating logs ILM policy (7d retention)..."
+curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_ilm/policy/logs-ilm-policy" \
+  -H "Content-Type: application/json" \
+  -d @"${PROJECT_ROOT}/monitoring/elasticsearch/ilm-policies/logs-ilm-policy.json" > /dev/null
+echo "✅ logs-ilm-policy created"
+
+# Create radio-logs index template with ILM
+echo "Creating radio-logs index template..."
+curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_index_template/radio-logs" \
+  -H "Content-Type: application/json" \
+  -d @"${PROJECT_ROOT}/monitoring/elasticsearch/index-templates/radio-logs.json" > /dev/null
+echo "✅ radio-logs index template created"
+
+# Apply logs ILM policy to metricbeat data stream template
+echo "Applying ILM to metricbeat index template..."
+TMPFILE=$(mktemp)
+curl -s -u "elastic:${ELASTIC_PASSWORD}" "http://localhost:9200/_index_template/metricbeat" > "$TMPFILE"
+python3 -c "
+import json, sys
+data = json.load(open('$TMPFILE'))
+t = data['index_templates'][0]['index_template']
+t.setdefault('template', {}).setdefault('settings', {}).setdefault('index', {})['lifecycle'] = {'name': 'logs-ilm-policy'}
+print(json.dumps(t))
+" | curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_index_template/metricbeat" \
+  -H "Content-Type: application/json" \
+  -d @- > /dev/null
+rm "$TMPFILE"
+echo "✅ metricbeat ILM applied"
+
 echo ""
 echo "=========================================="
 echo "User passwords configured successfully!"
