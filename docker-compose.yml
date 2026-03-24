@@ -100,6 +100,9 @@ services:
       - SERVER_NAME=radio-kibana
       - XPACK_SECURITY_ENABLED=true
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
+      # Increase Node.js V8 heap from default ~1.5 GB to 2 GB
+      # Reduces GC pressure during large dashboard aggregations
+      - NODE_OPTIONS=--max-old-space-size=2048
     volumes:
       - ./monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
       - ./monitoring/kibana/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
