@@ -15,11 +15,13 @@ A complete professional radio monitoring system for capturing radio signals from
 - 🔁 **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters (NEW)
 - ⚡ **Quad Processing Modes**: Voice transcription, APRS packet decoding, POCSAG pager decoding, or Repeater Activity scanning
 - 🌐 **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, and Repeater Scan
+- ❓ **Built-in Help**: Help button opens the full User Manual as a rendered web page in a new tab
 - 🔌 **REST API**: Flask-based API for programmatic access
 - 🐳 **Docker Support**: Complete Docker setup for easy deployment
 
 ### 💾 Data Storage & Analytics (ELK Stack)
-- 🗄️ **Elasticsearch**: Time-series data storage with daily indices for all captures, APRS, POCSAG, and repeater activity
+- 🗄️ **Elasticsearch**: Time-series data storage with daily indices for all captures, APRS, POCSAG, repeater activity, and container logs
+- 📋 **Container Log Collection**: Filebeat ships logs from all Docker containers into `radio-logs-*` indices for centralized analysis
 - 🔍 **Full-Text Search**: Advanced multi-language search (English, German, French, Spanish) with analyzers and stemming
 - 📍 **APRS Message Storage**: Dedicated index for APRS packets with callsign, geo-point position, message data
 - 📟 **POCSAG Message Storage**: Dedicated index for POCSAG pager messages with address, function code, message type, and baud rate
@@ -37,8 +39,11 @@ A complete professional radio monitoring system for capturing radio signals from
 - 📟 **POCSAG Dashboard**: Dedicated dashboard with pager address analytics, message type distribution, baud rate statistics, and timeline visualization
 - 📡 **Repeater Activity Dashboard**: Dashboard showing most active repeaters, activity trends by band/canton, scan statistics, and signal quality metrics
 - 💻 **System Metrics Dashboard**: Real-time system performance monitoring powered by Metricbeat
+- 🏥 **Stack Health Dashboard**: Container CPU/memory timelines, healthcheck status, resource summary table — refreshes every 30s
+- 📋 **Stack Logs Dashboard**: Centralized log viewer across all containers — timeline, volume by container, stdout/stderr split
 - 🛠️ **Kibana Dev Tools**: Console for direct Elasticsearch queries and index management
 - 📈 **Metricbeat**: Automated system and container metrics collection (replaces Prometheus + cAdvisor)
+- 📦 **Filebeat**: Automatic container log collection from all Docker services
 - 🔄 **Logstash Pipelines**: Data ingestion and transformation with 5 dedicated pipelines (captures, APRS, POCSAG, repeater activity, metrics)
 
 ## Architecture
@@ -261,6 +266,8 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
        - 📍 APRS Activity Dashboard (with geospatial map)
        - 📟 POCSAG Pager Monitoring
        - 🔁 Repeater Activity Dashboard
+       - 🏥 Stack Health Dashboard (CPU, memory, healthcheck per container)
+       - 📋 Stack Logs Dashboard (container logs timeline and analysis)
    - 🐳 **Portainer** (Docker Management): http://localhost:9000 or https://localhost:9443
    - 🔍 **Elasticsearch API**: http://localhost:9200
    - 🔌 **Logstash Pipelines**: http://localhost:9600-9604
@@ -269,6 +276,12 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 ## 📝 Recent Updates
 
 ### March 2026
+
+**Help Button, Filebeat Log Collection & New Dashboards (2026-03-24)**
+- Added **❓ Hilfe** button to web interface header — opens User Manual as a rendered web page in a new tab (`/help`)
+- Added **Filebeat** service: collects logs from all Docker containers, ships to `radio-logs-*` Elasticsearch indices with Docker metadata (container name, ID, labels)
+- Added **Stack Health Dashboard**: container CPU/memory timelines per container, container status pie, healthcheck status bar, resource summary table — auto-refreshes every 30s
+- Added **Stack Logs Dashboard**: total log events, stdout/stderr split, log timeline per container, log volume by container
 
 **HackRF Streaming Fixes & Stop Buttons (2026-03-24)**
 - Fixed USB stall that caused HackRF streaming sessions to abort after ~6 seconds: replaced `signal.resample` on large arrays with multi-stage decimation (`scipy.signal.decimate`) and removed `nice -n 10` priority penalty from `hackrf_transfer`

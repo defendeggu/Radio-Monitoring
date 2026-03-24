@@ -18,6 +18,12 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**Hilfe-Button, Filebeat & neue Kibana-Dashboards (24.03.2026)**
+- **❓ Hilfe-Button** oben rechts im Web-Interface: öffnet das Benutzerhandbuch als gerenderte Webseite in einem neuen Tab
+- **Filebeat** sammelt Logs aller Docker-Container (API, Elasticsearch, Logstash, Kibana, etc.) und speichert sie in `radio-logs-*` in Elasticsearch
+- **Stack Health Dashboard** in Kibana: CPU/Memory-Timeline pro Container, Container-Status, Healthcheck-Status, Ressourcen-Übersichtstabelle
+- **Stack Logs Dashboard** in Kibana: Log-Volumen, Timeline, stdout/stderr-Split, Container-Übersicht
+
 **Stop-Buttons & HackRF Streaming-Fixes (24.03.2026)**
 - **Stop-Button** in allen Web-Interface-Modulen (Voice, APRS, POCSAG): Jeder Button stoppt sofort den laufenden Task und gibt den HackRF frei
 - HackRF USB-Stall nach ~6 Sekunden behoben: Multi-Stage-Dezimierung statt langsamer FFT-Resampling; `nice -n 10` Prioritätsdrosselung entfernt
@@ -172,13 +178,17 @@ docker compose up -d
 
 ## 🎛️ Web Interface Bedienung
 
+### Hilfe-Button
+
+Oben rechts im Header befindet sich der **❓ Hilfe**-Button. Ein Klick darauf öffnet dieses Benutzerhandbuch als gerenderte Webseite in einem neuen Tab — jederzeit verfügbar, ohne den laufenden Betrieb zu unterbrechen.
+
 ### Tabs oben
 
 Das Web-Interface hat 4 Tabs:
 - **🎤 Voice Transcription** - Sprache aufnehmen und transkribieren
 - **📡 APRS** - APRS-Pakete empfangen
 - **📟 POCSAG** - Pager-Nachrichten empfangen
-- **📻 Repeater Scan** - FM-Repeater-Aktivität überwachen (NEU)
+- **📻 Repeater Scan** - FM-Repeater-Aktivität überwachen
 
 ### Voice Transcription verwenden
 
@@ -336,7 +346,25 @@ Das Web-Interface hat 4 Tabs:
    - Scan Rate: Scan-Operationen über Zeit
    - Recent Scans: Letzte 100 Scan-Ergebnisse mit Signalstärke
 
-5. **System Metrics** (Metricbeat)
+5. **Stack Health Dashboard**
+   - Running Containers: Anzahl aktiver Container
+   - Container Status: Verteilung (running/stopped/paused)
+   - CPU Usage by Container: Timeline-Liniendiagramm pro Container
+   - Memory Usage by Container: Timeline-Liniendiagramm pro Container
+   - Container Resource Summary: Tabelle mit avg/max CPU und Memory pro Container
+   - Container Health Status: Healthcheck-Ergebnisse (healthy/unhealthy) pro Container
+   - Zeitfenster: Standard 1h, Auto-Refresh alle 30s
+
+6. **Stack Logs Dashboard**
+   - Total Log Events: Gesamtanzahl aller Log-Einträge
+   - Log Stream: Verteilung stdout vs. stderr (Donut-Chart)
+   - Log Events Timeline: Log-Volumen über Zeit, aufgeteilt nach Container
+   - Log Volume by Container: Balkendiagramm — welcher Container schreibt am meisten
+   - Log Summary Table: Aufschlüsselung nach Container und Stream
+   - Zeitfenster: Standard 24h, Auto-Refresh alle 30s
+   - > **Tipp**: Für vollständige Log-Nachrichten → Kibana Discover öffnen, Index `radio-logs-*` wählen
+
+7. **System Metrics** (Metricbeat)
    - Container CPU & Memory Usage
    - System Performance
    - Docker Statistiken
