@@ -22,6 +22,10 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 - Container-Logs (`radio-logs-*`) und Metricbeat-Metriken (`metricbeat-*`) werden automatisch nach **7 Tagen** gelöscht
 - Radio-Daten (APRS, POCSAG, Voice, etc.) behalten die bestehende 90-Tage-Aufbewahrung
 
+**Kibana-Dashboard-Fix: Alle Panels leer (24.03.2026)**
+- Alle 48 Visualisierungen in 7 Dashboards hatten kein `indexRefName` im `searchSourceJSON` → Kibana konnte die Index-Pattern-Referenz nicht auflösen → leere Panels. Behoben in allen Dashboard-Dateien.
+- Logs-Dashboard: `container.name` und `stream` durch `.keyword`-Felder ersetzt (Elasticsearch `terms`-Aggregationen benötigen Keyword-Felder)
+
 **Bugfixes Web-Interface & Kibana-Import (24.03.2026)**
 - `/help`-Seite gab 404 → behoben durch nginx-Konfiguration mit `.html`-Fallback
 - Kibana-Dashboard-Import ignorierte Fehler still → behoben, alle Dashboards werden jetzt vollständig importiert

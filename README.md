@@ -285,6 +285,8 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 - Radio data indices (`radio-aprs-*`, `radio-pocsag-*`, etc.) retain the existing 90-day `radio-ilm-policy` — unchanged
 
 **Bug Fixes (2026-03-24)**
+- Fixed all Kibana dashboards showing empty panels: every visualization was missing `indexRefName` in its `searchSourceJSON`. Without this field, Kibana 8.11 cannot resolve the index-pattern reference at runtime — the visualization renders without any index and returns no data. Fixed in all 48 visualizations across 7 dashboard files.
+- Fixed Logs Dashboard terms aggregations failing with "Fielddata is disabled": changed `container.name` → `container.name.keyword` and `stream` → `stream.keyword` so ES can aggregate on keyword sub-fields
 - Fixed `/help` returning HTTP 404: added custom nginx config (`monitoring/nginx/default.conf`) with `try_files $uri $uri.html` fallback so extension-less URLs like `/help` resolve to `help.html`
 - Fixed Kibana dashboard import silently skipping objects: `import_kibana_dashboards.py` now uses `?overwrite=true`, preventing `missing_references` errors when index patterns and visualizations are imported together
 
