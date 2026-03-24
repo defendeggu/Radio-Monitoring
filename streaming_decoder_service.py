@@ -204,6 +204,11 @@ class BaseStreamingDecoder(ABC):
         self.decoder_proc: Optional[subprocess.Popen[bytes]] = None
         self.sdr_type: SDRType = SDRType.UNKNOWN  # Set by subclass __init__
 
+    @property
+    def _decoder_audio_rate(self) -> int:
+        """Target audio sample rate for the decoder process (override in subclasses)"""
+        return 48000  # Default: direwolf expects 48000 Hz
+
     @abstractmethod
     def _start_decoder(self) -> subprocess.Popen[bytes]:
         """Start decoder process (direwolf/multimon-ng)"""
@@ -507,8 +512,9 @@ class BaseStreamingDecoder(ABC):
                 # FM demodulation
                 audio = self._fm_demodulate(iq_complex)
 
-                # Resample to 48kHz for decoder
-                audio_48k = self._resample(audio, self.sample_rate, 48000)
+                # Resample to decoder's expected sample rate
+                # direwolf: 48000 Hz, multimon-ng -t raw: 22050 Hz
+                audio_48k = self._resample(audio, self.sample_rate, self._decoder_audio_rate)
 
                 # Convert to int16 WAV format
                 audio_int16 = (audio_48k * 32767).astype(np.int16)
@@ -779,7 +785,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
         """Launch direwolf with stdin/stdout pipes"""
         cmd = [
             'direwolf',
-            '-c', '/dev/null',  # No config file
+            '-c', '/app/direwolf.conf',  # Config with ADEVICE stdin null (no ALSA needed)
             '-r', '48000',      # Audio sample rate
             '-D', '1',          # Decode channel 1
             '-t', '0',          # Text output format
@@ -934,6 +940,11 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             raise ValueError(f"Invalid parameters for {self.sdr_type.name}: {e}")
 
         logger.info(f"Using {self.sdr_type.name} for POCSAG streaming session")
+
+    @property
+    def _decoder_audio_rate(self) -> int:
+        """multimon-ng -t raw expects 22050 Hz hardcoded"""
+        return 22050
 
     def _get_mode(self) -> str:
         return 'pocsag'
