@@ -18,6 +18,13 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**Stop-Buttons & HackRF Streaming-Fixes (24.03.2026)**
+- **Stop-Button** in allen Web-Interface-Modulen (Voice, APRS, POCSAG): Jeder Button stoppt sofort den laufenden Task und gibt den HackRF frei
+- HackRF USB-Stall nach ~6 Sekunden behoben: Multi-Stage-Dezimierung statt langsamer FFT-Resampling; `nice -n 10` Prioritätsdrosselung entfernt
+- FM-Demodulations-Gain korrigiert: Audio-Pegel stieg von 0,45 % auf 96 % Vollaussteuerung → POCSAG/APRS-Pakete werden jetzt korrekt dekodiert
+- Neuer Notfall-Endpunkt `POST /sdr/force-stop` stoppt alle laufenden SDR-Prozesse auf einmal
+- POCSAG-Sessions laufen jetzt die volle konfigurierte Dauer (bis zu 3600s)
+
 **Installations-Bugfixes (24.03.2026)**
 - `session_store.py` und `maidenhead_grid.py` fehlten im Dockerfile → behoben
 - `mqtt-bridge` Build-Kontext falsch konfiguriert → behoben
@@ -191,7 +198,11 @@ Das Web-Interface hat 4 Tabs:
    - Button "Start Recording & Transcription" klicken
    - Warten bis fertig (Dauer = Aufnahme + ~10-30 Sek. Verarbeitung)
 
-5. **Ergebnis ansehen:**
+5. **Aufnahme vorzeitig stoppen:**
+   - Button "Stop Recording" klicken
+   - HackRF wird sofort freigegeben
+
+6. **Ergebnis ansehen:**
    - Text erscheint in einer Box
    - Metadata zeigt: Sprache, Frequenz, Dauer
 
@@ -212,7 +223,10 @@ Das Web-Interface hat 4 Tabs:
 
 4. **"Start APRS Capture" klicken**
 
-5. **Ergebnis:**
+5. **Session vorzeitig stoppen:**
+   - Button "Stop APRS" klicken → Session endet sofort, HackRF wird freigegeben
+
+6. **Ergebnis:**
    - Tabelle mit APRS-Paketen
    - Spalten: Time, Callsign, Type, Position, Message
 
@@ -232,7 +246,10 @@ Das Web-Interface hat 4 Tabs:
 
 4. **"Start POCSAG Capture" klicken**
 
-5. **Ergebnis:**
+5. **Session vorzeitig stoppen:**
+   - Button "Stop POCSAG" klicken → Session endet sofort, HackRF wird freigegeben
+
+6. **Ergebnis:**
    - Tabelle mit Pager-Nachrichten
    - Spalten: Time, Address, Type, Baud, Message
 

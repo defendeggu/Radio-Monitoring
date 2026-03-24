@@ -130,12 +130,12 @@ The system supports HackRF One, RTL-SDR, and Airspy HF+ with **automatic hardwar
 | **Best For** | Full-spectrum monitoring | Budget VHF/UHF | Professional HF/VHF reception |
 | **Strengths** | Widest frequency coverage; automatic IQ/DC correction | Affordable, stable | Best HF sensitivity (-141 dBm) |
 | **Limitations** | USB bandwidth issues >120s | No HF (<24 MHz) | Frequency gap 31-60 MHz, lower max sample rate |
-| **USB Stability** | Transfer issues >120s @ 2MHz | Excellent up to 660s | Excellent stability |
+| **USB Stability** | Stable up to 3600s with correct pipe handling | Excellent up to 660s | Excellent stability |
 
 **Recommended for HF monitoring (shortwave, amateur HF):** Airspy HF+ (0.5 kHz - 31 MHz, excellent sensitivity)
 **Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies, excellent USB stability)
-**Recommended for advanced users:** HackRF One (full spectrum coverage, best for short captures <60s)
-**Recommended for long captures (>120s):** RTL-SDR or Airspy HF+ (superior USB stability, no transfer timeouts)
+**Recommended for advanced users:** HackRF One (full spectrum coverage, supports long streaming sessions up to 3600s)
+**Recommended for long captures (>120s):** All supported devices work well; RTL-SDR and Airspy HF+ have inherently lower USB overhead
 
 **🔌 Additional Hardware:**
 - 🔌 USB cable
@@ -269,6 +269,15 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 ## 📝 Recent Updates
 
 ### March 2026
+
+**HackRF Streaming Fixes & Stop Buttons (2026-03-24)**
+- Fixed USB stall that caused HackRF streaming sessions to abort after ~6 seconds: replaced `signal.resample` on large arrays with multi-stage decimation (`scipy.signal.decimate`) and removed `nice -n 10` priority penalty from `hackrf_transfer`
+- Fixed FM demodulation gain: switched from broken `÷π` formula to conjugate-product discriminator with correct deviation-based gain (`sample_rate / (2π × deviation)`); POCSAG/APRS audio now at 96% of full scale instead of 0.45%
+- Fixed HackRF not being released after a session ends: added in-process decoder registry so `DELETE /stream-decode/<id>` calls `decoder.stop_stream()` directly
+- Replaced `pkill`-based process killing (not available in container) with `/proc` filesystem scanning via `os.kill()`
+- Added `POST /sdr/force-stop` emergency endpoint that kills all active decoders and SDR processes
+- Added Stop buttons to all Web Interface modules (Voice, APRS, POCSAG) — each button stops the running task and releases the HackRF immediately
+- POCSAG sessions now run for the full configured duration (300s / 3600s) and decode packets correctly
 
 **Installation Bug Fixes (2026-03-24)**
 - `session_store.py` and `maidenhead_grid.py` were missing from the Dockerfile — API container crashed on startup
