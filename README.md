@@ -28,7 +28,7 @@ A complete professional radio monitoring system for capturing radio signals from
 - 📡 **Repeater Activity Storage**: Time-series index for repeater scans with transmission counts, signal strength, activity percentages
 - 🗺️ **Geospatial Queries**: Native geo_point mapping for APRS station positions with map visualization support
 - 🎛️ **Advanced Filtering**: Filter by frequency, modulation, language, callsign, APRS type, POCSAG address, band, canton, date range
-- ♻️ **Index Lifecycle Management**: Automatic data retention with hot/warm/cold/delete phases (configurable retention period)
+- ♻️ **Index Lifecycle Management**: Automatic data retention — radio data (`radio-*`) 90-day hot/warm/cold/delete cycle; container logs (`radio-logs-*`, `metricbeat-*`) 7-day auto-delete
 - 🔌 **REST API**: Logstash HTTP input endpoints for data ingestion with multi-pipeline architecture
 - 📊 **Statistics & Analytics**: Real-time aggregations for frequency usage, language distribution, APRS statistics, POCSAG statistics, repeater activity trends
 
@@ -248,6 +248,7 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    - Waits for Elasticsearch to be healthy
    - Creates the `logstash_writer` user and other required Elasticsearch users
    - Restarts Logstash and Metricbeat so they pick up the new credentials
+   - Creates ILM retention policies (radio data: 90d, container logs: 7d)
    - Imports Kibana dashboards
 
    > **Why is this step required?** Logstash connects to Elasticsearch using a custom `logstash_writer` user that does not exist in a fresh Elasticsearch cluster. The post-setup script creates this user. Without it, Logstash will fail to start. Logstash is configured with `restart: on-failure` so it will recover automatically once the user is created.
@@ -276,6 +277,12 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 ## 📝 Recent Updates
 
 ### March 2026
+
+**7-Day Log Retention via ILM (2026-03-24)**
+- Added `logs-ilm-policy` Elasticsearch ILM policy: deletes `radio-logs-*` (Filebeat) and `metricbeat-*` (Metricbeat) indices after **7 days** automatically
+- `radio-logs.json` and updated `metricbeat` data-stream template apply the policy to all new indices
+- `setup-elk-users.sh` creates the policy and templates on every fresh install
+- Radio data indices (`radio-aprs-*`, `radio-pocsag-*`, etc.) retain the existing 90-day `radio-ilm-policy` — unchanged
 
 **Bug Fixes (2026-03-24)**
 - Fixed `/help` returning HTTP 404: added custom nginx config (`monitoring/nginx/default.conf`) with `try_files $uri $uri.html` fallback so extension-less URLs like `/help` resolve to `help.html`
