@@ -20,7 +20,7 @@ def import_ndjson_file(file_path: Path) -> bool:
     """Import a single NDJSON file into Kibana"""
     print(f"Importing {file_path.name}...", end=" ")
 
-    url = f"{KIBANA_URL}/api/saved_objects/_import"
+    url = f"{KIBANA_URL}/api/saved_objects/_import?overwrite=true"
     headers = {'kbn-xsrf': 'true'}
     auth = (KIBANA_USERNAME, KIBANA_PASSWORD) if KIBANA_PASSWORD else None
 
