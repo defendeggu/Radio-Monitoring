@@ -277,6 +277,10 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
 ### March 2026
 
+**Bug Fixes (2026-03-24)**
+- Fixed `/help` returning HTTP 404: added custom nginx config (`monitoring/nginx/default.conf`) with `try_files $uri $uri.html` fallback so extension-less URLs like `/help` resolve to `help.html`
+- Fixed Kibana dashboard import silently skipping objects: `import_kibana_dashboards.py` now uses `?overwrite=true`, preventing `missing_references` errors when index patterns and visualizations are imported together
+
 **Help Button, Filebeat Log Collection & New Dashboards (2026-03-24)**
 - Added **❓ Hilfe** button to web interface header — opens User Manual as a rendered web page in a new tab (`/help`)
 - Added **Filebeat** service: collects logs from all Docker containers, ships to `radio-logs-*` Elasticsearch indices with Docker metadata (container name, ID, labels)
