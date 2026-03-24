@@ -272,6 +272,31 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
+  # Filebeat - Container Log Collection
+  # ===========================================================================
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.11.3
+    container_name: radio-filebeat
+    user: root
+    env_file:
+      - .env.elk
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
+    volumes:
+      - ./monitoring/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    command: ["--strict.perms=false"]
+    networks:
+      - radio-network
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # ===========================================================================
   # Web Interface
   # ===========================================================================
   web-interface:
@@ -279,6 +304,8 @@ services:
     container_name: radio-web-interface
     volumes:
       - ./web_interface.html:/usr/share/nginx/html/index.html:ro
+      - ./help.html:/usr/share/nginx/html/help.html:ro
+      - ./USER_MANUAL.md:/usr/share/nginx/html/USER_MANUAL.md:ro
     ports:
       - "8080:80"
     networks:

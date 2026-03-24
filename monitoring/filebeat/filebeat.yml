@@ -1,0 +1,33 @@
+# Filebeat Configuration - Radio Monitoring Stack
+# Collects logs from all Docker containers and ships to Elasticsearch
+
+filebeat.inputs:
+  - type: container
+    paths:
+      - /var/lib/docker/containers/*/*.log
+    stream: all
+
+processors:
+  - add_docker_metadata:
+      host: "unix:///var/run/docker.sock"
+  - add_host_metadata: ~
+
+# Output directly to Elasticsearch
+output.elasticsearch:
+  hosts: ["${ELASTICSEARCH_HOSTS}"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
+  index: "radio-logs-%{+yyyy.MM.dd}"
+
+# Disable automatic index lifecycle management and template creation
+# so we can use a custom index name pattern
+setup.ilm.enabled: false
+setup.template.enabled: false
+
+# Kibana (only used for setup commands, not runtime)
+setup.kibana:
+  host: "${KIBANA_HOST:http://kibana:5601}"
+
+logging.level: warning
+logging.to_files: false
+logging.to_syslog: false
