@@ -18,6 +18,16 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**Kibana Performance (24.03.2026)**
+- Node.js Heap von ~1.5 GB auf 2 GB erhöht → weniger GC-Pausen bei grossen Dashboard-Queries
+- ES-Request-Timeout auf 90s erhöht → Aggregationen brechen nicht mehr ab
+- HTTP-Komprimierung aktiviert → schnellere Übertragung zum Browser
+
+**Chronologische Listen in Dashboards (24.03.2026)**
+- **Logs-Dashboard**: Neues Panel ganz unten — letzte 100 Container-Logs chronologisch (Container, Stream, Meldung), blätterbar
+- **POCSAG-Dashboard**: Neues Panel ganz unten — letzte 100 POCSAG-Meldungen chronologisch (Adresse, Typ, Baud, Text, Frequenz), blätterbar
+- POCSAG "Message Types" Pie-Chart Fehlermeldung behoben: `message_type` → `message_type.keyword`
+
 **7-Tage Log-Retention (24.03.2026)**
 - Container-Logs (`radio-logs-*`) und Metricbeat-Metriken (`metricbeat-*`) werden automatisch nach **7 Tagen** gelöscht
 - Radio-Daten (APRS, POCSAG, Voice, etc.) behalten die bestehende 90-Tage-Aufbewahrung
@@ -351,6 +361,7 @@ Das Web-Interface hat 4 Tabs:
    - Message Types: Nachrichtentypen-Verteilung
    - Baud Rates: Verteilung (512, 1200, 2400 Baud)
    - Timeline: Nachrichten der letzten 24h
+   - **POCSAG Messages – Chronological List**: Letzte 100 Nachrichten in Listenform (Adresse, Typ, Baud, Text, Frequenz), blätterbar
 
 4. **Repeater Activity Dashboard**
    - Most Active Repeaters (24h): Tabelle mit avg. Activity %
@@ -373,8 +384,8 @@ Das Web-Interface hat 4 Tabs:
    - Log Events Timeline: Log-Volumen über Zeit, aufgeteilt nach Container
    - Log Volume by Container: Balkendiagramm — welcher Container schreibt am meisten
    - Log Summary Table: Aufschlüsselung nach Container und Stream
+   - **Container Logs – Chronological List**: Letzte 100 Log-Einträge in Listenform (Container, Stream, Meldung), blätterbar, neueste zuerst
    - Zeitfenster: Standard 24h, Auto-Refresh alle 30s
-   - > **Tipp**: Für vollständige Log-Nachrichten → Kibana Discover öffnen, Index `radio-logs-*` wählen
 
 7. **System Metrics** (Metricbeat)
    - Container CPU & Memory Usage
