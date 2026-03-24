@@ -209,6 +209,13 @@ class BaseStreamingDecoder(ABC):
         """Target audio sample rate for the decoder process (override in subclasses)"""
         return 48000  # Default: direwolf expects 48000 Hz
 
+    @property
+    def _fm_gain(self) -> float:
+        """FM audio gain: scale demodulated output so expected deviation → ±1.0.
+        Override in subclasses with the actual signal deviation.
+        Default: generic NFM at 5 kHz deviation."""
+        return float(self.sample_rate) / (2.0 * 3.141592653589793 * 5000.0)
+
     @abstractmethod
     def _start_decoder(self) -> subprocess.Popen[bytes]:
         """Start decoder process (direwolf/multimon-ng)"""
@@ -329,9 +336,8 @@ class BaseStreamingDecoder(ABC):
         # Use nice to reduce CPU priority (prevents CPU saturation)
 
         if self.sdr_type == SDRType.HACKRF:
-            # HackRF command
+            # HackRF command (no nice: priority reduction causes USB stalls via pipe backpressure)
             cmd = [
-                'nice', '-n', '10',
                 'hackrf_transfer',
                 '-r', '-',  # Write to stdout
                 '-f', str(int(self.frequency)),
@@ -341,8 +347,9 @@ class BaseStreamingDecoder(ABC):
             ]
             # Duration limit (optional - or run until stop)
             if self.duration:
+                # -n is number of IQ samples (each sample = 2 bytes: 1 byte I + 1 byte Q)
                 samples = int(self.sample_rate * self.duration)
-                cmd.extend(['-n', str(samples * 2)])  # *2 for I+Q
+                cmd.extend(['-n', str(samples)])
 
         elif self.sdr_type == SDRType.RTLSDR:
             # RTL-SDR command
@@ -516,15 +523,16 @@ class BaseStreamingDecoder(ABC):
                 # direwolf: 48000 Hz, multimon-ng -t raw: 22050 Hz
                 audio_48k = self._resample(audio, self.sample_rate, self._decoder_audio_rate)
 
-                # Convert to int16 WAV format
-                audio_int16 = (audio_48k * 32767).astype(np.int16)
+                # Apply FM gain and clip to ±1.0, then convert to int16
+                audio_scaled = np.clip(audio_48k * self._fm_gain, -1.0, 1.0)
+                audio_int16 = (audio_scaled * 32767).astype(np.int16)
 
                 # Write to decoder stdin
                 audio_sink.write(audio_int16.tobytes())
                 audio_sink.flush()
 
                 # Cleanup arrays to free memory immediately
-                del iq_bytes, iq_data, iq_float, iq_complex, audio, audio_48k, audio_int16
+                del iq_bytes, iq_data, iq_float, iq_complex, audio, audio_48k, audio_scaled, audio_int16
 
                 chunk_count += 1
 
@@ -560,30 +568,32 @@ class BaseStreamingDecoder(ABC):
         return stream.read(size)
 
     def _fm_demodulate(self, iq_complex: NDArray[np.complex64]) -> NDArray[np.float64]:
-        """FM demodulation using phase differentiation"""
-        # Phase differentiation
-        phase = np.angle(iq_complex)
-        phase_diff = np.diff(phase)
-
-        # Unwrap phase
-        phase_diff = np.unwrap(phase_diff)
-
-        # Normalize
-        audio: NDArray[np.float64] = phase_diff / np.pi
-
+        """FM demodulation using conjugate product discriminator"""
+        # Conjugate product: angle(x[n] * conj(x[n-1])) = instantaneous phase difference
+        product = iq_complex[1:] * np.conj(iq_complex[:-1])
+        audio: NDArray[np.float64] = np.angle(product).astype(np.float64)
         return audio
 
     def _resample(self, audio: NDArray[np.float64], from_rate: int, to_rate: int) -> NDArray[np.float64]:
-        """Resample audio to target rate"""
+        """Resample audio using multi-stage decimation for large ratios (performance)"""
         if from_rate == to_rate:
             return audio
 
-        # Calculate resampling ratio
-        ratio = to_rate / from_rate
-        num_samples = int(len(audio) * ratio)
+        current_rate = from_rate
+        current_audio = audio
 
-        # Resample using scipy
-        resampled: NDArray[np.float64] = signal.resample(audio, num_samples)
+        # Pre-decimate in steps of 8 or 4 until ratio < 4 (fast FIR-based decimation)
+        while current_rate // to_rate >= 4:
+            dec_factor = 8 if current_rate // to_rate >= 8 else 4
+            current_audio = signal.decimate(current_audio, dec_factor, ftype='fir', zero_phase=True)
+            current_rate //= dec_factor
+
+        # Final resample with FFT method (now on a small array)
+        if current_rate != to_rate:
+            num_samples = max(1, int(len(current_audio) * to_rate / current_rate))
+            resampled: NDArray[np.float64] = signal.resample(current_audio, num_samples)
+        else:
+            resampled = current_audio
 
         return resampled
 
@@ -778,6 +788,11 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
 
         logger.info(f"Using {self.sdr_type.name} for APRS streaming session")
 
+    @property
+    def _fm_gain(self) -> float:
+        """Scale FM output so ±3000 Hz deviation (standard APRS/AFSK1200) → ±1.0"""
+        return float(self.sample_rate) / (2.0 * 3.141592653589793 * 3000.0)
+
     def _get_mode(self) -> str:
         return 'aprs'
 
@@ -945,6 +960,11 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     def _decoder_audio_rate(self) -> int:
         """multimon-ng -t raw expects 22050 Hz hardcoded"""
         return 22050
+
+    @property
+    def _fm_gain(self) -> float:
+        """Scale FM output so ±4500 Hz deviation (standard VHF paging) → ±1.0"""
+        return float(self.sample_rate) / (2.0 * 3.141592653589793 * 4500.0)
 
     def _get_mode(self) -> str:
         return 'pocsag'
