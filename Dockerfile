@@ -60,6 +60,8 @@ COPY api_service.py .
 COPY elasticsearch_service.py .
 COPY repeater_activity_analyzer.py .
 COPY scan_session_manager.py .
+COPY session_store.py .
+COPY maidenhead_grid.py .
 COPY gunicorn_config.py .
 COPY direwolf.conf .
 COPY .env.example .env

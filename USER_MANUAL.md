@@ -18,6 +18,15 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**Installations-Bugfixes (24.03.2026)**
+- `session_store.py` und `maidenhead_grid.py` fehlten im Dockerfile → behoben
+- `mqtt-bridge` Build-Kontext falsch konfiguriert → behoben
+- `setup-elk-security.sh` schrieb `.env.elk` ins falsche Verzeichnis → behoben
+- `setup-elk-security.sh` erstellt jetzt zusätzlich `.env` für Docker Compose Variable-Interpolation
+- `setup-elk-users.sh` legt nun `logstash_writer`-Role und -User in Elasticsearch an (fehlte komplett)
+- `post-docker-setup.sh` ruft User-Setup automatisch auf und startet Logstash/Metricbeat neu
+- Logstash: `restart: on-failure` hinzugefügt (erholt sich automatisch nach User-Erstellung)
+
 **Automatische IQ-Korrektur für HackRF**
 - Softwareseitige DC-Offset-Entfernung, Amplituden- und Phasen-Imbalance-Korrektur für alle HackRF-Captures
 
@@ -119,15 +128,38 @@ Alle anderen Endpoints benötigen einen gültigen API-Key.
 
 ## 🚀 System Starten
 
+### Erstinstallation (einmalig)
+
 ```bash
-cd /home/spia/my-project
+# 1. Repository klonen
+git clone https://github.com/defendeggu/Radio-Monitoring
+cd Radio-Monitoring
+
+# 2. ELK-Zugangsdaten generieren (erzeugt .env.elk und .env)
+./scripts/setup-elk-security.sh
+
+# 3. Stack starten
+docker compose up -d
+
+# 4. Elasticsearch-User einrichten + Kibana-Dashboards importieren
+./scripts/post-docker-setup.sh
+```
+
+> **Wichtig:** Schritt 4 (`post-docker-setup.sh`) ist bei der Erstinstallation zwingend erforderlich. Er legt den `logstash_writer`-User in Elasticsearch an, ohne den Logstash nicht starten kann.
+
+### Normaler Start (nach Erstinstallation)
+
+```bash
+cd Radio-Monitoring
 docker compose up -d
 ```
 
 **Wichtige URLs:**
 - **Web-Interface**: http://localhost:8080 (Hauptsteuerung)
 - **Kibana**: http://localhost:5601 (Dashboards & Visualisierung)
+  - Login: `elastic` / Passwort aus `.env.elk` (Variable `ELASTIC_PASSWORD`)
 - **Elasticsearch**: http://localhost:9200 (Datenbank API)
+- **Portainer**: http://localhost:9000 (Docker-Verwaltung)
 
 ---
 

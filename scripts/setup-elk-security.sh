@@ -7,7 +7,8 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ENV_FILE="${SCRIPT_DIR}/.env.elk"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+ENV_FILE="${PROJECT_ROOT}/.env.elk"
 
 echo "=========================================="
 echo "ELK Security Setup"
@@ -76,10 +77,20 @@ EOF
 echo "✅ Generated .env.elk with secure passwords"
 echo ""
 
-# Update .gitignore to exclude .env.elk
-if ! grep -q "^\.env\.elk$" "${SCRIPT_DIR}/.gitignore" 2>/dev/null; then
-    echo ".env.elk" >> "${SCRIPT_DIR}/.gitignore"
+# Also write variables needed for Docker Compose interpolation into .env
+# (env_file only loads vars into containers, not into compose YAML interpolation)
+grep -E "^(ELASTIC_PASSWORD|KIBANA_ENCRYPTION_KEY|REDIS_PASSWORD|LOGSTASH_WRITER_PASSWORD|BEATS_SYSTEM_PASSWORD|API_KEYS)=" "$ENV_FILE" > "${PROJECT_ROOT}/.env" 2>/dev/null || true
+echo "✅ Created .env for Docker Compose variable interpolation"
+echo ""
+
+# Update .gitignore to exclude .env and .env.elk
+if ! grep -q "^\.env\.elk$" "${PROJECT_ROOT}/.gitignore" 2>/dev/null; then
+    echo ".env.elk" >> "${PROJECT_ROOT}/.gitignore"
     echo "✅ Added .env.elk to .gitignore"
+fi
+if ! grep -q "^\.env$" "${PROJECT_ROOT}/.gitignore" 2>/dev/null; then
+    echo ".env" >> "${PROJECT_ROOT}/.gitignore"
+    echo "✅ Added .env to .gitignore"
 fi
 
 echo "=========================================="

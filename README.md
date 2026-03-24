@@ -211,24 +211,17 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
 1. **Clone the repository**
    ```bash
-   cd /home/spia/my-project
+   git clone https://github.com/defendeggu/Radio-Monitoring
+   cd Radio-Monitoring
    ```
 
-2. **Setup Secrets** (Required for first-time setup)
+2. **Generate ELK credentials** (Required for first-time setup)
    ```bash
    ./scripts/setup-elk-security.sh
    ```
-   This script generates secure passwords for all ELK services. Save the credentials shown!
+   This generates secure passwords for all ELK services and writes them to `.env.elk` and `.env` in the project root. Save the credentials shown!
 
-   **Note**: The ELK stack passwords are configured in `.env.elk` and `.secrets/` directory (created automatically during first run).
-
-3. **Configure environment** (optional)
-   ```bash
-   cp .env.example .env
-   # Edit .env to customize settings
-   ```
-
-4. **Connect SDR device**
+3. **Connect SDR device**
    ```bash
    # Verify HackRF One is detected
    hackrf_info
@@ -237,20 +230,22 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    rtl_test -t
    ```
 
-5. **Start the services**
+4. **Start the services**
    ```bash
    docker compose up -d
    ```
 
-6. **Run post-setup to import Kibana dashboards**
+5. **Run post-setup** (Required after first start — creates Elasticsearch users and imports Kibana dashboards)
    ```bash
    ./scripts/post-docker-setup.sh
    ```
-   This automated script will:
-   - ✅ Wait for all services to be healthy (Elasticsearch, Kibana)
-   - 📊 Import all Kibana dashboards automatically (APRS, POCSAG, Repeater Activity, Radio Overview)
-   - ✅ Verify API is responding
-   - 📋 Display all service URLs and credentials
+   This script:
+   - Waits for Elasticsearch to be healthy
+   - Creates the `logstash_writer` user and other required Elasticsearch users
+   - Restarts Logstash and Metricbeat so they pick up the new credentials
+   - Imports Kibana dashboards
+
+   > **Why is this step required?** Logstash connects to Elasticsearch using a custom `logstash_writer` user that does not exist in a fresh Elasticsearch cluster. The post-setup script creates this user. Without it, Logstash will fail to start. Logstash is configured with `restart: on-failure` so it will recover automatically once the user is created.
 
    **Manual alternative** (if you prefer to import dashboards later):
    ```bash
@@ -258,7 +253,7 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    ./scripts/import-kibana-dashboards.sh
    ```
 
-7. **Access the interfaces**
+6. **Access the interfaces**
    - 🌐 **Web Interface**: http://localhost:8080
    - 📊 **Kibana Dashboards**: http://localhost:5601 (elastic / [password from .env.elk])
      - Pre-configured dashboards:
@@ -274,6 +269,15 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 ## 📝 Recent Updates
 
 ### March 2026
+
+**Installation Bug Fixes (2026-03-24)**
+- `session_store.py` and `maidenhead_grid.py` were missing from the Dockerfile — API container crashed on startup
+- `mqtt-bridge` build context was `./mqtt-bridge/` but the script lived in `./scripts/` — image build failed
+- `setup-elk-security.sh` wrote `.env.elk` to `scripts/` instead of project root — credentials not found
+- `setup-elk-security.sh` now also creates `.env` for Docker Compose variable interpolation (health checks, redis command)
+- `setup-elk-users.sh` now creates the `logstash_writer` role and user in Elasticsearch (was missing entirely, causing Logstash to fail on every fresh install)
+- `post-docker-setup.sh` now runs user setup automatically and restarts Logstash/Metricbeat
+- Added `restart: on-failure` to Logstash so it recovers automatically once users are created
 
 **Project Cleanup & Security Hardening**
 - Removed all dead code: N8N integration, Grafana dashboards, PostgreSQL import scripts, pgAdmin
