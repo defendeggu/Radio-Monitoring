@@ -70,6 +70,18 @@ fi
 
 echo ""
 
+# Configure Elasticsearch users and roles
+# This must run after ES is healthy but before Logstash/Kibana are expected to connect
+echo "👤 Configuring Elasticsearch users and roles..."
+"${SCRIPT_DIR}/setup-elk-users.sh"
+echo ""
+
+# Restart Logstash and Metricbeat so they pick up the newly created credentials
+echo "🔄 Restarting Logstash and Metricbeat with new credentials..."
+docker compose restart logstash metricbeat
+echo "✅ Logstash and Metricbeat restarted"
+echo ""
+
 # Wait for Kibana to be healthy
 echo "⏳ Waiting for Kibana to be ready..."
 WAIT_COUNT=0

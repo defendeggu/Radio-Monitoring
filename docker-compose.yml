@@ -58,6 +58,7 @@ services:
       - ./monitoring/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
       - ./monitoring/logstash/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
     entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
+    restart: on-failure
     secrets:
       - logstash_password
     ports:
@@ -251,8 +252,8 @@ services:
   # ===========================================================================
   mqtt-bridge:
     build:
-      context: ./mqtt-bridge
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: mqtt-bridge/Dockerfile
     container_name: radio-mqtt-bridge
     volumes:
       - ./scripts/mqtt_to_logstash_bridge.py:/app/mqtt_to_logstash_bridge.py:ro
