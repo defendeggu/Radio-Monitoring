@@ -14,6 +14,9 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
+# Always run from project root so docker compose can find docker-compose.yml
+cd "${PROJECT_ROOT}"
+
 echo "=========================================="
 echo "Radio Monitoring System"
 echo "Post-Docker Setup"
