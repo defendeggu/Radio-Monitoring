@@ -32,6 +32,8 @@ metricbeat.modules:
     - node_stats
   period: 30s
   hosts: ["http://elasticsearch:9200"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
   enabled: true
 
 # System Metrics
@@ -62,19 +64,26 @@ metricbeat.modules:
 # Elasticsearch Output
 output.elasticsearch:
   hosts: ["http://elasticsearch:9200"]
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
   index: "metricbeat-%{+yyyy.MM.dd}"
 
 # Index Template
 setup.template.name: "metricbeat"
 setup.template.pattern: "metricbeat-*"
+setup.template.overwrite: false
 setup.template.settings:
   index.number_of_shards: 1
-  index.number_of_replicas: 1
-  index.lifecycle.name: "radio-ilm-policy"
+  index.number_of_replicas: 0
+
+# Disable ILM so the custom index name is used without conflicts
+setup.ilm.enabled: false
 
 # Kibana Dashboards
 setup.kibana:
   host: "http://kibana:5601"
+  username: "${ELASTICSEARCH_USERNAME}"
+  password: "${ELASTICSEARCH_PASSWORD}"
 
 # Logging
 logging.level: info

@@ -132,8 +132,8 @@ services:
     env_file:
       - .env.elk
     environment:
-      - ELASTICSEARCH_USERNAME=beats_system
-      - ELASTICSEARCH_PASSWORD=${BEATS_SYSTEM_PASSWORD}
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     volumes:
       - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
