@@ -18,6 +18,10 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### März 2026
 
+**7-Tage Log-Retention (24.03.2026)**
+- Container-Logs (`radio-logs-*`) und Metricbeat-Metriken (`metricbeat-*`) werden automatisch nach **7 Tagen** gelöscht
+- Radio-Daten (APRS, POCSAG, Voice, etc.) behalten die bestehende 90-Tage-Aufbewahrung
+
 **Bugfixes Web-Interface & Kibana-Import (24.03.2026)**
 - `/help`-Seite gab 404 → behoben durch nginx-Konfiguration mit `.html`-Fallback
 - Kibana-Dashboard-Import ignorierte Fehler still → behoben, alle Dashboards werden jetzt vollständig importiert
@@ -408,11 +412,13 @@ Das Web-Interface hat 4 Tabs:
 ### Indices ansehen
 
 **Verfügbare Indices:**
-- **radio-captures-YYYY.MM.DD** - Voice-Aufnahmen (täglich)
-- **radio-aprs-YYYY.MM.DD** - APRS-Pakete
-- **radio-pocsag-YYYY.MM.DD** - POCSAG-Nachrichten
-- **radio-repeater-activity-YYYY.MM.DD** - Repeater-Aktivität
-- **radio-metrics-YYYY.MM.DD** - System-Metriken
+- **radio-captures-YYYY.MM.DD** - Voice-Aufnahmen (täglich, 90d Retention)
+- **radio-aprs-YYYY.MM.DD** - APRS-Pakete (90d Retention)
+- **radio-pocsag-YYYY.MM.DD** - POCSAG-Nachrichten (90d Retention)
+- **radio-repeater-activity-YYYY.MM.DD** - Repeater-Aktivität (90d Retention)
+- **radio-metrics-YYYY.MM.DD** - System-Metriken (90d Retention)
+- **radio-logs-YYYY.MM.DD** - Container-Logs aller Docker-Services (7d Retention)
+- **metricbeat-YYYY.MM.DD** - Metricbeat System-/Container-Metriken (7d Retention)
 
 **Indices auflisten:**
 ```json
@@ -895,6 +901,6 @@ Siehe **README.md** für:
 
 ---
 
-**Version:** 5.0
+**Version:** 5.1
 **Letztes Update:** März 2026
-**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, ELK Stack, Docker Secrets, CI/CD Pipeline
+**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, ELK Stack, Help-Button, Filebeat Logs, Stack Health/Logs Dashboards, 7-Tage Log-Retention, Docker Secrets, CI/CD Pipeline
