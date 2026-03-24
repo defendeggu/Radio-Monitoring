@@ -129,6 +129,9 @@ class SessionManager:
             self.redis: Any = MockRedis()
         else:
             self.redis = redis.Redis(host=redis_host, port=redis_port, db=redis_db, password=redis_password, decode_responses=True)
+        # In-memory registry of live decoder instances (session_id → decoder)
+        # This allows stop_streaming_session to call stop_stream() directly
+        self._decoder_registry: Dict[str, Any] = {}
 
     def save_session(self, session: StreamSession) -> None:
         """Save session to Redis"""
@@ -160,6 +163,22 @@ class SessionManager:
                 sessions.append(StreamSession.from_dict(data))
         return sessions
 
+    def register_decoder(self, session_id: str, decoder: Any) -> None:
+        """Register a live decoder instance so it can be stopped by session_id."""
+        self._decoder_registry[session_id] = decoder
+
+    def get_decoder(self, session_id: str) -> Optional[Any]:
+        """Return the live decoder instance for a session, or None."""
+        return self._decoder_registry.get(session_id)
+
+    def unregister_decoder(self, session_id: str) -> None:
+        """Remove decoder from registry when session ends."""
+        self._decoder_registry.pop(session_id, None)
+
+    def get_all_active_decoders(self) -> Dict[str, Any]:
+        """Return all registered (running) decoder instances."""
+        return dict(self._decoder_registry)
+
     def get_user_active_session(self, user_id: str = 'default') -> Optional[StreamSession]:
         """Get user's active session (max 1 per user)"""
         for session in self.list_sessions():
@@ -185,6 +204,9 @@ class SessionManager:
 
         # Store session in decoder
         decoder.session = session
+
+        # Register live instance so stop_streaming_session can find it
+        self.register_decoder(session.session_id, decoder)
 
         return session.session_id
 
@@ -298,6 +320,8 @@ class BaseStreamingDecoder(ABC):
                 self.session.end_time = datetime.now(timezone.utc)
                 session_manager.save_session(self.session)
                 logger.info(f"Stream session {self.session.session_id} completed")
+                # Remove from live registry — HackRF is now free
+                session_manager.unregister_decoder(self.session.session_id)
 
     def _stream_worker(self, session_manager: SessionManager) -> None:
         """Main streaming worker (runs in background)"""

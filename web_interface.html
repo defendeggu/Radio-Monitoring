@@ -410,8 +410,11 @@
                 </div>
 
                 <div class="button-group">
-                    <button type="submit" class="btn-primary">
+                    <button type="submit" class="btn-primary" id="voiceStart">
                         Start Recording & Transcription
+                    </button>
+                    <button type="button" class="btn-danger" id="voiceStop" disabled>
+                        Stop Recording
                     </button>
                     <button type="button" class="btn-secondary" onclick="resetVoiceForm()">
                         Reset
@@ -767,11 +770,15 @@
             document.getElementById('voiceResult').style.display = 'none';
         }
 
+        // Voice module: abort controller held at module scope for stop button access
+        let voiceAbortController = null;
+
         document.getElementById('voiceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const statusDiv = document.getElementById('voiceStatus');
             const resultDiv = document.getElementById('voiceResult');
-            const submitBtn = e.target.querySelector('button[type="submit"]');
+            const startBtn = document.getElementById('voiceStart');
+            const stopBtn = document.getElementById('voiceStop');
 
             const formData = {
                 frequency: parseInt(document.getElementById('voiceFrequency').value),
@@ -782,27 +789,24 @@
                 mode: 'voice'
             };
 
-            submitBtn.disabled = true;
-            submitBtn.innerHTML = '<span class="loading"></span> Recording & Transcribing...';
+            startBtn.disabled = true;
+            startBtn.innerHTML = '<span class="loading"></span> Recording & Transcribing...';
+            stopBtn.disabled = false;
             resultDiv.style.display = 'none';
 
             statusDiv.textContent = `Starting capture on ${(formData.frequency / 1e6).toFixed(3)} MHz...`;
             statusDiv.className = 'status info';
             statusDiv.style.display = 'block';
 
-            try {
-                // Create AbortController with 15-minute timeout for long captures
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => {
-                    controller.abort();
-                    throw new Error('Request timeout after 15 minutes');
-                }, 900000); // 15 minutes = 900000ms
+            voiceAbortController = new AbortController();
+            const timeoutId = setTimeout(() => voiceAbortController.abort(), 900000);
 
+            try {
                 const response = await fetch(CAPTURE_URL, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(formData),
-                    signal: controller.signal
+                    signal: voiceAbortController.signal
                 });
 
                 clearTimeout(timeoutId);
@@ -816,13 +820,39 @@
                     throw new Error(data.error || 'Unknown error occurred');
                 }
             } catch (error) {
-                statusDiv.textContent = 'Error: ' + error.message;
-                statusDiv.className = 'status error';
-                console.error('Error:', error);
+                if (error.name === 'AbortError') {
+                    statusDiv.textContent = 'Recording stopped.';
+                    statusDiv.className = 'status info';
+                } else {
+                    statusDiv.textContent = 'Error: ' + error.message;
+                    statusDiv.className = 'status error';
+                    console.error('Error:', error);
+                }
             } finally {
-                submitBtn.disabled = false;
-                submitBtn.innerHTML = 'Start Recording & Transcription';
+                clearTimeout(timeoutId);
+                voiceAbortController = null;
+                startBtn.disabled = false;
+                startBtn.innerHTML = 'Start Recording & Transcription';
+                stopBtn.disabled = true;
             }
+        });
+
+        document.getElementById('voiceStop').addEventListener('click', async () => {
+            // Abort the pending fetch (stops waiting for response)
+            if (voiceAbortController) voiceAbortController.abort();
+            // Tell the server to kill the SDR process immediately
+            try {
+                await fetch(API_BASE_URL + '/sdr/force-stop', {
+                    method: 'POST',
+                    headers: { 'X-API-Key': API_KEY }
+                });
+            } catch (e) { /* ignore */ }
+            document.getElementById('voiceStop').disabled = true;
+            document.getElementById('voiceStart').disabled = false;
+            document.getElementById('voiceStart').innerHTML = 'Start Recording & Transcription';
+            const statusDiv = document.getElementById('voiceStatus');
+            statusDiv.textContent = 'Recording stopped.';
+            statusDiv.className = 'status info';
         });
 
         // APRS Tab Functions
