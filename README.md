@@ -278,6 +278,16 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
 ### March 2026
 
+**Kibana Performance Tuning (2026-03-24)**
+- `NODE_OPTIONS=--max-old-space-size=2048`: raises Kibana's Node.js V8 heap from default ~1.5 GB to 2 GB — reduces GC pressure during dashboard aggregations
+- `elasticsearch.requestTimeout=90000`: increases ES query timeout from 30s to 90s so large aggregations don't time out
+- `server.compression.enabled=true`: compresses HTTP responses between Kibana and browser
+
+**Chronological List Panels in Dashboards (2026-03-24)**
+- Logs Dashboard: added "Container Logs – Chronological List" at the bottom — shows last 100 log entries (container, stream, message), paginated, sorted newest first
+- POCSAG Dashboard: added "POCSAG Messages – Chronological List" at the bottom — shows last 100 messages (address, type, baud, text, frequency), paginated, sorted newest first
+- Fixed POCSAG "Message Types" pie chart error: `message_type` (text) → `message_type.keyword` for terms aggregation
+
 **7-Day Log Retention via ILM (2026-03-24)**
 - Added `logs-ilm-policy` Elasticsearch ILM policy: deletes `radio-logs-*` (Filebeat) and `metricbeat-*` (Metricbeat) indices after **7 days** automatically
 - `radio-logs.json` and updated `metricbeat` data-stream template apply the policy to all new indices
