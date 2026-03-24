@@ -12,6 +12,8 @@ Provides endpoints for real-time streaming decoding:
 
 from flask import Blueprint, request, jsonify, Response
 from typing import Union
+import os
+import signal
 from streaming_decoder_service import (
     StreamingAPRSDecoder,
     StreamingPOCSAGDecoder
@@ -226,55 +228,84 @@ def get_streaming_session(session_id: str) -> Response | tuple[Response, int]:
 
 @streaming_bp.route('/stream-decode/<session_id>', methods=['DELETE'])
 def stop_streaming_session(session_id: str) -> Response | tuple[Response, int]:
-    """Stop a streaming decode session"""
+    """Stop a streaming decode session and release the HackRF."""
     try:
-
         session = session_manager.get_session(session_id)
-
         if not session:
-            return jsonify({
-                'status': 'error',
-                'message': 'Session not found'
-            }), 404
+            return jsonify({'status': 'error', 'message': 'Session not found'}), 404
 
-        # Gracefully terminate any running SDR/decoder processes
-        # Note: We don't have direct access to decoder instances from Redis
-        # So we terminate all processes as a workaround
-        import subprocess
-        import time
-        try:
-            # First try graceful termination with SIGTERM
-            logger.info("Attempting graceful process termination...")
-            subprocess.run(['pkill', '-TERM', 'hackrf_transfer'], timeout=2)
-            subprocess.run(['pkill', '-TERM', 'rtl_sdr'], timeout=2)
-            subprocess.run(['pkill', '-TERM', 'airspyhf_rx'], timeout=2)
-            subprocess.run(['pkill', '-TERM', 'multimon-ng'], timeout=2)
-            subprocess.run(['pkill', '-TERM', 'direwolf'], timeout=2)
+        # Use the live decoder instance if available (preferred: clean shutdown)
+        decoder = session_manager.get_decoder(session_id)
+        if decoder:
+            logger.info(f"Stopping decoder for session {session_id} via registry")
+            decoder.stop_stream()  # Sets stop_event, joins thread, kills subprocesses
+            session_manager.unregister_decoder(session_id)
+        else:
+            # Fallback for sessions whose decoder is no longer in memory
+            logger.warning(f"No live decoder for {session_id} — using pkill fallback")
+            _kill_sdr_processes()
 
-            # Wait 3 seconds for processes to terminate gracefully
-            time.sleep(3)
-
-            # Force kill any remaining processes
-            logger.info("Force killing any remaining processes...")
-            subprocess.run(['pkill', '-9', 'hackrf_transfer'], timeout=2)
-            subprocess.run(['pkill', '-9', 'rtl_sdr'], timeout=2)
-            subprocess.run(['pkill', '-9', 'airspyhf_rx'], timeout=2)
-            subprocess.run(['pkill', '-9', 'multimon-ng'], timeout=2)
-            subprocess.run(['pkill', '-9', 'direwolf'], timeout=2)
-        except Exception as e:
-            logger.warning(f"Error during process cleanup: {e}")
-
-        # Delete session
         session_manager.delete_session(session_id)
-
-        return jsonify({
-            'status': 'success',
-            'message': 'Streaming session stopped'
-        })
+        return jsonify({'status': 'success', 'message': 'Streaming session stopped'})
 
     except Exception as e:
         logger.error(f"Failed to stop streaming session: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@streaming_bp.route('/sdr/force-stop', methods=['POST'])
+def sdr_force_stop() -> Response | tuple[Response, int]:
+    """Emergency stop: kill all active decoders and SDR processes.
+    Used by the Voice module and whenever the HackRF is stuck."""
+    try:
+        # Stop all registered decoder instances cleanly
+        decoders = session_manager.get_all_active_decoders()
+        for sid, decoder in decoders.items():
+            try:
+                logger.info(f"Force-stopping decoder for session {sid}")
+                decoder.stop_stream()
+            except Exception as e:
+                logger.warning(f"Error stopping decoder {sid}: {e}")
+            session_manager.unregister_decoder(sid)
+
+        # Force-kill any remaining SDR processes (catches Voice capture too)
+        killed = _kill_sdr_processes()
+
+        return jsonify({
+            'status': 'success',
+            'message': 'All SDR processes stopped',
+            'sessions_stopped': len(decoders),
+            'processes_killed': killed
+        })
+
+    except Exception as e:
+        logger.error(f"Force-stop failed: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
+
+
+def _kill_sdr_processes() -> list:
+    """SIGKILL all SDR-related processes by scanning /proc. Returns list of PIDs killed."""
+    targets = {'hackrf_transfer', 'rtl_sdr', 'airspyhf_rx', 'multimon-ng', 'direwolf'}
+    killed = []
+    try:
+        for pid_str in os.listdir('/proc'):
+            if not pid_str.isdigit():
+                continue
+            try:
+                with open(f'/proc/{pid_str}/cmdline', 'rb') as f:
+                    cmdline = f.read().split(b'\x00')
+                if not cmdline:
+                    continue
+                exe = os.path.basename(cmdline[0].decode('utf-8', errors='ignore'))
+                if exe in targets:
+                    os.kill(int(pid_str), signal.SIGKILL)
+                    killed.append(exe)
+                    logger.info(f"Killed SDR process {exe} (PID {pid_str})")
+            except (ProcessLookupError, PermissionError, FileNotFoundError):
+                pass
+    except Exception as e:
+        logger.warning(f"Error scanning /proc for SDR processes: {e}")
+    return killed
 
 
 @streaming_bp.route('/stream-decode', methods=['GET'])
