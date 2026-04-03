@@ -194,7 +194,7 @@ docker compose up -d
 - **Kibana**: http://localhost:5601 (Dashboards & Visualisierung)
   - Login: `elastic` / Passwort aus `.env.elk` (Variable `ELASTIC_PASSWORD`)
 - **Elasticsearch**: http://localhost:9200 (Datenbank API)
-- **Portainer**: http://localhost:9000 (Docker-Verwaltung)
+- **Dockge**: http://localhost:5001 (Stack-Verwaltung)
 
 ---
 
@@ -766,7 +766,7 @@ docker compose up -d
 # - API:           http://localhost:5000
 # - Kibana:        http://localhost:5601
 # - Elasticsearch: http://localhost:9200
-# - Portainer:     http://localhost:9000
+# - Dockge:         http://localhost:5001
 
 # Vorteile:
 # - Gunicorn WSGI Server (production-ready)
