@@ -14,7 +14,7 @@ services:
       - xpack.security.http.ssl.enabled=false
       - xpack.security.transport.ssl.enabled=false
       - ELASTIC_PASSWORD=${ELASTIC_PASSWORD:-}
-      - "ES_JAVA_OPTS=-Xms4g -Xmx4g"
+      - "ES_JAVA_OPTS=-Xms2g -Xmx2g"
       - bootstrap.memory_lock=true
     ulimits:
       memlock:
@@ -69,7 +69,7 @@ services:
       - "9604:9604"  # radio-metrics pipeline
       - "9605:9605"  # intercept pipeline
     environment:
-      - "LS_JAVA_OPTS=-Xmx2g -Xms2g"
+      - "LS_JAVA_OPTS=-Xmx1g -Xms512m"
       - ELASTICSEARCH_USERNAME=logstash_writer
       - ELASTICSEARCH_PASSWORD=${LOGSTASH_WRITER_PASSWORD}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
@@ -100,9 +100,8 @@ services:
       - SERVER_NAME=radio-kibana
       - XPACK_SECURITY_ENABLED=true
       - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=${KIBANA_ENCRYPTION_KEY}
-      # Increase Node.js V8 heap from default ~1.5 GB to 2 GB
-      # Reduces GC pressure during large dashboard aggregations
-      - NODE_OPTIONS=--max-old-space-size=2048
+      # Node.js V8 heap limited to 1 GB (reduced from 2 GB to free RAM on VM)
+      - NODE_OPTIONS=--max-old-space-size=1024
     volumes:
       - ./monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
       - ./monitoring/kibana/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
@@ -317,18 +316,19 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
-  # Portainer - Docker Management UI
+  # Dockge - Docker Compose Stack Management UI
   # ===========================================================================
-  portainer:
-    image: portainer/portainer-ce:latest
-    container_name: radio-portainer
-    command: -H unix:///var/run/docker.sock
+  dockge:
+    image: louislam/dockge:1
+    container_name: radio-dockge
     ports:
-      - "9443:9443"  # HTTPS UI
-      - "9000:9000"  # HTTP UI
+      - "5001:5001"
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-      - portainer-data:/data
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /home/spia/projects:/opt/stacks
+      - dockge-data:/app/data
+    environment:
+      - DOCKGE_STACKS_DIR=/opt/stacks
     networks:
       - radio-network
     restart: unless-stopped
@@ -338,7 +338,7 @@ volumes:
     driver: local
   redis-data:
     driver: local
-  portainer-data:
+  dockge-data:
     driver: local
 
 networks:
