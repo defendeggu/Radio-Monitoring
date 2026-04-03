@@ -50,10 +50,10 @@ A complete professional radio monitoring system for capturing radio signals from
 
 ```
 ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  Web Interface  │   │     Kibana      │   │   Portainer     │
-│   (HTML/JS)     │   │   Dashboards    │   │  Docker Mgmt    │
-│   Port 8080     │   │   Port 5601     │   │  Ports 9000/    │
-│                 │   │                 │   │       9443      │
+│  Web Interface  │   │     Kibana      │   │     Dockge      │
+│   (HTML/JS)     │   │   Dashboards    │   │  Stack Mgmt     │
+│   Port 8080     │   │   Port 5601     │   │   Port 5001     │
+│                 │   │                 │   │                 │
 └────────┬────────┘   └────────┬────────┘   └─────────────────┘
          │                     │
          │            ┌────────┴────────┐             │
@@ -269,7 +269,7 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
        - 🔁 Repeater Activity Dashboard
        - 🏥 Stack Health Dashboard (CPU, memory, healthcheck per container)
        - 📋 Stack Logs Dashboard (container logs timeline and analysis)
-   - 🐳 **Portainer** (Docker Management): http://localhost:9000 or https://localhost:9443
+   - 🐳 **Dockge** (Stack Management): http://localhost:5001
    - 🔍 **Elasticsearch API**: http://localhost:9200
    - 🔌 **Logstash Pipelines**: http://localhost:9600-9604
    - 🔌 **API**: http://localhost:5000
@@ -628,57 +628,42 @@ python api_service.py
 
 ## 🐳 Docker Container Management
 
-### 🎛️ Portainer
+### 🎛️ Dockge
 
-The stack includes **Portainer Community Edition**, a web-based Docker management UI that provides:
+The stack includes **Dockge**, a lightweight web-based Docker Compose stack management UI built by the creator of Uptime Kuma.
 
-- 📊 **Container Management**: Start, stop, restart, and monitor all containers
-- 📈 **Resource Monitoring**: CPU, memory, and network usage for each container
-- 📝 **Log Viewing**: Real-time container logs with search and filtering
-- 🔍 **Image Management**: View, pull, and manage Docker images
-- 🌐 **Network Management**: Inspect and manage Docker networks
-- 💾 **Volume Management**: View and manage persistent storage volumes
-- 📋 **Stack Management**: Deploy and manage multi-container applications
+- 📋 **Stack Management**: Start, stop, restart, and redeploy the entire Compose stack
+- 📝 **Live Log Viewing**: Real-time terminal output per container directly in the browser
+- ✏️ **Compose Editor**: Edit `docker-compose.yml` directly in the UI and redeploy
+- 📊 **Container Status**: See running/stopped state and uptime for each service
+- 🪶 **Lightweight**: ~30 MB memory footprint
 
-**🌐 Access Portainer:**
-- 🌐 HTTP: http://localhost:9000
-- 🔒 HTTPS: https://localhost:9443
+**🌐 Access Dockge:**
+- http://localhost:5001
 
 **⚡ First-Time Setup:**
 
-On first access, Portainer will ask you to create an admin account:
+On first access, Dockge will ask you to create an admin account:
 
-1. Open http://localhost:9000
-2. Create admin username and password
-3. Select "Docker" as the environment to manage
-4. Click "Connect" to start managing your containers
+1. Open http://localhost:5001
+2. Create username and password
+3. The `radio-moni` stack is automatically detected
 
 **📋 Common Tasks:**
 
-```bash
-# View all running containers
-Navigate to: Containers → All containers
-
-# View container logs
-Click on container name → Logs
-
-# Restart a container
-Click on container name → Restart container
-
-# Monitor resource usage
-Dashboard → View real-time stats
-
-# Access container shell
-Click on container name → Console → Connect
+```
+Start / stop stack:   Dockge → radio-moni → Start / Stop
+View container logs:  Dockge → radio-moni → click container → Logs
+Edit compose file:    Dockge → radio-moni → Editor tab → Save & Deploy
+Restart a service:    Dockge → radio-moni → click container → Restart
 ```
 
-**💡 Why Portainer?**
+**💡 Why Dockge instead of Portainer?**
 
-- ✅ **Visual Overview**: See all containers, images, volumes, and networks at a glance
-- ✅ **Easy Troubleshooting**: Quick access to logs and container stats
-- ✅ **No CLI Required**: Manage Docker without memorizing commands
-- ✅ **Persistent Configuration**: Stores settings in a Docker volume
-- ✅ **Lightweight**: Minimal resource overhead (~50 MB memory)
+- ✅ **Compose-first**: Designed exactly for docker-compose single-host projects
+- ✅ **Real-time terminal**: Live output while a stack starts or stops
+- ✅ **Simpler**: No admin setup complexity, no separate CE/Business edition limits
+- ✅ **Lighter**: Half the memory footprint of Portainer CE
 
 ## 🔐 Secrets Management
 
