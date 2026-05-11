@@ -57,7 +57,7 @@ class TestSDRDetection(unittest.TestCase):
         mock_run.side_effect = [
             Mock(returncode=1, stdout=""),   # HackRF not found (text=True -> str)
             Mock(returncode=1, stdout=""),   # Airspy HF+ not found (text=True -> str)
-            Mock(returncode=1, stdout=b""),  # RTL-SDR not found (bytes)
+            Mock(returncode=1, stdout=""),   # RTL-SDR not found (text=True -> str)
         ]
 
         result = detect_sdr()
@@ -209,7 +209,7 @@ class TestRTLSDRCapture(unittest.TestCase):
     @patch('subprocess.run')
     def test_is_available_false(self, mock_run):
         """Test RTL-SDR availability check returns False"""
-        mock_run.return_value = Mock(returncode=1, stdout=b"")
+        mock_run.return_value = Mock(returncode=1, stdout="")
 
         rtlsdr = RTLSDRCapture(frequency=100_000_000)
         self.assertFalse(rtlsdr.is_available())
