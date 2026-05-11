@@ -17,6 +17,7 @@ from sdr_hardware import (
     SDRType,
     HackRFCapture,
     RTLSDRCapture,
+    USRPCapture,
     detect_sdr,
     get_sdr_instance,
     apply_hackrf_iq_correction,
@@ -330,6 +331,123 @@ class TestFactoryFunction(unittest.TestCase):
         )
 
         self.assertIsInstance(instance, HackRFCapture)
+
+
+class TestUSRPCapture(unittest.TestCase):
+    """Test USRP N200 implementation"""
+
+    def test_frequency_range(self):
+        """USRP N200 with WBX daughterboard: 50 MHz – 2.2 GHz"""
+        usrp = USRPCapture(frequency=466_075_000, device_address='192.168.10.2')
+        min_freq, max_freq = usrp.get_frequency_range()
+        self.assertEqual(min_freq, 50_000_000)
+        self.assertEqual(max_freq, 2_200_000_000)
+
+    def test_max_sample_rate(self):
+        """USRP N200 max sample rate is 25 MS/s"""
+        usrp = USRPCapture(frequency=466_075_000, device_address='192.168.10.2')
+        self.assertEqual(usrp.get_max_sample_rate(), 25_000_000)
+
+    def test_is_available_false_no_address(self):
+        """is_available returns False when device_address is empty"""
+        usrp = USRPCapture(frequency=100_000_000, device_address='')
+        self.assertFalse(usrp.is_available())
+
+    @patch('subprocess.run')
+    def test_is_available_true(self, mock_run):
+        """is_available returns True when uhd_usrp_probe succeeds"""
+        mock_run.return_value = Mock(returncode=0, stdout='USRP N200 found')
+        usrp = USRPCapture(frequency=100_000_000, device_address='192.168.10.2')
+        self.assertTrue(usrp.is_available())
+        mock_run.assert_called_once_with(
+            ['uhd_usrp_probe', '--args=addr=192.168.10.2'],
+            capture_output=True, text=True, timeout=10
+        )
+
+    @patch('subprocess.run')
+    def test_is_available_false_unreachable(self, mock_run):
+        """is_available returns False when uhd_usrp_probe fails"""
+        mock_run.return_value = Mock(returncode=1, stdout='')
+        usrp = USRPCapture(frequency=100_000_000, device_address='192.168.10.2')
+        self.assertFalse(usrp.is_available())
+
+    @patch('subprocess.run')
+    def test_is_available_false_no_uhd(self, mock_run):
+        """is_available returns False when uhd_usrp_probe is not installed"""
+        mock_run.side_effect = FileNotFoundError('uhd_usrp_probe not found')
+        usrp = USRPCapture(frequency=100_000_000, device_address='192.168.10.2')
+        self.assertFalse(usrp.is_available())
+
+    def test_requires_device_address_in_factory(self):
+        """get_sdr_instance raises ValueError when USRP selected without address"""
+        with self.assertRaises(ValueError) as ctx:
+            get_sdr_instance(frequency=466_075_000, sdr_type=SDRType.USRP)
+        self.assertIn('device_address', str(ctx.exception))
+
+    def test_factory_creates_usrp_instance(self):
+        """get_sdr_instance creates USRPCapture when sdr_type=USRP"""
+        instance = get_sdr_instance(
+            frequency=466_075_000,
+            sdr_type=SDRType.USRP,
+            device_address='192.168.10.2'
+        )
+        self.assertIsInstance(instance, USRPCapture)
+        self.assertEqual(instance.device_address, '192.168.10.2')
+
+    def test_factory_clamps_sample_rate(self):
+        """get_sdr_instance clamps sample rate to 25 MS/s for USRP"""
+        instance = get_sdr_instance(
+            frequency=466_075_000,
+            sample_rate=30_000_000,
+            sdr_type=SDRType.USRP,
+            device_address='192.168.10.2'
+        )
+        self.assertEqual(instance.sample_rate, 25_000_000)
+
+    def test_iq_normalization(self):
+        """USRP IQ normalization: int16 signed → float, divided by 32768.0"""
+        raw_int16 = np.array([32767, -32768, 0, 16384, -16384, 8192], dtype=np.int16)
+        i_expected = raw_int16[0::2].astype(np.float32) / 32768.0
+        q_expected = raw_int16[1::2].astype(np.float32) / 32768.0
+        expected = i_expected + 1j * q_expected
+        self.assertAlmostEqual(expected[0].real, 32767 / 32768.0, places=5)
+        self.assertAlmostEqual(expected[0].imag, -1.0, places=5)
+        self.assertAlmostEqual(expected[1].real, 0.0, places=5)
+        self.assertAlmostEqual(expected[1].imag, 0.5, places=5)
+
+    def test_detect_sdr_usrp_preferred(self):
+        """detect_sdr returns USRP when preferred_type='usrp' and device_address given"""
+        with patch('sdr_hardware.USRPCapture') as MockUSRP:
+            mock_instance = Mock()
+            mock_instance.is_available.return_value = True
+            MockUSRP.return_value = mock_instance
+            result = detect_sdr(preferred_type='usrp', device_address='192.168.10.2')
+        self.assertEqual(result, SDRType.USRP)
+
+    def test_detect_sdr_usrp_no_address(self):
+        """detect_sdr returns UNKNOWN when preferred_type='usrp' but no address"""
+        result = detect_sdr(preferred_type='usrp', device_address=None)
+        self.assertEqual(result, SDRType.UNKNOWN)
+
+
+class TestDetectSdrExplicit(unittest.TestCase):
+    """Test detect_sdr with explicit preferred_type"""
+
+    def test_preferred_hackrf_returns_hackrf(self):
+        """detect_sdr returns HACKRF without probing when preferred_type='hackrf'"""
+        result = detect_sdr(preferred_type='hackrf')
+        self.assertEqual(result, SDRType.HACKRF)
+
+    def test_preferred_rtlsdr_returns_rtlsdr(self):
+        result = detect_sdr(preferred_type='rtlsdr')
+        self.assertEqual(result, SDRType.RTLSDR)
+
+    def test_preferred_auto_falls_through(self):
+        """detect_sdr with preferred_type='auto' runs normal auto-detection"""
+        with patch('subprocess.run') as mock_run:
+            mock_run.return_value = Mock(returncode=1, stdout='', stderr='')
+            result = detect_sdr(preferred_type='auto')
+        self.assertEqual(result, SDRType.UNKNOWN)
 
 
 class TestDemodulation(unittest.TestCase):

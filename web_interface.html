@@ -368,8 +368,28 @@
             <button class="btn-help" onclick="window.open('/help', '_blank')">❓ Hilfe</button>
         </div>
         <p class="subtitle">HackRF + faster-whisper + APRS + POCSAG</p>
-        <div id="sdr-indicator" style="text-align: center; padding: 8px; margin-bottom: 20px; background: #e3f2fd; border-radius: 8px; color: #1976d2; font-weight: 600; font-size: 14px;">
+        <div id="sdr-indicator" style="text-align: center; padding: 8px; margin-bottom: 12px; background: #e3f2fd; border-radius: 8px; color: #1976d2; font-weight: 600; font-size: 14px;">
             🔍 Detecting SDR hardware...
+        </div>
+
+        <!-- SDR Device Selector (global, gilt für alle Tabs) -->
+        <div id="sdr-device-selector" style="margin-bottom: 20px; padding: 12px 16px; background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 8px;">
+            <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+                <label for="globalSdrDevice" style="margin: 0; white-space: nowrap; font-weight: 600; color: #333; min-width: 90px;">SDR Gerät:</label>
+                <select id="globalSdrDevice" style="flex: 1; min-width: 160px; padding: 8px 12px; border: 2px solid #ddd; border-radius: 6px; font-size: 14px; background: white;">
+                    <option value="auto">🔍 Auto-Erkennung</option>
+                    <option value="hackrf">HackRF One</option>
+                    <option value="rtlsdr">RTL-SDR</option>
+                    <option value="airspyhf">Airspy HF+</option>
+                    <option value="usrp">USRP N200 (Ethernet)</option>
+                </select>
+                <input type="text" id="usrpIpAddress" placeholder="z.B. 192.168.10.2"
+                       style="display: none; flex: 1; min-width: 180px; padding: 8px 12px; border: 2px solid #667eea; border-radius: 6px; font-size: 14px;"
+                       pattern="^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$">
+            </div>
+            <div id="usrpIpHint" style="display: none; font-size: 12px; color: #667eea; margin-top: 6px; padding-left: 102px;">
+                IP-Adresse des USRP N200 (z.B. 192.168.10.2)
+            </div>
         </div>
 
         <div class="nav-tabs">
@@ -771,6 +791,49 @@
         // Can be set via localStorage.setItem('api_key', 'your-key-here')
         const API_KEY = localStorage.getItem('api_key') || '';
 
+        // SDR Device Selector
+        function getSdrParams() {
+            const deviceType = document.getElementById('globalSdrDevice').value;
+            const params = { device_type: deviceType };
+            if (deviceType === 'usrp') {
+                const ip = document.getElementById('usrpIpAddress').value.trim();
+                if (!ip) {
+                    alert('Bitte IP-Adresse des USRP N200 eingeben (z.B. 192.168.10.2)');
+                    return null;
+                }
+                params.device_address = ip;
+            }
+            return params;
+        }
+
+        (function initSdrSelector() {
+            const deviceSelect = document.getElementById('globalSdrDevice');
+            const ipInput = document.getElementById('usrpIpAddress');
+            const ipHint = document.getElementById('usrpIpHint');
+
+            function applyUsrpVisibility() {
+                const isUsrp = deviceSelect.value === 'usrp';
+                ipInput.style.display = isUsrp ? '' : 'none';
+                ipHint.style.display = isUsrp ? '' : 'none';
+            }
+
+            deviceSelect.addEventListener('change', function () {
+                localStorage.setItem('sdrDeviceType', this.value);
+                applyUsrpVisibility();
+            });
+
+            ipInput.addEventListener('input', function () {
+                localStorage.setItem('usrpIpAddress', this.value);
+            });
+
+            // Restore saved settings
+            const savedDevice = localStorage.getItem('sdrDeviceType');
+            if (savedDevice) deviceSelect.value = savedDevice;
+            const savedIp = localStorage.getItem('usrpIpAddress');
+            if (savedIp) ipInput.value = savedIp;
+            applyUsrpVisibility();
+        })();
+
         // Tab switching
         function switchTab(tabName) {
             // Hide all tabs
@@ -810,13 +873,16 @@
             const startBtn = document.getElementById('voiceStart');
             const stopBtn = document.getElementById('voiceStop');
 
+            const sdrParams = getSdrParams();
+            if (!sdrParams) return;
             const formData = {
                 frequency: parseInt(document.getElementById('voiceFrequency').value),
                 modulation: document.getElementById('voiceModulation').value,
                 duration: parseInt(document.getElementById('voiceDuration').value),
                 gain: parseInt(document.getElementById('voiceGain').value),
                 language: document.getElementById('voiceLanguage').value || null,
-                mode: 'voice'
+                mode: 'voice',
+                ...sdrParams
             };
 
             startBtn.disabled = true;
@@ -912,12 +978,15 @@
                 return;
             }
 
+            const sdrParams = getSdrParams();
+            if (!sdrParams) return;
             const formData = {
                 frequency: parseInt(document.getElementById('aprsFrequency').value),
                 modulation: 'FM',
                 duration: duration,
                 gain: parseInt(document.getElementById('aprsGain').value),
-                mode: 'aprs'
+                mode: 'aprs',
+                ...sdrParams
             };
 
             submitBtn.disabled = true;
@@ -990,12 +1059,15 @@
                 return;
             }
 
+            const sdrParamsPOCSAG = getSdrParams();
+            if (!sdrParamsPOCSAG) return;
             const formData = {
                 frequency: parseInt(document.getElementById('pocsagFrequency').value),
                 modulation: 'FM',
                 duration: duration,
                 gain: parseInt(document.getElementById('pocsagGain').value),
-                mode: 'pocsag'
+                mode: 'pocsag',
+                ...sdrParamsPOCSAG
             };
 
             submitBtn.disabled = true;
@@ -1569,11 +1641,14 @@
 
         // Start APRS Streaming
         document.getElementById('aprsStreamStart').addEventListener('click', async () => {
+            const sdrParamsAprsStream = getSdrParams();
+            if (!sdrParamsAprsStream) return;
             const formData = {
                 mode: 'aprs',
                 frequency: parseFloat(document.getElementById('aprsFrequency').value),
                 duration: parseInt(document.getElementById('aprsDuration').value),
-                gain: parseInt(document.getElementById('aprsGain').value)
+                gain: parseInt(document.getElementById('aprsGain').value),
+                ...sdrParamsAprsStream
             };
 
             try {
@@ -1681,11 +1756,14 @@
 
         // Start POCSAG Streaming
         document.getElementById('pocsagStreamStart').addEventListener('click', async () => {
+            const sdrParamsPOCSAGStream = getSdrParams();
+            if (!sdrParamsPOCSAGStream) return;
             const formData = {
                 mode: 'pocsag',
                 frequency: parseFloat(document.getElementById('pocsagFrequency').value),
                 duration: parseInt(document.getElementById('pocsagDuration').value),
-                gain: parseInt(document.getElementById('pocsagGain').value)
+                gain: parseInt(document.getElementById('pocsagGain').value),
+                ...sdrParamsPOCSAGStream
             };
 
             try {
