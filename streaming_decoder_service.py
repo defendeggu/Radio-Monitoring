@@ -20,7 +20,7 @@ import psutil
 import select
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, IO, List
+from typing import Optional, Dict, Any, IO, List, Union
 from dataclasses import dataclass, field
 from numpy.typing import NDArray
 from scipy import signal
@@ -1218,7 +1218,8 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
     def _design_channel_filter(wideband_rate: int, channel_bw_hz: int) -> NDArray[np.float32]:
         nyquist = wideband_rate / 2.0
         cutoff_norm = min((channel_bw_hz / 2.0) / nyquist, 0.95)
-        return signal.firwin(63, cutoff_norm, window='hamming').astype(np.float32)
+        result: NDArray[np.float32] = signal.firwin(63, cutoff_norm, window='hamming').astype(np.float32)
+        return result
 
     # --- Abstract method implementations (multi-channel uses its own pipeline) ---
 
@@ -1459,6 +1460,7 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
         decoder_stdout = ch.decoder_proc.stdout
 
         # Reuse parsers via __new__ — _parse_decoder_line is stateless
+        parser: Union[StreamingAPRSDecoder, StreamingPOCSAGDecoder]
         if ch.mode == 'aprs':
             parser = StreamingAPRSDecoder.__new__(StreamingAPRSDecoder)
         else:
