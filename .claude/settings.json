@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(sed -i '/^logging\\\\.basicConfig\\(level=logging\\\\.INFO\\)$/d' elasticsearch_service.py streaming_decoder_service.py sdr_hardware.py scan_session_manager.py)",
+      "Bash(echo \"Done, exit: $?\")"
+    ]
+  }
+}
