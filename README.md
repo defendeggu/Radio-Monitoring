@@ -12,9 +12,10 @@ A complete professional radio monitoring system for capturing radio signals from
 - 🎤 **Speech-to-Text**: Automatic transcription using faster-whisper
 - 📍 **APRS Packet Decoding**: Decode APRS (Automatic Packet Reporting System) messages using direwolf
 - 📟 **POCSAG Pager Decoding**: Decode POCSAG pager messages (512, 1200, 2400 baud) using multimon-ng
-- 🔁 **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters (NEW)
-- ⚡ **Quad Processing Modes**: Voice transcription, APRS packet decoding, POCSAG pager decoding, or Repeater Activity scanning
-- 🌐 **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, and Repeater Scan
+- 🔁 **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters
+- 📡📡 **Multi-Channel DDC** (USRP N200): Capture one wide-band IQ stream and simultaneously decode 2–8 APRS/POCSAG channels via software Digital Downconversion — phase-continuous mixing, 63-tap anti-alias FIR, stride decimation, FM demodulation, per-channel decoder process
+- ⚡ **5 Processing Modes**: Voice transcription, APRS, POCSAG, Repeater Activity scanning, and Multi-Channel DDC (USRP N200)
+- 🌐 **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, Repeater Scan, and Multi-Channel DDC (USRP N200 tab shown only when USRP is selected)
 - ❓ **Built-in Help**: Help button opens the full User Manual as a rendered web page in a new tab
 - 🔌 **REST API**: Flask-based API for programmatic access
 - 🐳 **Docker Support**: Complete Docker setup for easy deployment
@@ -102,15 +103,16 @@ A complete professional radio monitoring system for capturing radio signals from
             │  /repeater-activity/summary     │
             │  /stats (Analytics)             │
             │  /sdr/detect (Hardware Info)    │
+            │  /stream/multi/start (DDC)      │
             ├─────────────────────────────────┤
-            │      Radio Capture              │◄─── HackRF One / RTL-SDR / Airspy HF+
-            │   (Hardware Abstraction Layer)  │     (Auto-detection)
+            │      Radio Capture              │◄─── HackRF / RTL-SDR / Airspy HF+
+            │   (Hardware Abstraction Layer)  │     USRP N200 (GigE) — auto-detect
             ├─────────────────────────────────┤
-            │ Voice  │ APRS  │POCSAG │Repeater│
-            │┌──────┐│┌─────┐│┌─────┐│┌──────┐│
-            ││faster││direwolf│multi-││Activity│
-            ││whisper│  APRS  │mon-ng││Analyzer│
-            │└──────┘│└─────┘│└─────┘│└──────┘│
+            │Voice│APRS │POCSAG│Repeater│Multi│
+            │┌───┐│┌───┐│┌────┐│┌──────┐│DDC │
+            ││FW │││dw  │││mmng││Activity││N×  │
+            ││   │││APRS│││POC ││Analyzer││DDC │
+            │└───┘│└───┘│└────┘│└──────┘│USRP│
             ├─────────────────────────────────┤
             │  Elasticsearch Service          │
             │  (ES Python Client)             │
@@ -290,6 +292,19 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
    - 🔌 **API**: http://localhost:5000
 
 ## 📝 Recent Updates
+
+### May 2026
+
+**Multi-Channel DDC for USRP N200 (2026-05-11)**
+- Added `ChannelConfig` dataclass and `MultiChannelStreamingDecoder` class in `streaming_decoder_service.py`
+- DDC pipeline: one USRP wide-band IQ stream → N parallel channels via phase-continuous mixing, 63-tap Hamming FIR, stride decimation, FM demodulation, per-channel direwolf/multimon-ng decoder process
+- Decimation factor computed automatically (largest power-of-2 s.t. intermediate rate ≥ 2× max channel BW)
+- APRS channels: 16 kHz BW, 48 kHz decoder audio rate; POCSAG channels: 25 kHz BW, 22.05 kHz
+- FIR filter state preserved across chunks for phase-continuous output; phase accumulator prevents discontinuities at chunk boundaries
+- New API endpoint `POST /stream/multi/start` — validates WBX frequency range, wideband rate 1–25 MS/s, 2–8 channels, ≥50 kHz channel separation
+- New "📡📡 Multi-Channel (USRP)" tab in web interface — only visible when "USRP N200 (Ethernet)" is selected in the global SDR selector; dynamic channel list, live stats per channel
+- Each decoded packet annotated with `channel_label` field in Elasticsearch
+- Performance: at 10 MS/s + 4 channels the FIR cost is ~56 ms/chunk vs 100 ms budget; use 5 MS/s for 8 channels
 
 ### March 2026
 
@@ -855,12 +870,16 @@ sudo apt-get install -y \
     hackrf \
     rtl-sdr \
     librtlsdr-dev \
+    uhd-host \
+    python3-uhd \
     build-essential \
     python3-pip \
     direwolf \
     multimon-ng \
     libasound2-dev \
     cmake
+# Download USRP N200 FPGA firmware (only needed for USRP N200)
+sudo uhd_images_downloader
 ```
 
 **macOS:**
@@ -1070,6 +1089,27 @@ curl -X GET "http://localhost:5000/repeaters?band=2m&canton=ZH" \
 curl -X GET "http://localhost:5000/repeater-activity/summary?hours=24&limit=10" \
   -H "X-API-Key: your-api-key-here"
 ```
+
+**📡📡 Start multi-channel DDC session (USRP N200):**
+```bash
+curl -X POST http://localhost:5000/stream/multi/start \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: your-api-key-here" \
+  -d '{
+    "device_address": "192.168.10.2",
+    "center_freq": 146000000,
+    "wideband_rate": 5000000,
+    "gain": 30,
+    "duration": 3600,
+    "channels": [
+      {"mode": "aprs",   "frequency": 144800000, "label": "APRS-EU"},
+      {"mode": "pocsag", "frequency": 147325000, "label": "POCSAG-CH"}
+    ]
+  }'
+```
+
+Response includes `decimation_factor`, `intermediate_rate`, and per-channel details.
+Stop with `DELETE /stream-decode/<session_id>` (same as single-channel sessions).
 
 ## ⚙️ Configuration
 

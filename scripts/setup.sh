@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "========================================="
-echo "Radio Transcription System - Setup"
+echo "Radio Monitoring System - Setup"
 echo "========================================="
 echo ""
 
@@ -32,6 +32,8 @@ sudo apt-get install -y \
     librtlsdr-dev \
     libairspyhf-dev \
     airspyhf \
+    uhd-host \
+    python3-uhd \
     build-essential \
     python3-pip \
     python3-venv \
@@ -39,6 +41,11 @@ sudo apt-get install -y \
     multimon-ng \
     libasound2-dev \
     cmake
+
+# Download USRP N200 FPGA/firmware images (required for uhd_rx_cfile)
+echo ""
+echo "Downloading UHD firmware images for USRP N200..."
+sudo uhd_images_downloader || echo "Warning: uhd_images_downloader failed — run manually if you have a USRP N200"
 
 # Create virtual environment
 echo ""
@@ -104,8 +111,10 @@ else
 fi
 
 # Add user to plugdev group for USB access
+# Note: USRP N200 uses Gigabit Ethernet — no udev rules needed for it.
 echo ""
-echo "Setting up USB permissions for SDR devices (HackRF/RTL-SDR/Airspy HF+)..."
+echo "Setting up USB permissions for USB SDR devices (HackRF/RTL-SDR/Airspy HF+)..."
+echo "Note: USRP N200 connects via Gigabit Ethernet — no USB permissions required."
 sudo usermod -a -G plugdev $USER
 
 # Create udev rules for HackRF
@@ -162,8 +171,17 @@ if command -v airspyhf_info &> /dev/null; then
     fi
 fi
 
+if command -v uhd_find_devices &> /dev/null; then
+    if uhd_find_devices &> /dev/null 2>&1; then
+        echo "✓ USRP N200 detected (Gigabit Ethernet)"
+        SDR_FOUND=true
+    fi
+fi
+
 if [ "$SDR_FOUND" = false ]; then
-    echo "Warning: No SDR device detected. Please connect your HackRF, RTL-SDR, or Airspy HF+ device."
+    echo "Warning: No SDR device detected. Please connect your HackRF, RTL-SDR, Airspy HF+, or USRP N200."
+    echo "  USB SDRs: plug in device and re-run this script"
+    echo "  USRP N200: ensure Gigabit Ethernet is connected and host IP is in the same subnet"
 fi
 
 # Run tests to verify installation
@@ -199,16 +217,19 @@ echo "========================================="
 echo "Setup Complete!"
 echo "========================================="
 echo ""
-echo "✓ System dependencies installed"
+echo "✓ System dependencies installed (incl. UHD for USRP N200)"
 echo "✓ Python virtual environment created"
 echo "✓ Python packages installed"
-echo "✓ USB permissions configured"
+echo "✓ USB permissions configured (HackRF/RTL-SDR/Airspy)"
 echo "✓ API keys generated"
 echo "✓ Test suite verified"
 echo ""
 echo "Next steps:"
 echo "1. Log out and log back in for USB permissions to take effect"
-echo "2. Connect your HackRF, RTL-SDR, or Airspy HF+ device"
+echo "2. Connect your SDR device:"
+echo "   - HackRF / RTL-SDR / Airspy HF+: plug in USB"
+echo "   - USRP N200: connect Gigabit Ethernet, set host IP to same subnet"
+echo "     e.g.  sudo ip addr add 192.168.10.1/24 dev eth0"
 echo "3. Run: source venv/bin/activate"
 echo "4. Run: ./scripts/start.sh"
 echo ""

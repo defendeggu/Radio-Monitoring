@@ -20,7 +20,8 @@ import psutil
 import select
 from abc import ABC, abstractmethod
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any, IO
+from typing import Optional, Dict, Any, IO, List
+from dataclasses import dataclass, field
 from numpy.typing import NDArray
 from scipy import signal
 import redis
@@ -66,6 +67,28 @@ class MockRedis:
         pass
 
 
+@dataclass
+class ChannelConfig:
+    """Configuration for one DDC channel in a multi-channel session."""
+    mode: str               # 'aprs' or 'pocsag'
+    frequency: int          # channel RF frequency in Hz
+    label: str = ''
+    channel_bw_hz: int = 16000   # 16 kHz for APRS, 25 kHz for POCSAG
+
+    # Derived by MultiChannelStreamingDecoder.__init__:
+    freq_offset: float = 0.0
+    decoder_audio_rate: int = 48000
+    fm_gain: float = 1.0
+
+    # Runtime state (written only by the converter thread):
+    fir_taps: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
+    fir_zi_i: Optional[np.ndarray] = None
+    fir_zi_q: Optional[np.ndarray] = None
+    phase_acc: float = 0.0
+    decoder_proc: Optional[subprocess.Popen] = None
+    packet_count: int = 0
+
+
 class StreamSession:
     """Represents a streaming decode session"""
 
@@ -82,6 +105,7 @@ class StreamSession:
         self.packet_count = 0
         self.last_packet_time: Optional[datetime] = None
         self.error: Optional[str] = None
+        self.channel_configs: Optional[List[Dict]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize session to dict for Redis storage"""
@@ -97,7 +121,8 @@ class StreamSession:
             'end_time': self.end_time.isoformat() if self.end_time is not None else None,
             'packet_count': self.packet_count,
             'last_packet_time': self.last_packet_time.isoformat() if self.last_packet_time is not None else None,
-            'error': self.error
+            'error': self.error,
+            'channel_configs': self.channel_configs
         }
 
     @classmethod
@@ -117,6 +142,7 @@ class StreamSession:
         session.packet_count = data['packet_count']
         session.last_packet_time = datetime.fromisoformat(data['last_packet_time']) if data.get('last_packet_time') else None
         session.error = data.get('error')
+        session.channel_configs = data.get('channel_configs')
         return session
 
 
@@ -1131,6 +1157,388 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     def stop(self) -> None:
         """Stop streaming (alias for stop_stream that works without session)"""
         logger.info(f"Stopping POCSAG stream")
+        self.stop_event.set()
+        if self.thread:
+            self.thread.join(timeout=15)
+
+
+class MultiChannelStreamingDecoder(BaseStreamingDecoder):
+    """Wide-band DDC decoder for USRP N200: one IQ stream, N parallel FM channels."""
+
+    MAX_CHANNELS = 8
+
+    def __init__(self, center_freq: int, wideband_rate: int, gain: int, duration: int,
+                 channels: List[ChannelConfig], device_address: str):
+        super().__init__(frequency=center_freq, duration=duration,
+                         gain=gain, sample_rate=wideband_rate)
+        if not device_address:
+            raise ValueError("MultiChannelStreamingDecoder requires USRP device_address (IP address)")
+        self.device_address = device_address
+        self.sdr_type = SDRType.USRP
+        self.center_freq = center_freq
+
+        if not (2 <= len(channels) <= self.MAX_CHANNELS):
+            raise ValueError(f"2–{self.MAX_CHANNELS} channels required, got {len(channels)}")
+
+        half_bw = wideband_rate / 2.0
+        for ch in channels:
+            if abs(ch.frequency - center_freq) + ch.channel_bw_hz / 2 > half_bw:
+                raise ValueError(
+                    f"Channel '{ch.label}' ({ch.frequency} Hz) falls outside "
+                    f"wideband range ±{half_bw/1e6:.1f} MHz around {center_freq/1e6:.3f} MHz"
+                )
+
+        # Largest power-of-2 decimation factor s.t. intermediate_rate ≥ 2×max(channel_bw)
+        max_bw = max(ch.channel_bw_hz for ch in channels)
+        D = 1
+        while wideband_rate // (D * 2) >= 2 * max_bw:
+            D *= 2
+        self.decimation_factor = D
+        self.intermediate_rate = wideband_rate // D
+
+        TWO_PI = 2.0 * np.pi
+        for ch in channels:
+            ch.freq_offset = float(ch.frequency - center_freq)
+            ch.phase_acc = 0.0
+            ch.fir_taps = self._design_channel_filter(wideband_rate, ch.channel_bw_hz)
+            n_taps = len(ch.fir_taps)
+            ch.fir_zi_i = np.zeros(n_taps - 1, dtype=np.float32)
+            ch.fir_zi_q = np.zeros(n_taps - 1, dtype=np.float32)
+            if ch.mode == 'aprs':
+                ch.decoder_audio_rate = 48000
+                ch.fm_gain = self.intermediate_rate / (TWO_PI * 3000.0)
+            else:
+                ch.decoder_audio_rate = 22050
+                ch.fm_gain = self.intermediate_rate / (TWO_PI * 4500.0)
+
+        self.channels = channels
+        self.decoder_procs: List[subprocess.Popen] = []
+
+    @staticmethod
+    def _design_channel_filter(wideband_rate: int, channel_bw_hz: int) -> np.ndarray:
+        nyquist = wideband_rate / 2.0
+        cutoff_norm = min((channel_bw_hz / 2.0) / nyquist, 0.95)
+        return signal.firwin(63, cutoff_norm, window='hamming').astype(np.float32)
+
+    # --- Abstract method implementations (multi-channel uses its own pipeline) ---
+
+    def _start_decoder(self) -> subprocess.Popen:
+        raise NotImplementedError("Use _start_all_decoders() for multi-channel sessions")
+
+    def _parse_decoder_line(self, line: str) -> Optional[Dict[str, Any]]:
+        raise NotImplementedError("Use per-channel parsers in _channel_output_indexer()")
+
+    def _index_packet(self, packet: Dict[str, Any]) -> None:
+        raise NotImplementedError("Use per-channel indexers in _channel_output_indexer()")
+
+    def _get_mode(self) -> str:
+        return 'multi'
+
+    # --- Multi-channel pipeline ---
+
+    def _start_all_decoders(self) -> None:
+        for ch in self.channels:
+            if ch.mode == 'aprs':
+                cmd = [
+                    'direwolf',
+                    '-c', '/app/direwolf.conf',
+                    '-r', '48000',
+                    '-D', '1',
+                    '-t', '0',
+                    '-q', 'd',
+                    '-'
+                ]
+            else:
+                cmd = [
+                    'multimon-ng',
+                    '-a', 'POCSAG512',
+                    '-a', 'POCSAG1200',
+                    '-a', 'POCSAG2400',
+                    '-t', 'raw',
+                    '-'
+                ]
+            proc = subprocess.Popen(
+                cmd,
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                text=False
+            )
+            ch.decoder_proc = proc
+            self.decoder_procs.append(proc)
+            logger.info(f"Started {ch.mode.upper()} decoder for channel '{ch.label}' (PID {proc.pid})")
+
+    def _stream_worker_simple(self, session_manager: SessionManager) -> None:
+        assert self.session is not None
+        try:
+            self.session.status = 'running'
+            session_manager.save_session(self.session)
+
+            self.sdr_proc = self._start_sdr_capture()
+            logger.info(f"USRP wide-band capture started (session {self.session.session_id})")
+
+            self._start_all_decoders()
+            self._stream_pipeline_multi(session_manager)
+
+        except Exception as e:
+            logger.error(f"Multi-channel stream error: {e}", exc_info=True)
+            if self.session:
+                self.session.status = 'failed'
+                self.session.error = str(e)
+                session_manager.save_session(self.session)
+        finally:
+            self._cleanup_multi()
+            if self.session:
+                if self.session.status not in ('failed', 'completed'):
+                    self.session.status = 'completed'
+                self.session.end_time = datetime.now(timezone.utc)
+                session_manager.save_session(self.session)
+                session_manager.unregister_decoder(self.session.session_id)
+                logger.info(f"Multi-channel session {self.session.session_id} finished")
+
+    def _stream_pipeline_multi(self, session_manager: SessionManager) -> None:
+        assert self.session is not None
+        assert self.sdr_proc is not None
+
+        converter_thread = threading.Thread(
+            target=self._iq_to_audio_converter_multi,
+            args=(self.sdr_proc.stdout,),
+            daemon=True
+        )
+        converter_thread.start()
+
+        indexer_threads = []
+        for ch in self.channels:
+            t = threading.Thread(
+                target=self._channel_output_indexer,
+                args=(ch, session_manager),
+                daemon=True
+            )
+            t.start()
+            indexer_threads.append(t)
+
+        start_time = time.time()
+        while not self.stop_event.is_set():
+            if self.duration and (time.time() - start_time) >= self.duration:
+                logger.info(f"Multi-channel duration limit reached: {self.duration}s")
+                self.stop_event.set()
+                if self.sdr_proc and self.sdr_proc.poll() is None:
+                    self.sdr_proc.terminate()
+                for ch in self.channels:
+                    if ch.decoder_proc and ch.decoder_proc.poll() is None:
+                        ch.decoder_proc.terminate()
+                if self.session:
+                    self.session.status = 'completed'
+                    self.session.end_time = datetime.now(timezone.utc)
+                    session_manager.save_session(self.session)
+                break
+
+            all_done = not converter_thread.is_alive() and not any(t.is_alive() for t in indexer_threads)
+            if all_done:
+                logger.info("All multi-channel threads completed naturally")
+                if self.session:
+                    self.session.status = 'completed'
+                    self.session.end_time = datetime.now(timezone.utc)
+                    session_manager.save_session(self.session)
+                break
+
+            if int(time.time()) % 5 == 0:
+                session_manager.save_session(self.session)
+
+            time.sleep(1)
+
+        converter_thread.join(timeout=10)
+        for t in indexer_threads:
+            t.join(timeout=10)
+
+    def _iq_to_audio_converter_multi(self, iq_stream: Optional[IO[bytes]]) -> None:
+        if iq_stream is None:
+            return
+
+        CHUNK_DURATION = 0.1
+        # int16 I/Q interleaved: 2 int16 per sample × 2 bytes each
+        CHUNK_SAMPLES = int(self.sample_rate * CHUNK_DURATION)
+        CHUNK_SIZE = CHUNK_SAMPLES * 4  # 2 channels (I+Q) × 2 bytes (int16)
+
+        TWO_PI = 2.0 * np.pi
+        D = self.decimation_factor
+        fs = float(self.sample_rate)
+
+        chunk_count = 0
+        last_gc_time = time.time()
+
+        try:
+            while not self.stop_event.is_set():
+                if chunk_count % 10 == 0:
+                    proc_mem = psutil.Process().memory_info().rss / (1024 * 1024)
+                    if proc_mem > 500:
+                        logger.error(f"Memory critical ({proc_mem:.0f} MB) — stopping multi-channel stream")
+                        self.stop_event.set()
+                        break
+
+                raw = self._read_with_timeout(iq_stream, CHUNK_SIZE, timeout=5.0)
+                if not raw:
+                    logger.info("USRP IQ stream ended")
+                    break
+
+                # USRP int16 → complex64
+                iq_int16 = np.frombuffer(raw, dtype=np.int16)
+                if len(iq_int16) % 2 != 0:
+                    iq_int16 = iq_int16[:-1]
+                iq_float = iq_int16.astype(np.float32) / 32768.0
+                N = len(iq_float) // 2
+                iq_wide = (iq_float[0::2] + 1j * iq_float[1::2]).astype(np.complex64)
+                k = np.arange(N, dtype=np.float32)
+
+                for ch in self.channels:
+                    try:
+                        # 1. Phase-continuous mixing to baseband
+                        phase_inc = -TWO_PI * (ch.freq_offset / fs)
+                        mixer = np.exp(1j * (ch.phase_acc + phase_inc * k)).astype(np.complex64)
+                        iq_mixed = iq_wide * mixer
+                        ch.phase_acc = float((ch.phase_acc + phase_inc * N) % TWO_PI)
+
+                        # 2. Anti-alias FIR (state preserved across chunks)
+                        iq_i, ch.fir_zi_i = signal.lfilter(
+                            ch.fir_taps, [1.0], iq_mixed.real, zi=ch.fir_zi_i
+                        )
+                        iq_q, ch.fir_zi_q = signal.lfilter(
+                            ch.fir_taps, [1.0], iq_mixed.imag, zi=ch.fir_zi_q
+                        )
+
+                        # 3. Decimation (anti-alias filter already applied)
+                        iq_dec = (iq_i + 1j * iq_q)[::D].astype(np.complex64)
+
+                        # 4. FM demodulation
+                        if len(iq_dec) < 2:
+                            continue
+                        audio = np.angle(iq_dec[1:] * np.conj(iq_dec[:-1])).astype(np.float64)
+
+                        # 5. Resample to decoder audio rate
+                        audio_rs = self._resample(audio, self.intermediate_rate, ch.decoder_audio_rate)
+
+                        # 6. Scale, clip, int16, write to decoder stdin
+                        audio_scaled = np.clip(audio_rs * ch.fm_gain, -1.0, 1.0)
+                        audio_int16 = (audio_scaled * 32767).astype(np.int16)
+
+                        if ch.decoder_proc and ch.decoder_proc.stdin and ch.decoder_proc.poll() is None:
+                            ch.decoder_proc.stdin.write(audio_int16.tobytes())
+                            ch.decoder_proc.stdin.flush()
+
+                        del iq_i, iq_q, iq_dec, audio, audio_rs, audio_scaled, audio_int16, mixer, iq_mixed
+
+                    except Exception as e:
+                        logger.error(f"DDC error for channel '{ch.label}': {e}", exc_info=True)
+
+                del iq_int16, iq_float, iq_wide, k
+                chunk_count += 1
+
+                now = time.time()
+                if now - last_gc_time > 5.0:
+                    gc.collect()
+                    last_gc_time = now
+
+                time.sleep(0.001)
+
+        except Exception as e:
+            logger.error(f"Multi-channel IQ converter error: {e}", exc_info=True)
+        finally:
+            for ch in self.channels:
+                try:
+                    if ch.decoder_proc and ch.decoder_proc.stdin:
+                        ch.decoder_proc.stdin.close()
+                except Exception:
+                    pass
+            gc.collect()
+
+    def _channel_output_indexer(self, ch: ChannelConfig, session_manager: SessionManager) -> None:
+        assert self.session is not None
+        if ch.decoder_proc is None or ch.decoder_proc.stdout is None:
+            return
+
+        decoder_stdout = ch.decoder_proc.stdout
+
+        # Reuse parsers via __new__ — _parse_decoder_line is stateless
+        if ch.mode == 'aprs':
+            parser = StreamingAPRSDecoder.__new__(StreamingAPRSDecoder)
+            index_fn_name = 'index_aprs'
+        else:
+            parser = StreamingPOCSAGDecoder.__new__(StreamingPOCSAGDecoder)
+            index_fn_name = 'index_pocsag'
+
+        try:
+            if hasattr(decoder_stdout, 'fileno'):
+                import fcntl
+                fd = decoder_stdout.fileno()
+                flags = fcntl.fcntl(fd, fcntl.F_GETFL)
+                fcntl.fcntl(fd, fcntl.F_SETFL, flags | os.O_NONBLOCK)
+
+            while not self.stop_event.is_set():
+                if hasattr(decoder_stdout, 'fileno'):
+                    ready, _, _ = select.select([decoder_stdout], [], [], 1.0)
+                    if not ready:
+                        continue
+
+                try:
+                    line_bytes = decoder_stdout.readline()
+                    if not line_bytes:
+                        break
+                except (BlockingIOError, IOError):
+                    time.sleep(0.1)
+                    continue
+
+                line = (line_bytes.decode('utf-8', errors='ignore')
+                        if isinstance(line_bytes, bytes) else str(line_bytes)).strip()
+                if not line:
+                    continue
+
+                packet = parser._parse_decoder_line(line)
+                if not packet:
+                    continue
+
+                packet['session_id'] = self.session.session_id
+                packet['timestamp'] = datetime.now(timezone.utc).isoformat()
+                packet['frequency'] = ch.frequency
+                packet['channel_label'] = ch.label
+
+                try:
+                    from elasticsearch_service import get_elasticsearch_service
+                    es = get_elasticsearch_service()
+                    getattr(es, index_fn_name)(packet)
+                except Exception as e:
+                    logger.error(f"Failed to index {ch.mode.upper()} packet for '{ch.label}': {e}")
+
+                ch.packet_count += 1
+                self.session.packet_count += 1
+                self.session.last_packet_time = datetime.now(timezone.utc)
+                session_manager.save_session(self.session)
+                logger.info(f"[{ch.label}] Packet #{ch.packet_count} indexed")
+
+        except Exception as e:
+            logger.error(f"Output indexer error for channel '{ch.label}': {e}", exc_info=True)
+
+    def _cleanup_multi(self) -> None:
+        for ch in self.channels:
+            if ch.decoder_proc:
+                try:
+                    ch.decoder_proc.terminate()
+                    ch.decoder_proc.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    try:
+                        ch.decoder_proc.kill()
+                        ch.decoder_proc.wait(timeout=2)
+                    except Exception:
+                        pass
+                except Exception as e:
+                    logger.error(f"Error terminating decoder for channel '{ch.label}': {e}")
+                    try:
+                        ch.decoder_proc.kill()
+                    except Exception:
+                        pass
+        self._cleanup()
+
+    def stop(self) -> None:
+        logger.info("Stopping multi-channel stream")
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=15)
