@@ -43,6 +43,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    restart: unless-stopped
 
   # ===========================================================================
   # Logstash - Data Ingestion Pipelines
@@ -121,6 +122,7 @@ services:
       timeout: 10s
       retries: 5
       start_period: 60s
+    restart: unless-stopped
 
   # ===========================================================================
   # Metricbeat - Container & System Metrics
@@ -325,7 +327,7 @@ services:
       - "5001:5001"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - /home/spia/projects:/opt/stacks
+      - /home/eggu/Documents/projects:/opt/stacks
       - dockge-data:/app/data
     environment:
       - DOCKGE_STACKS_DIR=/opt/stacks
