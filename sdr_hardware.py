@@ -53,6 +53,7 @@ class SDRType(Enum):
     HACKRF = "hackrf"
     RTLSDR = "rtlsdr"
     AIRSPYHF = "airspyhf"
+    USRP = "usrp"
     UNKNOWN = "unknown"
 
 
@@ -531,26 +532,163 @@ class AirspyHFCapture(SDRCapture):
                 os.unlink(iq_file)
 
 
-def detect_sdr() -> SDRType:
+class USRPCapture(SDRCapture):
+    """Ettus Research USRP N200 implementation (Gigabit Ethernet via UHD)"""
+
+    def __init__(self, frequency: int, sample_rate: int = 2_000_000, gain: int = 20,
+                 device_address: str = ''):
+        super().__init__(frequency, sample_rate, gain)
+        self.device_address = device_address
+
+    def is_available(self) -> bool:
+        """Check if USRP is reachable at device_address"""
+        if not self.device_address:
+            return False
+        try:
+            result = subprocess.run(
+                ['uhd_usrp_probe', f'--args=addr={self.device_address}'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            return result.returncode == 0
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
+    def get_frequency_range(self) -> Tuple[int, int]:
+        """USRP N200 with WBX daughterboard: 50 MHz – 2.2 GHz"""
+        return (50_000_000, 2_200_000_000)
+
+    def get_max_sample_rate(self) -> int:
+        """USRP N200 max: 25 MS/s (100 MS/s ADC with 4x minimum decimation)"""
+        return 25_000_000
+
+    def capture_iq(self, duration: int, output_file: str) -> None:
+        """Capture raw IQ samples using uhd_rx_cfile"""
+        self.logger.info(f"USRP IQ capture: {self.frequency/1e6:.3f} MHz, {duration}s, addr={self.device_address}")
+
+        num_samples = int(duration * self.sample_rate)
+
+        with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
+            raw_file = tmpfile.name
+
+        try:
+            cmd = [
+                'uhd_rx_cfile',
+                f'--args=addr={self.device_address}',
+                '-f', str(int(self.frequency)),
+                '-r', str(self.sample_rate),
+                '-g', str(self.gain),
+                '-N', str(num_samples),
+                '--type', 'short',
+                raw_file
+            ]
+
+            self.logger.info(f"Running: {' '.join(cmd)}")
+
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=duration * 2 + 15
+            )
+
+            if result.returncode != 0:
+                raise RuntimeError(f"uhd_rx_cfile failed: {result.stderr}")
+
+            # Read raw IQ samples (int16 signed, I/Q interleaved)
+            iq_data = np.fromfile(raw_file, dtype=np.int16)
+
+            # Convert to complex64 (USRP: int16, divide by 32768.0)
+            i_samples = iq_data[0::2].astype(np.float32) / 32768.0
+            q_samples = iq_data[1::2].astype(np.float32) / 32768.0
+            iq_samples = (i_samples + 1j * q_samples).astype(np.complex64)
+
+            os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+            iq_samples.tofile(output_file)
+
+            self.logger.info(f"IQ capture complete: {len(iq_samples)} samples, "
+                             f"{os.path.getsize(output_file) / 1024 / 1024:.1f} MB")
+
+        finally:
+            if os.path.exists(raw_file):
+                os.unlink(raw_file)
+
+    def capture_audio(self, duration: int, output_file: str, modulation: str = 'FM') -> None:
+        """Capture and demodulate to audio using USRP"""
+        self.logger.info(f"USRP audio capture: {self.frequency/1e6:.3f} MHz, {modulation}, {duration}s")
+
+        with tempfile.NamedTemporaryFile(suffix='.iq', delete=False) as tmpfile:
+            iq_file = tmpfile.name
+
+        try:
+            self.capture_iq(duration, iq_file)
+
+            iq_samples = np.fromfile(iq_file, dtype=np.complex64)
+            audio = self._demodulate(iq_samples, modulation)
+            self._save_wav(audio, output_file)
+
+            del iq_samples, audio
+            gc.collect()
+
+            self.logger.info(f"Audio capture complete: {output_file}")
+
+        finally:
+            if os.path.exists(iq_file):
+                os.unlink(iq_file)
+
+
+def detect_sdr(preferred_type: Optional[str] = None,
+               device_address: Optional[str] = None) -> SDRType:
     """
-    Auto-detect available SDR hardware
-    Priority: HackRF > Airspy HF+ > RTL-SDR
+    Detect available SDR hardware.
+
+    Args:
+        preferred_type: Explicit SDR type string ('hackrf', 'rtlsdr', 'airspyhf', 'usrp',
+                        'auto', or None). When set and not 'auto', only that type is tried.
+        device_address: IP address for USRP N200 (required when preferred_type='usrp').
+
+    Priority for auto-detect: HackRF > Airspy HF+ > RTL-SDR
     """
     logger.info("Detecting SDR hardware...")
 
-    # Check HackRF first (broadest frequency range: 1 MHz - 6 GHz)
+    _type_map: dict[str, SDRType] = {
+        'hackrf': SDRType.HACKRF,
+        'rtlsdr': SDRType.RTLSDR,
+        'airspyhf': SDRType.AIRSPYHF,
+        'usrp': SDRType.USRP,
+    }
+
+    # Explicit device type requested (not auto)
+    if preferred_type and preferred_type.lower() not in ('auto', ''):
+        pt = preferred_type.lower()
+        if pt == 'usrp':
+            if not device_address:
+                logger.warning("USRP selected but no device_address provided")
+                return SDRType.UNKNOWN
+            usrp = USRPCapture(frequency=100_000_000, device_address=device_address)
+            if usrp.is_available():
+                logger.info(f"Detected: USRP N200 at {device_address}")
+                return SDRType.USRP
+            logger.warning(f"USRP N200 not reachable at {device_address}")
+            return SDRType.UNKNOWN
+        sdr_type = _type_map.get(pt)
+        if sdr_type:
+            logger.info(f"Using explicitly selected SDR type: {sdr_type.value}")
+            return sdr_type
+        logger.warning(f"Unknown preferred_type '{preferred_type}', falling back to auto-detect")
+
+    # Auto-detect: HackRF > Airspy HF+ > RTL-SDR
     hackrf = HackRFCapture(frequency=100_000_000)
     if hackrf.is_available():
         logger.info("Detected: HackRF One")
         return SDRType.HACKRF
 
-    # Check Airspy HF+ second (best HF coverage: 0.5 kHz - 31 MHz + VHF)
     airspyhf = AirspyHFCapture(frequency=100_000_000)
     if airspyhf.is_available():
         logger.info("Detected: Airspy HF+")
         return SDRType.AIRSPYHF
 
-    # Check RTL-SDR last (budget option: 24 MHz - 1.766 GHz)
     rtlsdr = RTLSDRCapture(frequency=100_000_000)
     if rtlsdr.is_available():
         logger.info("Detected: RTL-SDR")
@@ -561,7 +699,8 @@ def detect_sdr() -> SDRType:
 
 
 def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 20,
-                     sdr_type: Optional[SDRType] = None) -> SDRCapture:
+                     sdr_type: Optional[SDRType] = None,
+                     device_address: Optional[str] = None) -> SDRCapture:
     """
     Factory function to get appropriate SDR instance with validation
 
@@ -570,13 +709,14 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
         sample_rate: Sample rate in Hz
         gain: RF gain in dB
         sdr_type: Force specific SDR type (optional, auto-detect if None)
+        device_address: IP address for USRP N200 (required when sdr_type=USRP)
 
     Returns:
         SDRCapture instance
 
     Raises:
         RuntimeError: If no SDR hardware detected
-        ValueError: If frequency or sample rate out of range for detected SDR
+        ValueError: If frequency or sample rate out of range, or USRP without address
     """
     # Auto-detect if not specified
     if sdr_type is None:
@@ -584,7 +724,8 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
 
     if sdr_type == SDRType.UNKNOWN:
         raise RuntimeError(
-            "No SDR hardware detected. Please connect HackRF One, RTL-SDR, or Airspy HF+."
+            "No SDR hardware detected. Please connect HackRF One, RTL-SDR, Airspy HF+, "
+            "or specify a USRP N200 IP address."
         )
 
     # Create instance
@@ -592,7 +733,6 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
     if sdr_type == SDRType.HACKRF:
         instance = HackRFCapture(frequency, sample_rate, gain)
     elif sdr_type == SDRType.AIRSPYHF:
-        # Airspy HF+ has lower max sample rate - clamp if needed
         clamped_rate = min(sample_rate, 912_000)
         if clamped_rate != sample_rate:
             logger.warning(
@@ -602,6 +742,16 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
         instance = AirspyHFCapture(frequency, clamped_rate, gain)
     elif sdr_type == SDRType.RTLSDR:
         instance = RTLSDRCapture(frequency, sample_rate, gain)
+    elif sdr_type == SDRType.USRP:
+        if not device_address:
+            raise ValueError("USRP N200 requires a device_address (IP address)")
+        clamped_rate = min(sample_rate, 25_000_000)
+        if clamped_rate != sample_rate:
+            logger.warning(
+                f"Sample rate clamped from {sample_rate/1e6:.3f} MHz to "
+                f"{clamped_rate/1e6:.3f} MHz (USRP N200 max)"
+            )
+        instance = USRPCapture(frequency, clamped_rate, gain, device_address)
     else:
         raise ValueError(f"Unsupported SDR type: {sdr_type}")
 

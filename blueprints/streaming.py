@@ -44,16 +44,23 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
         data = request.get_json() or {}
 
         frequency = data.get('frequency', 144800000)
-        sample_rate = data.get('sample_rate', 2000000)  # 2 MHz for HackRF compatibility (minimum)
+        sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
-        duration = data.get('duration', 3600)  # Default: 1 hour
+        duration = data.get('duration', 3600)
+        device_type = data.get('device_type', 'auto')
+        device_address = data.get('device_address') or None
+
+        if device_type == 'usrp' and not device_address:
+            return jsonify({'error': 'USRP N200 requires device_address (IP address)'}), 400
 
         # Create streaming decoder
         decoder = StreamingAPRSDecoder(
             frequency=frequency,
             duration=duration,
             sample_rate=sample_rate,
-            gain=gain
+            gain=gain,
+            device_type=device_type,
+            device_address=device_address
         )
 
         # Create session
@@ -97,16 +104,23 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
         data = request.get_json() or {}
 
         frequency = data.get('frequency', 147325000)
-        sample_rate = data.get('sample_rate', 2000000)  # 2 MHz for HackRF compatibility (minimum)
+        sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
-        duration = data.get('duration', 3600)  # Default: 1 hour
+        duration = data.get('duration', 3600)
+        device_type = data.get('device_type', 'auto')
+        device_address = data.get('device_address') or None
+
+        if device_type == 'usrp' and not device_address:
+            return jsonify({'error': 'USRP N200 requires device_address (IP address)'}), 400
 
         # Create streaming decoder
         decoder = StreamingPOCSAGDecoder(
             frequency=frequency,
             duration=duration,
             sample_rate=sample_rate,
-            gain=gain
+            gain=gain,
+            device_type=device_type,
+            device_address=device_address
         )
 
         # Create session
@@ -152,15 +166,20 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
 
         mode = data.get('mode', 'aprs')
         frequency = data.get('frequency')
-        sample_rate = data.get('sample_rate', 2000000)  # 2 MHz for HackRF compatibility (minimum)
+        sample_rate = data.get('sample_rate', 2000000)
         gain = data.get('gain', 20)
-        duration = data.get('duration', 3600)  # Default: 1 hour
+        duration = data.get('duration', 3600)
+        device_type = data.get('device_type', 'auto')
+        device_address = data.get('device_address') or None
 
         if not frequency:
             return jsonify({'error': 'frequency is required'}), 400
 
         if mode not in ['aprs', 'pocsag']:
             return jsonify({'error': 'mode must be "aprs" or "pocsag"'}), 400
+
+        if device_type == 'usrp' and not device_address:
+            return jsonify({'error': 'USRP N200 requires device_address (IP address)'}), 400
 
         # Create appropriate decoder
         decoder: Union[StreamingAPRSDecoder, StreamingPOCSAGDecoder]
@@ -169,14 +188,18 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
                 frequency=frequency,
                 duration=duration,
                 sample_rate=sample_rate,
-                gain=gain
+                gain=gain,
+                device_type=device_type,
+                device_address=device_address
             )
         else:  # pocsag
             decoder = StreamingPOCSAGDecoder(
                 frequency=frequency,
                 duration=duration,
                 sample_rate=sample_rate,
-                gain=gain
+                gain=gain,
+                device_type=device_type,
+                device_address=device_address
             )
 
         # Create session
@@ -285,7 +308,7 @@ def sdr_force_stop() -> Response | tuple[Response, int]:
 
 def _kill_sdr_processes() -> list:
     """SIGKILL all SDR-related processes by scanning /proc. Returns list of PIDs killed."""
-    targets = {'hackrf_transfer', 'rtl_sdr', 'airspyhf_rx', 'multimon-ng', 'direwolf'}
+    targets = {'hackrf_transfer', 'rtl_sdr', 'airspyhf_rx', 'uhd_rx_cfile', 'multimon-ng', 'direwolf'}
     killed = []
     try:
         for pid_str in os.listdir('/proc'):
