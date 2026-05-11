@@ -81,11 +81,11 @@ class ChannelConfig:
     fm_gain: float = 1.0
 
     # Runtime state (written only by the converter thread):
-    fir_taps: np.ndarray = field(default_factory=lambda: np.array([], dtype=np.float32))
-    fir_zi_i: Optional[np.ndarray] = None
-    fir_zi_q: Optional[np.ndarray] = None
+    fir_taps: NDArray[np.float32] = field(default_factory=lambda: np.array([], dtype=np.float32))
+    fir_zi_i: Optional[NDArray[np.float32]] = None
+    fir_zi_q: Optional[NDArray[np.float32]] = None
     phase_acc: float = 0.0
-    decoder_proc: Optional[subprocess.Popen] = None
+    decoder_proc: Optional[subprocess.Popen[bytes]] = None
     packet_count: int = 0
 
 
@@ -105,7 +105,7 @@ class StreamSession:
         self.packet_count = 0
         self.last_packet_time: Optional[datetime] = None
         self.error: Optional[str] = None
-        self.channel_configs: Optional[List[Dict]] = None
+        self.channel_configs: Optional[List[Dict[str, Any]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize session to dict for Redis storage"""
@@ -1212,17 +1212,17 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
                 ch.fm_gain = self.intermediate_rate / (TWO_PI * 4500.0)
 
         self.channels = channels
-        self.decoder_procs: List[subprocess.Popen] = []
+        self.decoder_procs: List[subprocess.Popen[bytes]] = []
 
     @staticmethod
-    def _design_channel_filter(wideband_rate: int, channel_bw_hz: int) -> np.ndarray:
+    def _design_channel_filter(wideband_rate: int, channel_bw_hz: int) -> NDArray[np.float32]:
         nyquist = wideband_rate / 2.0
         cutoff_norm = min((channel_bw_hz / 2.0) / nyquist, 0.95)
         return signal.firwin(63, cutoff_norm, window='hamming').astype(np.float32)
 
     # --- Abstract method implementations (multi-channel uses its own pipeline) ---
 
-    def _start_decoder(self) -> subprocess.Popen:
+    def _start_decoder(self) -> subprocess.Popen[bytes]:
         raise NotImplementedError("Use _start_all_decoders() for multi-channel sessions")
 
     def _parse_decoder_line(self, line: str) -> Optional[Dict[str, Any]]:
@@ -1461,10 +1461,8 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
         # Reuse parsers via __new__ — _parse_decoder_line is stateless
         if ch.mode == 'aprs':
             parser = StreamingAPRSDecoder.__new__(StreamingAPRSDecoder)
-            index_fn_name = 'index_aprs'
         else:
             parser = StreamingPOCSAGDecoder.__new__(StreamingPOCSAGDecoder)
-            index_fn_name = 'index_pocsag'
 
         try:
             if hasattr(decoder_stdout, 'fileno'):
@@ -1504,7 +1502,10 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
                 try:
                     from elasticsearch_service import get_elasticsearch_service
                     es = get_elasticsearch_service()
-                    getattr(es, index_fn_name)(packet)
+                    if ch.mode == 'aprs':
+                        es.index_aprs(packet)
+                    else:
+                        es.index_pocsag(packet)
                 except Exception as e:
                     logger.error(f"Failed to index {ch.mode.upper()} packet for '{ch.label}': {e}")
 
