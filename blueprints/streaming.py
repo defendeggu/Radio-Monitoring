@@ -308,7 +308,7 @@ def sdr_force_stop() -> Response | tuple[Response, int]:
         return jsonify({'error': str(e)}), 500
 
 
-def _kill_sdr_processes() -> list:
+def _kill_sdr_processes() -> list[str]:
     """SIGKILL all SDR-related processes by scanning /proc. Returns list of PIDs killed."""
     targets = {'hackrf_transfer', 'rtl_sdr', 'airspyhf_rx', 'uhd_rx_cfile', 'multimon-ng', 'direwolf'}
     killed = []
@@ -381,7 +381,7 @@ def start_multi_channel_streaming() -> Response | tuple[Response, int]:
 
         channels = []
         half_bw = wideband_rate / 2.0
-        seen_freqs = []
+        seen_freqs: list[int] = []
         for i, ch_data in enumerate(raw_channels):
             mode = ch_data.get('mode', '')
             if mode not in ('aprs', 'pocsag'):
