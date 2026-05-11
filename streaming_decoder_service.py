@@ -225,6 +225,7 @@ class BaseStreamingDecoder(ABC):
         self.sdr_proc: Optional[subprocess.Popen[bytes]] = None
         self.decoder_proc: Optional[subprocess.Popen[bytes]] = None
         self.sdr_type: SDRType = SDRType.UNKNOWN  # Set by subclass __init__
+        self.device_address: Optional[str] = None  # IP address for USRP N200
 
     @property
     def _decoder_audio_rate(self) -> int:
@@ -403,6 +404,24 @@ class BaseStreamingDecoder(ABC):
                 cmd.insert(-1, '-n')  # Insert before '-'
                 cmd.insert(-1, str(num_samples))
 
+        elif self.sdr_type == SDRType.USRP:
+            # USRP N200 via Gigabit Ethernet (UHD uhd_rx_cfile)
+            # Outputs int16 I/Q interleaved to /dev/stdout
+            if not self.device_address:
+                raise ValueError("USRP N200 requires device_address (IP address)")
+            cmd = [
+                'uhd_rx_cfile',
+                f'--args=addr={self.device_address}',
+                '-f', str(int(self.frequency)),
+                '-r', str(self.sample_rate),
+                '-g', str(self.gain),
+                '--type', 'short',
+                '/dev/stdout'
+            ]
+            if self.duration:
+                samples = int(self.sample_rate * self.duration)
+                cmd.extend(['-N', str(samples)])
+
         else:
             raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
 
@@ -527,6 +546,10 @@ class BaseStreamingDecoder(ABC):
                     iq_float = (iq_data.astype(np.float32) - 127.5) / 127.5
                 elif self.sdr_type == SDRType.AIRSPYHF:
                     # Airspy HF+: int16 signed (-32768 to 32767)
+                    iq_data = np.frombuffer(iq_bytes, dtype=np.int16)
+                    iq_float = iq_data.astype(np.float32) / 32768.0
+                elif self.sdr_type == SDRType.USRP:
+                    # USRP N200: int16 signed (-32768 to 32767), same format as Airspy HF+
                     iq_data = np.frombuffer(iq_bytes, dtype=np.int16)
                     iq_float = iq_data.astype(np.float32) / 32768.0
                 else:
@@ -791,13 +814,17 @@ class BaseStreamingDecoder(ABC):
 class StreamingAPRSDecoder(BaseStreamingDecoder):
     """Streaming APRS decoder using direwolf"""
 
-    def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int):
+    def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int,
+                 device_type: Optional[str] = None, device_address: Optional[str] = None):
         super().__init__(frequency, duration, gain, sample_rate)
+        self.device_address = device_address
 
-        # Detect SDR hardware
-        self.sdr_type = detect_sdr()
+        # Detect SDR hardware (respects explicit device selection)
+        self.sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
         if self.sdr_type == SDRType.UNKNOWN:
-            raise ValueError("No SDR hardware detected (HackRF, RTL-SDR, or Airspy HF+ required)")
+            raise ValueError(
+                "No SDR hardware detected (HackRF, RTL-SDR, Airspy HF+, or USRP N200 required)"
+            )
 
         # Validate frequency and sample rate against detected hardware
         try:
@@ -805,7 +832,8 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
                 frequency=frequency,
                 sample_rate=sample_rate,
                 gain=gain,
-                sdr_type=self.sdr_type
+                sdr_type=self.sdr_type,
+                device_address=device_address
             )
         except ValueError as e:
             raise ValueError(f"Invalid parameters for {self.sdr_type.name}: {e}")
@@ -959,13 +987,17 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
 class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     """Streaming POCSAG decoder using multimon-ng"""
 
-    def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int):
+    def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int,
+                 device_type: Optional[str] = None, device_address: Optional[str] = None):
         super().__init__(frequency, duration, gain, sample_rate)
+        self.device_address = device_address
 
-        # Detect SDR hardware
-        self.sdr_type = detect_sdr()
+        # Detect SDR hardware (respects explicit device selection)
+        self.sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
         if self.sdr_type == SDRType.UNKNOWN:
-            raise ValueError("No SDR hardware detected (HackRF, RTL-SDR, or Airspy HF+ required)")
+            raise ValueError(
+                "No SDR hardware detected (HackRF, RTL-SDR, Airspy HF+, or USRP N200 required)"
+            )
 
         # Validate frequency and sample rate against detected hardware
         try:
@@ -973,7 +1005,8 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
                 frequency=frequency,
                 sample_rate=sample_rate,
                 gain=gain,
-                sdr_type=self.sdr_type
+                sdr_type=self.sdr_type,
+                device_address=device_address
             )
         except ValueError as e:
             raise ValueError(f"Invalid parameters for {self.sdr_type.name}: {e}")
