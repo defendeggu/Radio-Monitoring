@@ -317,30 +317,10 @@ services:
       - radio-network
     restart: unless-stopped
 
-  # ===========================================================================
-  # Dockge - Docker Compose Stack Management UI
-  # ===========================================================================
-  dockge:
-    image: louislam/dockge:1
-    container_name: radio-dockge
-    ports:
-      - "5001:5001"
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /home/eggu/Documents/projects:/opt/stacks
-      - dockge-data:/app/data
-    environment:
-      - DOCKGE_STACKS_DIR=/opt/stacks
-    networks:
-      - radio-network
-    restart: unless-stopped
-
 volumes:
   elasticsearch-data:
     driver: local
   redis-data:
-    driver: local
-  dockge-data:
     driver: local
 
 networks:
