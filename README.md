@@ -1,11 +1,11 @@
 # 📻 Radio Message Transcription System
 
-A complete professional radio monitoring system for capturing radio signals from **HackRF One**, **RTL-SDR**, or **Airspy HF+** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
+A complete professional radio monitoring system for capturing radio signals from **HackRF One**, **RTL-SDR**, **Airspy HF+**, or **Ettus USRP N200** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
 
 ## ✨ Features
 
 ### 🎯 Core Capabilities
-- 📡 **Triple SDR Support**: Automatic detection and support for HackRF One, RTL-SDR, and Airspy HF+ devices
+- 📡 **Quad SDR Support**: Automatic detection and support for HackRF One, RTL-SDR, Airspy HF+, and Ettus USRP N200 devices
 - 📻 **Radio Capture**: Capture radio signals with configurable frequency and modulation
 - 🔄 **Hardware Abstraction**: Transparent hardware switching with frequency range validation
 - 📊 **Multiple Modulation Support**: FM, AM, USB, LSB
@@ -126,21 +126,24 @@ A complete professional radio monitoring system for capturing radio signals from
 
 The system supports HackRF One, RTL-SDR, and Airspy HF+ with **automatic hardware detection**. Choose based on your frequency coverage needs:
 
-| Feature | HackRF One | RTL-SDR | Airspy HF+ |
-|---------|------------|---------|------------|
-| **Frequency Range** | 1 MHz - 6 GHz | 24 MHz - 1.766 GHz | 0.5 kHz - 31 MHz (HF)<br>60 - 260 MHz (VHF) |
-| **TX Capability** | Yes (transmit) | No (receive-only) | No (receive-only) |
-| **Max Sample Rate** | 20 MHz | 3.2 MHz | 912 kHz |
-| **Price** | ~$300 USD | ~$25 USD | ~$200 USD |
-| **Best For** | Full-spectrum monitoring | Budget VHF/UHF | Professional HF/VHF reception |
-| **Strengths** | Widest frequency coverage; automatic IQ/DC correction | Affordable, stable | Best HF sensitivity (-141 dBm) |
-| **Limitations** | USB bandwidth issues >120s | No HF (<24 MHz) | Frequency gap 31-60 MHz, lower max sample rate |
-| **USB Stability** | Stable up to 3600s with correct pipe handling | Excellent up to 660s | Excellent stability |
+| Feature | HackRF One | RTL-SDR | Airspy HF+ | Ettus USRP N200 |
+|---------|------------|---------|------------|-----------------|
+| **Frequency Range** | 1 MHz - 6 GHz | 24 MHz - 1.766 GHz | 0.5 kHz - 31 MHz (HF)<br>60 - 260 MHz (VHF) | Daughterboard-dependent<br>(e.g. WBX: 50 MHz - 2.2 GHz) |
+| **TX Capability** | Yes (transmit) | No (receive-only) | No (receive-only) | Yes (full duplex) |
+| **Max Sample Rate** | 20 MHz | 3.2 MHz | 912 kHz | 25 MS/s (per channel) |
+| **ADC Resolution** | 8-bit | 8-bit | 18-bit | 14-bit |
+| **Interface** | USB | USB | USB | Gigabit Ethernet |
+| **Price** | ~$300 USD | ~$25 USD | ~$200 USD | ~$1800 USD new / ~$500 used |
+| **Best For** | Full-spectrum monitoring | Budget VHF/UHF | Professional HF/VHF reception | Research & professional wideband |
+| **Strengths** | Widest frequency coverage; automatic IQ/DC correction | Affordable, stable | Best HF sensitivity (-141 dBm) | High dynamic range (14-bit ADC); Gigabit Ethernet for high throughput; modular daughterboard system |
+| **Limitations** | USB bandwidth issues >120s | No HF (<24 MHz) | Frequency gap 31-60 MHz, lower max sample rate | Requires Gigabit Ethernet; UHD driver; frequency range depends on installed daughterboard |
+| **Stability** | Stable up to 3600s with correct pipe handling | Excellent up to 660s | Excellent stability | Excellent (network-based, no USB limitations) |
 
 **Recommended for HF monitoring (shortwave, amateur HF):** Airspy HF+ (0.5 kHz - 31 MHz, excellent sensitivity)
 **Recommended for beginners:** RTL-SDR (affordable, covers most common frequencies, excellent USB stability)
 **Recommended for advanced users:** HackRF One (full spectrum coverage, supports long streaming sessions up to 3600s)
-**Recommended for long captures (>120s):** All supported devices work well; RTL-SDR and Airspy HF+ have inherently lower USB overhead
+**Recommended for professional/research use:** Ettus USRP N200 (14-bit ADC, high dynamic range, Gigabit Ethernet, full-duplex)
+**Recommended for long captures (>120s):** All supported devices work well; RTL-SDR, Airspy HF+, and USRP N200 have inherently lower overhead than HackRF USB
 
 **🔌 Additional Hardware:**
 - 🔌 USB cable
@@ -150,12 +153,13 @@ The system supports HackRF One, RTL-SDR, and Airspy HF+ with **automatic hardwar
 ### 🔍 Hardware Detection
 
 The system automatically detects which SDR is connected:
-- **Detection priority**: HackRF > Airspy HF+ > RTL-SDR (when multiple devices connected)
+- **Detection priority**: HackRF > USRP N200 > Airspy HF+ > RTL-SDR (when multiple devices connected)
 - Validates frequency range at runtime
 - Shows detected device in web interface
 - Automatic sample rate clamping for device capabilities
 - Prevents invalid captures for device limitations
 - **HackRF**: Automatic software IQ correction (DC offset removal + IQ imbalance correction) applied to every capture
+- **USRP N200**: Detected via UHD driver (`uhd_find_devices`); requires Gigabit Ethernet connection and UHD tools installed
 
 ### 📊 Frequency Coverage Examples
 
@@ -176,6 +180,14 @@ The system automatically detects which SDR is connected:
 - ❌ Gap (31-60 MHz): Not supported by hardware
 - ✅ VHF (60-260 MHz): FM radio (88-108 MHz), aviation (118-137 MHz), APRS (144.8 MHz), amateur 2m
 - ❌ UHF (>260 MHz): Not supported
+
+**📡 Ettus USRP N200 can receive (with WBX daughterboard — most common):**
+- ❌ Below 50 MHz: Requires LFRX or other HF daughterboard
+- ✅ VHF (50-300 MHz): FM radio (88-108 MHz), aviation (118-137 MHz), APRS (144.8 MHz), amateur 2m
+- ✅ UHF (300 MHz - 2.2 GHz): Amateur 70cm, PMR, POCSAG pagers, ISM bands, cellular
+- ❌ Above 2.2 GHz: Requires SBX (up to 4.4 GHz) or CBX (up to 6 GHz) daughterboard
+
+> **Note:** Exact frequency coverage depends on the installed daughterboard. The USRP N200 is a modular platform — consult your daughterboard's datasheet for precise specifications.
 
 ### 💻 Software
 - 🐳 Docker and Docker Compose (recommended)
@@ -233,6 +245,9 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
    # OR verify RTL-SDR is detected
    rtl_test -t
+
+   # OR verify USRP N200 is reachable (Gigabit Ethernet required)
+   uhd_find_devices
    ```
 
 4. **Start the services**
@@ -1183,6 +1198,35 @@ rtl_test -t
 # Press Ctrl+C to stop the test
 ```
 
+**🔍 Check USRP N200:**
+```bash
+# Verify USRP N200 is reachable via Gigabit Ethernet
+uhd_find_devices
+
+# Expected output: "UHD Device 0 ... addr=192.168.10.2 name=... type=usrp2"
+# If not found, check:
+#   - Gigabit Ethernet cable is connected
+#   - IP address of the N200 (default: 192.168.10.2)
+#   - Host IP is in the same subnet (e.g. 192.168.10.1/24)
+#   - UHD driver is installed: sudo apt install uhd-host
+
+# Test basic receive (WBX daughterboard example at 145 MHz)
+uhd_rx_cfile --freq 145e6 --rate 1e6 --gain 30 --nsamps 1e6 /tmp/test.cfile
+```
+
+**🔧 Fix USRP N200 Network (Linux):**
+```bash
+# Set static IP on the host interface connected to the N200
+sudo ip addr add 192.168.10.1/24 dev eth0
+
+# Install UHD driver
+sudo apt install uhd-host python3-uhd
+sudo uhd_images_downloader   # Download FPGA firmware images
+
+# Update N200 firmware if needed
+uhd_image_loader --args="type=usrp2,addr=192.168.10.2"
+```
+
 **🔧 Fix USB Permissions (Linux):**
 ```bash
 # Add user to plugdev group
@@ -1198,7 +1242,7 @@ sudo udevadm trigger
 **🌐 Check in Web Interface:**
 - Open http://localhost:8080
 - Look for SDR indicator at top of page
-- Should show: "✅ SDR: HACKRF (1.0-6000 MHz)" or "✅ SDR: RTLSDR (24.0-1766 MHz)"
+- Should show: "✅ SDR: HACKRF (1.0-6000 MHz)", "✅ SDR: RTLSDR (24.0-1766 MHz)", "✅ SDR: USRPN200 (50.0-2200 MHz)" (range depends on daughterboard), or "✅ SDR: AIRSPYHF (0.0-260 MHz)"
 - If red error message, SDR not detected
 
 ### ⚠️ Frequency Out of Range Error
@@ -2174,6 +2218,7 @@ For issues and questions:
 
 - HackRF One by Great Scott Gadgets
 - RTL-SDR project and community
+- Ettus Research USRP N200 and UHD driver (now part of NI/Emerson)
 - faster-whisper by Guillaume Klein
 - Whisper by OpenAI
 - Elasticsearch by Elastic
