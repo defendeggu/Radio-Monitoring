@@ -80,11 +80,11 @@ services:
       elasticsearch:
         condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9606 || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 5
-      start_period: 60s
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/9606' 2>/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 8
+      start_period: 90s
 
   # ===========================================================================
   # Kibana - Visualization & Dashboards
