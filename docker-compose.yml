@@ -25,10 +25,10 @@ services:
         hard: 65536
     volumes:
       - elasticsearch-data:/usr/share/elasticsearch/data
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/elasticsearch/index-templates:/usr/share/elasticsearch/index-templates:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/elasticsearch/ilm-policies:/usr/share/elasticsearch/ilm-policies:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/elasticsearch/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/elasticsearch/elasticsearch.yml:/usr/share/elasticsearch/config/elasticsearch.yml:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/elasticsearch/index-templates:/usr/share/elasticsearch/index-templates:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/elasticsearch/ilm-policies:/usr/share/elasticsearch/ilm-policies:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/elasticsearch/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
     entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
     command: ["elasticsearch"]
     secrets:
@@ -54,10 +54,10 @@ services:
     env_file:
       - .env.elk
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/logstash/pipelines:/usr/share/logstash/pipeline:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/logstash/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/logstash/pipelines:/usr/share/logstash/pipeline:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/logstash/config/logstash.yml:/usr/share/logstash/config/logstash.yml:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/logstash/config/pipelines.yml:/usr/share/logstash/config/pipelines.yml:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/logstash/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
     entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
     restart: on-failure
     secrets:
@@ -104,8 +104,8 @@ services:
       # Node.js V8 heap limited to 1 GB (reduced from 2 GB to free RAM on VM)
       - NODE_OPTIONS=--max-old-space-size=1024
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/kibana/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/kibana/config/kibana.yml:/usr/share/kibana/config/kibana.yml:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/kibana/docker-entrypoint-wrapper.sh:/usr/local/bin/entrypoint-wrapper.sh:ro
     entrypoint: ["/bin/bash", "/usr/local/bin/entrypoint-wrapper.sh"]
     secrets:
       - kibana_password
@@ -140,7 +140,7 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
       # Security: Docker socket mounted as read-only (cannot control containers)
       - /var/run/docker.sock:/var/run/docker.sock:ro
       # System metrics sources (read-only)
@@ -174,8 +174,8 @@ services:
       # Grant access to USB bus for SDR hardware (HackRF, RTL-SDR)
       - /dev/bus/usb:/dev/bus/usb
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/captures:/app/captures
-      - /home/eggu/Documents/projects/RadioMoni/recordings:/app/recordings
+      - /home/eggu/Documents/projects/radiomoni/captures:/app/captures
+      - /home/eggu/Documents/projects/radiomoni/recordings:/app/recordings
     ports:
       - "5000:5000"
     networks:
@@ -237,9 +237,9 @@ services:
     image: eclipse-mosquitto:latest
     container_name: radio-mosquitto
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-      - /home/eggu/Documents/projects/RadioMoni/mosquitto/data:/mosquitto/data
-      - /home/eggu/Documents/projects/RadioMoni/mosquitto/log:/mosquitto/log
+      - /home/eggu/Documents/projects/radiomoni/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - /home/eggu/Documents/projects/radiomoni/mosquitto/data:/mosquitto/data
+      - /home/eggu/Documents/projects/radiomoni/mosquitto/log:/mosquitto/log
     ports:
       - "1883:1883"
     networks:
@@ -260,7 +260,7 @@ services:
       dockerfile: mqtt-bridge/Dockerfile
     container_name: radio-mqtt-bridge
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/scripts/mqtt_to_logstash_bridge.py:/app/mqtt_to_logstash_bridge.py:ro
+      - /home/eggu/Documents/projects/radiomoni/scripts/mqtt_to_logstash_bridge.py:/app/mqtt_to_logstash_bridge.py:ro
     environment:
       - MQTT_HOST=mosquitto
       - MQTT_PORT=1883
@@ -289,7 +289,7 @@ services:
       - ELASTICSEARCH_USERNAME=elastic
       - ELASTICSEARCH_PASSWORD=${ELASTIC_PASSWORD}
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/filebeat/filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
     command: ["--strict.perms=false"]
@@ -307,10 +307,10 @@ services:
     image: nginx:alpine
     container_name: radio-web-interface
     volumes:
-      - /home/eggu/Documents/projects/RadioMoni/web_interface.html:/usr/share/nginx/html/index.html:ro
-      - /home/eggu/Documents/projects/RadioMoni/help.html:/usr/share/nginx/html/help.html:ro
-      - /home/eggu/Documents/projects/RadioMoni/USER_MANUAL.md:/usr/share/nginx/html/USER_MANUAL.md:ro
-      - /home/eggu/Documents/projects/RadioMoni/monitoring/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+      - /home/eggu/Documents/projects/radiomoni/web_interface.html:/usr/share/nginx/html/index.html:ro
+      - /home/eggu/Documents/projects/radiomoni/help.html:/usr/share/nginx/html/help.html:ro
+      - /home/eggu/Documents/projects/radiomoni/USER_MANUAL.md:/usr/share/nginx/html/USER_MANUAL.md:ro
+      - /home/eggu/Documents/projects/radiomoni/monitoring/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:80"
     networks:
@@ -330,10 +330,10 @@ networks:
 # Docker Secrets for secure credential management
 secrets:
   elasticsearch_password:
-    file: /home/eggu/Documents/projects/RadioMoni/.secrets/elasticsearch_password.txt
+    file: /home/eggu/Documents/projects/radiomoni/.secrets/elasticsearch_password.txt
   kibana_password:
-    file: /home/eggu/Documents/projects/RadioMoni/.secrets/kibana_password.txt
+    file: /home/eggu/Documents/projects/radiomoni/.secrets/kibana_password.txt
   logstash_password:
-    file: /home/eggu/Documents/projects/RadioMoni/.secrets/logstash_password.txt
+    file: /home/eggu/Documents/projects/radiomoni/.secrets/logstash_password.txt
   beats_password:
-    file: /home/eggu/Documents/projects/RadioMoni/.secrets/beats_password.txt
+    file: /home/eggu/Documents/projects/radiomoni/.secrets/beats_password.txt
