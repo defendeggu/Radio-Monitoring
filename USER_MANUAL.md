@@ -9,12 +9,21 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 - **Voice Transcription**: Sprache von Radiosendern in Text umwandeln
 - **APRS Decoding**: Digitale Funkpakete von Amateurfunkern empfangen und anzeigen
 - **POCSAG Decoding**: Pager-Nachrichten dekodieren
-- **Repeater Activity Monitoring**: Schweizer FM-Repeater auf Aktivität überwachen (NEU)
+- **Repeater Activity Monitoring**: Schweizer FM-Repeater auf Aktivität überwachen
+- **Multi-Channel DDC** *(USRP N200)*: Einen breiten IQ-Datenstrom einmal erfassen und gleichzeitig 2–8 APRS/POCSAG-Kanäle per Software-Digital-Downconversion dekodieren
 - **Datenanalyse**: Alle Aufnahmen durchsuchen und visualisieren
 
 ---
 
 ## 🆕 Neueste Updates
+
+### Mai 2026
+
+**Multi-Channel DDC für USRP N200 (11.05.2026)**
+- Neuer Tab **📡📡 Multi-Channel (USRP)** im Web-Interface — erscheint nur wenn "USRP N200 (Ethernet)" im globalen SDR-Gerätewähler ausgewählt ist
+- Ermöglicht das simultane Dekodieren von 2–8 APRS/POCSAG-Kanälen aus einem einzigen Breitband-IQ-Datenstrom des USRP N200 (bis zu 25 MS/s)
+- Neuer API-Endpunkt `POST /stream/multi/start`
+- Jedes dekodierte Paket enthält ein `channel_label`-Feld in Elasticsearch
 
 ### März 2026
 
@@ -204,13 +213,24 @@ docker compose up -d
 
 Oben rechts im Header befindet sich der **❓ Hilfe**-Button. Ein Klick darauf öffnet dieses Benutzerhandbuch als gerenderte Webseite in einem neuen Tab — jederzeit verfügbar, ohne den laufenden Betrieb zu unterbrechen.
 
+### SDR-Gerätewähler
+
+Oben, oberhalb der Tabs, befindet sich der **globale SDR-Gerätewähler** — er gilt für alle Tabs:
+
+- **Auto-Erkennung** (Standard): Das System wählt automatisch das erste erkannte Gerät
+- **HackRF One / RTL-SDR / Airspy HF+**: Erzwingt ein bestimmtes USB-SDR
+- **USRP N200 (Ethernet)**: Aktiviert das IP-Adressfeld und schaltet den Multi-Channel-Tab frei
+
+Bei Auswahl von "USRP N200 (Ethernet)" erscheint ein Eingabefeld für die IP-Adresse (z.B. `192.168.10.2`). Die Einstellungen werden im Browser-Speicher gespeichert.
+
 ### Tabs oben
 
-Das Web-Interface hat 4 Tabs:
+Das Web-Interface hat 4 feste Tabs (und einen 5. für USRP N200):
 - **🎤 Voice Transcription** - Sprache aufnehmen und transkribieren
 - **📡 APRS** - APRS-Pakete empfangen
 - **📟 POCSAG** - Pager-Nachrichten empfangen
 - **📻 Repeater Scan** - FM-Repeater-Aktivität überwachen
+- **📡📡 Multi-Channel (USRP)** - Mehrere Kanäle gleichzeitig dekodieren *(nur sichtbar bei USRP N200-Auswahl)*
 
 ### Voice Transcription verwenden
 
@@ -326,6 +346,48 @@ Das Web-Interface hat 4 Tabs:
 - **Selektiv scannen:** Band/Canton-Filter nutzen um Zeit zu sparen
 - **Beste Resultate:** Scans zu aktiven Zeiten (Wochenende, Abend)
 - **Keine Aktivität?** Normal - viele Repeater sind selten genutzt
+
+### Multi-Channel DDC verwenden *(USRP N200)*
+
+Voraussetzung: Im SDR-Gerätewähler "USRP N200 (Ethernet)" auswählen und IP-Adresse eingeben.
+
+1. **Klicke auf den Tab "📡📡 Multi-Channel (USRP)"**
+   *(Tab erscheint erst nach Auswahl von USRP N200 im Gerätewähler)*
+
+2. **Center-Frequenz setzen:**
+   - Mittenfrequenz des Breitband-Empfangsfensters (50 MHz – 2.2 GHz bei WBX)
+   - Alle Kanäle müssen innerhalb von ±Wideband-Rate/2 um diese Frequenz liegen
+
+3. **Wideband Sample Rate wählen:**
+   - **5 MS/s** (±2.5 MHz) — Empfohlen für 4+ Kanäle, geringster CPU-Bedarf
+   - **10 MS/s** (±5 MHz) — Standard, bis zu 4 Kanäle problemlos
+   - **20/25 MS/s** — Maximal, nur 2–3 Kanäle gleichzeitig empfohlen
+
+4. **Gain und Duration einstellen**
+
+5. **Kanäle konfigurieren:**
+   - Vorbefüllt mit APRS 144.8 MHz und POCSAG 147.325 MHz
+   - "+ Add Channel" für weitere Kanäle (max. 8)
+   - Pro Kanal: Modus (APRS/POCSAG), Frequenz in Hz, Label
+   - Der **Span-Hinweis** zeigt das genaue Empfangsfenster an
+   - Minimaler Kanalabstand: 50 kHz
+
+6. **"Start Multi-Channel" klicken**
+
+7. **Live-Statistiken beobachten:**
+   - Tabelle mit Paket-Counter pro Kanal
+   - Gesamt-Pakete und Laufzeit
+   - "Stop"-Button beendet alle Decoder sofort
+
+**Beispielkonfiguration** (10 MS/s um 146 MHz):
+- APRS: 144.800 MHz (−1.2 MHz vom Center)
+- POCSAG: 147.325 MHz (+1.325 MHz vom Center)
+- Beide Kanäle liegen innerhalb ±5 MHz → passt bei 10 MS/s
+
+**Tipps:**
+- Bei 8 Kanälen Sample Rate auf 5 MS/s reduzieren (CPU-Ersparnis ~50%)
+- In Kibana: Pakete in `radio-aprs-*` und `radio-pocsag-*` mit `channel_label`-Filter filtern
+- Der `decimation_factor` in der Startantwort zeigt die tatsächliche Dezimierung an
 
 ---
 
@@ -661,6 +723,13 @@ docker compose logs -f radio-api
 # HackRF prüfen
 hackrf_info
 
+# USRP N200 prüfen (Gigabit Ethernet)
+uhd_find_devices
+uhd_usrp_probe --args="addr=192.168.10.2"
+
+# USRP N200 Netzwerk konfigurieren (einmalig)
+sudo ip addr add 192.168.10.1/24 dev eth0
+
 # API-Keys ansehen
 cat .env | grep API_KEYS
 
@@ -916,6 +985,6 @@ Siehe **README.md** für:
 
 ---
 
-**Version:** 5.1
-**Letztes Update:** März 2026
-**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, ELK Stack, Help-Button, Filebeat Logs, Stack Health/Logs Dashboards, 7-Tage Log-Retention, Docker Secrets, CI/CD Pipeline
+**Version:** 5.2
+**Letztes Update:** Mai 2026
+**Features:** Voice, APRS, POCSAG, Repeater Activity Monitoring, Multi-Channel DDC (USRP N200), ELK Stack, Help-Button, Filebeat Logs, Stack Health/Logs Dashboards, 7-Tage Log-Retention, Docker Secrets, CI/CD Pipeline

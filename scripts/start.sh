@@ -1,7 +1,7 @@
 #!/bin/bash
 
 echo "========================================="
-echo "Radio Transcription System - Starting"
+echo "Radio Monitoring System - Starting"
 echo "========================================="
 echo ""
 
@@ -18,27 +18,35 @@ source venv/bin/activate
 # Create recordings directory
 mkdir -p recordings
 
-# Check if SDR is connected (HackRF, RTL-SDR, or Airspy HF+)
+# Check for connected SDR devices
 echo "Checking SDR device connection..."
 SDR_DETECTED=false
 
 if hackrf_info &> /dev/null 2>&1; then
-    echo "✓ HackRF detected"
+    echo "✓ HackRF One detected (USB)"
     SDR_DETECTED=true
 fi
 
 if timeout 1 rtl_test -t &> /dev/null 2>&1; then
-    echo "✓ RTL-SDR detected"
+    echo "✓ RTL-SDR detected (USB)"
     SDR_DETECTED=true
 fi
 
 if airspyhf_info &> /dev/null 2>&1; then
-    echo "✓ Airspy HF+ detected"
+    echo "✓ Airspy HF+ detected (USB)"
+    SDR_DETECTED=true
+fi
+
+if command -v uhd_find_devices &> /dev/null && uhd_find_devices &> /dev/null 2>&1; then
+    echo "✓ USRP N200 detected (Gigabit Ethernet)"
+    echo "  → Multi-Channel DDC mode available in web interface"
     SDR_DETECTED=true
 fi
 
 if [ "$SDR_DETECTED" = false ]; then
     echo "Warning: No SDR device detected!"
+    echo "  - USB SDRs (HackRF/RTL-SDR/Airspy): check USB connection"
+    echo "  - USRP N200: check Ethernet cable and host IP subnet"
     echo "Running in simulation mode..."
     echo ""
 fi
@@ -104,7 +112,9 @@ echo ""
 echo "System Resources (Docker):"
 echo "  - API Memory Limit: 4 GB"
 echo "  - Whisper Model: small (configurable in .env)"
-echo "  - APRS/POCSAG streaming: up to 3600s sessions supported"
+echo "  - APRS/POCSAG streaming: up to 3600s single-channel sessions"
+echo "  - Multi-Channel DDC: USRP N200 only — 2–8 channels from one wide-band IQ stream"
+echo "    Select 'USRP N200 (Ethernet)' in the SDR device selector to enable the tab"
 echo ""
 echo "Press Ctrl+C to stop all services"
 echo ""

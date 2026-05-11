@@ -16,7 +16,9 @@ import os
 import signal
 from streaming_decoder_service import (
     StreamingAPRSDecoder,
-    StreamingPOCSAGDecoder
+    StreamingPOCSAGDecoder,
+    MultiChannelStreamingDecoder,
+    ChannelConfig
 )
 from session_store import session_manager
 import logging
@@ -329,6 +331,122 @@ def _kill_sdr_processes() -> list:
     except Exception as e:
         logger.warning(f"Error scanning /proc for SDR processes: {e}")
     return killed
+
+
+@streaming_bp.route('/stream/multi/start', methods=['POST'])
+def start_multi_channel_streaming() -> Response | tuple[Response, int]:
+    """
+    Start a multi-channel DDC streaming session (USRP N200 only).
+
+    Request body:
+    {
+        "device_address": "192.168.10.2",
+        "center_freq": 146000000,
+        "wideband_rate": 5000000,
+        "gain": 30,
+        "duration": 3600,
+        "channels": [
+            {"mode": "aprs",   "frequency": 144800000, "label": "APRS-EU"},
+            {"mode": "pocsag", "frequency": 147325000, "label": "POCSAG-1"}
+        ]
+    }
+    """
+    try:
+        data = request.get_json() or {}
+
+        device_address = data.get('device_address') or None
+        if not device_address:
+            return jsonify({'error': 'device_address (USRP N200 IP) is required'}), 400
+
+        center_freq = data.get('center_freq')
+        if not center_freq:
+            return jsonify({'error': 'center_freq is required'}), 400
+        if not (50_000_000 <= int(center_freq) <= 2_200_000_000):
+            return jsonify({'error': 'center_freq must be in WBX range: 50 MHz – 2.2 GHz'}), 400
+
+        wideband_rate = int(data.get('wideband_rate', 5_000_000))
+        if not (1_000_000 <= wideband_rate <= 25_000_000):
+            return jsonify({'error': 'wideband_rate must be 1–25 MS/s'}), 400
+
+        gain = int(data.get('gain', 30))
+        duration = int(data.get('duration', 3600))
+
+        raw_channels = data.get('channels')
+        if not raw_channels or not isinstance(raw_channels, list):
+            return jsonify({'error': 'channels must be a non-empty list'}), 400
+        if not (2 <= len(raw_channels) <= MultiChannelStreamingDecoder.MAX_CHANNELS):
+            return jsonify({
+                'error': f'2–{MultiChannelStreamingDecoder.MAX_CHANNELS} channels required'
+            }), 400
+
+        channels = []
+        half_bw = wideband_rate / 2.0
+        seen_freqs = []
+        for i, ch_data in enumerate(raw_channels):
+            mode = ch_data.get('mode', '')
+            if mode not in ('aprs', 'pocsag'):
+                return jsonify({'error': f'Channel {i}: mode must be "aprs" or "pocsag"'}), 400
+            freq = ch_data.get('frequency')
+            if freq is None:
+                return jsonify({'error': f'Channel {i}: frequency is required'}), 400
+            freq = int(freq)
+            label = str(ch_data.get('label', f'ch{i}'))
+            bw = 16000 if mode == 'aprs' else 25000
+            if abs(freq - int(center_freq)) + bw / 2 > half_bw:
+                return jsonify({
+                    'error': f'Channel "{label}" ({freq} Hz) is outside wideband range'
+                }), 400
+            for prev_freq in seen_freqs:
+                if abs(freq - prev_freq) < 50_000:
+                    return jsonify({'error': f'Channel "{label}": minimum 50 kHz separation required'}), 400
+            seen_freqs.append(freq)
+            channels.append(ChannelConfig(mode=mode, frequency=freq, label=label, channel_bw_hz=bw))
+
+        decoder = MultiChannelStreamingDecoder(
+            center_freq=int(center_freq),
+            wideband_rate=wideband_rate,
+            gain=gain,
+            duration=duration,
+            channels=channels,
+            device_address=device_address
+        )
+
+        session_id = session_manager.create_session(
+            decoder_type='multi',
+            decoder=decoder,
+            frequency=int(center_freq),
+            sample_rate=wideband_rate,
+            gain=gain
+        )
+
+        # Store channel config in session for status endpoint
+        session = session_manager.get_session(session_id)
+        if session:
+            session.channel_configs = [
+                {'mode': ch.mode, 'frequency': ch.frequency, 'label': ch.label}
+                for ch in channels
+            ]
+            session_manager.save_session(session)
+
+        decoder.start(session_manager)
+
+        return jsonify({
+            'status': 'success',
+            'session_id': session_id,
+            'message': 'Multi-channel streaming started',
+            'center_freq': int(center_freq),
+            'wideband_rate': wideband_rate,
+            'decimation_factor': decoder.decimation_factor,
+            'intermediate_rate': decoder.intermediate_rate,
+            'channels': [{'mode': ch.mode, 'frequency': ch.frequency, 'label': ch.label}
+                         for ch in channels]
+        })
+
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        logger.error(f"Failed to start multi-channel streaming: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 @streaming_bp.route('/stream-decode', methods=['GET'])
