@@ -350,10 +350,10 @@ networks:
 # Docker Secrets for secure credential management
 secrets:
   elasticsearch_password:
-    file: ./.secrets/elasticsearch_password.txt
+    file: /home/eggu/Documents/projects/RadioMoni/.secrets/elasticsearch_password.txt
   kibana_password:
-    file: ./.secrets/kibana_password.txt
+    file: /home/eggu/Documents/projects/RadioMoni/.secrets/kibana_password.txt
   logstash_password:
-    file: ./.secrets/logstash_password.txt
+    file: /home/eggu/Documents/projects/RadioMoni/.secrets/logstash_password.txt
   beats_password:
-    file: ./.secrets/beats_password.txt
+    file: /home/eggu/Documents/projects/RadioMoni/.secrets/beats_password.txt
