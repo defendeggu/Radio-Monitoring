@@ -277,10 +277,11 @@ class RTLSDRCapture(SDRCapture):
             result = subprocess.run(
                 ['rtl_test', '-t'],
                 capture_output=True,
+                text=True,
                 timeout=3
             )
             # rtl_test returns 0 on success or if device found
-            return result.returncode == 0 or b"Found" in result.stdout
+            return result.returncode == 0 or "Found" in result.stdout
         except (subprocess.TimeoutExpired, FileNotFoundError):
             return False
 
