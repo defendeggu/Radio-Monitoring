@@ -558,6 +558,22 @@ class BaseStreamingDecoder(ABC):
                 # Read IQ chunk with timeout support
                 iq_bytes = self._read_with_timeout(iq_stream, CHUNK_SIZE, timeout=5.0)
                 if not iq_bytes or len(iq_bytes) == 0:
+                    # Check if SDR process exited with an error (e.g. "Resource busy")
+                    if self.sdr_proc and self.sdr_proc.poll() is not None and self.sdr_proc.returncode != 0:
+                        try:
+                            import fcntl as _fcntl
+                            fd = self.sdr_proc.stderr.fileno()
+                            flags = _fcntl.fcntl(fd, _fcntl.F_GETFL)
+                            _fcntl.fcntl(fd, _fcntl.F_SETFL, flags | os.O_NONBLOCK)
+                            stderr_raw = self.sdr_proc.stderr.read()
+                            if stderr_raw:
+                                err_text = stderr_raw.decode('utf-8', errors='ignore').strip()
+                                logger.error(f"SDR process exited ({self.sdr_proc.returncode}): {err_text}")
+                                if self.session and 'busy' in err_text.lower():
+                                    self.session.status = 'failed'
+                                    self.session.error = 'SDR hardware busy — stop other sessions first'
+                        except Exception as _e:
+                            logger.debug(f"Could not read SDR stderr: {_e}")
                     logger.info("SDR stream ended")
                     break
 
@@ -785,6 +801,9 @@ class BaseStreamingDecoder(ABC):
                     self.sdr_proc.kill()
                     self.sdr_proc.wait(timeout=2)
                     logger.info("SDR process killed")
+
+                # Brief pause so USB driver fully releases the SDR device
+                time.sleep(1.0)
 
             except Exception as e:
                 logger.error(f"Error terminating SDR process: {e}")
