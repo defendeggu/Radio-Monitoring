@@ -188,7 +188,7 @@ services:
       redis:
         condition: service_healthy
     environment:
-      - ELASTICSEARCH_HOSTS=http://elastic:${ELASTIC_PASSWORD}@elasticsearch:9200
+      - ELASTICSEARCH_HOSTS=http://radio_api:${RADIO_API_PASSWORD}@elasticsearch:9200
       - LOGSTASH_HOST=http://logstash:9600
       - LOGSTASH_APRS_HOST=http://logstash:9601
       - LOGSTASH_POCSAG_HOST=http://logstash:9602
