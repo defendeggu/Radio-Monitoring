@@ -387,13 +387,15 @@ class BaseStreamingDecoder(ABC):
         # Use nice to reduce CPU priority (prevents CPU saturation)
 
         if self.sdr_type == SDRType.HACKRF:
+            # HackRF LNA gain must be a multiple of 8 (0, 8, 16, 24, 32, 40)
+            lna_gain = min(40, round(self.gain / 8) * 8)
             # HackRF command (no nice: priority reduction causes USB stalls via pipe backpressure)
             cmd = [
                 'hackrf_transfer',
                 '-r', '-',  # Write to stdout
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
-                '-l', str(self.gain),
+                '-l', str(lna_gain),
                 '-g', str(self.gain)
             ]
             # Duration limit (optional - or run until stop)

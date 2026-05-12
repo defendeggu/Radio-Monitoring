@@ -48,7 +48,7 @@ def start_aprs_streaming() -> Response | tuple[Response, int]:
 
         frequency = data.get('frequency', 144800000)
         sample_rate = data.get('sample_rate', 2000000)
-        gain = data.get('gain', 20)
+        gain = data.get('gain', 32)
         duration = data.get('duration', 3600)
         device_type = data.get('device_type', 'auto')
         device_address = data.get('device_address') or None
@@ -108,7 +108,7 @@ def start_pocsag_streaming() -> Response | tuple[Response, int]:
 
         frequency = data.get('frequency', 147325000)
         sample_rate = data.get('sample_rate', 2000000)
-        gain = data.get('gain', 20)
+        gain = data.get('gain', 32)
         duration = data.get('duration', 3600)
         device_type = data.get('device_type', 'auto')
         device_address = data.get('device_address') or None
@@ -170,7 +170,7 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
         mode = data.get('mode', 'aprs')
         frequency = data.get('frequency')
         sample_rate = data.get('sample_rate', 2000000)
-        gain = data.get('gain', 20)
+        gain = data.get('gain', 32)
         duration = data.get('duration', 3600)
         device_type = data.get('device_type', 'auto')
         device_address = data.get('device_address') or None
