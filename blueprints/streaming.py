@@ -12,6 +12,7 @@ Provides endpoints for real-time streaming decoding:
 
 from flask import Blueprint, request, jsonify, Response
 from typing import Union
+from datetime import datetime, timezone
 import os
 import signal
 from streaming_decoder_service import (
@@ -242,9 +243,20 @@ def get_streaming_session(session_id: str) -> Response | tuple[Response, int]:
                 'message': 'Session not found'
             }), 404
 
+        now = datetime.now(timezone.utc)
+        if session.end_time is not None:
+            elapsed = (session.end_time - session.start_time).total_seconds()
+        else:
+            elapsed = (now - session.start_time).total_seconds()
+
         return jsonify({
-            'status': 'success',
-            'session': session.to_dict()
+            'status': session.status,
+            'stats': {
+                'packet_count': session.packet_count,
+                'elapsed_seconds': elapsed,
+                'last_packet_time': session.last_packet_time.isoformat() if session.last_packet_time else None,
+                'error': session.error,
+            }
         })
 
     except Exception as e:
