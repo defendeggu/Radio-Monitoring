@@ -86,6 +86,33 @@ curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
 echo "✅ logstash_writer user created"
 
 
+# Create radio_api role (least-privilege: read/write on radio-* indices, monitor only)
+echo "Creating radio_api role..."
+curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_security/role/radio_api" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "cluster": ["monitor"],
+    "indices": [{
+      "names": ["radio-*"],
+      "privileges": ["read", "write", "create", "create_index", "index", "delete", "manage"]
+    }]
+  }' > /dev/null
+echo "✅ radio_api role created"
+
+# Create radio_api user
+echo "Creating radio_api user..."
+curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_security/user/radio_api" \
+  -H "Content-Type: application/json" \
+  -d "{
+    \"password\": \"${RADIO_API_PASSWORD}\",
+    \"roles\": [\"radio_api\"],
+    \"full_name\": \"Radio API Service\"
+  }" > /dev/null
+echo "✅ radio_api user created"
+
+
 # Create logs ILM policy (7-day retention for Filebeat and Metricbeat indices)
 echo "Creating logs ILM policy (7d retention)..."
 curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \

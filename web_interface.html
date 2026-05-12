@@ -945,9 +945,70 @@
             document.getElementById('voiceResult').style.display = 'none';
         }
 
-        // Voice module: abort controller held at module scope for stop button access
-        let voiceAbortController = null;
+        // Shared: poll GET /capture-status/<id> until done, then call displayFn
+        function pollCaptureStatus(captureId, statusDiv, resultDiv, resetUI, displayFn) {
+            const POLL_INTERVAL = 2000;
+            const STATUS_LABELS = {
+                queued: 'Queued — waiting for SDR...',
+                capturing: 'Capturing...',
+                processing: 'Processing...',
+            };
+            let pollInterval = null;
+            let errorCount = 0;
 
+            pollInterval = setInterval(async () => {
+                try {
+                    const resp = await fetch(API_BASE_URL + '/capture-status/' + captureId, {
+                        headers: { ...(API_KEY && { 'X-API-Key': API_KEY }) }
+                    });
+
+                    if (!resp.ok) {
+                        errorCount++;
+                        if (errorCount >= 3) {
+                            clearInterval(pollInterval);
+                            statusDiv.textContent = 'Error: lost contact with server';
+                            statusDiv.className = 'status error';
+                            resetUI();
+                        }
+                        return;
+                    }
+
+                    errorCount = 0;
+                    const session = await resp.json();
+
+                    if (STATUS_LABELS[session.status]) {
+                        statusDiv.textContent = STATUS_LABELS[session.status];
+                    }
+
+                    if (session.status === 'completed') {
+                        clearInterval(pollInterval);
+                        statusDiv.textContent = 'Completed successfully!';
+                        statusDiv.className = 'status success';
+                        displayFn(session.result, resultDiv);
+                        resetUI();
+                    } else if (session.status === 'failed') {
+                        clearInterval(pollInterval);
+                        statusDiv.textContent = 'Error: ' + (session.error || 'Unknown error');
+                        statusDiv.className = 'status error';
+                        resetUI();
+                    }
+
+                } catch (err) {
+                    console.error('Capture poll error:', err);
+                    errorCount++;
+                    if (errorCount >= 3) {
+                        clearInterval(pollInterval);
+                        statusDiv.textContent = 'Error: polling failed';
+                        statusDiv.className = 'status error';
+                        resetUI();
+                    }
+                }
+            }, POLL_INTERVAL);
+
+            return pollInterval;
+        }
+
+        // Voice module
         document.getElementById('voiceForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             const statusDiv = document.getElementById('voiceStatus');
@@ -976,39 +1037,28 @@
             statusDiv.className = 'status info';
             statusDiv.style.display = 'block';
 
-            voiceAbortController = new AbortController();
-            const timeoutId = setTimeout(() => voiceAbortController.abort(), 900000);
-
             try {
                 const response = await fetch(CAPTURE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...(API_KEY && { 'X-API-Key': API_KEY }) },
                     body: JSON.stringify(formData),
-                    signal: voiceAbortController.signal
                 });
 
-                clearTimeout(timeoutId);
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to start capture');
 
-                if (response.ok && data.status === 'success') {
-                    statusDiv.textContent = 'Transcription completed successfully!';
-                    statusDiv.className = 'status success';
-                    displayTranscriptionResult(data, resultDiv);
-                } else {
-                    throw new Error(data.error || 'Unknown error occurred');
-                }
+                const captureId = data.capture_id;
+                statusDiv.textContent = 'Capture queued...';
+
+                pollCaptureStatus(captureId, statusDiv, resultDiv, () => {
+                    startBtn.disabled = false;
+                    startBtn.innerHTML = 'Start Recording & Transcription';
+                    stopBtn.disabled = true;
+                }, (result, div) => displayTranscriptionResult(result, div));
+
             } catch (error) {
-                if (error.name === 'AbortError') {
-                    statusDiv.textContent = 'Recording stopped.';
-                    statusDiv.className = 'status info';
-                } else {
-                    statusDiv.textContent = 'Error: ' + error.message;
-                    statusDiv.className = 'status error';
-                    console.error('Error:', error);
-                }
-            } finally {
-                clearTimeout(timeoutId);
-                voiceAbortController = null;
+                statusDiv.textContent = 'Error: ' + error.message;
+                statusDiv.className = 'status error';
                 startBtn.disabled = false;
                 startBtn.innerHTML = 'Start Recording & Transcription';
                 stopBtn.disabled = true;
@@ -1016,9 +1066,8 @@
         });
 
         document.getElementById('voiceStop').addEventListener('click', async () => {
-            // Abort the pending fetch (stops waiting for response)
-            if (voiceAbortController) voiceAbortController.abort();
-            // Tell the server to kill the SDR process immediately
+            // Kill the SDR process on the server; the worker will catch the error and
+            // set status to 'failed', which the polling loop will detect.
             try {
                 await fetch(API_BASE_URL + '/sdr/force-stop', {
                     method: 'POST',
@@ -1026,11 +1075,6 @@
                 });
             } catch (e) { /* ignore */ }
             document.getElementById('voiceStop').disabled = true;
-            document.getElementById('voiceStart').disabled = false;
-            document.getElementById('voiceStart').innerHTML = 'Start Recording & Transcription';
-            const statusDiv = document.getElementById('voiceStatus');
-            statusDiv.textContent = 'Recording stopped.';
-            statusDiv.className = 'status info';
         });
 
         // APRS Tab Functions
@@ -1080,35 +1124,25 @@
             statusDiv.style.display = 'block';
 
             try {
-                // Create AbortController with 15-minute timeout for long captures
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => {
-                    controller.abort();
-                    throw new Error('Request timeout after 15 minutes');
-                }, 900000); // 15 minutes = 900000ms
-
                 const response = await fetch(CAPTURE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...(API_KEY && { 'X-API-Key': API_KEY }) },
                     body: JSON.stringify(formData),
-                    signal: controller.signal
                 });
 
-                clearTimeout(timeoutId);
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to start capture');
 
-                if (response.ok && data.status === 'success') {
-                    statusDiv.textContent = 'APRS capture completed successfully!';
-                    statusDiv.className = 'status success';
-                    displayAPRSResult(data, resultDiv);
-                } else {
-                    throw new Error(data.error || 'Unknown error occurred');
-                }
+                statusDiv.textContent = 'APRS capture queued...';
+                pollCaptureStatus(data.capture_id, statusDiv, resultDiv, () => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Start APRS Capture';
+                }, (result, div) => displayAPRSResult(result, div));
+
             } catch (error) {
                 statusDiv.textContent = 'Error: ' + error.message;
                 statusDiv.className = 'status error';
                 console.error('Error:', error);
-            } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Start APRS Capture';
             }
@@ -1161,35 +1195,25 @@
             statusDiv.style.display = 'block';
 
             try {
-                // Create AbortController with 15-minute timeout for long captures
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => {
-                    controller.abort();
-                    throw new Error('Request timeout after 15 minutes');
-                }, 900000); // 15 minutes = 900000ms
-
                 const response = await fetch(CAPTURE_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', ...(API_KEY && { 'X-API-Key': API_KEY }) },
                     body: JSON.stringify(formData),
-                    signal: controller.signal
                 });
 
-                clearTimeout(timeoutId);
                 const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Failed to start capture');
 
-                if (response.ok && data.status === 'success') {
-                    statusDiv.textContent = 'POCSAG capture completed successfully!';
-                    statusDiv.className = 'status success';
-                    displayPOCSAGResult(data, resultDiv);
-                } else {
-                    throw new Error(data.error || 'Unknown error occurred');
-                }
+                statusDiv.textContent = 'POCSAG capture queued...';
+                pollCaptureStatus(data.capture_id, statusDiv, resultDiv, () => {
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Start POCSAG Capture';
+                }, (result, div) => displayPOCSAGResult(result, div));
+
             } catch (error) {
                 statusDiv.textContent = 'Error: ' + error.message;
                 statusDiv.className = 'status error';
                 console.error('Error:', error);
-            } finally {
                 submitBtn.disabled = false;
                 submitBtn.innerHTML = 'Start POCSAG Capture';
             }
@@ -1670,8 +1694,10 @@
         // Global streaming variables
         let aprsStreamSessionId = null;
         let aprsStreamInterval = null;
+        let aprsStreamErrorCount = 0;
         let pocsagStreamSessionId = null;
         let pocsagStreamInterval = null;
+        let pocsagStreamErrorCount = 0;
 
         // APRS Streaming Mode Toggle
         document.getElementById('aprsStreamingMode').addEventListener('change', (e) => {
@@ -1781,14 +1807,20 @@
                     headers: { 'X-API-Key': API_KEY }
                 });
 
-                const data = await response.json();
-                document.getElementById('aprsStreamStatus').textContent = 'Stopping...';
+                // 404 means the session already ended naturally — treat as success
+                if (!response.ok && response.status !== 404) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Stop request failed');
+                }
 
-                // Stop polling
+                // Stop polling immediately
                 clearInterval(aprsStreamInterval);
                 aprsStreamInterval = null;
+                aprsStreamErrorCount = 0;
 
-                // Reset UI after a delay
+                document.getElementById('aprsStreamStatus').textContent = 'Stopped';
+
+                // Reset UI after a short delay
                 setTimeout(() => {
                     document.getElementById('aprsStreamStart').disabled = false;
                     document.getElementById('aprsStreamStop').disabled = true;
@@ -1810,7 +1842,21 @@
                     headers: { 'X-API-Key': API_KEY }
                 });
 
+                // 404 = session ended on the backend (duration limit, crash, etc.)
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        clearInterval(aprsStreamInterval);
+                        aprsStreamInterval = null;
+                        aprsStreamSessionId = null;
+                        document.getElementById('aprsStreamStatus').textContent = 'Session ended';
+                        document.getElementById('aprsStreamStart').disabled = false;
+                        document.getElementById('aprsStreamStop').disabled = true;
+                    }
+                    return;
+                }
+
                 const data = await response.json();
+                aprsStreamErrorCount = 0;
 
                 // Update stats display
                 document.getElementById('aprsPacketCount').textContent = data.stats.packet_count;
@@ -1823,6 +1869,7 @@
                 if (data.status === 'completed' || data.status === 'failed') {
                     clearInterval(aprsStreamInterval);
                     aprsStreamInterval = null;
+                    aprsStreamSessionId = null;
                     document.getElementById('aprsStreamStart').disabled = false;
                     document.getElementById('aprsStreamStop').disabled = true;
 
@@ -1832,7 +1879,15 @@
                 }
 
             } catch (error) {
-                console.error('Failed to update stats:', error);
+                console.error('Failed to update APRS stats:', error);
+                aprsStreamErrorCount++;
+                if (aprsStreamErrorCount >= 3) {
+                    clearInterval(aprsStreamInterval);
+                    aprsStreamInterval = null;
+                    document.getElementById('aprsStreamStatus').textContent = 'Polling error';
+                    document.getElementById('aprsStreamStart').disabled = false;
+                    document.getElementById('aprsStreamStop').disabled = true;
+                }
             }
         }
 
@@ -1896,14 +1951,20 @@
                     headers: { 'X-API-Key': API_KEY }
                 });
 
-                const data = await response.json();
-                document.getElementById('pocsagStreamStatus').textContent = 'Stopping...';
+                // 404 means the session already ended naturally — treat as success
+                if (!response.ok && response.status !== 404) {
+                    const data = await response.json();
+                    throw new Error(data.error || 'Stop request failed');
+                }
 
-                // Stop polling
+                // Stop polling immediately
                 clearInterval(pocsagStreamInterval);
                 pocsagStreamInterval = null;
+                pocsagStreamErrorCount = 0;
 
-                // Reset UI after a delay
+                document.getElementById('pocsagStreamStatus').textContent = 'Stopped';
+
+                // Reset UI after a short delay
                 setTimeout(() => {
                     document.getElementById('pocsagStreamStart').disabled = false;
                     document.getElementById('pocsagStreamStop').disabled = true;
@@ -1925,7 +1986,21 @@
                     headers: { 'X-API-Key': API_KEY }
                 });
 
+                // 404 = session ended on the backend (duration limit, crash, etc.)
+                if (!response.ok) {
+                    if (response.status === 404) {
+                        clearInterval(pocsagStreamInterval);
+                        pocsagStreamInterval = null;
+                        pocsagStreamSessionId = null;
+                        document.getElementById('pocsagStreamStatus').textContent = 'Session ended';
+                        document.getElementById('pocsagStreamStart').disabled = false;
+                        document.getElementById('pocsagStreamStop').disabled = true;
+                    }
+                    return;
+                }
+
                 const data = await response.json();
+                pocsagStreamErrorCount = 0;
 
                 // Update stats display
                 document.getElementById('pocsagPacketCount').textContent = data.stats.packet_count;
@@ -1938,6 +2013,7 @@
                 if (data.status === 'completed' || data.status === 'failed') {
                     clearInterval(pocsagStreamInterval);
                     pocsagStreamInterval = null;
+                    pocsagStreamSessionId = null;
                     document.getElementById('pocsagStreamStart').disabled = false;
                     document.getElementById('pocsagStreamStop').disabled = true;
 
@@ -1947,7 +2023,15 @@
                 }
 
             } catch (error) {
-                console.error('Failed to update stats:', error);
+                console.error('Failed to update POCSAG stats:', error);
+                pocsagStreamErrorCount++;
+                if (pocsagStreamErrorCount >= 3) {
+                    clearInterval(pocsagStreamInterval);
+                    pocsagStreamInterval = null;
+                    document.getElementById('pocsagStreamStatus').textContent = 'Polling error';
+                    document.getElementById('pocsagStreamStart').disabled = false;
+                    document.getElementById('pocsagStreamStop').disabled = true;
+                }
             }
         }
 

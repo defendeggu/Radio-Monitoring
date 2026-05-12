@@ -286,7 +286,6 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
        - 🔁 Repeater Activity Dashboard
        - 🏥 Stack Health Dashboard (CPU, memory, healthcheck per container)
        - 📋 Stack Logs Dashboard (container logs timeline and analysis)
-   - 🐳 **Dockge** (Stack Management): http://localhost:5001
    - 🔍 **Elasticsearch API**: http://localhost:9200
    - 🔌 **Logstash Pipelines**: http://localhost:9600-9604
    - 🔌 **API**: http://localhost:5000
@@ -294,6 +293,15 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 ## 📝 Recent Updates
 
 ### May 2026
+
+**Security & Reliability Hardening (2026-05-12)**
+- **Async capture**: `POST /capture-and-transcribe` now returns HTTP 202 + `capture_id` immediately; results polled via `GET /capture-status/<id>` — frees Gunicorn workers during long captures (up to 600 s voice + transcription)
+- **Gunicorn timeout**: increased from 300 s to 660 s as a short-term mitigation for captures that approach the 600 s limit
+- **API key enforcement**: fixed missing `X-API-Key` header in web interface fetch calls for all three capture modes (voice, APRS, POCSAG)
+- **Trusted IP hardening**: removed `10.0.0.0/8` and `192.168.0.0/16` from always-trusted defaults — LAN now requires explicit `TRUSTED_IPS` env-var opt-in
+- **Elasticsearch least-privilege**: `radio-api` container now uses a dedicated `radio_api` Elasticsearch user (cluster:monitor + radio-* read/write) instead of the `elastic` superuser
+- **Streaming UI reliability**: fixed frozen "Messages received" / "Duration" counters — caused by a backend/frontend response-structure mismatch in `GET /stream-decode/<id>`; backend now returns `{status, stats:{packet_count, elapsed_seconds, ...}}` matching what the frontend expects
+- **Stop Streaming reliability**: stop button now treats HTTP 404 as "already stopped"; polling halts after 3 consecutive errors instead of running indefinitely
 
 **Multi-Channel DDC for USRP N200 (2026-05-11)**
 - Added `ChannelConfig` dataclass and `MultiChannelStreamingDecoder` class in `streaming_decoder_service.py`
@@ -429,14 +437,11 @@ New to RTL-SDR? This section will help you get started quickly!
 Perfect for testing your RTL-SDR setup!
 
 ```bash
-# Example: Monitor FM radio at 100.7 MHz
+# Example: Monitor FM radio at 100.7 MHz (returns HTTP 202 + capture_id)
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
-  -d '{
-    "frequency": 100700000,
-    "modulation": "fm",
-    "duration": 30
-  }'
+  -H "X-API-Key: your-api-key-here" \
+  -d '{"frequency":100700000,"modulation":"fm","duration":30}'
 ```
 
 #### APRS (Amateur Radio Position Reporting)
@@ -472,14 +477,11 @@ curl -X POST http://localhost:5000/scan-repeaters \
 #### Aviation Band (118-137 MHz)
 
 ```bash
-# Monitor emergency frequency 121.5 MHz
+# Monitor emergency frequency 121.5 MHz (returns HTTP 202 + capture_id)
 curl -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
-  -d '{
-    "frequency": 121500000,
-    "modulation": "am",
-    "duration": 60
-  }'
+  -H "X-API-Key: your-api-key-here" \
+  -d '{"frequency":121500000,"modulation":"am","duration":60}'
 ```
 
 #### Weather Satellites (NOAA APT)
@@ -658,42 +660,14 @@ python api_service.py
 
 ## 🐳 Docker Container Management
 
-### 🎛️ Dockge
+Use standard `docker compose` commands to manage the stack:
 
-The stack includes **Dockge**, a lightweight web-based Docker Compose stack management UI built by the creator of Uptime Kuma.
-
-- 📋 **Stack Management**: Start, stop, restart, and redeploy the entire Compose stack
-- 📝 **Live Log Viewing**: Real-time terminal output per container directly in the browser
-- ✏️ **Compose Editor**: Edit `docker-compose.yml` directly in the UI and redeploy
-- 📊 **Container Status**: See running/stopped state and uptime for each service
-- 🪶 **Lightweight**: ~30 MB memory footprint
-
-**🌐 Access Dockge:**
-- http://localhost:5001
-
-**⚡ First-Time Setup:**
-
-On first access, Dockge will ask you to create an admin account:
-
-1. Open http://localhost:5001
-2. Create username and password
-3. The `radio-moni` stack is automatically detected
-
-**📋 Common Tasks:**
-
+```bash
+docker compose ps                  # show all containers
+docker compose logs -f radio-api   # tail a service's logs
+docker compose restart logstash    # restart a single service
+docker compose down && docker compose up -d  # full restart
 ```
-Start / stop stack:   Dockge → radio-moni → Start / Stop
-View container logs:  Dockge → radio-moni → click container → Logs
-Edit compose file:    Dockge → radio-moni → Editor tab → Save & Deploy
-Restart a service:    Dockge → radio-moni → click container → Restart
-```
-
-**💡 Why Dockge instead of Portainer?**
-
-- ✅ **Compose-first**: Designed exactly for docker-compose single-host projects
-- ✅ **Real-time terminal**: Live output while a stack starts or stops
-- ✅ **Simpler**: No admin setup complexity, no separate CE/Business edition limits
-- ✅ **Lighter**: Half the memory footprint of Portainer CE
 
 ## 🔐 Secrets Management
 
@@ -837,6 +811,22 @@ The following endpoints do **not** require authentication:
 - `GET /health` - Health check for monitoring
 
 All other endpoints require a valid API key.
+
+### 🌐 Trusted IP Bypass
+
+By default only loopback (`127.0.0.1`) and the Docker-internal bridge (`172.16.0.0/12`) skip API key checks. **LAN addresses are no longer trusted by default.**
+
+To explicitly trust a subnet (e.g. your home network), add it to `.env`:
+```bash
+TRUSTED_IPS=192.168.1.0/24
+```
+
+Multiple ranges are comma-separated:
+```bash
+TRUSTED_IPS=192.168.1.0/24,10.10.0.0/16
+```
+
+> **Security note:** Any IP in `TRUSTED_IPS` bypasses API key authentication entirely. Only add subnets you fully control.
 
 ### 🛡️ Container Security
 
@@ -982,31 +972,30 @@ curl -X POST http://localhost:5000/transcribe \
 
 **🎙️ Capture and transcribe (Voice mode):**
 ```bash
-curl -X POST http://localhost:5000/capture-and-transcribe \
+# Submit job (returns HTTP 202 immediately)
+CAPTURE_ID=$(curl -s -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key-here" \
-  -d '{
-    "frequency": 100000000,
-    "modulation": "FM",
-    "duration": 30,
-    "gain": 20,
-    "language": "en",
-    "mode": "voice"
-  }'
+  -d '{"frequency":100000000,"modulation":"FM","duration":30,"gain":20,"language":"en","mode":"voice"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['capture_id'])")
+
+# Poll for result
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:5000/capture-status/$CAPTURE_ID
 ```
 
 **📍 Capture and decode APRS:**
 ```bash
-curl -X POST http://localhost:5000/capture-and-transcribe \
+# Submit job (returns HTTP 202 immediately)
+CAPTURE_ID=$(curl -s -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key-here" \
-  -d '{
-    "frequency": 144800000,
-    "modulation": "FM",
-    "duration": 300,
-    "gain": 20,
-    "mode": "aprs"
-  }'
+  -d '{"frequency":144800000,"modulation":"FM","duration":300,"gain":20,"mode":"aprs"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['capture_id'])")
+
+# Poll for result
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:5000/capture-status/$CAPTURE_ID
 ```
 
 **🔍 Search APRS messages:**
@@ -1029,16 +1018,16 @@ curl -X GET "http://localhost:5000/aprs/map" \
 
 **📟 Capture and decode POCSAG:**
 ```bash
-curl -X POST http://localhost:5000/capture-and-transcribe \
+# Submit job (returns HTTP 202 immediately)
+CAPTURE_ID=$(curl -s -X POST http://localhost:5000/capture-and-transcribe \
   -H "Content-Type: application/json" \
   -H "X-API-Key: your-api-key-here" \
-  -d '{
-    "frequency": 147325000,
-    "modulation": "FM",
-    "duration": 300,
-    "gain": 20,
-    "mode": "pocsag"
-  }'
+  -d '{"frequency":147325000,"modulation":"FM","duration":300,"gain":20,"mode":"pocsag"}' \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['capture_id'])")
+
+# Poll for result
+curl -H "X-API-Key: your-api-key-here" \
+  http://localhost:5000/capture-status/$CAPTURE_ID
 ```
 
 **🔍 Search POCSAG messages:**
@@ -1464,7 +1453,9 @@ X-API-Key: your-api-key-here
 ```
 
 ### POST /capture-and-transcribe
-Capture and transcribe in one operation.
+Submit a capture + decode/transcribe job. Returns immediately with HTTP 202 and a `capture_id`; poll `GET /capture-status/<id>` for results.
+
+Returns **HTTP 409** if another capture or SDR scan is already running.
 
 **Headers:**
 ```
@@ -1483,25 +1474,40 @@ X-API-Key: your-api-key-here
 }
 ```
 
-**Response:**
+**Response (HTTP 202):**
 ```json
 {
-  "status": "success",
-  "capture": {
-    "audio_file": "recordings/capture_20250101_120000.wav",
-    "frequency": 100000000,
-    "modulation": "FM",
-    "duration": 30
-  },
-  "transcription": {
-    "text": "Transcribed text here",
-    "language": "en",
-    "duration": 30.5,
-    ...
-  },
-  "timestamp": "2025-01-01T12:00:30"
+  "capture_id": "550e8400-e29b-41d4-a716-446655440000",
+  "status": "queued"
 }
 ```
+
+### GET /capture-status/\<capture_id\>
+Poll for status and result. Sessions expire after 1 hour.
+
+**Response (in-progress):**
+```json
+{
+  "capture_id": "550e8400-...",
+  "status": "capturing"
+}
+```
+
+**Response (completed):**
+```json
+{
+  "capture_id": "550e8400-...",
+  "status": "completed",
+  "result": {
+    "transcription": { "text": "Transcribed text here", "language": "en", "duration": 30.5 },
+    "audio_file": "recordings/capture_20250101_120000.wav",
+    "timestamp": "2025-01-01T12:00:30"
+  },
+  "error": null
+}
+```
+
+**Status values:** `queued` → `capturing` → `processing` → `completed` | `failed`
 
 ### GET /list-recordings
 List all captured recordings.

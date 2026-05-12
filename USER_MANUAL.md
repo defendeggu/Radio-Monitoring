@@ -19,6 +19,13 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### Mai 2026
 
+**Sicherheit & Zuverlässigkeit (12.05.2026)**
+- **Asynchrone Aufnahmen**: Nach dem Absenden eines Capture-Auftrags reagiert die Oberfläche sofort — kein Einfrieren mehr bei langen Voice-Aufnahmen (bis 600 s + Transkription)
+- **APRS/POCSAG Streaming**: Zähler *Messages received* und *Duration* aktualisieren sich jetzt zuverlässig; Verbindungsfehler werden nach 3 Fehlversuchen sauber beendet
+- **Stop Streaming**: Schaltfläche funktioniert nun auch dann zuverlässig, wenn die Session bereits automatisch beendet wurde
+- **API-Key bei Aufnahmen**: Alle Capture-Anfragen aus dem Web-Interface senden jetzt korrekt den API-Key mit
+- **LAN-Zugriff ohne API-Key deaktiviert**: Lokale Netzwerkadressen (192.168.x.x, 10.x.x.x) werden nicht mehr automatisch vertraut — wer API-Key-freien LAN-Zugriff möchte, setzt `TRUSTED_IPS=192.168.1.0/24` in der `.env`
+
 **Multi-Channel DDC für USRP N200 (11.05.2026)**
 - Neuer Tab **📡📡 Multi-Channel (USRP)** im Web-Interface — erscheint nur wenn "USRP N200 (Ethernet)" im globalen SDR-Gerätewähler ausgewählt ist
 - Ermöglicht das simultane Dekodieren von 2–8 APRS/POCSAG-Kanälen aus einem einzigen Breitband-IQ-Datenstrom des USRP N200 (bis zu 25 MS/s)
@@ -203,7 +210,7 @@ docker compose up -d
 - **Kibana**: http://localhost:5601 (Dashboards & Visualisierung)
   - Login: `elastic` / Passwort aus `.env.elk` (Variable `ELASTIC_PASSWORD`)
 - **Elasticsearch**: http://localhost:9200 (Datenbank API)
-- **Dockge**: http://localhost:5001 (Stack-Verwaltung)
+- **Logstash**: http://localhost:9600 (Pipeline-Status)
 
 ---
 

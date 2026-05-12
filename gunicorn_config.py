@@ -36,9 +36,10 @@ worker_connections = 1000
 max_requests = 1000
 max_requests_jitter = 50  # Randomize restart to avoid all workers restarting at once
 
-# Worker timeout (important for long-running streaming sessions)
-# Set to 5 minutes to allow for slow operations
-timeout = 300
+# Worker timeout: voice captures run up to 600s + ~60s transcription overhead
+# 660s ensures the worker is not killed before the longest allowed capture completes.
+# When the async capture refactor lands this can be reduced back to 120s.
+timeout = 660
 
 # Keep-alive connections
 keepalive = 5

@@ -165,8 +165,12 @@ def is_trusted_ip(ip_address: str) -> bool:
 
     Default trusted sources (always included):
     - localhost (127.0.0.1, ::1)
-    - Docker network (172.16.0.0/12 - includes 172.18.0.0/16)
-    - Private networks (10.0.0.0/8, 192.168.0.0/16)
+    - Docker internal network (172.16.0.0/12 - covers 172.16–172.31, includes 172.18.x used by Compose)
+
+    Broad private ranges (10.0.0.0/8, 192.168.0.0/16) are NOT trusted by default because
+    any host on the local network would bypass API key authentication entirely.
+    To opt in, set TRUSTED_IPS to the specific subnet you control:
+      TRUSTED_IPS=192.168.1.0/24,10.0.1.5
 
     Additional trusted sources can be configured via TRUSTED_IPS environment variable:
     - Supports individual IPs: TRUSTED_IPS=192.168.1.100,10.0.0.50
@@ -194,16 +198,6 @@ def is_trusted_ip(ip_address: str) -> bool:
         docker_network = ipaddress.ip_network('172.16.0.0/12')
         if ip in docker_network:
             return True
-
-        # Private networks (always trusted)
-        private_networks = [
-            ipaddress.ip_network('10.0.0.0/8'),
-            ipaddress.ip_network('192.168.0.0/16'),
-        ]
-
-        for network in private_networks:
-            if ip in network:
-                return True
 
         # Check custom trusted IPs from environment variable
         trusted_ips_str = os.getenv('TRUSTED_IPS', '')
@@ -309,6 +303,10 @@ scan_session_manager = get_scan_session_manager()
 # Thread pool for scan operations (max 1 worker - only 1 SDR device)
 scan_thread_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="scan-worker")
 
+# Thread pool for async capture operations (max 1 worker - same SDR device constraint)
+capture_thread_pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="capture-worker")
+_capture_busy = threading.Event()  # set while a capture worker is executing
+
 # Session cleanup configuration
 MAX_SESSIONS = 100  # Maximum number of concurrent scan sessions
 SESSION_MAX_AGE_HOURS = 24  # Remove sessions older than 24 hours
@@ -355,6 +353,204 @@ def session_cleanup_background() -> None:
 # Start background cleanup thread
 cleanup_thread = threading.Thread(target=session_cleanup_background, daemon=True)
 cleanup_thread.start()
+
+
+# ============================================================================
+# Capture Session Store (Redis, 1-hour TTL)
+# ============================================================================
+
+def _save_capture_session(capture_id: str, data: Dict[str, Any]) -> None:
+    key = f"capture_session:{capture_id}"
+    scan_session_manager.redis.set(key, json.dumps(data))
+    scan_session_manager.redis.expire(key, 3600)
+
+
+def _get_capture_session(capture_id: str) -> Optional[Dict[str, Any]]:
+    key = f"capture_session:{capture_id}"
+    raw = scan_session_manager.redis.get(key)
+    return json.loads(str(raw)) if raw else None
+
+
+def _capture_worker(
+    capture_id: str,
+    frequency: int,
+    modulation: str,
+    duration: int,
+    gain: int,
+    sample_rate: int,
+    mode: str,
+    language: Optional[str],
+    sdr_type_val: SDRType,
+    timestamp: str,
+    audio_file: str,
+    json_file: str,
+) -> None:
+    """Background capture worker: runs SDR capture + decode/transcribe, stores result in Redis."""
+    _capture_busy.set()
+    created_at = datetime.now(timezone.utc).isoformat()
+
+    def _update(status: str, result: Optional[Dict[str, Any]] = None, error: Optional[str] = None) -> None:
+        _save_capture_session(capture_id, {
+            'capture_id': capture_id,
+            'status': status,
+            'mode': mode,
+            'created_at': created_at,
+            'result': result,
+            'error': error,
+        })
+
+    try:
+        _update('capturing')
+
+        capture_instance = get_sdr_instance(
+            frequency=frequency,
+            sample_rate=sample_rate,
+            gain=gain
+        )
+        capture_instance.capture_audio(duration, audio_file, modulation)
+
+        _update('processing')
+
+        if mode == 'aprs':
+            decode_start = time.time()
+            aprs_decoder_instance = get_aprs_decoder()
+            packets = aprs_decoder_instance.decode(audio_file)
+            decode_duration = time.time() - decode_start
+
+            es = get_elasticsearch_service()
+            file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+            capture_uuid = str(uuid.uuid4())
+            capture_doc: Dict[str, Any] = {
+                'uuid': capture_uuid,
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'frequency': frequency,
+                'modulation': modulation,
+                'duration_seconds': duration,
+                'rf_gain': gain,
+                'sample_rate': sample_rate,
+                'audio_file': audio_file,
+                'file_size': file_size,
+                'sdr_type': sdr_type_val.value,
+                'mode': 'aprs',
+                'transcription_duration': decode_duration,
+                'metadata': {'packet_count': len(packets), 'capture_timestamp': timestamp}
+            }
+            cap_id = es.index_capture(capture_doc)
+            for packet in packets:
+                es.index_aprs({
+                    'uuid': str(uuid.uuid4()),
+                    'capture_id': capture_uuid,
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'frequency': frequency,
+                    **packet
+                })
+
+            _update('completed', result={
+                'status': 'success',
+                'mode': 'aprs',
+                'capture': {'id': cap_id, 'audio_file': audio_file, 'frequency': frequency,
+                            'modulation': modulation, 'duration': duration},
+                'aprs': {'packet_count': len(packets), 'packets': packets},
+                'timestamp': datetime.now().isoformat(),
+            })
+
+        elif mode == 'pocsag':
+            decode_start = time.time()
+            pocsag_decoder_instance = get_pocsag_decoder()
+            messages = pocsag_decoder_instance.decode(audio_file)
+            decode_duration = time.time() - decode_start
+
+            es = get_elasticsearch_service()
+            file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+            capture_uuid = str(uuid.uuid4())
+            capture_doc = {
+                'uuid': capture_uuid,
+                'created_at': datetime.now(timezone.utc).isoformat(),
+                'frequency': frequency,
+                'modulation': modulation,
+                'duration_seconds': duration,
+                'rf_gain': gain,
+                'sample_rate': sample_rate,
+                'audio_file': audio_file,
+                'file_size': file_size,
+                'sdr_type': sdr_type_val.value,
+                'mode': 'pocsag',
+                'transcription_duration': decode_duration,
+                'metadata': {'message_count': len(messages), 'capture_timestamp': timestamp}
+            }
+            cap_id = es.index_capture(capture_doc)
+            for message in messages:
+                es.index_pocsag({
+                    'uuid': str(uuid.uuid4()),
+                    'capture_id': capture_uuid,
+                    'timestamp': datetime.now(timezone.utc).isoformat(),
+                    'frequency': frequency,
+                    **message
+                })
+
+            _update('completed', result={
+                'status': 'success',
+                'mode': 'pocsag',
+                'capture': {'id': cap_id, 'audio_file': audio_file, 'frequency': frequency,
+                            'modulation': modulation, 'duration': duration},
+                'pocsag': {'message_count': len(messages), 'messages': messages},
+                'timestamp': datetime.now().isoformat(),
+            })
+
+        else:
+            transcribe_start = time.time()
+            service = get_transcription_service()
+            transcription_result = service.transcribe(audio_file=audio_file, language=language)
+            with open(json_file, 'w') as f:
+                json.dump(transcription_result, f, indent=2)
+            transcribe_duration = time.time() - transcribe_start
+
+            try:
+                es = get_elasticsearch_service()
+                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
+                es.index_capture({
+                    'uuid': str(uuid.uuid4()),
+                    'created_at': datetime.now(timezone.utc).isoformat(),
+                    'frequency': frequency,
+                    'modulation': modulation,
+                    'duration_seconds': duration,
+                    'rf_gain': gain,
+                    'sample_rate': sample_rate,
+                    'audio_file': audio_file,
+                    'json_file': json_file,
+                    'file_size': file_size,
+                    'sdr_type': sdr_type_val.value,
+                    'transcription': transcription_result.get('text'),
+                    'detected_language': transcription_result.get('language'),
+                    'confidence_score': transcription_result.get('language_probability'),
+                    'segments': transcription_result.get('segments'),
+                    'transcription_duration': transcribe_duration,
+                    'mode': 'voice',
+                    'metadata': {'capture_timestamp': timestamp,
+                                 'audio_duration': transcription_result.get('duration')}
+                })
+            except Exception as es_error:
+                logger.warning(f"Could not index to Elasticsearch: {es_error}")
+
+            result_data: Dict[str, Any] = {
+                'status': 'success',
+                'mode': 'voice',
+                'capture': {'audio_file': audio_file, 'frequency': frequency,
+                            'modulation': modulation, 'duration': duration},
+                'transcription': transcription_result,
+                'timestamp': datetime.now().isoformat(),
+            }
+            if transcription_result.get('simulation_mode'):
+                result_data['warning'] = 'Transcription was simulated, not real'
+                result_data['simulation_mode'] = True
+
+            _update('completed', result=result_data)
+
+    except Exception as e:
+        logger.error(f"Capture worker {capture_id} failed: {e}", exc_info=True)
+        _update('failed', error=str(e))
+    finally:
+        _capture_busy.clear()
 
 
 def validate_file_path(file_path: str, base_dir: str = RECORDING_DIR) -> str:
@@ -464,7 +660,10 @@ app.register_blueprint(streaming_bp)
 @app.route('/capture-and-transcribe', methods=['POST'])
 def capture_and_transcribe() -> Response | tuple[Response, int]:
     """
-    Capture radio signal and transcribe or decode APRS in one step
+    Start an async radio capture + decode/transcribe job.
+
+    Returns HTTP 202 immediately with a capture_id. Poll
+    GET /capture-status/<capture_id> for progress and result.
 
     Request body:
     {
@@ -473,8 +672,8 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         "duration": 30,
         "gain": 20,
         "sample_rate": 2000000,
-        "mode": "voice",  # "voice" or "aprs" (optional, default: "voice")
-        "language": "en"  # optional (only for voice mode)
+        "mode": "voice",       # "voice", "aprs", or "pocsag"
+        "language": "en"       # optional (voice mode only)
     }
     """
     try:
@@ -482,7 +681,6 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         if not data:
             return jsonify({'error': 'Invalid JSON body'}), 400
 
-        # Validate required parameters
         if 'frequency' not in data:
             return jsonify({'error': 'frequency is required'}), 400
 
@@ -491,46 +689,27 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
         duration = int(data.get('duration', 30))
         gain = int(data.get('gain', 20))
         sample_rate = int(data.get('sample_rate', 2000000))
-        mode = data.get('mode', 'voice')  # NEW: mode parameter
+        mode = data.get('mode', 'voice')
         language = data.get('language')
 
-        # Validate mode
         if mode not in ['voice', 'aprs', 'pocsag']:
             return jsonify({'error': 'mode must be "voice", "aprs", or "pocsag"'}), 400
 
-        # Optimize sample rate for POCSAG/APRS (reduces memory usage by 8-10x)
-        # POCSAG/APRS only need ~25 kHz bandwidth, not 2 MHz
-        # NOTE: HackRF minimum is 2 MHz, RTL-SDR can go lower
         sdr_type_val = detect_sdr()
         if mode in ['pocsag', 'aprs']:
             if sdr_type_val == SDRType.RTLSDR:
-                # RTL-SDR can use lower sample rates
                 original_sample_rate = sample_rate
-                sample_rate = min(sample_rate, 250000)  # Max 250 kHz for digital modes
+                sample_rate = min(sample_rate, 250000)
                 if original_sample_rate != sample_rate:
                     logger.info(f"Sample rate reduced for {mode} mode: {original_sample_rate/1e6:.1f} MHz -> {sample_rate/1e3:.0f} kHz")
             else:
-                # HackRF minimum is 2 MHz - cannot reduce sample rate
                 logger.info(f"HackRF detected: keeping sample rate at {sample_rate/1e6:.1f} MHz (hardware minimum: 2 MHz)")
 
-        # Enforce duration limits to prevent OOM crashes
-        # HackRF uses 2 MHz (can't reduce), RTL-SDR uses 250 kHz (8x less memory)
         if sdr_type_val == SDRType.HACKRF and mode == 'pocsag':
-            # HackRF POCSAG: 2 MHz sample rate = high memory usage
-            # Limit to 60s to prevent OOM (2 MHz * 2 bytes * 60s = 240 MB raw IQ)
-            MAX_DURATIONS: Dict[str, int] = {
-                'pocsag': 60,    # Max 1 minute for POCSAG with HackRF (2 MHz sample rate)
-                'aprs': 180,     # Max 3 minutes for APRS with HackRF
-                'voice': 600,    # Max 10 minutes for voice transcription
-            }
+            MAX_DURATIONS: Dict[str, int] = {'pocsag': 60, 'aprs': 180, 'voice': 600}
         else:
-            # RTL-SDR POCSAG: 250 kHz sample rate = low memory usage
-            # Can handle longer durations
-            MAX_DURATIONS = {
-                'pocsag': 120,   # Max 2 minutes for POCSAG with RTL-SDR (250 kHz sample rate)
-                'aprs': 300,     # Max 5 minutes for APRS
-                'voice': 600,    # Max 10 minutes for voice transcription
-            }
+            MAX_DURATIONS = {'pocsag': 120, 'aprs': 300, 'voice': 600}
+
         max_duration = MAX_DURATIONS.get(mode, 600)
         if duration > max_duration:
             return jsonify({
@@ -539,226 +718,45 @@ def capture_and_transcribe() -> Response | tuple[Response, int]:
                 'requested_duration': duration
             }), 400
 
-        # Generate output filename
+        # Reject if SDR is already in use
+        if has_active_scan() or _capture_busy.is_set():
+            return jsonify({'error': 'SDR device is busy — another capture or scan is in progress'}), 409
+
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         audio_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.wav')
         json_file = os.path.join(RECORDING_DIR, f'capture_{timestamp}.json')
 
-        # Step 1: Capture (same for both modes)
-        capture_start = time.time()
-        capture_instance = get_sdr_instance(
-            frequency=frequency,
-            sample_rate=sample_rate,
-            gain=gain
+        capture_id = str(uuid.uuid4())
+        _save_capture_session(capture_id, {
+            'capture_id': capture_id,
+            'status': 'queued',
+            'mode': mode,
+            'created_at': datetime.now(timezone.utc).isoformat(),
+            'result': None,
+            'error': None,
+        })
+
+        capture_thread_pool.submit(
+            _capture_worker,
+            capture_id, frequency, modulation, duration, gain,
+            sample_rate, mode, language, sdr_type_val, timestamp,
+            audio_file, json_file,
         )
-        capture_instance.capture_audio(duration, audio_file, modulation)
 
-        # Step 2: Process based on mode
-        if mode == 'aprs':
-            # APRS decoding
-            try:
-                decode_start = time.time()
-                aprs_decoder_instance = get_aprs_decoder()
-                packets = aprs_decoder_instance.decode(audio_file)
-                decode_duration = time.time() - decode_start
-
-                # Save to database
-                es = get_elasticsearch_service()
-                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
-
-                # Index capture to Elasticsearch
-                capture_uuid = str(uuid.uuid4())
-                capture_doc: Dict[str, Any] = {
-                    'uuid': capture_uuid,
-                    'created_at': datetime.now(timezone.utc).isoformat(),
-                    'frequency': frequency,
-                    'modulation': modulation,
-                    'duration_seconds': duration,
-                    'rf_gain': gain,
-                    'sample_rate': sample_rate,
-                    'audio_file': audio_file,
-                    'file_size': file_size,
-                    'sdr_type': sdr_type_val.value,
-                    'mode': 'aprs',
-                    'transcription_duration': decode_duration,
-                    'metadata': {
-                        'packet_count': len(packets),
-                        'capture_timestamp': timestamp
-                    }
-                }
-                capture_id = es.index_capture(capture_doc)
-
-                # Index APRS packets
-                for packet in packets:
-                    packet_doc: Dict[str, Any] = {
-                        'uuid': str(uuid.uuid4()),
-                        'capture_id': capture_uuid,
-                        'timestamp': datetime.now(timezone.utc).isoformat(),
-                        'frequency': frequency,
-                        **packet
-                    }
-                    es.index_aprs(packet_doc)
-                logger.info(f"Indexed {len(packets)} APRS packets to Elasticsearch")
-
-                # Metrics
-                return jsonify({
-                    'status': 'success',
-                    'mode': 'aprs',
-                    'capture': {
-                        'id': capture_id,
-                        'audio_file': audio_file,
-                        'frequency': frequency,
-                        'modulation': modulation,
-                        'duration': duration
-                    },
-                    'aprs': {
-                        'packet_count': len(packets),
-                        'packets': packets
-                    },
-                    'timestamp': datetime.now().isoformat()
-                })
-
-            except Exception as e:
-                logger.error(f"APRS decode error: {e}", exc_info=True)
-                return jsonify({'error': f'APRS decode error: {str(e)}'}), 500
-
-        elif mode == 'pocsag':
-            # POCSAG decoding
-            try:
-                decode_start = time.time()
-                pocsag_decoder_instance = get_pocsag_decoder()
-                messages = pocsag_decoder_instance.decode(audio_file)
-                decode_duration = time.time() - decode_start
-
-                # Save to database
-                es = get_elasticsearch_service()
-                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
-
-                # Index capture to Elasticsearch
-                capture_uuid = str(uuid.uuid4())
-                capture_doc = {
-                    'uuid': capture_uuid,
-                    'created_at': datetime.now(timezone.utc).isoformat(),
-                    'frequency': frequency,
-                    'modulation': modulation,
-                    'duration_seconds': duration,
-                    'rf_gain': gain,
-                    'sample_rate': sample_rate,
-                    'audio_file': audio_file,
-                    'file_size': file_size,
-                    'sdr_type': sdr_type_val.value,
-                    'mode': 'pocsag',
-                    'transcription_duration': decode_duration,
-                    'metadata': {
-                        'message_count': len(messages),
-                        'capture_timestamp': timestamp
-                    }
-                }
-                capture_id = es.index_capture(capture_doc)
-
-                # Index POCSAG messages
-                for message in messages:
-                    message_doc: Dict[str, Any] = {
-                        'uuid': str(uuid.uuid4()),
-                        'capture_id': capture_uuid,
-                        'timestamp': datetime.now(timezone.utc).isoformat(),
-                        'frequency': frequency,
-                        **message
-                    }
-                    es.index_pocsag(message_doc)
-                logger.info(f"Indexed {len(messages)} POCSAG messages to Elasticsearch")
-
-                # Metrics
-                return jsonify({
-                    'status': 'success',
-                    'mode': 'pocsag',
-                    'capture': {
-                        'id': capture_id,
-                        'audio_file': audio_file,
-                        'frequency': frequency,
-                        'modulation': modulation,
-                        'duration': duration
-                    },
-                    'pocsag': {
-                        'message_count': len(messages),
-                        'messages': messages
-                    },
-                    'timestamp': datetime.now().isoformat()
-                })
-
-            except Exception as e:
-                logger.error(f"POCSAG decode error: {e}", exc_info=True)
-                return jsonify({'error': f'POCSAG decode error: {str(e)}'}), 500
-
-        else:
-            # Voice transcription (existing logic)
-            transcribe_start = time.time()
-            service = get_transcription_service()
-            transcription_result = service.transcribe(
-                audio_file=audio_file,
-                language=language
-            )
-            # Save the result to the JSON file
-            with open(json_file, 'w') as f:
-                json.dump(transcription_result, f, indent=2)
-            
-            transcribe_duration = time.time() - transcribe_start
-
-            # Save to Elasticsearch
-            try:
-                es = get_elasticsearch_service()
-                file_size = os.path.getsize(audio_file) if os.path.exists(audio_file) else None
-
-                capture_doc = {
-                    'uuid': str(uuid.uuid4()),
-                    'created_at': datetime.now(timezone.utc).isoformat(),
-                    'frequency': frequency,
-                    'modulation': modulation,
-                    'duration_seconds': duration,
-                    'rf_gain': gain,
-                    'sample_rate': sample_rate,
-                    'audio_file': audio_file,
-                    'json_file': json_file,
-                    'file_size': file_size,
-                    'sdr_type': sdr_type_val.value,
-                    'transcription': transcription_result.get('text'),
-                    'detected_language': transcription_result.get('language'),
-                    'confidence_score': transcription_result.get('language_probability'),
-                    'segments': transcription_result.get('segments'),
-                    'transcription_duration': transcribe_duration,
-                    'mode': 'voice',
-                    'metadata': {
-                        'capture_timestamp': timestamp,
-                        'audio_duration': transcription_result.get('duration')
-                    }
-                }
-                es.index_capture(capture_doc)
-            except Exception as es_error:
-                logger.warning(f"Warning: Could not index to Elasticsearch: {es_error}")
-
-            response_data: Dict[str, Any] = {
-                'status': 'success',
-                'mode': 'voice',
-                'capture': {
-                    'audio_file': audio_file,
-                    'frequency': frequency,
-                    'modulation': modulation,
-                    'duration': duration
-                },
-                'transcription': transcription_result,
-                'timestamp': datetime.now().isoformat()
-            }
-
-            # Add simulation warning if present
-            if transcription_result.get('simulation_mode'):
-                response_data['warning'] = 'Transcription was simulated, not real'
-                response_data['simulation_mode'] = True
-
-            return jsonify(response_data)
+        return jsonify({'capture_id': capture_id, 'status': 'queued'}), 202
 
     except Exception as e:
         logger.error(f"Capture and Transcribe error: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
+
+
+@app.route('/capture-status/<capture_id>', methods=['GET'])
+def get_capture_status(capture_id: str) -> Response | tuple[Response, int]:
+    """Poll the status of an async capture job started by POST /capture-and-transcribe."""
+    session = _get_capture_session(capture_id)
+    if not session:
+        return jsonify({'error': 'Capture session not found or expired'}), 404
+    return jsonify(session)
 
 
 @app.route('/captures/<int:capture_id>', methods=['GET'])
