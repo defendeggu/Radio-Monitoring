@@ -2,8 +2,21 @@
 
 import os
 import json
+import time
 import pytest
 from flask.testing import FlaskClient
+
+
+def _wait_for_capture(client: FlaskClient, capture_id: str, timeout: float = 10.0) -> dict:
+    """Poll /capture-status/<id> until terminal status or timeout. Returns final session dict."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        resp = client.get(f'/capture-status/{capture_id}')
+        data = resp.get_json()
+        if data.get('status') in ('completed', 'failed'):
+            return data
+        time.sleep(0.1)
+    return client.get(f'/capture-status/{capture_id}').get_json()
 
 
 class TestHealthEndpoint:
@@ -162,20 +175,28 @@ class TestCaptureAndTranscribeEndpoint:
         assert 'error' in data
 
     def test_capture_and_transcribe_minimal_params(self, client: FlaskClient, mock_sdr_hardware):
-        """Test with minimal parameters"""
+        """Test with minimal parameters — endpoint now returns HTTP 202 immediately"""
+        import api_service
+        # Wait for any leftover capture from a previous test to finish (max 5 s)
+        deadline = time.time() + 5
+        while api_service._capture_busy.is_set() and time.time() < deadline:
+            time.sleep(0.05)
+
         response = client.post('/capture-and-transcribe', json={
             'frequency': 100000000
         })
-        assert response.status_code == 200
+        assert response.status_code == 202
         data = response.get_json()
-
-        assert data['status'] == 'success'
-        assert 'capture' in data
-        assert 'transcription' in data
-        assert 'timestamp' in data
+        assert 'capture_id' in data
+        assert data['status'] == 'queued'
 
     def test_capture_and_transcribe_full_workflow(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
-        """Test complete capture and transcribe workflow"""
+        """Test complete capture and transcribe async workflow"""
+        import api_service
+        deadline = time.time() + 5
+        while api_service._capture_busy.is_set() and time.time() < deadline:
+            time.sleep(0.05)
+
         response = client.post('/capture-and-transcribe', json={
             'frequency': 144390000,
             'modulation': 'FM',
@@ -183,42 +204,43 @@ class TestCaptureAndTranscribeEndpoint:
             'gain': 20,
             'language': 'en'
         })
-        assert response.status_code == 200
-        data = response.get_json()
+        assert response.status_code == 202
+        capture_id = response.get_json()['capture_id']
 
-        # Check capture data
-        assert 'capture' in data
-        capture = data['capture']
-        assert capture['frequency'] == 144390000
-        assert capture['modulation'] == 'FM'
-        assert capture['duration'] == 1
-        assert os.path.exists(capture['audio_file'])
+        session = _wait_for_capture(client, capture_id, timeout=15.0)
+        assert session['status'] == 'completed', f"capture failed: {session.get('error')}"
 
-        # Check transcription data
-        assert 'transcription' in data
-        transcription = data['transcription']
+        result = session['result']
+        assert 'transcription' in result
+        transcription = result['transcription']
         assert 'text' in transcription
         assert 'language' in transcription
         assert 'segments' in transcription
+        assert os.path.exists(result['audio_file'])
 
     def test_capture_and_transcribe_creates_files(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
-        """Test that both WAV and JSON files are created"""
+        """Test that WAV and JSON files are created by the async worker"""
+        import api_service
+        deadline = time.time() + 5
+        while api_service._capture_busy.is_set() and time.time() < deadline:
+            time.sleep(0.05)
+
         response = client.post('/capture-and-transcribe', json={
             'frequency': 100000000,
             'duration': 1
         })
-        assert response.status_code == 200
-        data = response.get_json()
+        assert response.status_code == 202
+        capture_id = response.get_json()['capture_id']
 
-        audio_file = data['capture']['audio_file']
+        session = _wait_for_capture(client, capture_id, timeout=15.0)
+        assert session['status'] == 'completed', f"capture failed: {session.get('error')}"
+
+        audio_file = session['result']['audio_file']
         assert os.path.exists(audio_file)
         assert audio_file.endswith('.wav')
 
-        # JSON file should also exist
         json_file = audio_file.replace('.wav', '.json')
         assert os.path.exists(json_file)
-
-        # Verify JSON content
         with open(json_file, 'r') as f:
             json_data = json.load(f)
         assert 'text' in json_data
@@ -331,19 +353,22 @@ class TestAPIIntegration:
         assert len(list_response.get_json()['recordings']) > 0
 
     def test_capture_and_transcribe_combined(self, client: FlaskClient, mock_sdr_hardware):
-        """Test combined endpoint vs separate calls"""
-        # Combined approach
+        """Test combined endpoint returns 202 and result is retrievable via polling"""
+        import api_service
+        deadline = time.time() + 5
+        while api_service._capture_busy.is_set() and time.time() < deadline:
+            time.sleep(0.05)
+
         combined_response = client.post('/capture-and-transcribe', json={
             'frequency': 100000000,
             'duration': 1
         })
-        assert combined_response.status_code == 200
-        combined_data = combined_response.get_json()
+        assert combined_response.status_code == 202
+        capture_id = combined_response.get_json()['capture_id']
 
-        # Verify structure
-        assert 'capture' in combined_data
-        assert 'transcription' in combined_data
-        assert combined_data['transcription']['text'] is not None
+        session = _wait_for_capture(client, capture_id, timeout=15.0)
+        assert session['status'] == 'completed'
+        assert session['result']['transcription']['text'] is not None
 
 
 class TestAPIConfiguration:
