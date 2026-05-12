@@ -21,6 +21,3 @@
   path.config: "/usr/share/logstash/pipeline/radio-metrics-pipeline.conf"
   pipeline.workers: 1
 
-- pipeline.id: intercept
-  path.config: "/usr/share/logstash/pipeline/intercept-pipeline.conf"
-  pipeline.workers: 2
