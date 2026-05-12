@@ -148,16 +148,16 @@ class SDRCapture(ABC):
 
         # Low-pass filter
         b, a = signal.butter(5, 0.1)
-        audio = signal.filtfilt(b, a, audio)
+        filtered: NDArray[np.float64] = np.asarray(signal.filtfilt(b, a, audio), dtype=np.float64)
 
-        return audio
+        return filtered
 
     def _save_wav(self, audio: NDArray[np.float64], output_file: str) -> None:
         """Save audio to WAV file"""
         os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
 
         # Convert to int16
-        audio_int16 = np.int16(audio * 32767)
+        audio_int16 = (audio * 32767).astype(np.int16)
 
         # Save WAV file
         wavfile.write(output_file, self.audio_sample_rate, audio_int16)

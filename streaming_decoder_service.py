@@ -564,6 +564,8 @@ class BaseStreamingDecoder(ABC):
                     if self.sdr_proc and self.sdr_proc.poll() is not None and self.sdr_proc.returncode != 0:
                         try:
                             import fcntl as _fcntl
+                            if self.sdr_proc.stderr is None:
+                                raise ValueError("stderr not captured")
                             fd = self.sdr_proc.stderr.fileno()
                             flags = _fcntl.fcntl(fd, _fcntl.F_GETFL)
                             _fcntl.fcntl(fd, _fcntl.F_SETFL, flags | os.O_NONBLOCK)
