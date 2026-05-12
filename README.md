@@ -1,4 +1,4 @@
-# 📻 Radio Message Transcription System
+# RadioMoni v3.1.0
 
 A complete professional radio monitoring system for capturing radio signals from **HackRF One**, **RTL-SDR**, **Airspy HF+**, or **Ettus USRP N200** with automatic hardware detection, transcribing them using faster-whisper, with Elasticsearch-based data storage, full-text search, and Kibana analytics dashboards.
 
@@ -15,8 +15,7 @@ A complete professional radio monitoring system for capturing radio signals from
 - 🔁 **Repeater Activity Monitoring**: Automated scanning and activity analysis of Swiss FM amateur radio repeaters
 - 📡📡 **Multi-Channel DDC** (USRP N200): Capture one wide-band IQ stream and simultaneously decode 2–8 APRS/POCSAG channels via software Digital Downconversion — phase-continuous mixing, 63-tap anti-alias FIR, stride decimation, FM demodulation, per-channel decoder process
 - ⚡ **5 Processing Modes**: Voice transcription, APRS, POCSAG, Repeater Activity scanning, and Multi-Channel DDC (USRP N200)
-- 🌐 **Web Interface**: Easy-to-use tabbed control panel with separate sections for Voice, APRS, POCSAG, Repeater Scan, and Multi-Channel DDC (USRP N200 tab shown only when USRP is selected)
-- ❓ **Built-in Help**: Help button opens the full User Manual as a rendered web page in a new tab
+- 🌐 **Web Interface**: Modern dark sidebar UI (Vite + Tailwind CSS, vanilla ES modules) with collapsible sidebar, toast notifications, and animated progress bars — separate panels for Voice, APRS, POCSAG, Repeater Scan, and Multi-Channel DDC (USRP N200 panel only visible when USRP is selected)
 - 🔌 **REST API**: Flask-based API for programmatic access
 - 🐳 **Docker Support**: Complete Docker setup for easy deployment
 
@@ -50,38 +49,40 @@ A complete professional radio monitoring system for capturing radio signals from
 ## Architecture
 
 ```
-┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-│  Web Interface  │   │     Kibana      │   │     Dockge      │
-│   (HTML/JS)     │   │   Dashboards    │   │  Stack Mgmt     │
-│   Port 8080     │   │   Port 5601     │   │   Port 5001     │
-│                 │   │                 │   │                 │
-└────────┬────────┘   └────────┬────────┘   └─────────────────┘
+┌─────────────────┐   ┌─────────────────┐
+│  Web Interface  │   │     Kibana      │
+│ Vite+Tailwind   │   │   Dashboards    │
+│   Port 8080     │   │   Port 5601     │
+│  nginx/docker   │   │                 │
+└────────┬────────┘   └────────┬────────┘
          │                     │
-         │            ┌────────┴────────┐             │
-         │            │                 │             │
-         │            ▼                 ▼             │
-         │    ┌──────────────┐  ┌──────────────┐     │
-         │    │Elasticsearch │  │   Logstash   │     │
-         │    │  Port 9200   │  │ Ports 9600-  │     │
-         │    │              │  │      9604    │     │
-         │    │ Time-Series  │  │              │     │
-         │    │   Indices:   │  │  5 Pipelines:│     │
-         │    │  - captures  │  │  - captures  │     │
-         │    │  - aprs      │  │  - aprs      │     │
-         │    │  - pocsag    │  │  - pocsag    │     │
-         │    │  - repeater  │  │  - repeater  │     │
-         │    │  - metrics   │  │  - metrics   │     │
-         │    └──────┬───────┘  └──────▲───────┘     │
-         │           │                  │             │
-         │           │                  │             │
-         │           ▼                  │             │
-         │    ┌──────────────┐          │             │
-         │    │  Metricbeat  │──────────┘             │
-         │    │ (Container + │                        │
-         │    │System Metrics│                        │
-         │    └──────────────┘                        │
-         │                                             │
-         └─────────────────────────────────────────────┘
+         │            ┌────────┴────────┐
+         │            │                 │
+         │            ▼                 ▼
+         │    ┌──────────────┐  ┌──────────────┐
+         │    │Elasticsearch │  │   Logstash   │
+         │    │  Port 9200   │  │ Ports 9600-  │
+         │    │              │  │      9604    │
+         │    │ Time-Series  │  │              │
+         │    │   Indices:   │  │  5 Pipelines:│
+         │    │  - captures  │  │  - captures  │
+         │    │  - aprs      │  │  - aprs      │
+         │    │  - pocsag    │  │  - pocsag    │
+         │    │  - repeater  │  │  - repeater  │
+         │    │  - metrics   │  │  - metrics   │
+         │    └──────┬───────┘  └──────▲───────┘
+         │           │                  │
+         │           │                  │
+         │           ▼                  │
+         │    ┌──────────────┐          │
+         │    │  Metricbeat  │──────────┘
+         │    │ (Container + │
+         │    │System Metrics│
+         │    └──────────────┘
+         │
+         └───────────────────────────────────────────
+                     │
+                     ▼
                      │
                      ▼
             ┌─────────────────────────────────┐
@@ -294,7 +295,18 @@ The system uses the ELK stack (Elasticsearch, Logstash, Kibana) which requires s
 
 ### May 2026
 
-**Security & Reliability Hardening (2026-05-12)**
+**UI Modernization — Dark Sidebar (v3.1.0, 2026-05-12)**
+- New **dark-themed sidebar UI** built with Vite + Tailwind CSS, replacing the legacy monolithic `web_interface.html`
+- Collapsible sidebar (240 px ↔ 60 px) with cyan active-tab accent; Inter + JetBrains Mono fonts
+- **Toast notification system** — floating top-right toasts (success / error / warning / info), auto-dismiss after 5 s, stacked up to 5
+- **Animated progress bars** on all three capture tabs (Voice, APRS, POCSAG): queued → 5 %, capturing → 5–70 % linear over capture duration, processing → 85 %, completed → 100 %
+- **Streaming stat chips** (APRS/POCSAG): live packet count and elapsed time rendered as styled stat cards
+- SDR status indicator in sidebar: green / amber / red dot showing detected hardware and frequency range
+- All existing API integrations preserved identically; vanilla ES modules (no React, no Alpine.js)
+- Build: `cd frontend && npm run build` → `frontend/dist/`; nginx serves `frontend/dist/` instead of the old single-file HTML
+- Old `web_interface.html` kept in repository as a reference/fallback
+
+**Security & Reliability Hardening (v3.0.0, 2026-05-12)**
 - **Async capture**: `POST /capture-and-transcribe` now returns HTTP 202 + `capture_id` immediately; results polled via `GET /capture-status/<id>` — frees Gunicorn workers during long captures (up to 600 s voice + transcription)
 - **Gunicorn timeout**: increased from 300 s to 660 s as a short-term mitigation for captures that approach the 600 s limit
 - **API key enforcement**: fixed missing `X-API-Key` header in web interface fetch calls for all three capture modes (voice, APRS, POCSAG)
@@ -2209,6 +2221,27 @@ my-project/
 │   ├── pocsag.py                    # POCSAG decoder endpoints
 │   ├── repeater.py                  # Repeater scanning endpoints
 │   └── streaming.py                 # Streaming decoder endpoints
+├── frontend/                        # Modern dark sidebar UI (Vite + Tailwind)
+│   ├── index.html                  # HTML shell with sidebar layout
+│   ├── package.json                # npm dependencies (vite, tailwindcss, lucide)
+│   ├── vite.config.js              # Vite build config
+│   ├── tailwind.config.js          # Tailwind CSS config
+│   ├── src/
+│   │   ├── main.js                 # Entry point — initialises all modules
+│   │   ├── style.css               # Tailwind directives + custom component classes
+│   │   └── modules/                # Vanilla ES modules (one per tab/concern)
+│   │       ├── api.js              # All fetch() calls (centralised)
+│   │       ├── toast.js            # Toast notification system
+│   │       ├── polling.js          # pollCaptureStatus() helper
+│   │       ├── sidebar.js          # Sidebar collapse / active nav state
+│   │       ├── sdr.js              # SDR detection + device selector
+│   │       ├── voice.js            # Voice transcription tab
+│   │       ├── aprs.js             # APRS tab (normal + streaming)
+│   │       ├── pocsag.js           # POCSAG tab (normal + streaming)
+│   │       ├── repeater.js         # Repeater scan tab
+│   │       └── multi.js            # Multi-Channel DDC tab (USRP N200)
+│   └── dist/                       # Built output — served by nginx
+├── web_interface.html               # Legacy single-file UI (reference/fallback)
 ├── requirements.txt                  # Python dependencies
 ├── pytest.ini                        # Pytest configuration
 ├── mypy.ini                          # MyPy type checker config

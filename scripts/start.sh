@@ -74,17 +74,23 @@ API_PID=$!
 # Wait for API to start
 sleep 2
 
-# Start simple HTTP server for web interface
+# Start web interface (serves the pre-built Vite bundle from frontend/dist/)
 echo "Starting web interface on port 8080..."
-python -m http.server 8080 &
-WEB_PID=$!
+if [ -d "frontend/dist" ]; then
+    python -m http.server 8080 --directory frontend/dist &
+    WEB_PID=$!
+else
+    echo "Warning: frontend/dist/ not found. Run 'cd frontend && npm install && npm run build' first."
+    echo "Alternatively, run 'cd frontend && npm run dev' for the Vite hot-reload dev server (port 5173)."
+    WEB_PID=0
+fi
 
 echo ""
 echo "========================================="
 echo "Services Started!"
 echo "========================================="
 echo ""
-echo "🌐 Web Interface: http://localhost:8080"
+echo "🌐 Web Interface: http://localhost:8080   (dark sidebar UI — served from frontend/dist/)"
 echo "🔌 API Endpoint:  http://localhost:5000"
 echo "📊 Health Check:  http://localhost:5000/health"
 echo ""
@@ -92,6 +98,10 @@ echo "Development Tools:"
 echo "  pytest                    # Run tests"
 echo "  ./scripts/run_mypy.sh     # Type checking"
 echo "  ./scripts/run_coverage.sh # Test coverage report"
+echo ""
+echo "Frontend (dark sidebar UI):"
+echo "  cd frontend && npm run dev  # Vite hot-reload dev server (port 5173)"
+echo "  cd frontend && npm run build # Rebuild dist/ (required after source changes)"
 echo ""
 echo "Production Deployment:"
 echo "  Docker with Gunicorn + ELK Stack:"
@@ -119,7 +129,7 @@ echo "Press Ctrl+C to stop all services"
 echo ""
 
 # Trap Ctrl+C and cleanup
-trap "echo ''; echo 'Stopping services...'; kill $API_PID $WEB_PID 2>/dev/null; exit 0" INT
+trap "echo ''; echo 'Stopping services...'; kill $API_PID 2>/dev/null; [ $WEB_PID -ne 0 ] && kill $WEB_PID 2>/dev/null; exit 0" INT
 
 # Wait for processes
 wait
