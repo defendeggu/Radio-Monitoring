@@ -216,7 +216,7 @@ class TestCaptureAndTranscribeEndpoint:
         assert 'text' in transcription
         assert 'language' in transcription
         assert 'segments' in transcription
-        assert os.path.exists(result['audio_file'])
+        assert os.path.exists(result['capture']['audio_file'])
 
     def test_capture_and_transcribe_creates_files(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
         """Test that WAV and JSON files are created by the async worker"""
@@ -235,7 +235,7 @@ class TestCaptureAndTranscribeEndpoint:
         session = _wait_for_capture(client, capture_id, timeout=15.0)
         assert session['status'] == 'completed', f"capture failed: {session.get('error')}"
 
-        audio_file = session['result']['audio_file']
+        audio_file = session['result']['capture']['audio_file']
         assert os.path.exists(audio_file)
         assert audio_file.endswith('.wav')
 
