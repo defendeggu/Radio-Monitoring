@@ -307,9 +307,7 @@ services:
     image: nginx:alpine
     container_name: radio-web-interface
     volumes:
-      - /home/eggu/Documents/projects/radiomoni/web_interface.html:/usr/share/nginx/html/index.html:ro
-      - /home/eggu/Documents/projects/radiomoni/help.html:/usr/share/nginx/html/help.html:ro
-      - /home/eggu/Documents/projects/radiomoni/USER_MANUAL.md:/usr/share/nginx/html/USER_MANUAL.md:ro
+      - /home/eggu/Documents/projects/radiomoni/frontend/dist:/usr/share/nginx/html:ro
       - /home/eggu/Documents/projects/radiomoni/monitoring/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
     ports:
       - "8080:80"

@@ -13,6 +13,7 @@ recordings/
 models/
 .n8n/
 node_modules/
+frontend/node_modules/
 
 # Secrets - NEVER commit actual secrets!
 secrets/
