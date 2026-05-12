@@ -184,6 +184,17 @@ def start_streaming_decode() -> Response | tuple[Response, int]:
         if device_type == 'usrp' and not device_address:
             return jsonify({'error': 'USRP N200 requires device_address (IP address)'}), 400
 
+        # Reject if another streaming session is already holding the SDR
+        active_decoders = session_manager.get_all_active_decoders()
+        if active_decoders:
+            active_id = next(iter(active_decoders))
+            active_session = session_manager.get_session(active_id)
+            active_mode = active_session.mode if active_session else 'unknown'
+            return jsonify({
+                'error': f'SDR is already in use by a {active_mode} session. Stop it first.',
+                'active_session_id': active_id,
+            }), 409
+
         # Create appropriate decoder
         decoder: Union[StreamingAPRSDecoder, StreamingPOCSAGDecoder]
         if mode == 'aprs':
