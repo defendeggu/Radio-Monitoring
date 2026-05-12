@@ -19,7 +19,16 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 
 ### Mai 2026
 
-**Sicherheit & Zuverlässigkeit (12.05.2026)**
+**Neues Web-Interface — dunkle Sidebar-Oberfläche (v3.1.0, 12.05.2026)**
+- Das Web-Interface wurde vollständig neu gebaut: modernes Dark-Theme mit **ausklappbarer Sidebar** (240 px ↔ 60 px), Cyan-Akzentfarbe für den aktiven Tab, Inter- und JetBrains-Mono-Schriften
+- **Toast-Benachrichtigungen**: Alle Status-Meldungen erscheinen jetzt als schwwebende Kacheln oben rechts (grün = Erfolg, rot = Fehler, gelb = Warnung) und verschwinden nach 5 Sekunden automatisch
+- **Fortschrittsbalken** bei allen drei Capture-Tabs (Voice, APRS, POCSAG): zeigt den Fortschritt von *Queued* über *Capturing* bis *Completed* visuell an
+- **Live-Statistik-Chips** beim APRS- und POCSAG-Streaming: Paket-/Nachrichten-Zähler und Laufzeit als stilisierte Karten
+- **SDR-Statusanzeige** in der Sidebar: grüner/oranger/roter Punkt mit erkanntem Gerätenamen und Frequenzbereich
+- Das alte `web_interface.html` bleibt als Referenz im Repository erhalten
+- Die Hilfe-Schaltfläche aus dem alten Interface entfällt; Dokumentation weiterhin via `README.md` und `USER_MANUAL.md`
+
+**Sicherheit & Zuverlässigkeit (v3.0.0, 12.05.2026)**
 - **Asynchrone Aufnahmen**: Nach dem Absenden eines Capture-Auftrags reagiert die Oberfläche sofort — kein Einfrieren mehr bei langen Voice-Aufnahmen (bis 600 s + Transkription)
 - **APRS/POCSAG Streaming**: Zähler *Messages received* und *Duration* aktualisieren sich jetzt zuverlässig; Verbindungsfehler werden nach 3 Fehlversuchen sauber beendet
 - **Stop Streaming**: Schaltfläche funktioniert nun auch dann zuverlässig, wenn die Session bereits automatisch beendet wurde
@@ -56,8 +65,7 @@ Einfache Anleitung für die Bedienung des Radio-Monitoring-Systems.
 - `/help`-Seite gab 404 → behoben durch nginx-Konfiguration mit `.html`-Fallback
 - Kibana-Dashboard-Import ignorierte Fehler still → behoben, alle Dashboards werden jetzt vollständig importiert
 
-**Hilfe-Button, Filebeat & neue Kibana-Dashboards (24.03.2026)**
-- **❓ Hilfe-Button** oben rechts im Web-Interface: öffnet das Benutzerhandbuch als gerenderte Webseite in einem neuen Tab
+**Filebeat & neue Kibana-Dashboards (24.03.2026)**
 - **Filebeat** sammelt Logs aller Docker-Container (API, Elasticsearch, Logstash, Kibana, etc.) und speichert sie in `radio-logs-*` in Elasticsearch
 - **Stack Health Dashboard** in Kibana: CPU/Memory-Timeline pro Container, Container-Status, Healthcheck-Status, Ressourcen-Übersichtstabelle
 - **Stack Logs Dashboard** in Kibana: Log-Volumen, Timeline, stdout/stderr-Split, Container-Übersicht

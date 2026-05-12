@@ -40,7 +40,9 @@ sudo apt-get install -y \
     direwolf \
     multimon-ng \
     libasound2-dev \
-    cmake
+    cmake \
+    nodejs \
+    npm
 
 # Download USRP N200 FPGA/firmware images (required for uhd_rx_cfile)
 echo ""
@@ -60,6 +62,17 @@ echo ""
 echo "Installing Python dependencies..."
 pip install --upgrade pip
 pip install -r requirements.txt
+
+# Build the frontend (Vite + Tailwind dark sidebar UI)
+echo ""
+echo "Building web interface (Vite + Tailwind)..."
+if command -v npm &> /dev/null; then
+    (cd frontend && npm install && npm run build)
+    echo "✓ Frontend built → frontend/dist/"
+else
+    echo "Warning: npm not found. Install Node.js ≥18 and re-run setup, or build manually:"
+    echo "  cd frontend && npm install && npm run build"
+fi
 
 # Create directories
 echo ""
@@ -217,9 +230,10 @@ echo "========================================="
 echo "Setup Complete!"
 echo "========================================="
 echo ""
-echo "✓ System dependencies installed (incl. UHD for USRP N200)"
+echo "✓ System dependencies installed (incl. UHD for USRP N200, Node.js/npm)"
 echo "✓ Python virtual environment created"
 echo "✓ Python packages installed"
+echo "✓ Frontend built (Vite + Tailwind → frontend/dist/)"
 echo "✓ USB permissions configured (HackRF/RTL-SDR/Airspy)"
 echo "✓ API keys generated"
 echo "✓ Test suite verified"
