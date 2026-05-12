@@ -65,7 +65,7 @@ def capture() -> Response | tuple[Response, int]:
         frequency = int(float(data['frequency']))
         modulation = data.get('modulation', 'FM')
         duration = int(data.get('duration', 30))
-        gain = int(data.get('gain', 20))
+        gain = int(data.get('gain', 32))
         sample_rate = int(data.get('sample_rate', 2000000))
 
         # Generate output filename
