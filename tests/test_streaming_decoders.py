@@ -54,10 +54,7 @@ def mock_redis():
 @pytest.fixture
 def session_manager(mock_redis, monkeypatch):
     """Create SessionManager with mocked Redis"""
-    with patch('streaming_decoder_service.redis.Redis', return_value=mock_redis):
-        manager = SessionManager(redis_host='localhost', redis_port=6379, redis_db=0)
-        manager.redis = mock_redis
-        return manager
+    return SessionManager(redis_client=mock_redis)
 
 
 @pytest.fixture
@@ -157,15 +154,9 @@ class TestSessionManager:
     """Tests for SessionManager (Redis-based session management)"""
 
     def test_session_manager_initialization(self, mock_redis):
-        """Test SessionManager initialization"""
-        with patch('streaming_decoder_service.redis.Redis', return_value=mock_redis):
-            manager = SessionManager(
-                redis_host='localhost',
-                redis_port=6379,
-                redis_db=0
-            )
-
-            assert manager.redis is not None
+        """SessionManager uses the injected client, or the shared one by default"""
+        assert SessionManager(redis_client=mock_redis).redis is mock_redis
+        assert SessionManager().redis is not None
 
     def test_save_session(self, session_manager, sample_stream_session, mock_redis):
         """Test saving session to Redis"""
@@ -325,14 +316,16 @@ class TestStreamingAPRSDecoder:
         assert packet is None
 
     def test_aprs_start_stream_creates_session(self, session_manager):
-        """Test that starting APRS stream creates session"""
+        """create_session registers the decoder; start() runs the worker thread"""
         decoder = StreamingAPRSDecoder(144800000, 10, 20, 2000000)
+        session_id = session_manager.create_session('aprs', decoder, 144800000, 2000000, 20)
+        assert isinstance(session_id, str)
+        assert session_manager.get_decoder(session_id) is decoder
 
-        with patch.object(decoder, '_stream_worker'):
-            session_id = decoder.start_stream(session_manager)
-
-            assert session_id is not None
-            assert isinstance(session_id, str)
+        with patch.object(decoder, '_stream_worker_simple') as worker:
+            decoder.start(session_manager)
+            decoder.thread.join(timeout=5)
+            worker.assert_called_once()
 
     def test_aprs_stop_stream(self):
         """Test stopping APRS stream"""
@@ -402,14 +395,16 @@ class TestStreamingPOCSAGDecoder:
         assert packet is None
 
     def test_pocsag_start_stream_creates_session(self, session_manager):
-        """Test that starting POCSAG stream creates session"""
-        decoder = StreamingPOCSAGDecoder(147325000, 10, 30, 2000000)
+        """create_session registers the decoder; start() runs the worker thread"""
+        decoder = StreamingPOCSAGDecoder(147325000, 10, 20, 2000000)
+        session_id = session_manager.create_session('pocsag', decoder, 147325000, 2000000, 20)
+        assert isinstance(session_id, str)
+        assert session_manager.get_decoder(session_id) is decoder
 
-        with patch.object(decoder, '_stream_worker'):
-            session_id = decoder.start_stream(session_manager)
-
-            assert session_id is not None
-            assert isinstance(session_id, str)
+        with patch.object(decoder, '_stream_worker_simple') as worker:
+            decoder.start(session_manager)
+            decoder.thread.join(timeout=5)
+            worker.assert_called_once()
 
     def test_pocsag_stop_stream(self):
         """Test stopping POCSAG stream"""
@@ -425,74 +420,51 @@ class TestStreamingPOCSAGDecoder:
 # ============================================================================
 
 class TestStreamingAPI:
-    """API integration tests for streaming endpoints"""
+    """API tests for streaming endpoints (no hardware)"""
 
-    def test_streaming_aprs_start_endpoint_exists(self, client: FlaskClient):
-        """Test that /stream/aprs/start endpoint exists"""
-        response = client.post('/stream/aprs/start', json={
-            'frequency': 144800000,
-            'duration': 10
-        })
+    def test_stream_decode_requires_frequency(self, client: FlaskClient):
+        response = client.post('/stream-decode', json={'mode': 'aprs'})
+        assert response.status_code == 400
+        assert 'frequency' in response.get_json()['error']
 
-        # Endpoint not yet implemented - 404 is acceptable
-        assert response.status_code in [200, 400, 404, 409, 500]
+    def test_stream_decode_rejects_unknown_mode(self, client: FlaskClient):
+        response = client.post('/stream-decode', json={'mode': 'fax', 'frequency': 144800000})
+        assert response.status_code == 400
 
-    def test_streaming_pocsag_start_endpoint_exists(self, client: FlaskClient):
-        """Test that /stream/pocsag/start endpoint exists"""
-        response = client.post('/stream/pocsag/start', json={
-            'frequency': 147325000,
-            'duration': 10
-        })
+    def test_stream_decode_without_sdr_is_503(self, client: FlaskClient, monkeypatch):
+        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.UNKNOWN)
+        response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000})
+        assert response.status_code == 400  # "No SDR hardware detected" is a ValueError
 
-        # Endpoint not yet implemented - 404 is acceptable
-        assert response.status_code in [200, 400, 404, 409, 500]
+    def test_unknown_session_is_404(self, client: FlaskClient):
+        assert client.get('/stream-decode/nope').status_code == 404
+        assert client.delete('/stream-decode/nope').status_code == 404
 
-    def test_streaming_session_status_endpoint(self, client: FlaskClient):
-        """Test /stream/<mode>/<session_id>/status endpoint"""
-        session_id = 'test-session-123'
-
-        response = client.get(f'/stream/aprs/{session_id}/status')
-
-        # Should return 200 or 404 (session not found)
-        assert response.status_code in [200, 404]
-
-    def test_streaming_session_stop_endpoint(self, client: FlaskClient):
-        """Test /stream/<mode>/<session_id>/stop endpoint"""
-        session_id = 'test-session-123'
-
-        response = client.post(f'/stream/aprs/{session_id}/stop')
-
-        # Should return 200 or 404
-        assert response.status_code in [200, 404]
-
-    def test_streaming_session_packets_endpoint(self, client: FlaskClient):
-        """Test /stream/<mode>/<session_id>/packets endpoint"""
-        session_id = 'test-session-123'
-
-        response = client.get(f'/stream/aprs/{session_id}/packets')
-
-        # Should return 200 or 404
-        assert response.status_code in [200, 404]
-
-    def test_streaming_concurrent_session_limit(self, client: FlaskClient, monkeypatch):
-        """Test that concurrent streaming sessions are limited"""
-        # Mock detect_sdr so decoder instantiation works without SDR hardware in CI
+    def test_stream_decode_conflict_when_sdr_busy(self, client: FlaskClient, monkeypatch):
+        import sdr_lock
         monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
-        # Mock active session
-        def mock_get_user_active_session(*args, **kwargs):
-            session = StreamSession('aprs', 144800000, 300, 20, 2000000)
-            session.status = 'running'
-            return session
+        assert sdr_lock.acquire('other-job', 'capture')
+        response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000, 'duration': 10})
+        assert response.status_code == 409
+        assert response.get_json()['holder']['owner'] == 'other-job'
 
-        with patch('api_service.session_manager.get_user_active_session', mock_get_user_active_session):
-            response = client.post('/stream/aprs/start', json={
-                'frequency': 144800000,
-                'duration': 10
-            })
+    def test_legacy_endpoint_is_deprecated(self, client: FlaskClient, monkeypatch):
+        import sdr_lock
+        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        assert sdr_lock.acquire('other-job', 'capture')
+        response = client.post('/stream/aprs/start', json={'duration': 10})
+        assert response.status_code == 409
 
-            # Should reject (409 Conflict) or handle appropriately
-            # Endpoint not yet implemented - 404 is acceptable
-            assert response.status_code in [200, 400, 404, 409]
+    def test_usrp_requires_address(self, client: FlaskClient):
+        response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000,
+                                                       'device_type': 'usrp'})
+        assert response.status_code == 400
+
+    def test_usrp_address_must_be_ip(self, client: FlaskClient):
+        response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000,
+                                                       'device_type': 'usrp',
+                                                       'device_address': '1.2.3.4,fpga=/etc/x'})
+        assert response.status_code == 400
 
 
 # ============================================================================

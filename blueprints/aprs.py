@@ -1,188 +1,101 @@
 """
-APRS Decoder Blueprint
-
-Provides endpoints for APRS (Automatic Packet Reporting System) decoding:
-- Search APRS packets
-- Get APRS statistics
-- Get map data (GeoJSON)
-- Decode APRS from audio files
+APRS endpoints: search, statistics, map data (GeoJSON) and file decoding.
 """
 
-from flask import Blueprint, request, jsonify, Response
-from typing import Any, cast
-from api_service import get_elasticsearch_service, get_aprs_decoder
 import logging
+from typing import Any
+
+from flask import Blueprint, Response, jsonify
+
+import alerts
+import events
+from api_docs import api, parse_body, parse_query
+from errors import ApiError
+from schemas import AprsSearchQuery, DecodeFileRequest, HoursLimitQuery
+from services import get_aprs_decoder, validate_file_path
+from storage import get_storage
 
 logger = logging.getLogger(__name__)
-
-# Create blueprint
 aprs_bp = Blueprint('aprs', __name__)
 
 
-@aprs_bp.route('/aprs/search', methods=['GET'])
-def search_aprs() -> Response | tuple[Response, int]:
-    """
-    Search APRS messages in database
+@aprs_bp.get('/aprs/search')
+@api('Search APRS packets', tags=['APRS'], query=AprsSearchQuery)
+def search_aprs() -> Response:
+    q = parse_query(AprsSearchQuery)
+    results = get_storage().search_aprs(callsign=q.callsign, packet_type=q.type, hours=q.hours, limit=q.limit)
+    return jsonify({'status': 'success', 'count': results['total'], 'results': results['hits']})
 
-    Query parameters:
-    - callsign: Filter by source callsign
-    - type: Filter by APRS type (position, message, weather, telemetry)
-    - hours: Time window in hours (default 24)
-    - limit: Maximum results (default 100)
-    """
-    try:
-        es = get_elasticsearch_service()
 
-        # Get query parameters
-        callsign = request.args.get('callsign')
-        packet_type = request.args.get('type')
-        hours = request.args.get('hours', 24, type=int)
-        limit = request.args.get('limit', 100, type=int)
+@aprs_bp.get('/aprs/stats')
+@api('APRS statistics', tags=['APRS'], query=HoursLimitQuery)
+def get_aprs_stats() -> Response:
+    q = parse_query(HoursLimitQuery)
+    return jsonify({'status': 'success', 'statistics': get_storage().get_aprs_stats(hours=q.hours)})
 
-        # Search
-        results = es.search_aprs(
-            callsign=callsign,
-            packet_type=packet_type,
-            hours=hours,
-            limit=limit
-        )
 
-        return jsonify({
-            'status': 'success',
-            'count': results['total'],
-            'results': results['hits']
+def to_geojson(packets: list[dict[str, Any]]) -> dict[str, Any]:
+    """Latest position per station as a GeoJSON FeatureCollection."""
+    latest: dict[str, dict[str, Any]] = {}
+    for packet in packets:
+        lat, lon = packet.get('latitude'), packet.get('longitude')
+        if lat is None or lon is None:
+            continue
+        call = packet.get('source_callsign') or '?'
+        if call not in latest:  # packets are sorted newest first
+            latest[call] = packet
+    features = []
+    for call, packet in latest.items():
+        ts = packet.get('@timestamp') or packet.get('timestamp') or packet.get('created_at')
+        features.append({
+            'type': 'Feature',
+            'geometry': {'type': 'Point', 'coordinates': [packet['longitude'], packet['latitude']]},
+            'properties': {
+                'callsign': call,
+                'message': packet.get('message_text', ''),
+                'type': packet.get('aprs_type') or packet.get('packet_type', 'unknown'),
+                'symbol': f"{packet.get('symbol_table') or ''}{packet.get('symbol_code') or ''}" or None,
+                'timestamp': str(ts) if ts else None,
+                'altitude': packet.get('altitude_meters') or packet.get('altitude'),
+                'speed': packet.get('speed_kmh') or packet.get('speed'),
+                'course': packet.get('course'),
+                'frequency': packet.get('frequency'),
+            },
         })
-
-    except Exception as e:
-        logger.error(f"APRS search failed: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+    return {'type': 'FeatureCollection', 'features': features}
 
 
-@aprs_bp.route('/aprs/stats', methods=['GET'])
-def get_aprs_stats() -> Response | tuple[Response, int]:
-    """Get APRS statistics"""
+@aprs_bp.get('/aprs/map')
+@api('APRS station positions as GeoJSON (latest per callsign)', tags=['APRS'], query=HoursLimitQuery)
+def get_aprs_map_data() -> Response:
+    q = parse_query(HoursLimitQuery)
+    results = get_storage().search_aprs(hours=q.hours, limit=1000)
+    return jsonify(to_geojson(results.get('hits', [])))
+
+
+@aprs_bp.post('/aprs/decode')
+@api('Decode APRS packets from a recording', tags=['APRS'], body=DecodeFileRequest)
+def decode_aprs() -> Response:
+    req = parse_body(DecodeFileRequest)
     try:
-        es = get_elasticsearch_service()
-        stats = es.get_aprs_stats()
-
-        return jsonify({
-            'status': 'success',
-            'statistics': stats
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@aprs_bp.route('/aprs/map', methods=['GET'])
-def get_aprs_map_data() -> Response | tuple[Response, int]:
-    """
-    Get APRS position data for map display (GeoJSON format)
-
-    Returns recent APRS packets with position data in GeoJSON format
-    suitable for map visualization (Grafana, Leaflet, etc.)
-    """
+        audio_file = validate_file_path(req.audio_file)
+    except ValueError as e:
+        raise ApiError(str(e), 403)
     try:
-        es = get_elasticsearch_service()
-
-        # Get recent packets with position data (last 24 hours by default)
-        hours = request.args.get('hours', 24, type=int)
-
-        results = es.search_aprs(
-            hours=hours,
-            limit=1000
-        )
-
-        # Filter for packets with position data and convert to GeoJSON
-        features = []
-        for packet in results.get('hits', []):
-            if packet.get('latitude') and packet.get('longitude'):
-                features.append({
-                    'type': 'Feature',
-                    'geometry': {
-                        'type': 'Point',
-                        'coordinates': [packet['longitude'], packet['latitude']]
-                    },
-                    'properties': {
-                        'callsign': packet['source_callsign'],
-                        'message': packet.get('message_text', ''),
-                        'type': packet.get('aprs_type', 'unknown'),
-                        'timestamp': packet['created_at'].isoformat() if hasattr(packet['created_at'], 'isoformat') else str(packet['created_at']),
-                        'altitude': packet.get('altitude_meters'),
-                        'speed': packet.get('speed_kmh'),
-                        'frequency': packet.get('frequency')
-                    }
-                })
-
-        geojson = {
-            'type': 'FeatureCollection',
-            'features': features
-        }
-
-        return jsonify(geojson)
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@aprs_bp.route('/aprs/decode', methods=['POST'])
-def decode_aprs() -> Response | tuple[Response, int]:
-    """
-    Decode APRS packets from audio file
-
-    Request body (JSON):
-    {
-        "audio_file": "/path/to/audio.wav",
-        "frequency": 144800000,  // Optional: frequency in Hz
-        "index_to_es": true      // Optional: index to Elasticsearch (default: true)
-    }
-
-    Returns:
-    {
-        "status": "success",
-        "count": 5,
-        "packets": [...]
-    }
-    """
-    try:
-        data = request.get_json()
-
-        if not data:
-            return jsonify({'error': 'Missing JSON body'}), 400
-
-        audio_file = data.get('audio_file')
-        if not audio_file:
-            return jsonify({'error': 'Missing required field: audio_file'}), 400
-
-        frequency = data.get('frequency')
-        index_to_es = data.get('index_to_es', True)
-
-        # Decode APRS packets
-        decoder = get_aprs_decoder()
-        packets = decoder.decode(audio_file)
-
-        # Add metadata to packets
-        for packet in packets:
-            if frequency:
-                packet['frequency'] = frequency
-
-        # Index to Elasticsearch if requested
-        if index_to_es and packets:
-            es = get_elasticsearch_service()
-            for packet in packets:
-                try:
-                    es.index_aprs(cast(dict[str, Any], packet))
-                except Exception as e:
-                    logger.warning(f"Failed to index APRS packet: {e}")
-
-        return jsonify({
-            'status': 'success',
-            'count': len(packets),
-            'packets': packets
-        })
-
-    except FileNotFoundError as e:
-        return jsonify({'error': f'Audio file not found: {str(e)}'}), 404
-    except Exception as e:
-        logger.error(f"APRS decode failed: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        packets = [dict(p) for p in get_aprs_decoder().decode(audio_file)]
+    except FileNotFoundError:
+        raise ApiError('Audio file not found', 404)
+    except RuntimeError as e:
+        raise ApiError(str(e), 503)
+    storage = get_storage()
+    for packet in packets:
+        if req.frequency:
+            packet['frequency'] = req.frequency
+        if req.index_to_es:
+            try:
+                storage.index_aprs(packet)
+            except Exception as e:
+                logger.warning(f"Failed to store APRS packet: {e}")
+        events.publish('aprs', packet)
+        alerts.evaluate('aprs', packet)
+    return jsonify({'status': 'success', 'count': len(packets), 'packets': packets})

@@ -344,126 +344,86 @@ class TestRepeaterActivityAnalyzer:
 # ============================================================================
 
 class TestRepeaterScanningAPI:
-    """API integration tests for repeater scanning endpoints"""
+    """API tests for repeater scanning endpoints"""
 
-    def test_scan_repeaters_endpoint_exists(self, client: FlaskClient):
-        """Test that /scan-repeaters endpoint exists"""
-        response = client.post('/scan-repeaters', json={})
-        # Should not return 404
-        assert response.status_code != 404
+    REPEATER = {'id': 1, 'uuid': 'test-1', 'callsign': 'HB9TEST', 'output_frequency': 145500000,
+                'frequency_mhz': 145.5, 'band': '2m', 'canton': 'ZH', 'mode': 'FM', 'status': 'active'}
 
-    def test_scan_repeaters_minimal_params(self, client: FlaskClient, monkeypatch):
-        """Test starting a repeater scan with minimal parameters"""
-        # Mock get_repeaters to return test data
-        def mock_get_repeaters(*args, **kwargs):
-            return [{
-                'id': 1,
-                'uuid': 'test-1',
-                'callsign': 'HB9TEST',
-                'output_frequency': 145500000,
-                'frequency_mhz': 145.5,
-                'band': '2m',
-                'canton': 'ZH',
-                'mode': 'FM'
-            }]
+    @pytest.fixture
+    def seeded(self):
+        from storage import get_storage
+        get_storage().index_repeater(dict(self.REPEATER))
 
-        # Import and patch
-        import api_service
-        monkeypatch.setattr('blueprints.repeater.get_elasticsearch_service', lambda: type('obj', (object,), {
-            'get_repeaters': mock_get_repeaters
-        })())
+    @pytest.fixture
+    def no_worker(self, monkeypatch):
+        """Do not actually scan: record the submitted job instead"""
+        import jobs
+        submitted = []
+        monkeypatch.setattr(jobs.scan_pool, 'submit', lambda fn, *args: submitted.append(args))
+        return submitted
 
-        response = client.post('/scan-repeaters', json={
-            'duration_per_repeater': 10  # Short duration for testing
-        })
+    def test_scan_without_repeaters_is_404(self, client: FlaskClient, no_worker):
+        response = client.post('/scan-repeaters', json={'duration_per_repeater': 10})
+        assert response.status_code == 404
+        assert no_worker == []
 
-        # Should accept request
-        assert response.status_code in [200, 409]  # 200 or 409 if already scanning
-
-        if response.status_code == 200:
-            data = response.get_json()
-            assert 'session_id' in data or 'status' in data
-
-    def test_scan_repeaters_concurrent_limit(self, client: FlaskClient, monkeypatch):
-        """Test that concurrent scans are rejected"""
-        # Mock active scan
-        def mock_has_active_scan():
-            return True
-
-        import api_service
-        monkeypatch.setattr('blueprints.repeater.has_active_scan', mock_has_active_scan)
-
-        response = client.post('/scan-repeaters', json={})
-
-        assert response.status_code == 409
+    def test_scan_repeaters_minimal_params(self, client: FlaskClient, seeded, no_worker):
+        response = client.post('/scan-repeaters', json={'duration_per_repeater': 10})
+        assert response.status_code == 200
         data = response.get_json()
-        assert data['code'] == 'SCAN_IN_PROGRESS'
+        assert data['repeaters_count'] == 1
+        assert data['estimated_duration_seconds'] == 10
+        assert len(no_worker) == 1
 
-    def test_scan_repeaters_progress_endpoint(self, client: FlaskClient):
-        """Test /scan-repeaters/<session_id>/progress endpoint"""
-        session_id = 1
-        response = client.get(f'/scan-repeaters/{session_id}/progress')
+    def test_scan_holds_sdr_lock(self, client: FlaskClient, seeded, no_worker):
+        assert client.post('/scan-repeaters', json={'duration_per_repeater': 10}).status_code == 200
+        second = client.post('/scan-repeaters', json={'duration_per_repeater': 10})
+        assert second.status_code == 409
 
-        # Should return progress info or 404 if session doesn't exist
-        assert response.status_code in [200, 404]
+    def test_scan_duration_is_validated(self, client: FlaskClient):
+        assert client.post('/scan-repeaters', json={'duration_per_repeater': 100000}).status_code == 400
+        assert client.post('/scan-repeaters', json={'canton': 'Zurich'}).status_code == 400
+        assert client.post('/scan-repeaters', json={'band': '2m; DROP'}).status_code == 400
 
-    def test_scan_repeaters_get_session(self, client: FlaskClient):
-        """Test GET /scan-repeaters/<session_id> endpoint"""
-        session_id = 1
-        response = client.get(f'/scan-repeaters/{session_id}')
+    def test_scan_with_filters(self, client: FlaskClient, seeded, no_worker):
+        assert client.post('/scan-repeaters', json={'band': '2m', 'canton': 'zh',
+                                                    'duration_per_repeater': 10}).status_code == 200
+        import sdr_lock
+        sdr_lock.force_release()
+        assert client.post('/scan-repeaters', json={'band': '70cm', 'duration_per_repeater': 10}).status_code == 404
 
-        # Should return session info or 404
-        assert response.status_code in [200, 404]
+    def test_unknown_session_is_404(self, client: FlaskClient):
+        assert client.get('/scan-repeaters/12345/progress').status_code == 404
+        assert client.get('/scan-repeaters/12345').status_code == 404
 
-    def test_scan_repeaters_with_band_filter(self, client: FlaskClient, monkeypatch):
-        """Test scanning with band filter (2m, 70cm)"""
-        def mock_get_repeaters(*args, **kwargs):
-            # Verify band parameter is passed
-            assert kwargs.get('band') in ['2m', '70cm', None]
-            return []
-
-        import api_service
-        monkeypatch.setattr('blueprints.repeater.get_elasticsearch_service', lambda: type('obj', (object,), {
-            'get_repeaters': mock_get_repeaters
-        })())
-
-        response = client.post('/scan-repeaters', json={
-            'band': '2m',
-            'duration_per_repeater': 10
-        })
-
-        # Should process request (404 if filters not yet implemented)
-        assert response.status_code in [200, 400, 404, 409]
-
-    def test_scan_repeaters_with_canton_filter(self, client: FlaskClient, monkeypatch):
-        """Test scanning with canton filter"""
-        def mock_get_repeaters(*args, **kwargs):
-            assert kwargs.get('canton') in ['ZH', 'BE', 'GR', None]
-            return []
-
-        import api_service
-        monkeypatch.setattr('blueprints.repeater.get_elasticsearch_service', lambda: type('obj', (object,), {
-            'get_repeaters': mock_get_repeaters
-        })())
-
-        response = client.post('/scan-repeaters', json={
-            'canton': 'ZH',
-            'duration_per_repeater': 10
-        })
-
-        # Should process request (404 if filters not yet implemented)
-        assert response.status_code in [200, 400, 404, 409]
-
-    def test_repeaters_list_endpoint(self, client: FlaskClient):
-        """Test GET /repeaters endpoint"""
+    def test_repeaters_list_endpoint(self, client: FlaskClient, seeded):
         response = client.get('/repeaters')
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['count'] == 1
+        assert data['repeaters'][0]['callsign'] == 'HB9TEST'
 
-        # Should return repeater list or error
-        assert response.status_code in [200, 500]
+    def test_worker_scans_and_stores_flat_metrics(self, client: FlaskClient, seeded, mock_sdr_hardware,
+                                                  monkeypatch):
+        """The worker stores carrier metrics at top level so the summary aggregation works"""
+        import jobs
+        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        from storage import get_storage
+        from repeater_activity_analyzer import ActivityMetrics
 
-        if response.status_code == 200:
-            data = response.get_json()
-            assert isinstance(data, (list, dict))
+        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: __import__('sdr_hardware').SDRType.HACKRF)
+        monkeypatch.setattr(jobs.RepeaterActivityAnalyzer, 'analyze_iq_file', lambda self, path: ActivityMetrics(
+            carrier_detected=True, transmission_count=2, total_active_seconds=3.0, activity_percentage=30.0,
+            average_signal_strength=-40.0, peak_signal_strength=-30.0, noise_floor=-80.0))
+        manager = get_scan_session_manager()
+        manager.save_session(RepeaterScanSession(session_id=77, repeaters_total=1, duration_per_repeater=1,
+                                                 sample_rate=2000000, gain=20))
+        jobs.scan_repeaters_worker(77, [dict(self.REPEATER)], 1, 2000000, 20)
+
+        assert manager.get_session(77).status == 'completed'
+        summary = get_storage().get_repeater_activity_summary(hours=1)
+        assert summary[0]['callsign'] == 'HB9TEST'
+        assert summary[0]['avg_activity_pct'] == 30.0
 
 
 # ============================================================================
@@ -502,8 +462,8 @@ class TestProgressTracking:
     def test_progress_updates_during_scan(self, client: FlaskClient, monkeypatch):
         """Test that progress updates are available during scan"""
         # This test verifies the structure, actual scanning tested elsewhere
-        from scan_session_manager import RepeaterScanSession
-        import api_service
+        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        manager = get_scan_session_manager()
 
         # Create test session
         session_id = 999
@@ -519,21 +479,22 @@ class TestProgressTracking:
         session.current_index = 3
 
         # Save to Redis
-        api_service.scan_session_manager.save_session(session)
+        manager.save_session(session)
 
         response = client.get(f'/scan-repeaters/{session_id}/progress')
 
-        if response.status_code == 200:
-            data = response.get_json()
-            assert 'progress' in data or 'scanned' in data
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['progress']['current_callsign'] == 'HB9TEST'
+        assert data['progress']['repeaters_scanned'] == 3
 
         # Cleanup
-        api_service.scan_session_manager.delete_session(session_id)
+        manager.delete_session(session_id)
 
     def test_completed_scan_has_results(self, client: FlaskClient, monkeypatch):
         """Test that completed scans have results available"""
-        from scan_session_manager import RepeaterScanSession
-        import api_service
+        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        manager = get_scan_session_manager()
 
         # Create completed test session
         session_id = 998
@@ -550,11 +511,12 @@ class TestProgressTracking:
         session.complete(results)
 
         # Save to Redis
-        api_service.scan_session_manager.save_session(session)
+        manager.save_session(session)
 
         response = client.get(f'/scan-repeaters/{session_id}')
 
-        if response.status_code == 200:
+        assert response.status_code == 200
+        if True:
             data = response.get_json()
             # API returns nested structure with top-level status and session object
             assert data['status'] == 'success'
@@ -563,7 +525,7 @@ class TestProgressTracking:
             assert 'results' in data['session']
 
         # Cleanup
-        api_service.scan_session_manager.delete_session(session_id)
+        manager.delete_session(session_id)
 
 
 # ============================================================================

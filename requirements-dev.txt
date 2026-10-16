@@ -1,0 +1,16 @@
+# Development, test and CI tools (not installed in the production image)
+-r requirements.txt
+
+pytest==9.1.1
+pytest-cov==7.1.0
+pytest-mock==3.16.0
+pytest-timeout==2.4.0
+coverage[toml]==7.16.2
+fakeredis==2.40.0
+lupa==2.8
+
+mypy==2.4.0
+types-requests==2.33.0.20261006
+types-psutil==7.2.2.20260906
+ruff==0.17.1
+pip-audit==2.10.1
