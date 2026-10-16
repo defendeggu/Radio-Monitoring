@@ -85,7 +85,7 @@ USER root
 COPY requirements.txt requirements-dev.txt /tmp/
 RUN pip install -r /tmp/requirements-dev.txt
 COPY tests/ tests/
-COPY pytest.ini mypy.ini .coveragerc pyproject.toml ./
+COPY pytest.ini mypy.ini .coveragerc pyproject.toml requirements.txt requirements-dev.txt ./
 RUN chown -R radiouser:radiouser /app
 USER radiouser
 ENV SKIP_REDIS_CHECK=1 ALLOW_INSECURE=true
