@@ -1,46 +1,89 @@
-name: CI Pipeline
+name: CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  build-and-test:
+  secrets:
+    name: Secret scan
     runs-on: ubuntu-latest
     steps:
-      - name: Check out code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
-          clean: true
           fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v3
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Verify checkout
-        run: |
-          echo "Current commit: $(git rev-parse HEAD)"
-          echo "Test files present:"
-          ls -la tests/*.py
-          echo "pytest.ini coverage setting:"
-          grep "cov-fail-under" pytest.ini
-          echo "conftest.py has SDR mocking:"
-          grep -c "mock_sdr_hardware" tests/conftest.py || echo "0"
+  backend:
+    name: Backend (lint, types, tests, audit)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build test image (Python 3.13 + SDR tools)
+        run: docker build --target test -t radiomoni-api-test .
+      - name: Ruff
+        run: docker run --rm radiomoni-api-test ruff check --exclude tests,scripts .
+      - name: Mypy (strict)
+        run: docker run --rm radiomoni-api-test sh -c 'mypy --config-file mypy.ini *.py blueprints/'
+      - name: Pytest (coverage >= 60 %)
+        run: docker run --rm radiomoni-api-test pytest -q
+      - name: pip-audit
+        run: docker run --rm radiomoni-api-test pip-audit -r requirements.txt --progress-spinner off
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+  frontend:
+    name: Frontend (lint, check, tests, e2e)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with:
-          python-version: '3.11'
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run check
+      - run: npm test
+      - run: npm audit --audit-level=high --omit=dev
+      - run: npx playwright install --with-deps chromium
+      - run: npm run e2e
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
 
-      - name: Install dependencies
+  images:
+    name: Images + vulnerability scan
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v7
+      - name: Build images
         run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
-
-      - name: Run MyPy for static type checking
-        run: ./scripts/run_mypy.sh
-
-      - name: Run tests with pytest
-        run: pytest
-
-      - name: Build Docker image
-        run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+          docker build -t radiomoni-api:ci .
+          docker build -t radiomoni-web:ci frontend
+      - name: Trivy (API image)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: radiomoni-api:ci
+          severity: CRITICAL
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Trivy (web image)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: radiomoni-web:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'

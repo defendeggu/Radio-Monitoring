@@ -1,11 +1,19 @@
 {
-  "index_patterns": ["radio-captures-*"],
+  "index_patterns": [
+    "radio-captures-*"
+  ],
+  "priority": 200,
+  "version": 4,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-captures daily indices"
+  },
   "template": {
     "settings": {
-      "number_of_shards": 3,
-      "number_of_replicas": 1,
-      "index.lifecycle.name": "radio-ilm-policy",
-      "index.lifecycle.rollover_alias": "radio-captures",
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s",
       "analysis": {
         "analyzer": {
           "multilingual_analyzer": {
@@ -99,13 +107,43 @@
         "metadata": {
           "type": "object",
           "enabled": false
+        },
+        "mode": {
+          "type": "keyword"
+        },
+        "json_file": {
+          "type": "keyword"
+        },
+        "file_size": {
+          "type": "long"
+        },
+        "transcription_duration": {
+          "type": "float"
+        },
+        "peak_power_db": {
+          "type": "float"
+        },
+        "noise_floor_db": {
+          "type": "float"
+        },
+        "created_at": {
+          "type": "date"
+        },
+        "session_id": {
+          "type": "keyword"
         }
-      }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
     }
-  },
-  "priority": 100,
-  "version": 1,
-  "_meta": {
-    "description": "Index template for radio voice transcriptions with multilingual full-text search"
   }
 }

@@ -1,11 +1,19 @@
 {
-  "index_patterns": ["radio-pocsag-*"],
+  "index_patterns": [
+    "radio-pocsag-*"
+  ],
+  "priority": 200,
+  "version": 4,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-pocsag daily indices"
+  },
   "template": {
     "settings": {
-      "number_of_shards": 2,
-      "number_of_replicas": 1,
-      "index.lifecycle.name": "radio-ilm-policy",
-      "index.lifecycle.rollover_alias": "radio-pocsag"
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
     },
     "mappings": {
       "properties": {
@@ -15,8 +23,17 @@
         "uuid": {
           "type": "keyword"
         },
+        "session_id": {
+          "type": "keyword"
+        },
         "capture_id": {
           "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
         },
         "address": {
           "type": "long"
@@ -35,22 +52,33 @@
           "fields": {
             "keyword": {
               "type": "keyword",
-              "ignore_above": 512
+              "ignore_above": 1024
             }
           }
         },
-        "frequency": {
-          "type": "long"
+        "raw_packet": {
+          "type": "keyword",
+          "ignore_above": 2048
         },
-        "frequency_mhz": {
-          "type": "float"
+        "raw_line": {
+          "type": "keyword",
+          "ignore_above": 2048
+        },
+        "channel_label": {
+          "type": "keyword"
         }
-      }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
     }
-  },
-  "priority": 100,
-  "version": 1,
-  "_meta": {
-    "description": "Index template for POCSAG pager messages"
   }
 }

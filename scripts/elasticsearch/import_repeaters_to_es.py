@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-Import repeaters from CSV into Elasticsearch
+Import repeaters from CSV into the configured storage (Elasticsearch or SQLite).
 
-Usage:
-    python3 import_repeaters_to_es.py scripts/example_repeaters.csv --es-hosts <host>
+Usage (inside the API container):
+    docker compose exec radio-api python scripts/elasticsearch/import_repeaters_to_es.py scripts/repeaterbook_ch_fm.csv
+
+IDs are derived from callsign and frequency, so re-importing updates instead of duplicating.
 """
 
 import csv
@@ -17,7 +19,7 @@ from datetime import datetime, timezone
 # Add project root to path to allow importing 'elasticsearch_service'
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from elasticsearch_service import ElasticsearchService
+from storage import get_storage
 
 
 def parse_frequency(freq_str: str) -> Optional[int]:
@@ -39,13 +41,12 @@ def parse_optional_float(value: str) -> Optional[float]:
         return None
 
 
-def import_csv(csv_file: str, es_hosts: List[str]) -> int:
+def import_csv(csv_file: str) -> int:
     """
     Import repeaters from CSV file into Elasticsearch.
 
     Args:
         csv_file: Path to CSV file
-        es_hosts: List of Elasticsearch hosts
 
     Returns:
         Number of repeaters imported
@@ -54,7 +55,7 @@ def import_csv(csv_file: str, es_hosts: List[str]) -> int:
         print(f"Error: File '{csv_file}' not found")
         return 0
 
-    es = ElasticsearchService(hosts=es_hosts)
+    es = get_storage()
 
     imported = 0
     errors = 0
@@ -103,7 +104,7 @@ def import_csv(csv_file: str, es_hosts: List[str]) -> int:
 
                 # Create repeater document
                 repeater_doc = {
-                    'uuid': str(uuid.uuid4()),
+                    'uuid': str(uuid.uuid5(uuid.NAMESPACE_URL, f'radiomoni:repeater:{callsign}:{output_frequency}')),
                     'callsign': callsign,
                     'output_frequency': output_frequency,
                     'input_frequency': input_frequency,
@@ -144,15 +145,18 @@ def import_csv(csv_file: str, es_hosts: List[str]) -> int:
 def main():
     parser = argparse.ArgumentParser(description='Import Swiss repeaters from CSV file to Elasticsearch')
     parser.add_argument('csv_file', help='Path to CSV file')
-    parser.add_argument('--es-hosts', help='Elasticsearch hosts', required=True)
+    parser.add_argument('--es-hosts', help='Elasticsearch hosts (default: ELASTICSEARCH_HOSTS)')
     args = parser.parse_args()
+    if args.es_hosts:
+        import os
+        os.environ['ELASTICSEARCH_HOSTS'] = args.es_hosts
 
     print("=" * 60)
-    print("Repeater CSV Import to Elasticsearch")
+    print("Repeater CSV import")
     print("=" * 60)
     print()
 
-    imported = import_csv(args.csv_file, [args.es_hosts])
+    imported = import_csv(args.csv_file)
 
     sys.exit(0 if imported > 0 else 1)
 

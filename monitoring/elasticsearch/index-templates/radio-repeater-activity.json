@@ -1,11 +1,19 @@
 {
-  "index_patterns": ["radio-repeater-activity-*"],
+  "index_patterns": [
+    "radio-repeater-activity-*"
+  ],
+  "priority": 200,
+  "version": 4,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-repeater-activity daily indices"
+  },
   "template": {
     "settings": {
-      "number_of_shards": 2,
-      "number_of_replicas": 1,
-      "index.lifecycle.name": "radio-ilm-policy",
-      "index.lifecycle.rollover_alias": "radio-repeater-activity"
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
     },
     "mappings": {
       "properties": {
@@ -62,29 +70,40 @@
         "scan_duration_seconds": {
           "type": "integer"
         },
-        "transmissions": {
-          "type": "nested",
-          "properties": {
-            "start_offset": {
-              "type": "float"
-            },
-            "duration": {
-              "type": "float"
-            },
-            "avg_strength": {
-              "type": "float"
-            },
-            "peak_strength": {
-              "type": "float"
+        "capture_id": {
+          "type": "keyword"
+        },
+        "peak_signal_strength": {
+          "type": "float"
+        },
+        "total_active_seconds": {
+          "type": "float"
+        },
+        "scan_start_time": {
+          "type": "date"
+        },
+        "scan_end_time": {
+          "type": "date"
+        },
+        "created_at": {
+          "type": "date"
+        },
+        "metrics": {
+          "type": "object",
+          "enabled": false
+        }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
             }
           }
         }
-      }
+      ]
     }
-  },
-  "priority": 100,
-  "version": 1,
-  "_meta": {
-    "description": "Index template for repeater activity monitoring data"
   }
 }

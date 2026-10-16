@@ -1,11 +1,19 @@
 {
-  "index_patterns": ["radio-aprs-*"],
+  "index_patterns": [
+    "radio-aprs-*"
+  ],
+  "priority": 200,
+  "version": 4,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-aprs daily indices"
+  },
   "template": {
     "settings": {
-      "number_of_shards": 2,
-      "number_of_replicas": 1,
-      "index.lifecycle.name": "radio-ilm-policy",
-      "index.lifecycle.rollover_alias": "radio-aprs"
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
     },
     "mappings": {
       "properties": {
@@ -15,8 +23,17 @@
         "uuid": {
           "type": "keyword"
         },
+        "session_id": {
+          "type": "keyword"
+        },
         "capture_id": {
           "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
         },
         "source_callsign": {
           "type": "keyword"
@@ -24,7 +41,19 @@
         "destination_callsign": {
           "type": "keyword"
         },
+        "path": {
+          "type": "keyword"
+        },
         "packet_type": {
+          "type": "keyword"
+        },
+        "aprs_type": {
+          "type": "keyword"
+        },
+        "symbol_table": {
+          "type": "keyword"
+        },
+        "symbol_code": {
           "type": "keyword"
         },
         "position": {
@@ -39,31 +68,47 @@
         "altitude": {
           "type": "float"
         },
+        "speed": {
+          "type": "float"
+        },
+        "course": {
+          "type": "float"
+        },
         "message_text": {
           "type": "text",
           "fields": {
             "keyword": {
               "type": "keyword",
-              "ignore_above": 256
+              "ignore_above": 1024
             }
           }
         },
         "raw_packet": {
-          "type": "text",
-          "index": false
+          "type": "keyword",
+          "ignore_above": 2048
         },
-        "frequency": {
-          "type": "long"
+        "channel_label": {
+          "type": "keyword"
         },
-        "frequency_mhz": {
-          "type": "float"
+        "aprs_data": {
+          "type": "object",
+          "enabled": false
+        },
+        "maidenhead": {
+          "type": "keyword"
         }
-      }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
     }
-  },
-  "priority": 100,
-  "version": 1,
-  "_meta": {
-    "description": "Index template for APRS packets with geospatial support"
   }
 }
