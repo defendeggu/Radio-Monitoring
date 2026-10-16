@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build the Svelte UI and serve it with nginx (unprivileged, port 8080)
 
-FROM node:22-alpine AS build
+FROM node:25-alpine AS build
 WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci --no-audit --no-fund
