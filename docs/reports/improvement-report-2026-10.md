@@ -13,7 +13,7 @@ Jeder Punkt nennt die **Datei**, das **Problem** und den **Fix**, damit er direk
 ## 1. Sicherheit
 
 ### 🔴 S1 – Kibana-Passwort im Klartext im Git-Repo (auch auf GitHub)
-- **Datei:** `monitoring/kibana/config/kibana.yml:11` → `elasticsearch.password: "tGocFie…"`, seit Commit `ee52582` in der Historie, Remote ist `github.com/defendeggu/Radio-Monitoring`.
+- **Datei:** `monitoring/kibana/config/kibana.yml:11` → `elasticsearch.password: "…"` (Klartext), seit Commit `ee52582` in der Historie, Remote ist `github.com/defendeggu/Radio-Monitoring`.
 - **Fix:**
   1. Das Passwort von `kibana_system` sofort rotieren (`scripts/setup-elk-users.sh` oder `POST /_security/user/kibana_system/_password`).
   2. In `kibana.yml` die Zeilen `elasticsearch.username/password/hosts` löschen, denn die Werte kommen schon per ENV aus `docker-compose.yml`.
