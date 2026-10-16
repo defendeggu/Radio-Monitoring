@@ -10,7 +10,8 @@ set -e  # Exit on error
 API_URL="${API_URL:-http://localhost:8080/api}"
 API_KEY="${API_KEY:-$(grep -E "^API_KEYS=" "$(dirname "$0")/../../../.env" 2>/dev/null | cut -d= -f2 | cut -d, -f1)}"
 KIBANA_URL="http://localhost:5601"
-ES_URL="http://elastic:***REMOVED***@localhost:9200"
+ES_URL="http://localhost:9200"   # queried inside the ES container (port is not published)
+ELASTIC_PASSWORD="${ELASTIC_PASSWORD:-$(grep -E "^ELASTIC_PASSWORD=" "$(dirname "$0")/../../../.env" 2>/dev/null | cut -d= -f2)}"
 LOG_FILE="/home/spia/my-project/hardware-test-$(date +%Y%m%d-%H%M%S).log"
 API_KEY=""  # Empty for localhost (exempt from auth)
 
@@ -63,7 +64,7 @@ check_kibana_data() {
     log "Checking Kibana data for $test_name..."
 
     # Query Elasticsearch for recent data
-    local count=$(curl -s -H "X-API-Key: ${API_KEY}" -u "elastic:***REMOVED***" \
+    local count=$(docker exec radio-elasticsearch curl -s -u "elastic:${ELASTIC_PASSWORD}" \
         -X GET "$ES_URL/${index_pattern}/_count?q=@timestamp:[now-5m TO now]" \
         2>/dev/null | jq -r '.count' 2>/dev/null || echo "0")
 
