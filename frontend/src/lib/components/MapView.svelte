@@ -21,9 +21,13 @@
 
   $effect(() => {
     map = L.map(el, { zoomControl: true, attributionControl: true }).setView([46.8, 8.2], 7);
+    // The OSM tile policy blocks requests without a Referer, and nginx sends
+    // "Referrer-Policy: no-referrer" for the whole app. Send only the origin
+    // (no path or query) with the tile requests.
     L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 18,
       attribution: '&copy; OpenStreetMap contributors',
+      referrerPolicy: 'strict-origin-when-cross-origin',
     }).addTo(map);
     layer = L.layerGroup().addTo(map);
     return () => {
