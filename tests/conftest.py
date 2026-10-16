@@ -3,151 +3,150 @@
 import os
 import sys
 import tempfile
-import pytest
+import time
+
 import numpy as np
+import pytest
 from scipy.io import wavfile
 
-# Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# Create ONE temp directory for the ENTIRE test session
-# This must happen BEFORE any imports
-_TEST_RECORDING_DIR = tempfile.mkdtemp(prefix='pytest-recordings-')
+# One temp directory for the whole session — environment must be set BEFORE importing the app
+_TEST_DIR = tempfile.mkdtemp(prefix='pytest-radiomoni-')
+_TEST_RECORDING_DIR = os.path.join(_TEST_DIR, 'recordings')
+os.makedirs(_TEST_RECORDING_DIR, exist_ok=True)
 
-# Set environment variables BEFORE importing api_service
-# This ensures api_service.RECORDING_DIR is set correctly on import
-os.environ['API_KEYS'] = ''
-os.environ['AUDIO_OUTPUT_DIR'] = _TEST_RECORDING_DIR
-os.environ['SKIP_REDIS_CHECK'] = '1'  # Skip Redis connection check in tests
+os.environ.update({
+    'API_KEYS': '',
+    'ALLOW_INSECURE': 'true',
+    'SKIP_REDIS_CHECK': '1',          # in-process fakeredis
+    'STORAGE_BACKEND': 'sqlite',
+    'SQLITE_PATH': os.path.join(_TEST_DIR, 'session.sqlite3'),
+    'AUDIO_OUTPUT_DIR': _TEST_RECORDING_DIR,
+    'JSON_LOGGING': 'false',
+    'SCHEDULER_ENABLED': 'false',
+    'MIN_FREE_DISK_MB': '1',
+    'PROXY_COUNT': '0',
+})
 
-# NOW import api_service - it will use the env vars we just set
-from api_service import app
-from transcription_service import TranscriptionService
-from sdr_hardware import HackRFCapture, SDRType, detect_sdr, get_sdr_instance
+from api_service import app  # noqa: E402
+from sdr_hardware import HackRFCapture, SDRType  # noqa: E402
+from transcription_service import TranscriptionService  # noqa: E402
 
 
 @pytest.fixture(scope='session')
 def temp_recording_dir():
-    """Return the pre-created temp directory"""
     return _TEST_RECORDING_DIR
 
 
 def pytest_sessionfinish(session, exitstatus):
-    """Cleanup temp directory after all tests"""
     import shutil
-    if os.path.exists(_TEST_RECORDING_DIR):
-        shutil.rmtree(_TEST_RECORDING_DIR)
+    shutil.rmtree(_TEST_DIR, ignore_errors=True)
+
+
+@pytest.fixture(autouse=True)
+def isolated_state(tmp_path, mock_transcription_service):
+    """Fresh Redis and storage for every test."""
+    import alerts
+    import blueprints.sdr
+    from redis_client import get_redis
+    from storage import set_storage
+    from storage_sqlite import SQLiteStorage
+
+    get_redis().flushall()
+    set_storage(SQLiteStorage(str(tmp_path / 'storage.sqlite3')))
+    alerts._invalidate()
+    blueprints.sdr._detect_cache = (0.0, {})
+    yield
+    _drain_job_pools()
+    get_redis().flushall()
+    import storage
+    if isinstance(storage._instance, SQLiteStorage):
+        storage._instance.close()
+    set_storage(None)
+
+
+def _drain_job_pools(timeout: float = 30.0) -> None:
+    """Wait for background jobs of the finished test (pools are FIFO, one worker each)."""
+    from concurrent.futures import ThreadPoolExecutor
+
+    import jobs
+    for pool in (jobs.capture_pool, jobs.scan_pool):
+        # call the class method: tests may monkeypatch pool.submit
+        ThreadPoolExecutor.submit(pool, lambda: None).result(timeout=timeout)
 
 
 @pytest.fixture
 def client():
-    """Flask test client"""
     app.config['TESTING'] = True
-    app.config['DEBUG'] = False
     with app.test_client() as client:
-        # Set test client to use localhost IP
         client.environ_base['REMOTE_ADDR'] = '127.0.0.1'
         yield client
 
 
 @pytest.fixture
 def sample_audio_file(temp_recording_dir) -> str:
-    """Create a sample WAV file for testing inside temp RECORDING_DIR"""
-    # Use the session-scoped temp directory (same as API uses)
-    recording_dir = temp_recording_dir
-    os.makedirs(recording_dir, exist_ok=True)
-
-    # Generate 1 second of test audio (16kHz for Whisper compatibility)
+    """1 s 440 Hz tone WAV inside the recordings directory"""
     sample_rate = 16000
-    duration = 1.0
-    t = np.linspace(0, duration, int(sample_rate * duration))
-
-    # Create a simple tone
-    audio = 0.3 * np.sin(2 * np.pi * 440 * t)  # 440 Hz tone
-    audio_int16 = np.int16(audio * 32767)
-
-    # Create file INSIDE temp recording_dir
-    filename = 'test_audio.wav'
-    filepath = os.path.join(recording_dir, filename)
-    wavfile.write(filepath, sample_rate, audio_int16)
-
-    # Return full path for TranscriptionService tests
-    # API tests will use os.path.basename() to get just the filename
+    t = np.linspace(0, 1.0, sample_rate)
+    audio = np.int16(0.3 * np.sin(2 * np.pi * 440 * t) * 32767)
+    filepath = os.path.join(temp_recording_dir, 'test_audio.wav')
+    wavfile.write(filepath, sample_rate, audio)
     return filepath
 
 
 @pytest.fixture(autouse=True)
 def mock_transcription_service(monkeypatch):
-    """Mock TranscriptionService __init__ to avoid loading Whisper model (CUDA errors)"""
-    # Only mock __init__ to prevent model loading, keep real transcribe() method
-    # This allows FileNotFoundError and other real behavior to work
+    """Never load a Whisper model in tests: use simulation mode."""
     def mock_init(self, model='base', device='cpu', compute_type='int8'):
         self.model_name = model
         self.device = device
         self.compute_type = compute_type
-        self.model = None  # Don't actually load the model
-        self.simulation_mode = True  # Force simulation mode
+        self.model = None
+        self.simulation_mode = True
 
     monkeypatch.setattr(TranscriptionService, '__init__', mock_init)
+    import services
+    monkeypatch.setattr(services, '_transcription', None)
 
 
 @pytest.fixture
-def mock_hackrf_capture(monkeypatch):
-    """Mock HackRFCapture for testing without hardware"""
-    original_init = HackRFCapture.__init__
-
-    def mock_init(self, *args, **kwargs):
-        # Call original init to set attributes
-        original_init(self, *args, **kwargs)
-
-    def mock_capture(self, duration: int, output_file: str) -> None:
-        # Always use simulation mode
-        self._simulate_capture(duration, output_file)
-
-    monkeypatch.setattr(HackRFCapture, '__init__', mock_init)
-    monkeypatch.setattr(HackRFCapture, 'capture', mock_capture)
-
-
-@pytest.fixture
-def mock_sdr_hardware(monkeypatch, temp_recording_dir):
-    """Mock SDR hardware for API tests"""
+def mock_sdr_hardware(monkeypatch):
+    """Pretend a HackRF is connected; captures produce synthetic files."""
+    import jobs
     import sdr_hardware
+    import streaming_decoder_service
+    import vox_recorder
 
-    # Mock detect_sdr to return HackRF available
-    def mock_detect():
-        return SDRType.HACKRF
-
-    monkeypatch.setattr(sdr_hardware, 'detect_sdr', mock_detect)
-
-    # Mock is_available to return True
+    detect = lambda *args, **kwargs: SDRType.HACKRF  # noqa: E731
+    for module in (sdr_hardware, jobs, streaming_decoder_service, vox_recorder):
+        monkeypatch.setattr(module, 'detect_sdr', detect)
+    import blueprints.sdr
+    monkeypatch.setattr(blueprints.sdr, 'detect_sdr', detect)
     monkeypatch.setattr(HackRFCapture, 'is_available', lambda self: True)
 
-    # Mock capture_audio to create a dummy WAV file
     def mock_capture_audio(self, duration: int, output_file: str, modulation: str = 'FM'):
-        """Create a dummy WAV file instead of capturing"""
-        os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else '.', exist_ok=True)
+        os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+        t = np.linspace(0, duration, int(16000 * duration))
+        wavfile.write(output_file, 16000, np.int16(0.1 * np.sin(2 * np.pi * 440 * t) * 32767))
 
-        # Generate dummy audio
-        sample_rate = 16000
-        t = np.linspace(0, duration, int(sample_rate * duration))
-        audio = 0.1 * np.sin(2 * np.pi * 440 * t)
-        audio_int16 = np.int16(audio * 32767)
-
-        wavfile.write(output_file, sample_rate, audio_int16)
+    def mock_capture_iq(self, duration: int, output_file: str):
+        os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+        n = int(self.sample_rate * duration)
+        (np.random.randn(n) + 1j * np.random.randn(n)).astype(np.complex64).tofile(output_file)
 
     monkeypatch.setattr(HackRFCapture, 'capture_audio', mock_capture_audio)
-
-    # Mock capture_iq to create a dummy IQ file
-    def mock_capture_iq(self, duration: int, output_file: str):
-        """Create a dummy IQ file instead of capturing"""
-        os.makedirs(os.path.dirname(output_file) if os.path.dirname(output_file) else '.', exist_ok=True)
-
-        # Generate dummy IQ samples
-        num_samples = int(self.sample_rate * duration)
-        iq_data = np.random.randn(num_samples) + 1j * np.random.randn(num_samples)
-        iq_data = iq_data.astype(np.complex64)
-
-        # Save as binary
-        iq_data.tofile(output_file)
-
     monkeypatch.setattr(HackRFCapture, 'capture_iq', mock_capture_iq)
+    yield
+    _drain_job_pools()  # jobs must finish while the hardware mocks are still active
+
+
+def wait_for_capture(client, capture_id: str, timeout: float = 15.0) -> dict:
+    """Poll /capture-status until the job finishes."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        data = client.get(f'/capture-status/{capture_id}').get_json()
+        if data['status'] in ('completed', 'failed'):
+            return data
+        time.sleep(0.1)
+    raise AssertionError(f'capture {capture_id} did not finish')

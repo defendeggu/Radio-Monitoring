@@ -1,386 +1,297 @@
-"""Integration tests for api_service.py"""
+"""API tests: health, captures, transcription, recordings, search, OpenAPI."""
 
 import os
-import json
-import time
+
 import pytest
 from flask.testing import FlaskClient
 
-
-def _wait_for_capture(client: FlaskClient, capture_id: str, timeout: float = 10.0) -> dict:
-    """Poll /capture-status/<id> until terminal status or timeout. Returns final session dict."""
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        resp = client.get(f'/capture-status/{capture_id}')
-        data = resp.get_json()
-        if data.get('status') in ('completed', 'failed'):
-            return data
-        time.sleep(0.1)
-    return client.get(f'/capture-status/{capture_id}').get_json()
+from tests.conftest import wait_for_capture
 
 
-class TestHealthEndpoint:
-    """Test /health endpoint"""
-
-    def test_health_returns_200(self, client: FlaskClient):
-        """Test that health endpoint returns 200 OK"""
+class TestHealth:
+    def test_health(self, client: FlaskClient):
         response = client.get('/health')
         assert response.status_code == 200
-
-    def test_health_returns_json(self, client: FlaskClient):
-        """Test that health endpoint returns JSON"""
-        response = client.get('/health')
-        assert response.content_type == 'application/json'
-
-    def test_health_response_structure(self, client: FlaskClient):
-        """Test health response has correct structure"""
-        response = client.get('/health')
         data = response.get_json()
-
-        assert 'status' in data
-        assert 'service' in data
-        assert 'timestamp' in data
         assert data['status'] == 'healthy'
-        assert data['service'] == 'radio-transcription-api'
+        from version import __version__
+        assert data['version'] == __version__
+
+    def test_ready_reports_dependencies(self, client: FlaskClient):
+        response = client.get('/health/ready')
+        assert response.status_code == 200
+        checks = response.get_json()['checks']
+        assert checks['redis'] == 'ok'
+        assert checks['storage']['backend'] == 'sqlite'
+        assert checks['sdr']['busy'] is False
+
+    def test_correlation_id_header(self, client: FlaskClient):
+        response = client.get('/health', headers={'X-Correlation-ID': 'abc-123'})
+        assert response.headers['X-Correlation-ID'] == 'abc-123'
+
+    def test_correlation_id_rejects_garbage(self, client: FlaskClient):
+        response = client.get('/health', headers={'X-Correlation-ID': '<script>'})
+        assert response.headers['X-Correlation-ID'] != '<script>'
 
 
-class TestCaptureEndpoint:
-    """Test /capture endpoint"""
-
-    def test_capture_requires_frequency(self, client: FlaskClient):
-        """Test that capture requires frequency parameter"""
-        response = client.post('/capture', json={})
+class TestCaptureValidation:
+    def test_requires_frequency(self, client: FlaskClient):
+        response = client.post('/capture-and-transcribe', json={'mode': 'voice'})
         assert response.status_code == 400
-        data = response.get_json()
-        assert 'error' in data
-        assert 'frequency' in data['error'].lower()
+        assert 'frequency' in response.get_json()['error']
 
-    def test_capture_with_minimal_params(self, client: FlaskClient, mock_sdr_hardware):
-        """Test capture with only required parameters"""
-        response = client.post('/capture', json={
-            'frequency': 100000000
-        })
-        assert response.status_code == 200
-        data = response.get_json()
+    @pytest.mark.parametrize('body', [
+        {'frequency': 'abc'},
+        {'frequency': 100e6, 'duration': 0},
+        {'frequency': 100e6, 'duration': 601},
+        {'frequency': 100e6, 'mode': 'pocsag', 'duration': 200},
+        {'frequency': 100e6, 'gain': 500},
+        {'frequency': 100e6, 'modulation': 'XYZ'},
+        {'frequency': 100e6, 'mode': 'fax'},
+        {'frequency': 100e6, 'language': 'english; rm -rf'},
+        {'frequency': 100e6, 'unexpected': 1},
+        {'frequency': 1},
+    ])
+    def test_rejects_invalid_parameters(self, client: FlaskClient, body):
+        assert client.post('/capture-and-transcribe', json=body).status_code == 400
 
-        assert data['status'] == 'success'
-        assert 'audio_file' in data
-        assert data['frequency'] == 100000000
-
-    def test_capture_with_all_params(self, client: FlaskClient, mock_sdr_hardware):
-        """Test capture with all parameters"""
-        response = client.post('/capture', json={
-            'frequency': 144390000,
-            'modulation': 'FM',
-            'duration': 5,
-            'gain': 30,
-            'sample_rate': 2000000
-        })
-        assert response.status_code == 200
-        data = response.get_json()
-
-        assert data['status'] == 'success'
-        assert data['frequency'] == 144390000
-        assert data['modulation'] == 'FM'
-        assert data['duration'] == 5
-
-    def test_capture_creates_wav_file(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
-        """Test that capture creates actual WAV file"""
-        response = client.post('/capture', json={
-            'frequency': 100000000,
-            'duration': 1
-        })
-        assert response.status_code == 200
-        data = response.get_json()
-
-        audio_file = data['audio_file']
-        # File should exist (in temp dir due to fixture)
-        assert os.path.exists(audio_file)
-        assert audio_file.endswith('.wav')
-
-    def test_capture_different_modulations(self, client: FlaskClient, mock_sdr_hardware):
-        """Test capture with different modulation types"""
-        modulations = ['FM', 'AM', 'USB', 'LSB']
-
-        for mod in modulations:
-            response = client.post('/capture', json={
-                'frequency': 100000000,
-                'modulation': mod
-            })
-            assert response.status_code == 200
-            data = response.get_json()
-            assert data['modulation'] == mod
-
-
-class TestTranscribeEndpoint:
-    """Test /transcribe endpoint"""
-
-    def test_transcribe_requires_audio_file(self, client: FlaskClient):
-        """Test that transcribe requires audio_file parameter"""
-        response = client.post('/transcribe', json={})
+    def test_invalid_json(self, client: FlaskClient):
+        response = client.post('/capture-and-transcribe', data='not json', content_type='application/json')
         assert response.status_code == 400
-        data = response.get_json()
-        assert 'error' in data
-        assert 'audio_file' in data['error'].lower()
 
-    def test_transcribe_missing_file(self, client: FlaskClient):
-        """Test transcribe with non-existent file returns 404"""
-        # Use a filename (not absolute path) so it passes path validation
-        # but file doesn't exist, so should return 404
-        response = client.post('/transcribe', json={
-            'audio_file': 'nonexistent_file.wav'
-        })
-        assert response.status_code == 404
-        data = response.get_json()
-        assert 'error' in data
-
-    def test_transcribe_with_valid_file(self, client: FlaskClient, sample_audio_file: str):
-        """Test transcribe with valid audio file"""
-        # API expects just the filename, not full path
-        response = client.post('/transcribe', json={
-            'audio_file': os.path.basename(sample_audio_file)
-        })
-        assert response.status_code == 200
-        data = response.get_json()
-
-        assert data['status'] == 'success'
-        assert 'result' in data
-        result = data['result']
-        assert 'text' in result
-        assert 'language' in result
-        assert 'duration' in result
-
-    def test_transcribe_with_language_hint(self, client: FlaskClient, sample_audio_file: str):
-        """Test transcribe with language parameter"""
-        # API expects just the filename, not full path
-        response = client.post('/transcribe', json={
-            'audio_file': os.path.basename(sample_audio_file),
-            'language': 'en'
-        })
-        assert response.status_code == 200
-        data = response.get_json()
-        assert data['status'] == 'success'
-
-
-class TestCaptureAndTranscribeEndpoint:
-    """Test /capture-and-transcribe endpoint"""
-
-    def test_capture_and_transcribe_requires_frequency(self, client: FlaskClient):
-        """Test that endpoint requires frequency"""
-        response = client.post('/capture-and-transcribe', json={})
-        assert response.status_code == 400
-        data = response.get_json()
-        assert 'error' in data
-        # Error message should mention the issue (either invalid body or missing frequency)
-        assert 'error' in data
-
-    def test_capture_and_transcribe_minimal_params(self, client: FlaskClient, mock_sdr_hardware):
-        """Test with minimal parameters — endpoint now returns HTTP 202 immediately"""
-        import api_service
-        # Wait for any leftover capture from a previous test to finish (max 5 s)
-        deadline = time.time() + 5
-        while api_service._capture_busy.is_set() and time.time() < deadline:
-            time.sleep(0.05)
-
-        response = client.post('/capture-and-transcribe', json={
-            'frequency': 100000000
-        })
+    def test_accepts_float_frequency(self, client: FlaskClient, mock_sdr_hardware):
+        response = client.post('/capture-and-transcribe', json={'frequency': 144.8e6, 'duration': 1})
         assert response.status_code == 202
-        data = response.get_json()
-        assert 'capture_id' in data
-        assert data['status'] == 'queued'
 
-    def test_capture_and_transcribe_full_workflow(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
-        """Test complete capture and transcribe async workflow"""
-        import api_service
-        deadline = time.time() + 5
-        while api_service._capture_busy.is_set() and time.time() < deadline:
-            time.sleep(0.05)
+    def test_unsupported_frequency_for_device(self, client: FlaskClient, mock_sdr_hardware):
+        response = client.post('/capture-and-transcribe', json={'frequency': 600, 'duration': 1})
+        assert response.status_code == 400
+        assert 'does not support' in response.get_json()['error']
 
-        response = client.post('/capture-and-transcribe', json={
-            'frequency': 144390000,
-            'modulation': 'FM',
-            'duration': 1,
-            'gain': 20,
-            'language': 'en'
-        })
+    def test_no_sdr_is_503(self, client: FlaskClient, monkeypatch):
+        import jobs
+        from sdr_hardware import SDRType
+        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: SDRType.UNKNOWN)
+        response = client.post('/capture-and-transcribe', json={'frequency': 100e6, 'duration': 1})
+        assert response.status_code == 503
+
+
+class TestCaptureJobs:
+    def test_voice_capture_workflow(self, client: FlaskClient, mock_sdr_hardware, temp_recording_dir):
+        response = client.post('/capture-and-transcribe', json={'frequency': 100e6, 'duration': 1,
+                                                               'mode': 'voice', 'language': 'de'})
         assert response.status_code == 202
         capture_id = response.get_json()['capture_id']
+        result = wait_for_capture(client, capture_id)
+        assert result['status'] == 'completed', result
+        payload = result['result']
+        assert payload['mode'] == 'voice'
+        assert payload['simulation_mode'] is True
+        audio = payload['capture']['audio_file']
+        assert '/' not in audio  # file names only, no server paths
+        assert os.path.exists(os.path.join(temp_recording_dir, audio))
+        assert os.path.exists(os.path.join(temp_recording_dir, audio.replace('.wav', '.json')))
 
-        session = _wait_for_capture(client, capture_id, timeout=15.0)
-        assert session['status'] == 'completed', f"capture failed: {session.get('error')}"
+        stored = client.get(f"/captures/{payload['capture']['id']}")
+        assert stored.status_code == 200
+        assert stored.get_json()['capture']['mode'] == 'voice'
 
-        result = session['result']
-        assert 'transcription' in result
-        transcription = result['transcription']
-        assert 'text' in transcription
-        assert 'language' in transcription
-        assert 'segments' in transcription
-        assert os.path.exists(result['capture']['audio_file'])
-
-    def test_capture_and_transcribe_creates_files(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
-        """Test that WAV and JSON files are created by the async worker"""
-        import api_service
-        deadline = time.time() + 5
-        while api_service._capture_busy.is_set() and time.time() < deadline:
-            time.sleep(0.05)
-
-        response = client.post('/capture-and-transcribe', json={
-            'frequency': 100000000,
-            'duration': 1
-        })
+    def test_raw_capture(self, client: FlaskClient, mock_sdr_hardware):
+        response = client.post('/capture', json={'frequency': 100e6, 'duration': 1, 'modulation': 'AM'})
         assert response.status_code == 202
-        capture_id = response.get_json()['capture_id']
+        result = wait_for_capture(client, response.get_json()['capture_id'])
+        assert result['status'] == 'completed'
+        assert result['result']['mode'] == 'raw'
 
-        session = _wait_for_capture(client, capture_id, timeout=15.0)
-        assert session['status'] == 'completed', f"capture failed: {session.get('error')}"
+    @pytest.mark.parametrize('mode,key', [('aprs', 'packets'), ('pocsag', 'messages')])
+    def test_decode_modes(self, client: FlaskClient, mock_sdr_hardware, mode, key):
+        response = client.post('/capture-and-transcribe', json={'frequency': 144.8e6, 'duration': 1, 'mode': mode})
+        assert response.status_code == 202
+        result = wait_for_capture(client, response.get_json()['capture_id'])
+        assert result['status'] == 'completed', result
+        assert isinstance(result['result'][mode][key], list)
 
-        audio_file = session['result']['capture']['audio_file']
-        assert os.path.exists(audio_file)
-        assert audio_file.endswith('.wav')
+    def test_sdr_busy_returns_409(self, client: FlaskClient, mock_sdr_hardware):
+        import sdr_lock
+        assert sdr_lock.acquire('stream:xyz', 'aprs')
+        response = client.post('/capture-and-transcribe', json={'frequency': 100e6, 'duration': 1})
+        assert response.status_code == 409
+        assert response.get_json()['holder']['kind'] == 'aprs'
 
-        json_file = audio_file.replace('.wav', '.json')
-        assert os.path.exists(json_file)
-        with open(json_file, 'r') as f:
-            json_data = json.load(f)
-        assert 'text' in json_data
-        assert 'language' in json_data
+    def test_lock_released_after_capture(self, client: FlaskClient, mock_sdr_hardware):
+        import sdr_lock
+        response = client.post('/capture', json={'frequency': 100e6, 'duration': 1})
+        wait_for_capture(client, response.get_json()['capture_id'])
+        assert sdr_lock.current_holder() is None
+
+    def test_failed_capture_reports_error(self, client: FlaskClient, mock_sdr_hardware, monkeypatch):
+        from sdr_hardware import HackRFCapture
+
+        def boom(self, *a, **k):
+            raise RuntimeError('hackrf_transfer failed: USB error')
+
+        monkeypatch.setattr(HackRFCapture, 'capture_audio', boom)
+        response = client.post('/capture', json={'frequency': 100e6, 'duration': 1})
+        result = wait_for_capture(client, response.get_json()['capture_id'])
+        assert result['status'] == 'failed'
+        assert 'USB error' in result['error']
+
+    def test_status_unknown_id(self, client: FlaskClient):
+        assert client.get('/capture-status/00000000-0000-0000-0000-000000000000').status_code == 404
+        assert client.get('/capture-status/..%2F..%2Fetc').status_code in (400, 404)
+
+    def test_disk_full_is_rejected(self, client: FlaskClient, mock_sdr_hardware, monkeypatch):
+        import config
+        monkeypatch.setattr(config, 'MIN_FREE_DISK_MB', 10**12)
+        response = client.post('/capture', json={'frequency': 100e6, 'duration': 1})
+        assert response.status_code == 400
+        assert 'disk space' in response.get_json()['error']
 
 
-class TestListRecordingsEndpoint:
-    """Test /list-recordings endpoint"""
+class TestTranscribe:
+    def test_requires_audio_file(self, client: FlaskClient):
+        assert client.post('/transcribe', json={}).status_code == 400
 
-    def test_list_recordings_empty_directory(self, client: FlaskClient):
-        """Test listing when no recordings exist"""
-        response = client.get('/list-recordings')
+    def test_missing_file(self, client: FlaskClient):
+        assert client.post('/transcribe', json={'audio_file': 'nope.wav'}).status_code == 404
+
+    @pytest.mark.parametrize('path', ['../../etc/passwd', '/etc/passwd', 'sub/../../x.wav'])
+    def test_path_traversal_blocked(self, client: FlaskClient, path):
+        assert client.post('/transcribe', json={'audio_file': path}).status_code == 403
+
+    def test_transcribe_file(self, client: FlaskClient, sample_audio_file):
+        response = client.post('/transcribe', json={'audio_file': os.path.basename(sample_audio_file),
+                                                    'language': 'en', 'beam_size': 2})
         assert response.status_code == 200
-        data = response.get_json()
+        assert response.get_json()['result']['simulation_mode'] is True
 
-        assert 'recordings' in data
-        assert isinstance(data['recordings'], list)
+    def test_symlink_escape_blocked(self, client: FlaskClient, temp_recording_dir):
+        link = os.path.join(temp_recording_dir, 'escape.wav')
+        if not os.path.lexists(link):
+            os.symlink('/etc/hostname', link)
+        try:
+            assert client.post('/transcribe', json={'audio_file': 'escape.wav'}).status_code == 403
+        finally:
+            os.remove(link)
 
-    def test_list_recordings_with_files(self, client: FlaskClient, temp_recording_dir: str, mock_sdr_hardware):
-        """Test listing after creating recordings"""
-        # First create a recording
-        client.post('/capture', json={
-            'frequency': 100000000,
-            'duration': 1
-        })
 
-        # Then list recordings
-        response = client.get('/list-recordings')
+class TestDecodeFileEndpoints:
+    @pytest.mark.parametrize('endpoint', ['/aprs/decode', '/pocsag/decode'])
+    def test_path_traversal_blocked(self, client: FlaskClient, endpoint):
+        response = client.post(endpoint, json={'audio_file': '../../../etc/passwd'})
+        assert response.status_code == 403
+
+    @pytest.mark.parametrize('endpoint', ['/aprs/decode', '/pocsag/decode'])
+    def test_missing_file(self, client: FlaskClient, endpoint):
+        assert client.post(endpoint, json={'audio_file': 'missing.wav'}).status_code == 404
+
+    @pytest.mark.parametrize('endpoint,key', [('/aprs/decode', 'packets'), ('/pocsag/decode', 'messages')])
+    def test_decode_tone_file(self, client: FlaskClient, sample_audio_file, endpoint, key):
+        response = client.post(endpoint, json={'audio_file': os.path.basename(sample_audio_file)})
         assert response.status_code == 200
-        data = response.get_json()
-
-        assert len(data['recordings']) > 0
-        recording = data['recordings'][0]
-
-        assert 'filename' in recording
-        assert 'path' in recording
-        assert 'size' in recording
-        assert 'created' in recording
-        assert recording['filename'].endswith('.wav')
-
-    def test_list_recordings_sorted_by_date(self, client: FlaskClient, mock_sdr_hardware):
-        """Test that recordings are sorted by creation time (newest first)"""
-        # Create multiple recordings
-        client.post('/capture', json={'frequency': 100000000, 'duration': 1})
-        client.post('/capture', json={'frequency': 200000000, 'duration': 1})
-
-        response = client.get('/list-recordings')
-        data = response.get_json()
-
-        if len(data['recordings']) >= 2:
-            # Should be sorted newest first
-            created_times = [r['created'] for r in data['recordings']]
-            assert created_times == sorted(created_times, reverse=True)
+        assert response.get_json()['count'] == len(response.get_json()[key])
 
 
-class TestAPIErrorHandling:
-    """Test API error handling"""
-
-    def test_invalid_json_request(self, client: FlaskClient):
-        """Test API handles invalid JSON"""
-        response = client.post(
-            '/capture',
-            data='invalid json',
-            content_type='application/json'
-        )
-        # Should return 400 or 500 depending on implementation
-        assert response.status_code in [400, 500]
-
-    def test_missing_content_type(self, client: FlaskClient):
-        """Test request without JSON content type"""
-        response = client.post('/capture')
-        # Flask might return 400 or process as empty JSON
-        assert response.status_code in [400, 500]
-
-    def test_capture_with_invalid_frequency(self, client: FlaskClient, mock_sdr_hardware):
-        """Test capture with invalid frequency value"""
-        response = client.post('/capture', json={
-            'frequency': 'invalid'
-        })
-        # Should handle gracefully
-        assert response.status_code in [400, 500]
-
-
-class TestAPIIntegration:
-    """Test end-to-end API workflows"""
-
-    def test_complete_workflow(self, client: FlaskClient, mock_sdr_hardware):
-        """Test complete workflow: health -> capture -> transcribe -> list"""
-        # 1. Check health
-        health_response = client.get('/health')
-        assert health_response.status_code == 200
-
-        # 2. Capture
-        capture_response = client.post('/capture', json={
-            'frequency': 100000000,
-            'duration': 1
-        })
-        assert capture_response.status_code == 200
-        audio_file = capture_response.get_json()['audio_file']
-
-        # 3. Transcribe (API expects just the filename)
-        transcribe_response = client.post('/transcribe', json={
-            'audio_file': os.path.basename(audio_file)
-        })
-        assert transcribe_response.status_code == 200
-
-        # 4. List recordings
-        list_response = client.get('/list-recordings')
-        assert list_response.status_code == 200
-        assert len(list_response.get_json()['recordings']) > 0
-
-    def test_capture_and_transcribe_combined(self, client: FlaskClient, mock_sdr_hardware):
-        """Test combined endpoint returns 202 and result is retrievable via polling"""
-        import api_service
-        deadline = time.time() + 5
-        while api_service._capture_busy.is_set() and time.time() < deadline:
-            time.sleep(0.05)
-
-        combined_response = client.post('/capture-and-transcribe', json={
-            'frequency': 100000000,
-            'duration': 1
-        })
-        assert combined_response.status_code == 202
-        capture_id = combined_response.get_json()['capture_id']
-
-        session = _wait_for_capture(client, capture_id, timeout=15.0)
-        assert session['status'] == 'completed'
-        assert session['result']['transcription']['text'] is not None
-
-
-class TestAPIConfiguration:
-    """Test API configuration and environment variables"""
-
-    def test_recording_directory_configuration(self, client: FlaskClient, temp_recording_dir: str, monkeypatch, mock_sdr_hardware):
-        """Test that RECORDING_DIR configuration is respected"""
-        import api_service
-        monkeypatch.setattr(api_service, 'RECORDING_DIR', temp_recording_dir)
-
-        response = client.post('/capture', json={'frequency': 100000000, 'duration': 1})
+class TestRecordings:
+    def test_list_empty_or_files(self, client: FlaskClient):
+        response = client.get('/recordings')
         assert response.status_code == 200
+        assert 'stats' in response.get_json()
 
-        audio_file = response.get_json()['audio_file']
-        assert audio_file.startswith(temp_recording_dir)
+    def test_list_contains_names_only(self, client: FlaskClient, sample_audio_file):
+        data = client.get('/recordings').get_json()
+        names = [r['filename'] for r in data['recordings']]
+        assert 'test_audio.wav' in names
+        assert all('path' not in r for r in data['recordings'])
+        legacy = client.get('/list-recordings').get_json()
+        assert any(r['filename'] == 'test_audio.wav' for r in legacy['recordings'])
+
+    def test_download(self, client: FlaskClient, sample_audio_file):
+        response = client.get('/recordings/test_audio.wav')
+        assert response.status_code == 200
+        assert response.mimetype == 'audio/wav'
+        assert response.data[:4] == b'RIFF'
+
+    @pytest.mark.parametrize('name', ['..%2F..%2Fetc%2Fpasswd', '.hidden.wav', 'x.sh'])
+    def test_download_rejects_bad_names(self, client: FlaskClient, name):
+        assert client.get(f'/recordings/{name}').status_code in (400, 404)
+
+    def test_delete(self, client: FlaskClient, temp_recording_dir):
+        path = os.path.join(temp_recording_dir, 'delete_me.wav')
+        open(path, 'wb').write(b'RIFF0000')
+        assert client.delete('/recordings/delete_me.wav').status_code == 200
+        assert not os.path.exists(path)
+        assert client.delete('/recordings/delete_me.wav').status_code == 404
+
+    def test_retention_cleanup(self, client: FlaskClient, temp_recording_dir, monkeypatch):
+        import config
+        path = os.path.join(temp_recording_dir, 'old.wav')
+        open(path, 'wb').write(b'RIFF')
+        os.utime(path, (1, 1))
+        monkeypatch.setattr(config, 'RECORDING_RETENTION_DAYS', 30)
+        assert client.post('/recordings/cleanup').get_json()['removed'] >= 1
+        assert not os.path.exists(path)
+
+
+class TestSearchAndStats:
+    def test_search_empty(self, client: FlaskClient):
+        response = client.get('/search?query=test&hours=48')
+        assert response.status_code == 200
+        assert response.get_json()['count'] == 0
+
+    def test_search_validation(self, client: FlaskClient):
+        assert client.get('/search?limit=999999').status_code == 400
+        assert client.get('/search?hours=abc').status_code == 400
+
+    def test_search_finds_transcription(self, client: FlaskClient):
+        from storage import get_storage
+        get_storage().index_capture({'transcription': 'CQ CQ de HB9XYZ', 'frequency': 145500000, 'mode': 'voice'})
+        data = client.get('/search?query=hb9xyz').get_json()
+        assert data['count'] == 1
+        assert client.get('/search?mode=aprs').get_json()['count'] == 0
+
+    def test_stats(self, client: FlaskClient):
+        data = client.get('/stats').get_json()
+        assert data['statistics']['total_captures'] == 0
+
+    def test_dashboard(self, client: FlaskClient):
+        from storage import get_storage
+        get_storage().index_aprs({'source_callsign': 'HB9AA', 'packet_type': 'position'})
+        data = client.get('/dashboard/stats?hours=6').get_json()
+        assert data['counts']['aprs'] == 1
+        assert len(data['timeline']) == 6
+        assert data['latest']['aprs'][0]['source_callsign'] == 'HB9AA'
+
+    def test_frequency_stats(self, client: FlaskClient):
+        from storage import get_storage
+        for _ in range(3):
+            get_storage().index_capture({'frequency': 145500000, 'modulation': 'FM'})
+        freqs = client.get('/stats/frequencies').get_json()['frequencies']
+        assert freqs[0]['count'] == 3
+
+    def test_captures_invalid_id(self, client: FlaskClient):
+        assert client.get('/captures/not-a-valid-id!').status_code in (400, 404)
+
+
+class TestOpenApi:
+    def test_document(self, client: FlaskClient):
+        doc = client.get('/openapi.json').get_json()
+        assert doc['openapi'].startswith('3.1')
+        assert '/capture-and-transcribe' in doc['paths']
+        body = doc['paths']['/stream-decode']['post']['requestBody']
+        assert body['content']['application/json']['schema']['$ref'].endswith('StreamRequest')
+        assert 'StreamRequest' in doc['components']['schemas']
+        assert doc['paths']['/stream/aprs/start']['post']['deprecated'] is True
+
+    def test_all_routes_documented(self, client: FlaskClient):
+        from api_service import app
+        doc = client.get('/openapi.json').get_json()
+        documented = {p.replace('{', '<').replace('}', '>') for p in doc['paths']}
+        missing = []
+        for rule in app.url_map.iter_rules():
+            if rule.endpoint == 'static':
+                continue
+            path = rule.rule.replace('<int:', '<')
+            if path not in documented:
+                missing.append(rule.rule)
+        assert missing == []

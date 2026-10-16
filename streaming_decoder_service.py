@@ -6,6 +6,10 @@ Provides continuous real-time decoding without storing audio files
 Supports:
 - APRS (direwolf)
 - POCSAG (multimon-ng)
+- Multi-channel DDC (USRP N200)
+
+Every decoded packet is stored, published on the live event bus (SSE) and
+checked against the alert rules.
 """
 
 import os
@@ -24,47 +28,18 @@ from typing import Optional, Dict, Any, IO, List, Union
 from dataclasses import dataclass, field
 from numpy.typing import NDArray
 from scipy import signal
-import redis
 import json
+
+import alerts
+import events
+from redis_client import get_redis
 from sdr_hardware import detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction
+from sdr_lock import SdrLease
 
 logger = logging.getLogger(__name__)
 
-
-class MockRedis:
-    """Mock Redis client for testing"""
-    def __init__(self) -> None:
-        self._data: Dict[str, str] = {}
-
-    def set(self, key: str, value: str, ex: Optional[int] = None) -> None:
-        self._data[key] = value
-
-    def get(self, key: str) -> Optional[str]:
-        return self._data.get(key)
-
-    def delete(self, *keys: str) -> int:
-        count = 0
-        for key in keys:
-            if key in self._data:
-                del self._data[key]
-                count += 1
-        return count
-
-    def keys(self, pattern: str = '*') -> list[str]:
-        if pattern.endswith('*'):
-            prefix = pattern[:-1]
-            return [k for k in self._data.keys() if k.startswith(prefix)]
-        return list(self._data.keys())
-
-    def scan_iter(self, match: Optional[str] = None) -> list[str]:
-        """Iterate over keys matching pattern"""
-        if match and match.endswith('*'):
-            prefix = match[:-1]
-            return [k for k in self._data.keys() if k.startswith(prefix)]
-        return list(self._data.keys())
-
-    def expire(self, key: str, seconds: int) -> None:
-        pass
+# Stop a stream when the API process grows beyond this (the Whisper model alone needs ~1 GB)
+MAX_RSS_MB = int(os.getenv('STREAM_MAX_RSS_MB', '3000'))
 
 
 @dataclass
@@ -149,12 +124,8 @@ class StreamSession:
 class SessionManager:
     """Manages streaming sessions in Redis"""
 
-    def __init__(self, redis_host: str = 'localhost', redis_port: int = 6379, redis_db: int = 0, redis_password: Optional[str] = None) -> None:
-        # Use mock Redis in test mode
-        if os.getenv('SKIP_REDIS_CHECK') == '1':
-            self.redis: Any = MockRedis()
-        else:
-            self.redis = redis.Redis(host=redis_host, port=redis_port, db=redis_db, password=redis_password, decode_responses=True)
+    def __init__(self, redis_client: Any = None) -> None:
+        self.redis: Any = redis_client if redis_client is not None else get_redis()
         # In-memory registry of live decoder instances (session_id → decoder)
         # This allows stop_streaming_session to call stop_stream() directly
         self._decoder_registry: Dict[str, Any] = {}
@@ -252,6 +223,7 @@ class BaseStreamingDecoder(ABC):
         self.decoder_proc: Optional[subprocess.Popen[bytes]] = None
         self.sdr_type: SDRType = SDRType.UNKNOWN  # Set by subclass __init__
         self.device_address: Optional[str] = None  # IP address for USRP N200
+        self.lease: Optional[SdrLease] = None  # SDR lock held while streaming
 
     @property
     def _decoder_audio_rate(self) -> int:
@@ -279,27 +251,6 @@ class BaseStreamingDecoder(ABC):
     def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Index packet to Elasticsearch"""
         pass
-
-    def start_stream(self, session_manager: SessionManager) -> str:
-        """Start streaming in background thread"""
-        # Create session
-        self.session = StreamSession(
-            mode=self._get_mode(),
-            frequency=self.frequency,
-            duration=self.duration,
-            gain=self.gain,
-            sample_rate=self.sample_rate
-        )
-
-        # Save to Redis
-        session_manager.save_session(self.session)
-
-        # Start background thread
-        self.thread = threading.Thread(target=self._stream_worker, args=(session_manager,))
-        self.thread.daemon = False
-        self.thread.start()
-
-        return self.session.session_id
 
     @abstractmethod
     def _get_mode(self) -> str:
@@ -340,47 +291,22 @@ class BaseStreamingDecoder(ABC):
                 self.session.error = str(e)
                 session_manager.save_session(self.session)
         finally:
-            # Cleanup
             self._cleanup()
-            if self.session is not None:
-                self.session.status = 'completed'
-                self.session.end_time = datetime.now(timezone.utc)
-                session_manager.save_session(self.session)
-                logger.info(f"Stream session {self.session.session_id} completed")
-                # Remove from live registry — HackRF is now free
-                session_manager.unregister_decoder(self.session.session_id)
+            self._finish_session(session_manager)
 
-    def _stream_worker(self, session_manager: SessionManager) -> None:
-        """Main streaming worker (runs in background)"""
-        try:
-            assert self.session is not None, "Session must be initialized"
-            self.session.status = 'running'
+    def _finish_session(self, session_manager: 'SessionManager') -> None:
+        """Mark the session finished (keeping 'failed'), free the SDR and notify listeners."""
+        if self.session is not None:
+            if self.session.status not in ('failed', 'completed'):
+                self.session.status = 'completed'
+            self.session.end_time = self.session.end_time or datetime.now(timezone.utc)
             session_manager.save_session(self.session)
-
-            # 1. Start SDR process (stdout pipe)
-            self.sdr_proc = self._start_sdr_capture()
-            logger.info(f"SDR capture started for session {self.session.session_id}")
-
-            # 2. Start decoder process (stdin/stdout pipes)
-            self.decoder_proc = self._start_decoder()
-            logger.info(f"Decoder started for session {self.session.session_id}")
-
-            # 3. Stream IQ → Audio → Decoder → ES
-            self._stream_pipeline(session_manager)
-
-        except Exception as e:
-            logger.error(f"Streaming failed: {e}", exc_info=True)
-            if self.session is not None:
-                self.session.status = 'failed'
-                self.session.error = str(e)
-        finally:
-            # Cleanup
-            self._cleanup()
-            if self.session is not None:
-                self.session.status = 'completed'
-                self.session.end_time = datetime.now(timezone.utc)
-                session_manager.save_session(self.session)
-                logger.info(f"Stream session {self.session.session_id} completed")
+            session_manager.unregister_decoder(self.session.session_id)
+            events.publish('session', self.session.to_dict())
+            logger.info(f"Stream session {self.session.session_id} finished ({self.session.status})")
+        if self.lease is not None:
+            self.lease.release()
+            self.lease = None
 
     def _start_sdr_capture(self) -> subprocess.Popen[bytes]:
         """Launch SDR capture with stdout pipe and reduced priority (supports HackRF and RTL-SDR)"""
@@ -552,7 +478,7 @@ class BaseStreamingDecoder(ABC):
                 if chunk_count % 10 == 0:
                     process = psutil.Process()
                     process_mem_mb = process.memory_info().rss / (1024 * 1024)
-                    if process_mem_mb > 500:
+                    if process_mem_mb > MAX_RSS_MB:
                         logger.error(f"Process memory critical: {process_mem_mb:.1f} MB - stopping stream")
                         self.stop_event.set()
                         break
@@ -581,33 +507,7 @@ class BaseStreamingDecoder(ABC):
                     logger.info("SDR stream ended")
                     break
 
-                # Convert to complex64 with SDR-specific normalization
-                if self.sdr_type == SDRType.HACKRF:
-                    # HackRF: int8 signed (-128 to 127)
-                    iq_data = np.frombuffer(iq_bytes, dtype=np.int8)
-                    iq_float = iq_data.astype(np.float32) / 127.0
-                elif self.sdr_type == SDRType.RTLSDR:
-                    # RTL-SDR: uint8 unsigned (0 to 255)
-                    iq_data = np.frombuffer(iq_bytes, dtype=np.uint8)
-                    iq_float = (iq_data.astype(np.float32) - 127.5) / 127.5
-                elif self.sdr_type == SDRType.AIRSPYHF:
-                    # Airspy HF+: int16 signed (-32768 to 32767)
-                    iq_data = np.frombuffer(iq_bytes, dtype=np.int16)
-                    iq_float = iq_data.astype(np.float32) / 32768.0
-                elif self.sdr_type == SDRType.USRP:
-                    # USRP N200: int16 signed (-32768 to 32767), same format as Airspy HF+
-                    iq_data = np.frombuffer(iq_bytes, dtype=np.int16)
-                    iq_float = iq_data.astype(np.float32) / 32768.0
-                else:
-                    raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
-
-                # Ensure even number of samples for I/Q splitting
-                if len(iq_float) % 2 != 0:
-                    iq_float = iq_float[:-1]  # Drop last sample if odd
-
-                iq_complex: NDArray[np.complex64] = (iq_float[0::2] + 1j * iq_float[1::2]).astype(np.complex64)
-                if self.sdr_type == SDRType.HACKRF:
-                    iq_complex = apply_hackrf_iq_correction(iq_complex)
+                iq_complex = self._bytes_to_iq(iq_bytes)
 
                 # FM demodulation
                 audio = self._fm_demodulate(iq_complex)
@@ -625,7 +525,7 @@ class BaseStreamingDecoder(ABC):
                 audio_sink.flush()
 
                 # Cleanup arrays to free memory immediately
-                del iq_bytes, iq_data, iq_float, iq_complex, audio, audio_48k, audio_scaled, audio_int16
+                del iq_bytes, iq_complex, audio, audio_48k, audio_scaled, audio_int16
 
                 chunk_count += 1
 
@@ -644,10 +544,29 @@ class BaseStreamingDecoder(ABC):
         finally:
             try:
                 audio_sink.close()
-            except:
+            except Exception:
                 pass
             # Final cleanup
             gc.collect()
+
+    def _bytes_to_iq(self, iq_bytes: bytes) -> NDArray[np.complex64]:
+        """Convert raw SDR output to normalized complex64 samples (device-specific format)."""
+        iq_float: NDArray[np.float32]
+        if self.sdr_type == SDRType.HACKRF:
+            iq_float = np.frombuffer(iq_bytes, dtype=np.int8).astype(np.float32) / 127.0
+        elif self.sdr_type == SDRType.RTLSDR:
+            iq_float = (np.frombuffer(iq_bytes, dtype=np.uint8).astype(np.float32) - 127.5) / 127.5
+        elif self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP):
+            usable = len(iq_bytes) - (len(iq_bytes) % 2)
+            iq_float = np.frombuffer(iq_bytes[:usable], dtype=np.int16).astype(np.float32) / 32768.0
+        else:
+            raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
+        if len(iq_float) % 2 != 0:
+            iq_float = iq_float[:-1]
+        iq_complex: NDArray[np.complex64] = (iq_float[0::2] + 1j * iq_float[1::2]).astype(np.complex64)
+        if self.sdr_type == SDRType.HACKRF:
+            iq_complex = apply_hackrf_iq_correction(iq_complex)
+        return iq_complex
 
     def _read_with_timeout(self, stream: IO[bytes], size: int, timeout: float) -> bytes:
         """Read from stream with timeout support using select"""
@@ -744,8 +663,11 @@ class BaseStreamingDecoder(ABC):
                 packet['timestamp'] = datetime.now(timezone.utc).isoformat()
                 packet['frequency'] = int(self.frequency)
 
-                # Index to Elasticsearch
+                # Store, publish live and check alert rules
                 self._index_packet(packet)
+                mode = self._get_mode()
+                events.publish(mode, packet)
+                alerts.evaluate(mode, packet)
 
                 # Update session stats
                 self.session.packet_count += 1
@@ -813,7 +735,7 @@ class BaseStreamingDecoder(ABC):
                 logger.error(f"Error terminating SDR process: {e}")
                 try:
                     self.sdr_proc.kill()
-                except:
+                except Exception:
                     pass
 
         # Graceful shutdown for decoder process
@@ -853,7 +775,7 @@ class BaseStreamingDecoder(ABC):
                 logger.error(f"Error terminating decoder process: {e}")
                 try:
                     self.decoder_proc.kill()
-                except:
+                except Exception:
                     pass
 
         # Final cleanup
@@ -981,7 +903,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
                         longitude = lon_deg + (lon_min / 60.0)
                         if lon_dir == 'W':
                             longitude = -longitude
-                except:
+                except (ValueError, IndexError):
                     pass  # Position parsing failed, keep as None
 
             elif data.startswith(':'):
@@ -1015,19 +937,18 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
             return None
 
     def _index_packet(self, packet: Dict[str, Any]) -> None:
-        """Index APRS packet to Elasticsearch"""
-        from elasticsearch_service import get_elasticsearch_service
+        """Store APRS packet"""
+        from storage import get_storage
 
         try:
-            es = get_elasticsearch_service()
-            es.index_aprs(packet)
+            get_storage().index_aprs(packet)
             logger.info(f"Indexed APRS packet from {packet.get('source_callsign')}")
         except Exception as e:
             logger.error(f"Failed to index APRS packet: {e}")
 
     def stop(self) -> None:
         """Stop streaming (alias for stop_stream that works without session)"""
-        logger.info(f"Stopping APRS stream")
+        logger.info("Stopping APRS stream")
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=15)
@@ -1127,7 +1048,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
                 addr_part = parts.split('Address:')[1].split()[0].strip()
                 try:
                     address = int(addr_part)
-                except:
+                except ValueError:
                     pass
 
             # Extract function code
@@ -1136,7 +1057,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
                 func_part = parts.split('Function:')[1].split()[0].strip()
                 try:
                     function_code = int(func_part)
-                except:
+                except ValueError:
                     pass
 
             # Extract message type and text
@@ -1167,19 +1088,18 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             return None
 
     def _index_packet(self, packet: Dict[str, Any]) -> None:
-        """Index POCSAG packet to Elasticsearch"""
-        from elasticsearch_service import get_elasticsearch_service
+        """Store POCSAG packet"""
+        from storage import get_storage
 
         try:
-            es = get_elasticsearch_service()
-            es.index_pocsag(packet)
+            get_storage().index_pocsag(packet)
             logger.info(f"Indexed POCSAG message to address {packet.get('address')}")
         except Exception as e:
             logger.error(f"Failed to index POCSAG packet: {e}")
 
     def stop(self) -> None:
         """Stop streaming (alias for stop_stream that works without session)"""
-        logger.info(f"Stopping POCSAG stream")
+        logger.info("Stopping POCSAG stream")
         self.stop_event.set()
         if self.thread:
             self.thread.join(timeout=15)
@@ -1312,13 +1232,7 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
                 session_manager.save_session(self.session)
         finally:
             self._cleanup_multi()
-            if self.session:
-                if self.session.status not in ('failed', 'completed'):
-                    self.session.status = 'completed'
-                self.session.end_time = datetime.now(timezone.utc)
-                session_manager.save_session(self.session)
-                session_manager.unregister_decoder(self.session.session_id)
-                logger.info(f"Multi-channel session {self.session.session_id} finished")
+            self._finish_session(session_manager)
 
     def _stream_pipeline_multi(self, session_manager: SessionManager) -> None:
         assert self.session is not None
@@ -1395,7 +1309,7 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
             while not self.stop_event.is_set():
                 if chunk_count % 10 == 0:
                     proc_mem = psutil.Process().memory_info().rss / (1024 * 1024)
-                    if proc_mem > 500:
+                    if proc_mem > MAX_RSS_MB:
                         logger.error(f"Memory critical ({proc_mem:.0f} MB) — stopping multi-channel stream")
                         self.stop_event.set()
                         break
@@ -1525,14 +1439,15 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
                 packet['channel_label'] = ch.label
 
                 try:
-                    from elasticsearch_service import get_elasticsearch_service
-                    es = get_elasticsearch_service()
+                    from storage import get_storage
                     if ch.mode == 'aprs':
-                        es.index_aprs(packet)
+                        get_storage().index_aprs(packet)
                     else:
-                        es.index_pocsag(packet)
+                        get_storage().index_pocsag(packet)
                 except Exception as e:
                     logger.error(f"Failed to index {ch.mode.upper()} packet for '{ch.label}': {e}")
+                events.publish(ch.mode, packet)
+                alerts.evaluate(ch.mode, packet)
 
                 ch.packet_count += 1
                 self.session.packet_count += 1

@@ -10,7 +10,7 @@ import logging.config
 import uuid
 from typing import Optional, Dict, Any
 from contextvars import ContextVar
-from pythonjsonlogger import jsonlogger
+from pythonjsonlogger.json import JsonFormatter
 
 # Context variable for request correlation ID
 correlation_id_ctx: ContextVar[Optional[str]] = ContextVar('correlation_id', default=None)
@@ -25,7 +25,7 @@ class CorrelationIdFilter(logging.Filter):
         return True
 
 
-class CustomJsonFormatter(jsonlogger.JsonFormatter):
+class CustomJsonFormatter(JsonFormatter):
     """Custom JSON formatter with additional fields"""
 
     def add_fields(self, log_record: Dict[str, Any], record: logging.LogRecord, message_dict: Dict[str, Any]) -> None:
@@ -71,7 +71,7 @@ def setup_logging(log_level: str = 'INFO', json_format: bool = True) -> logging.
     formatter: logging.Formatter
     if json_format:
         # JSON format for ELK stack
-        formatter = CustomJsonFormatter(  # type: ignore[no-untyped-call]
+        formatter = CustomJsonFormatter(
             '%(timestamp)s %(severity)s %(logger)s %(message)s',
             datefmt='%Y-%m-%dT%H:%M:%S'
         )

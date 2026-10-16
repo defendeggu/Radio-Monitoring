@@ -93,10 +93,9 @@ class TestPOCSAGDecodeWorkflow:
         assert isinstance(result, list)
 
     def test_decode_with_nonexistent_file(self, decoder):
-        """Test decode with non-existent audio file"""
-        # In simulation mode, returns empty list instead of raising exception
-        result = decoder.decode('/nonexistent/file.wav')
-        assert isinstance(result, list)
+        """A missing file is an error, never silently replaced by fake data"""
+        with pytest.raises(FileNotFoundError):
+            decoder.decode('/nonexistent/file.wav')
 
     def test_simulate_decode(self, decoder, sample_audio_file):
         """Test simulation mode decode"""

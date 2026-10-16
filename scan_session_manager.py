@@ -6,60 +6,13 @@ Provides Redis-based session management for repeater scanning operations
 Similar to streaming_decoder_service.py SessionManager but for repeater scans.
 """
 
-import os
 import json
 import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Dict, Any
-import redis
+from redis_client import get_redis
 
 logger = logging.getLogger(__name__)
-
-
-class MockRedis:
-    """Mock Redis client for testing"""
-    def __init__(self) -> None:
-        self._data: Dict[str, str] = {}
-
-    def set(self, key: str, value: str, ex: Optional[int] = None) -> None:
-        self._data[key] = value
-
-    def get(self, key: str) -> Optional[str]:
-        return self._data.get(key)
-
-    def delete(self, *keys: str) -> int:
-        count = 0
-        for key in keys:
-            if key in self._data:
-                del self._data[key]
-                count += 1
-        return count
-
-    def keys(self, pattern: str = '*') -> List[str]:
-        # Simple pattern matching for scan_session:*
-        if pattern.endswith('*'):
-            prefix = pattern[:-1]
-            return [k for k in self._data.keys() if k.startswith(prefix)]
-        return list(self._data.keys())
-
-    def scan_iter(self, match: Optional[str] = None) -> List[str]:
-        """Iterate over keys matching pattern"""
-        if match and match.endswith('*'):
-            prefix = match[:-1]
-            return [k for k in self._data.keys() if k.startswith(prefix)]
-        return list(self._data.keys())
-
-    def incr(self, key: str) -> int:
-        current = int(self._data.get(key, '0'))
-        new_value = current + 1
-        self._data[key] = str(new_value)
-        return new_value
-
-    def expire(self, key: str, seconds: int) -> None:
-        pass  # Mock doesn't implement expiry
-
-    def ping(self) -> bool:
-        return True
 
 
 class RepeaterScanSession:
@@ -182,43 +135,9 @@ class RepeaterScanSession:
 class ScanSessionManager:
     """Manages repeater scan sessions in Redis"""
 
-    def __init__(
-        self,
-        redis_host: str = 'localhost',
-        redis_port: int = 6379,
-        redis_db: int = 0,
-        redis_password: Optional[str] = None
-    ) -> None:
-        """
-        Initialize Redis connection for scan session management
-
-        Args:
-            redis_host: Redis server hostname
-            redis_port: Redis server port
-            redis_db: Redis database number
-            redis_password: Redis password (optional)
-        """
-        # Use mock Redis in test mode
-        skip_redis_check = os.getenv('SKIP_REDIS_CHECK') == '1'
-
-        if skip_redis_check:
-            logger.info("Using mock Redis client (test mode)")
-            self.redis: Any = MockRedis()
-        else:
-            self.redis = redis.Redis(
-                host=redis_host,
-                port=redis_port,
-                db=redis_db,
-                password=redis_password if redis_password else None,
-                decode_responses=True
-            )
-            # Test connection
-            try:
-                self.redis.ping()
-                logger.info(f"Connected to Redis at {redis_host}:{redis_port} (db={redis_db})")
-            except redis.ConnectionError as e:
-                logger.error(f"Failed to connect to Redis: {e}")
-                raise
+    def __init__(self, redis_client: Any = None) -> None:
+        """Use the shared Redis connection (or an explicit client in tests)."""
+        self.redis: Any = redis_client if redis_client is not None else get_redis()
 
     def save_session(self, session: RepeaterScanSession) -> None:
         """
@@ -352,106 +271,8 @@ _scan_session_manager: Optional[ScanSessionManager] = None
 
 
 def get_scan_session_manager() -> ScanSessionManager:
-    """
-    Get or create singleton ScanSessionManager instance
-
-    Reads configuration from environment variables:
-    - REDIS_HOST (default: localhost)
-    - REDIS_PORT (default: 6379)
-    - REDIS_DB (default: 0)
-    - REDIS_PASSWORD (optional)
-
-    Returns:
-        ScanSessionManager instance
-    """
+    """Get or create the singleton ScanSessionManager"""
     global _scan_session_manager
-
     if _scan_session_manager is None:
-        redis_host = os.getenv('REDIS_HOST', 'localhost')
-        redis_port = int(os.getenv('REDIS_PORT', 6379))
-        redis_db = int(os.getenv('REDIS_DB', 0))
-        redis_password = os.getenv('REDIS_PASSWORD')
-
-        _scan_session_manager = ScanSessionManager(
-            redis_host=redis_host,
-            redis_port=redis_port,
-            redis_db=redis_db,
-            redis_password=redis_password if redis_password else None
-        )
-
+        _scan_session_manager = ScanSessionManager()
     return _scan_session_manager
-
-
-# ============================================================================
-# CLI Testing
-# ============================================================================
-
-if __name__ == '__main__':
-    """Test scan session manager"""
-    print("Testing ScanSessionManager...")
-    print()
-
-    # Create manager
-    manager = get_scan_session_manager()
-    print(f"✅ Connected to Redis")
-    print()
-
-    # Create test session
-    session_id = manager.get_next_session_id()
-    session = RepeaterScanSession(
-        session_id=session_id,
-        repeaters_total=10,
-        duration_per_repeater=120,
-        sample_rate=2000000,
-        gain=20
-    )
-
-    print(f"Created session {session_id}")
-    print()
-
-    # Save session
-    manager.save_session(session)
-    print(f"✅ Saved session to Redis")
-    print()
-
-    # Retrieve session
-    retrieved = manager.get_session(session_id)
-    assert retrieved is not None
-    assert retrieved.session_id == session_id
-    print(f"✅ Retrieved session from Redis")
-    print(f"   Status: {retrieved.status}")
-    print(f"   Repeaters: {retrieved.repeaters_total}")
-    print()
-
-    # Update progress
-    session.update_progress(
-        current_index=3,
-        current_repeater='HB9TEST',
-        elapsed_time=360.0
-    )
-    manager.save_session(session)
-    print(f"✅ Updated session progress")
-    print()
-
-    # Complete session
-    session.complete([
-        {'callsign': 'HB9A', 'activity_detected': True},
-        {'callsign': 'HB9B', 'activity_detected': False},
-    ])
-    manager.save_session(session)
-    print(f"✅ Completed session")
-    print(f"   Scanned: {session.repeaters_scanned}")
-    print(f"   With activity: {session.repeaters_with_activity}")
-    print()
-
-    # List sessions
-    all_sessions = manager.list_sessions()
-    print(f"✅ Total sessions: {len(all_sessions)}")
-    print()
-
-    # Cleanup
-    manager.delete_session(session_id)
-    print(f"✅ Cleaned up test session")
-    print()
-
-    print("All tests passed! ✅")

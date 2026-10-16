@@ -65,7 +65,7 @@ class TestTranscriptionServiceTranscribe:
         assert isinstance(result['language_probability'], float)
         assert isinstance(result['duration'], float)
         assert isinstance(result['segments'], list)
-        assert result['audio_file'] == sample_audio_file
+        assert result['audio_file'] == os.path.basename(sample_audio_file)
 
     def test_transcribe_simulation_returns_english(self, sample_audio_file: str):
         """Test that simulation mode returns English language"""
@@ -149,7 +149,7 @@ class TestTranscriptionServiceTranscribeAndSave:
             saved_data = json.load(f)
 
         assert saved_data == result
-        assert saved_data['audio_file'] == sample_audio_file
+        assert saved_data['audio_file'] == os.path.basename(sample_audio_file)
 
     def test_transcribe_and_save_creates_directory(self, sample_audio_file: str, temp_recording_dir: str):
         """Test that output directory is created if it doesn't exist"""

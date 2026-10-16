@@ -19,7 +19,7 @@ License: MIT
 import numpy as np
 import gc
 from dataclasses import dataclass, field
-from typing import List, Optional, Tuple, Dict, Any
+from typing import List, Optional, Dict, Any
 from numpy.typing import NDArray
 from pathlib import Path
 import logging
@@ -135,7 +135,7 @@ class RepeaterActivityAnalyzer:
         self.min_transmission_samples = int(min_transmission_seconds * sample_rate)
         self.min_gap_samples = int(min_gap_seconds * sample_rate)
 
-        logger.info(f"RepeaterActivityAnalyzer initialized:")
+        logger.info("RepeaterActivityAnalyzer initialized:")
         logger.info(f"  Sample rate: {sample_rate/1e6:.1f} MHz")
         logger.info(f"  Threshold: {threshold_multiplier}x noise floor")
         logger.info(f"  Min transmission: {min_transmission_seconds}s ({self.min_transmission_samples} samples)")
@@ -219,7 +219,7 @@ class RepeaterActivityAnalyzer:
 
         noise_floor_db = float(10 * np.log10(noise_floor))
 
-        logger.info(f"Analysis complete:")
+        logger.info("Analysis complete:")
         logger.info(f"  Noise floor: {noise_floor_db:.1f} dB")
         logger.info(f"  Carrier threshold: {10*np.log10(carrier_threshold):.1f} dB")
         logger.info(f"  Transmissions: {len(transmissions)}")
@@ -326,7 +326,7 @@ class RepeaterActivityAnalyzer:
         logger.debug(f"Found {len(starts)} potential transmission starts")
 
         # Process each transmission candidate
-        for start_idx, end_idx in zip(starts, ends):
+        for start_idx, end_idx in zip(starts, ends, strict=True):
             duration_windows = end_idx - start_idx
             duration_seconds = duration_windows * self.window_seconds
 
@@ -451,8 +451,8 @@ if __name__ == '__main__':
                                 1j * np.random.randn(t2_end - t2_start)) * 0.7
 
     print(f"Generated synthetic data: {duration}s, {num_samples} samples")
-    print(f"  Transmission 1: 2.0-3.5s (1.5s)")
-    print(f"  Transmission 2: 5.0-7.0s (2.0s)")
+    print("  Transmission 1: 2.0-3.5s (1.5s)")
+    print("  Transmission 2: 5.0-7.0s (2.0s)")
     print()
 
     # Analyze
