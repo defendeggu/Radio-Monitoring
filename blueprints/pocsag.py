@@ -1,162 +1,69 @@
 """
-POCSAG Decoder Blueprint
-
-Provides endpoints for POCSAG (pager protocol) decoding:
-- Search POCSAG messages
-- Get POCSAG statistics
-- Get recent messages
-- Decode POCSAG from audio files
+POCSAG endpoints: search, statistics, recent messages and file decoding.
 """
 
-from flask import Blueprint, request, jsonify, Response
-from typing import Any, cast
-from api_service import get_elasticsearch_service, get_pocsag_decoder
 import logging
 
-logger = logging.getLogger(__name__)
+from flask import Blueprint, Response, jsonify
 
-# Create blueprint
+import alerts
+import events
+from api_docs import api, parse_body, parse_query
+from errors import ApiError
+from schemas import DecodeFileRequest, HoursLimitQuery, PocsagSearchQuery
+from services import get_pocsag_decoder, validate_file_path
+from storage import get_storage
+
+logger = logging.getLogger(__name__)
 pocsag_bp = Blueprint('pocsag', __name__)
 
 
-@pocsag_bp.route('/pocsag/search', methods=['GET'])
-def search_pocsag() -> Response | tuple[Response, int]:
-    """
-    Search POCSAG messages in database
+@pocsag_bp.get('/pocsag/search')
+@api('Search POCSAG messages', tags=['POCSAG'], query=PocsagSearchQuery)
+def search_pocsag() -> Response:
+    q = parse_query(PocsagSearchQuery)
+    results = get_storage().search_pocsag(address=q.address, message_type=q.type, hours=q.hours, limit=q.limit)
+    return jsonify({'status': 'success', 'count': results['total'], 'results': results['hits']})
 
-    Query parameters:
-    - address: Filter by pager address
-    - type: Filter by message type (alphanumeric, numeric, tone)
-    - hours: Time window in hours (default 24)
-    - limit: Maximum results (default 100)
-    """
+
+@pocsag_bp.get('/pocsag/stats')
+@api('POCSAG statistics', tags=['POCSAG'], query=HoursLimitQuery)
+def get_pocsag_stats() -> Response:
+    q = parse_query(HoursLimitQuery)
+    return jsonify({'status': 'success', 'statistics': get_storage().get_pocsag_stats(hours=q.hours)})
+
+
+@pocsag_bp.get('/pocsag/messages')
+@api('Recent POCSAG messages', tags=['POCSAG'], query=HoursLimitQuery)
+def get_pocsag_messages() -> Response:
+    q = parse_query(HoursLimitQuery)
+    results = get_storage().search_pocsag(hours=q.hours, limit=q.limit)
+    return jsonify({'status': 'success', 'count': results['total'], 'messages': results['hits']})
+
+
+@pocsag_bp.post('/pocsag/decode')
+@api('Decode POCSAG messages from a recording', tags=['POCSAG'], body=DecodeFileRequest)
+def decode_pocsag() -> Response:
+    req = parse_body(DecodeFileRequest)
     try:
-        es = get_elasticsearch_service()
-
-        # Get query parameters
-        address = request.args.get('address', type=int)
-        message_type = request.args.get('type')
-        hours = request.args.get('hours', 24, type=int)
-        limit = request.args.get('limit', 100, type=int)
-
-        # Search
-        results = es.search_pocsag(
-            address=address,
-            message_type=message_type,
-            hours=hours,
-            limit=limit
-        )
-
-        return jsonify({
-            'status': 'success',
-            'count': results['total'],
-            'results': results['hits']
-        })
-
-    except Exception as e:
-        logger.error(f"POCSAG search failed: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
-
-
-@pocsag_bp.route('/pocsag/stats', methods=['GET'])
-def get_pocsag_stats() -> Response | tuple[Response, int]:
-    """Get POCSAG statistics"""
+        audio_file = validate_file_path(req.audio_file)
+    except ValueError as e:
+        raise ApiError(str(e), 403)
     try:
-        es = get_elasticsearch_service()
-        stats = es.get_pocsag_stats()
-
-        return jsonify({
-            'status': 'success',
-            'statistics': stats
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@pocsag_bp.route('/pocsag/messages', methods=['GET'])
-def get_pocsag_messages() -> Response | tuple[Response, int]:
-    """
-    Get recent POCSAG messages
-
-    Query parameters:
-    - limit: Maximum results (default 50)
-    - offset: Offset for pagination (default 0)
-    """
-    try:
-        es = get_elasticsearch_service()
-        limit = request.args.get('limit', 50, type=int)
-
-        results = es.search_pocsag(limit=limit)
-
-        return jsonify({
-            'status': 'success',
-            'count': results['total'],
-            'messages': results['hits']
-        })
-
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@pocsag_bp.route('/pocsag/decode', methods=['POST'])
-def decode_pocsag() -> Response | tuple[Response, int]:
-    """
-    Decode POCSAG messages from audio file
-
-    Request body (JSON):
-    {
-        "audio_file": "/path/to/audio.wav",
-        "frequency": 147325000,  // Optional: frequency in Hz
-        "index_to_es": true      // Optional: index to Elasticsearch (default: true)
-    }
-
-    Returns:
-    {
-        "status": "success",
-        "count": 3,
-        "messages": [...]
-    }
-    """
-    try:
-        data = request.get_json()
-
-        if not data:
-            return jsonify({'error': 'Missing JSON body'}), 400
-
-        audio_file = data.get('audio_file')
-        if not audio_file:
-            return jsonify({'error': 'Missing required field: audio_file'}), 400
-
-        frequency = data.get('frequency')
-        index_to_es = data.get('index_to_es', True)
-
-        # Decode POCSAG messages
-        decoder = get_pocsag_decoder()
-        messages = decoder.decode(audio_file)
-
-        # Add metadata to messages
-        for message in messages:
-            if frequency:
-                message['frequency'] = frequency
-
-        # Index to Elasticsearch if requested
-        if index_to_es and messages:
-            es = get_elasticsearch_service()
-            for message in messages:
-                try:
-                    es.index_pocsag(cast(dict[str, Any], message))
-                except Exception as e:
-                    logger.warning(f"Failed to index POCSAG message: {e}")
-
-        return jsonify({
-            'status': 'success',
-            'count': len(messages),
-            'messages': messages
-        })
-
-    except FileNotFoundError as e:
-        return jsonify({'error': f'Audio file not found: {str(e)}'}), 404
-    except Exception as e:
-        logger.error(f"POCSAG decode failed: {e}", exc_info=True)
-        return jsonify({'error': str(e)}), 500
+        messages = [dict(m) for m in get_pocsag_decoder().decode(audio_file)]
+    except FileNotFoundError:
+        raise ApiError('Audio file not found', 404)
+    except RuntimeError as e:
+        raise ApiError(str(e), 503)
+    storage = get_storage()
+    for message in messages:
+        if req.frequency:
+            message['frequency'] = req.frequency
+        if req.index_to_es:
+            try:
+                storage.index_pocsag(message)
+            except Exception as e:
+                logger.warning(f"Failed to store POCSAG message: {e}")
+        events.publish('pocsag', message)
+        alerts.evaluate('pocsag', message)
+    return jsonify({'status': 'success', 'count': len(messages), 'messages': messages})

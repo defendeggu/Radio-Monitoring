@@ -13,10 +13,16 @@ Usage:
 """
 
 from typing import List, Optional, Dict, Any, TypedDict
-import subprocess
-import re
-from datetime import datetime
+import logging
 import os
+import re
+import shutil
+import subprocess
+from datetime import datetime, timezone
+
+import config
+
+logger = logging.getLogger(__name__)
 
 
 class APRSPacket(TypedDict, total=False):
@@ -59,57 +65,31 @@ class APRSDecoder:
         self.direwolf_path = direwolf_path
         self.config_path = config_path
         self.simulation_mode = False
-
-        # Check if direwolf is available
-        try:
-            subprocess.run([self.direwolf_path, '-h'],
-                         capture_output=True, timeout=5)
-        except (FileNotFoundError, subprocess.TimeoutExpired):
-            print("="*80)
-            print("⚠️  WARNING: APRS DECODER SIMULATION MODE ACTIVE ⚠️")
-            print(f"direwolf not found at {direwolf_path} - using MOCK APRS packets")
-            print("All APRS decodes will be simulated and NOT REAL!")
-            print("Install direwolf to enable real APRS decoding:")
-            print("  apt-get install direwolf")
-            print("="*80)
-            self.simulation_mode = True
+        self.available = shutil.which(direwolf_path) is not None
+        if not self.available:
+            if config.SIMULATION_MODE:
+                logger.warning("SIMULATION MODE: direwolf not found — APRS packets will be FAKE")
+                self.simulation_mode = True
+            else:
+                logger.warning(f"direwolf not found at {direwolf_path}; APRS file decoding unavailable")
 
     def decode(self, audio_file: str) -> List[APRSPacket]:
         """
-        Decode APRS packets from WAV audio file
+        Decode APRS packets from a WAV audio file (16 kHz mono).
 
-        Args:
-            audio_file: Path to WAV audio file (16kHz, mono)
-
-        Returns:
-            List of decoded APRS packets
+        Raises FileNotFoundError for a missing file and RuntimeError when
+        direwolf is not installed (outside simulation mode).
         """
         if not os.path.exists(audio_file):
-            print(f"Error: Audio file not found: {audio_file}")
-            return []
-
+            raise FileNotFoundError(f"Audio file not found: {os.path.basename(audio_file)}")
         if self.simulation_mode:
             return self._simulate_decode(audio_file)
-
-        try:
-            raw_output = self._run_direwolf(audio_file)
-            packets = self._parse_direwolf_output(raw_output)
-            print(f"Decoded {len(packets)} APRS packets from {audio_file}")
-            return packets
-        except FileNotFoundError:
-            print("="*80)
-            print("⚠️  WARNING: direwolf not found")
-            print("⚠️  Falling back to SIMULATION MODE")
-            print("="*80)
-            self.simulation_mode = True
-            return self._simulate_decode(audio_file)
-        except Exception as e:
-            print("="*80)
-            print(f"⚠️  APRS DECODING ERROR: {e}")
-            print("⚠️  Falling back to SIMULATION MODE")
-            print("⚠️  The returned packets will be SIMULATED, not real!")
-            print("="*80)
-            return self._simulate_decode(audio_file)
+        if not self.available:
+            raise RuntimeError("direwolf is not installed")
+        raw_output = self._run_direwolf(audio_file)
+        packets = self._parse_direwolf_output(raw_output)
+        logger.info(f"Decoded {len(packets)} APRS packets from {os.path.basename(audio_file)}")
+        return packets
 
     def _run_direwolf(self, audio_file: str) -> str:
         """
@@ -130,12 +110,10 @@ class APRSDecoder:
             audio_file
         ]
 
-        print(f"Running direwolf: {' '.join(cmd)}")
+        logger.debug(f"Running direwolf: {cmd}")
         result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
-
         if result.returncode != 0:
-            print(f"Direwolf returned code {result.returncode}")
-            print(f"Stderr: {result.stderr}")
+            logger.warning(f"direwolf returned code {result.returncode}: {result.stderr[-500:]}")
 
         return result.stdout
 
@@ -212,11 +190,10 @@ class APRSDecoder:
                     'payload': payload,
                     'channel': channel
                 },
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             )
         except Exception as e:
-            print(f"Error parsing packet line: {e}")
-            print(f"Line: {line}")
+            logger.debug(f"Error parsing APRS line {line!r}: {e}")
             return None
 
     def _parse_payload(self, payload: str) -> tuple[Optional[float], Optional[float], Optional[int], Optional[float], Optional[int], Optional[str]]:
@@ -398,10 +375,7 @@ class APRSDecoder:
         Returns:
             List of simulated APRS packets
         """
-        print("="*80)
-        print("⚠️  APRS SIMULATION MODE: Generating MOCK packets ⚠️")
-        print("⚠️  These are NOT real APRS packets! ⚠️")
-        print("="*80)
+        logger.warning("APRS SIMULATION MODE: generating MOCK packets")
 
         return [
             APRSPacket(
@@ -419,7 +393,7 @@ class APRSDecoder:
                 raw_packet='[0] N0CALL>APRS,WIDE1-1:=4736.37N/12219.93W-Test',
                 aprs_type='position',
                 aprs_data={'simulation': True, 'warning': 'Simulated data, not real'},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             ),
             APRSPacket(
                 source_callsign='TEST123',
@@ -436,7 +410,7 @@ class APRSDecoder:
                 raw_packet='[0] TEST123>APRS,WIDE2-1:=4736.61N/12220.52W>Simulated',
                 aprs_type='position',
                 aprs_data={'simulation': True, 'warning': 'Simulated data, not real'},
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             )
         ]
 

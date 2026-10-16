@@ -6,10 +6,17 @@ Decodes POCSAG pager messages from WAV audio files using multimon-ng.
 Supports 512, 1200, and 2400 baud POCSAG signals.
 """
 
-import subprocess
+import logging
+import os
 import re
+import shutil
+import subprocess
+from datetime import datetime, timezone
 from typing import TypedDict, Optional, List
-from datetime import datetime
+
+import config
+
+logger = logging.getLogger(__name__)
 
 
 class POCSAGMessage(TypedDict, total=False):
@@ -41,56 +48,31 @@ class POCSAGDecoder:
         """
         self.multimon_path = multimon_path
         self.simulation_mode = False
-
-        # Check if multimon-ng is available
-        try:
-            result = subprocess.run(
-                [self.multimon_path, '-h'],
-                capture_output=True,
-                timeout=5,
-                text=True
-            )
-            print(f"multimon-ng found at {multimon_path}")
-        except (FileNotFoundError, subprocess.TimeoutExpired) as e:
-            print("="*80)
-            print("⚠️  WARNING: POCSAG DECODER SIMULATION MODE ACTIVE ⚠️")
-            print(f"multimon-ng not found at {multimon_path} - using MOCK POCSAG messages")
-            print("All POCSAG decodes will be simulated and NOT REAL!")
-            print("Install multimon-ng to enable real POCSAG decoding:")
-            print("  apt-get install multimon-ng")
-            print("="*80)
-            self.simulation_mode = True
+        self.available = shutil.which(multimon_path) is not None
+        if not self.available:
+            if config.SIMULATION_MODE:
+                logger.warning("SIMULATION MODE: multimon-ng not found — POCSAG messages will be FAKE")
+                self.simulation_mode = True
+            else:
+                logger.warning(f"multimon-ng not found at {multimon_path}; POCSAG file decoding unavailable")
 
     def decode(self, audio_file: str) -> List[POCSAGMessage]:
         """
-        Decode POCSAG messages from WAV audio file
+        Decode POCSAG messages from a WAV audio file.
 
-        Args:
-            audio_file: Path to WAV audio file (16kHz, mono)
-
-        Returns:
-            List of decoded POCSAG messages
+        Raises FileNotFoundError for a missing file and RuntimeError when
+        multimon-ng is not installed (outside simulation mode).
         """
+        if not os.path.exists(audio_file):
+            raise FileNotFoundError(f"Audio file not found: {os.path.basename(audio_file)}")
         if self.simulation_mode:
             return self._simulate_decode(audio_file)
-
-        try:
-            # Run multimon-ng on audio file
-            output = self._run_multimon(audio_file)
-
-            # Parse output into structured messages
-            messages = self._parse_multimon_output(output)
-
-            print(f"Decoded {len(messages)} POCSAG messages from {audio_file}")
-            return messages
-
-        except Exception as e:
-            print("="*80)
-            print(f"⚠️  POCSAG DECODING ERROR: {e}")
-            print("⚠️  Falling back to SIMULATION MODE")
-            print("⚠️  The returned messages will be SIMULATED, not real!")
-            print("="*80)
-            return self._simulate_decode(audio_file)
+        if not self.available:
+            raise RuntimeError("multimon-ng is not installed")
+        output = self._run_multimon(audio_file)
+        messages = self._parse_multimon_output(output)
+        logger.info(f"Decoded {len(messages)} POCSAG messages from {os.path.basename(audio_file)}")
+        return messages
 
     def _run_multimon(self, audio_file: str) -> str:
         """
@@ -111,7 +93,7 @@ class POCSAGDecoder:
             audio_file
         ]
 
-        print(f"Running multimon-ng: {' '.join(cmd)}")
+        logger.debug(f"Running multimon-ng: {cmd}")
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -120,9 +102,7 @@ class POCSAGDecoder:
         )
 
         if result.returncode != 0:
-            print(f"multimon-ng returned code {result.returncode}")
-            if result.stderr:
-                print(f"Stderr: {result.stderr}")
+            logger.warning(f"multimon-ng returned code {result.returncode}: {(result.stderr or '')[-500:]}")
 
         return result.stdout
 
@@ -174,13 +154,13 @@ class POCSAGDecoder:
 
             # Validate baud rate
             if baud_rate not in [512, 1200, 2400]:
-                print(f"Invalid baud rate: {baud_rate}")
+                logger.debug(f"Invalid baud rate: {baud_rate}")
                 return None
 
             # Extract address
             addr_match = re.search(r'Address:\s+(\d+)', line)
             if not addr_match:
-                print(f"No address found in line: {line}")
+                logger.debug(f"No address found in line: {line}")
                 return None
             address = int(addr_match.group(1))
 
@@ -190,7 +170,7 @@ class POCSAGDecoder:
 
             # Validate function code
             if function_code not in [0, 1, 2, 3]:
-                print(f"Invalid function code: {function_code}, defaulting to 0")
+                logger.debug(f"Invalid function code: {function_code}, defaulting to 0")
                 function_code = 0
 
             # Determine message type and extract content
@@ -216,12 +196,11 @@ class POCSAGDecoder:
                 message_text=message_text,
                 baud_rate=baud_rate,
                 raw_line=line,
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             )
 
         except Exception as e:
-            print(f"Error parsing POCSAG line: {e}")
-            print(f"Line: {line}")
+            logger.debug(f"Error parsing POCSAG line {line!r}: {e}")
             return None
 
     def _simulate_decode(self, audio_file: str) -> List[POCSAGMessage]:
@@ -236,10 +215,7 @@ class POCSAGDecoder:
         Returns:
             List of simulated POCSAG messages
         """
-        print("="*80)
-        print("⚠️  POCSAG SIMULATION MODE: Generating MOCK messages ⚠️")
-        print("⚠️  These are NOT real POCSAG messages! ⚠️")
-        print("="*80)
+        logger.warning("POCSAG SIMULATION MODE: generating MOCK messages")
 
         return [
             POCSAGMessage(
@@ -249,7 +225,7 @@ class POCSAGDecoder:
                 message_text='[SIMULATED] Test POCSAG message (simulated)',
                 baud_rate=1200,
                 raw_line='POCSAG1200: Address: 1234567  Function: 3  Alpha:   [SIMULATED] Test POCSAG message (simulated)',
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             ),
             POCSAGMessage(
                 address=7654321,
@@ -258,7 +234,7 @@ class POCSAGDecoder:
                 message_text='[SIMULATED] 555-1234',
                 baud_rate=512,
                 raw_line='POCSAG512: Address: 7654321  Function: 0  Numeric: [SIMULATED] 555-1234',
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             ),
             POCSAGMessage(
                 address=9999999,
@@ -267,7 +243,7 @@ class POCSAGDecoder:
                 message_text=None,
                 baud_rate=2400,
                 raw_line='POCSAG2400: Address: 9999999  Function: 1  Tone Only',
-                timestamp=datetime.now().isoformat()
+                timestamp=datetime.now(timezone.utc).isoformat()
             )
         ]
 
@@ -282,7 +258,7 @@ if __name__ == '__main__':
         sys.exit(1)
 
     audio_file = sys.argv[1]
-    print(f"\n=== POCSAG Decoder ===")
+    print("\n=== POCSAG Decoder ===")
     print(f"Audio file: {audio_file}\n")
 
     decoder = POCSAGDecoder()

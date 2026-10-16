@@ -92,8 +92,8 @@ def maidenhead_to_latlon(grid: str) -> tuple[float, float]:
         raise ValueError("Grid must be at least 2 characters (field)")
 
     # Field
-    lon = (ord(grid[0]) - ord('A')) * 20 - 180
-    lat = (ord(grid[1]) - ord('A')) * 10 - 90
+    lon: float = (ord(grid[0]) - ord('A')) * 20 - 180
+    lat: float = (ord(grid[1]) - ord('A')) * 10 - 90
 
     if len(grid) >= 4:
         # Square
