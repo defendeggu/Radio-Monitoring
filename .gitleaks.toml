@@ -3,9 +3,18 @@
 useDefault = true
 
 [allowlist]
-description = "Templates and test fixtures"
+description = "Templates, documentation placeholders and test fixtures"
 paths = [
   '''\.env\.example$''',
   '''tests/.*\.py$''',
   '''frontend/package-lock\.json$''',
+]
+# placeholders used in docs and old examples, redacted history, docker image digests
+regexes = [
+  '''(?i)your[-_]?(api[-_]?key|password|key)''',
+  '''(?i)dein[-_]?api[-_]?key''',
+  '''(?i)elastic:(PASSWORD|YOUR_PASSWORD|changeme)''',
+  '''\$\{?[A-Z_]+\}?''',
+  '''\*\*\*REMOVED\*\*\*''',
+  '''^[a-f0-9]{64}$''',
 ]
