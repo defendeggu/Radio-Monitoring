@@ -2,15 +2,45 @@
 
 Version 4.0 baut Sicherheit, Datenhaltung und Oberfläche um. Ein bestehender Stack lässt sich so übernehmen:
 
-1. **Backup** des Elasticsearch-Volumes (siehe [elk.md](elk.md#backup)). Das ELK-Upgrade auf 9.x ist nicht umkehrbar.
-2. **Konfiguration:** `./scripts/setup-env.sh` ergänzt die neuen Variablen (`LOGSTASH_HTTP_PASSWORD`, `BEATS_WRITER_PASSWORD`, `COMPOSE_PROFILES` …). `.env.elk` und `.secrets/` werden nicht mehr benutzt und können gelöscht werden.
-3. **Elasticsearch 8.11 → 8.19 → 9.5:** Ein direkter Sprung ist nicht möglich.
+1. **Konfiguration:** `./scripts/setup-env.sh` ergänzt die neuen Variablen (`LOGSTASH_HTTP_PASSWORD`, `BEATS_WRITER_PASSWORD`, `COMPOSE_PROFILES` …). `.env.elk` und `.secrets/` werden nicht mehr benutzt und können gelöscht werden.
+2. **Projektname beibehalten:** 3.x lief als Compose-Projekt `radiomoni` (Name des Verzeichnisses), 4.0 heisst `radio-monitoring`. Damit die bestehenden Volumes (`radiomoni_elasticsearch-data`, `radiomoni_redis-data`) weiter benutzt werden, den alten Namen in `.env` festhalten. Dockge erkennt den Stack ebenfalls nur, wenn Projekt- und Verzeichnisname übereinstimmen.
+   ```bash
+   echo "COMPOSE_PROJECT_NAME=radiomoni" >> .env
+   ```
+   Die gestoppten 3.x-Container tragen dieselben Namen wie die neuen und müssen weg (die Daten liegen in den Volumes):
+   ```bash
+   docker rm radio-elasticsearch radio-logstash radio-kibana radio-metricbeat radio-filebeat \
+     radio-redis radio-transcription-api radio-web-interface
+   ```
+3. **Backup** des Elasticsearch-Volumes (siehe [elk.md](elk.md#backup), Volume `radiomoni_elasticsearch-data`). Das ELK-Upgrade auf 9.x ist nicht umkehrbar.
+4. **Elasticsearch und Kibana 8.11 → 8.19 → 9.5:** Ein direkter Sprung ist nicht möglich. Auch Kibana muss einmal mit 8.19 laufen, damit es seine gespeicherten Objekte migriert. Sonst bricht Kibana 9 mit `Kibana 8.11.3 deployment detected` ab.
    ```bash
    ELK_VERSION=8.19.23 docker compose up -d elasticsearch && ./scripts/setup-elk-users.sh
+   ELK_VERSION=8.19.23 docker compose up -d kibana
+   # warten, bis Kibana die Migration abgeschlossen hat:
+   until curl -fs http://127.0.0.1:5601/api/status | grep -q '"level":"available"'; do sleep 5; done
    docker compose up -d --build          # 9.5.5 (Standard)
    ./scripts/post-docker-setup.sh
    ```
-4. **Weboberfläche:** neue Adresse für die API ist `http://<host>:8080/api` (Port 5000 ist zu). Den API-Key einmal in den Einstellungen eintragen.
+5. **Weboberfläche:** neue Adresse für die API ist `http://<host>:8080/api` (Port 5000 ist zu). Den API-Key einmal in den Einstellungen eintragen.
+
+### Kibana-Schritt vergessen?
+
+Läuft Elasticsearch schon mit 9.x, ist kein Zurück auf 8.19 mehr möglich. Entweder das Backup zurückspielen und Schritt 4 wiederholen, oder die alten Kibana-Objekte verwerfen (eigene Dashboards, Data Views und Einstellungen gehen verloren, die Radio-Daten bleiben). Die Kibana-Indizes sind geschützte Systemindizes, deshalb braucht es dafür kurzzeitig eine eigene Rolle:
+
+```bash
+source .env; docker compose stop kibana
+es() { docker exec radio-elasticsearch curl -s -u "$1" -H 'Content-Type: application/json' -X "$2" "localhost:9200$3" ${4:+-d "$4"}; echo; }
+T=$(openssl rand -hex 16)
+es "elastic:$ELASTIC_PASSWORD" PUT /_security/role/tmp_kibana_reset \
+  '{"indices":[{"names":[".kibana*"],"privileges":["delete_index"],"allow_restricted_indices":true}]}'
+es "elastic:$ELASTIC_PASSWORD" PUT /_security/user/tmp_kibana_reset "{\"password\":\"$T\",\"roles\":[\"tmp_kibana_reset\"]}"
+# Indexnamen ohne Wildcard angeben (Version anpassen, siehe GET /_cat/indices/.kibana*?expand_wildcards=all)
+es "tmp_kibana_reset:$T" DELETE /.kibana_8.11.3_001,.kibana_alerting_cases_8.11.3_001,.kibana_analytics_8.11.3_001,.kibana_ingest_8.11.3_001,.kibana_security_solution_8.11.3_001,.kibana_task_manager_8.11.3_001,.kibana_security_session_1
+es "elastic:$ELASTIC_PASSWORD" DELETE /_security/user/tmp_kibana_reset
+es "elastic:$ELASTIC_PASSWORD" DELETE /_security/role/tmp_kibana_reset
+docker compose start kibana && ./scripts/import-kibana-dashboards.sh
+```
 
 ## Was sich ändert
 

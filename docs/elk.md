@@ -55,7 +55,7 @@ Zurückspielen: Volume leeren und das Archiv mit `tar xzf` hineinentpacken, bei 
 Elasticsearch erlaubt Major-Upgrades nur von der letzten Minor-Version aus. Ein Downgrade ist nach dem Start mit der neuen Version **nicht** mehr möglich. Vorgehen:
 
 1. Backup wie oben.
-2. `ELK_VERSION` auf die letzte 8.x setzen (`8.19.23`), `docker compose up -d`, dann `GET _migration/deprecations` prüfen.
+2. `ELK_VERSION` auf die letzte 8.x setzen (`8.19.23`), `docker compose up -d`, dann `GET _migration/deprecations` prüfen. Warten, bis Kibana unter `/api/status` den Level `available` meldet: Erst dann sind seine gespeicherten Objekte migriert. Kibana 9 startet nicht mit Objekten aus einer älteren 8.x.
 3. `ELK_VERSION` auf die Ziel-Version (`9.5.5`) setzen, `docker compose up -d`.
 4. `./scripts/post-docker-setup.sh`.
 
