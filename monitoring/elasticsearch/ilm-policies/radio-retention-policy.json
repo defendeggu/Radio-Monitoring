@@ -1,14 +1,12 @@
 {
   "policy": {
+    "_meta": {
+      "description": "RadioMoni data retention (daily indices, no rollover)"
+    },
     "phases": {
       "hot": {
         "min_age": "0ms",
         "actions": {
-          "rollover": {
-            "max_size": "50gb",
-            "max_age": "7d",
-            "max_docs": 10000000
-          },
           "set_priority": {
             "priority": 100
           }
@@ -17,22 +15,13 @@
       "warm": {
         "min_age": "7d",
         "actions": {
-          "readonly": {},
           "forcemerge": {
             "max_num_segments": 1
           },
+          "readonly": {},
           "set_priority": {
             "priority": 50
           }
-        }
-      },
-      "cold": {
-        "min_age": "30d",
-        "actions": {
-          "set_priority": {
-            "priority": 0
-          },
-          "freeze": {}
         }
       },
       "delete": {

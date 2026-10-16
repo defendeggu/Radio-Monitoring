@@ -2,10 +2,16 @@
 # Collects logs from all Docker containers and ships to Elasticsearch
 
 filebeat.inputs:
-  - type: container
+  # Docker JSON logs of all containers (filestream + container parser, required since 9.0)
+  - type: filestream
+    id: docker-containers
     paths:
       - /var/lib/docker/containers/*/*.log
-    stream: all
+    prospector.scanner.symlinks: true
+    parsers:
+      - container:
+          stream: all
+          format: docker
 
 processors:
   - add_docker_metadata:
@@ -26,7 +32,7 @@ setup.template.enabled: false
 
 # Kibana (only used for setup commands, not runtime)
 setup.kibana:
-  host: "${KIBANA_HOST:http://kibana:5601}"
+  host: "http://kibana:5601"
 
 logging.level: warning
 logging.to_files: false

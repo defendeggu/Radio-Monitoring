@@ -1,33 +1,40 @@
+# Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
-.Python
-env/
+.venv/
 venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Configuration with secrets — never commit
 .env
-recordings/
-*.wav
-*.mp3
-*.raw
-models/
-.n8n/
-node_modules/
-frontend/node_modules/
-
-# Secrets - NEVER commit actual secrets!
-secrets/
-!secrets/.gitkeep
-!secrets/README.md
+.env.*
+!.env.example
 .secrets/
-!.secrets/.gitkeep
-!.secrets/README.md
+secrets/
 
-# Claude Code files
+# Runtime data
+recordings/
+captures/
+data/
+models/
+backups/
+logs/
+*.wav
+*.iq
+*.raw
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/playwright-report/
+frontend/test-results/
+
+# Editors / tools
+.vscode/
 claude.md
 CLAUDE.md
-.env.elk
-
-# Mosquitto runtime data
-mosquitto/data/
-mosquitto/log/

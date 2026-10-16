@@ -9,7 +9,8 @@ if [ -z "$SESSION_ID" ]; then
     exit 1
 fi
 
-API_URL="http://localhost:5000"
+API_URL="${API_URL:-http://localhost:8080/api}"
+API_KEY="${API_KEY:-$(grep -E "^API_KEYS=" "$(dirname "$0")/../../../.env" 2>/dev/null | cut -d= -f2 | cut -d, -f1)}"
 
 echo "Monitoring session: $SESSION_ID"
 echo "Check interval: ${CHECK_INTERVAL}s"
@@ -18,7 +19,7 @@ echo ""
 
 while true; do
     TIMESTAMP=$(date "+%H:%M:%S")
-    RESPONSE=$(curl -s "$API_URL/stream-decode/$SESSION_ID")
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/stream-decode/$SESSION_ID")
 
     STATUS=$(echo "$RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('session', {}).get('status', 'unknown'))" 2>/dev/null || echo "error")
     PACKETS=$(echo "$RESPONSE" | python3 -c "import sys, json; data=json.load(sys.stdin); print(data.get('session', {}).get('packet_count', 0))" 2>/dev/null || echo "0")

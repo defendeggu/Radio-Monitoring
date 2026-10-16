@@ -1,0 +1,11 @@
+# gitleaks configuration: default rules + project allowlist
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Templates and test fixtures"
+paths = [
+  '''\.env\.example$''',
+  '''tests/.*\.py$''',
+  '''frontend/package-lock\.json$''',
+]

@@ -1,0 +1,23 @@
+# Optional: Whisper on an NVIDIA GPU (requires the NVIDIA Container Toolkit)
+#
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+#
+# Installs the CUDA 12 / cuDNN 9 runtime wheels used by CTranslate2 into the
+# API image and reserves one GPU. Not tested on every setup — see docs/installation.md.
+
+services:
+  radio-api:
+    build:
+      args:
+        WITH_CUDA: "1"
+    environment:
+      - WHISPER_DEVICE=cuda
+      - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-float16}
+      - WHISPER_MODEL=${WHISPER_MODEL:-large-v3-turbo}
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

@@ -4,7 +4,8 @@
 
 set -e
 
-API_URL="http://localhost:5000"
+API_URL="${API_URL:-http://localhost:8080/api}"
+API_KEY="${API_KEY:-$(grep -E "^API_KEYS=" "$(dirname "$0")/../../../.env" 2>/dev/null | cut -d= -f2 | cut -d, -f1)}"
 FREQUENCY=147325000  # 147.325 MHz
 GAIN=32
 DURATION=720
@@ -19,7 +20,7 @@ echo ""
 
 # Start POCSAG streaming
 echo "Starting POCSAG session..."
-RESPONSE=$(curl -s -X POST "$API_URL/stream/pocsag/start" \
+RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" -X POST "$API_URL/stream/pocsag/start" \
     -H "Content-Type: application/json" \
     -d "{
         \"frequency\": $FREQUENCY,
@@ -41,7 +42,7 @@ echo ""
 echo "✓ POCSAG session started: $SESSION_ID"
 echo ""
 echo "Monitor with: ./monitor_session.sh $SESSION_ID 60"
-echo "Or check status: curl -s http://localhost:5000/stream-decode/$SESSION_ID | python3 -m json.tool"
+echo "Or check status: curl -s -H \"X-API-Key: \$API_KEY\" $API_URL/stream-decode/$SESSION_ID | python3 -m json.tool"
 echo ""
 echo "Session will run for 12 minutes..."
 echo "Expected end time: $(date -d '+720 seconds' '+%H:%M:%S')"

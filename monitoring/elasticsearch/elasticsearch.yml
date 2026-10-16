@@ -1,40 +1,27 @@
-# Elasticsearch Configuration
-# Performance tuning for radio monitoring workload
-
-# Cluster settings
+# Elasticsearch configuration for RadioMoni (single node)
 cluster.name: radio-monitoring-cluster
 node.name: radio-elasticsearch
 
-# Network settings
 network.host: 0.0.0.0
 http.port: 9200
 
-# Discovery (single-node mode is set via docker-compose environment)
-discovery.type: single-node
-
-# Security (configured via docker-compose environment variables)
+# Security: authentication on, TLS off — Elasticsearch is only reachable
+# inside the Docker "backend" network (no published port).
 xpack.security.enabled: true
 xpack.security.enrollment.enabled: false
 xpack.security.http.ssl.enabled: false
 xpack.security.transport.ssl.enabled: false
 
-# Performance: Increase bulk queue size for high-throughput indexing
 thread_pool.write.queue_size: 1000
-
-# Performance: Increase search queue size
-thread_pool.search.queue_size: 3000
-
-# Performance: Increase bulk request size limits
 http.max_content_length: 200mb
 
-# Disable ML and other unused features to save memory
+# Unused features (save memory)
 xpack.ml.enabled: false
 xpack.graph.enabled: false
 xpack.watcher.enabled: false
 
-# Enable monitoring
-xpack.monitoring.collection.enabled: true
-
-# Note: Index-level settings (refresh_interval, translog, shards, replicas, slowlog)
-# must be set via API after cluster starts, not in this config file.
-# See scripts/configure-elasticsearch-indices.sh for index template configuration.
+# Disk watermarks as free space instead of percent: a single node on a shared
+# disk (e.g. 100 GB, 90 % used by other things) must keep accepting data.
+cluster.routing.allocation.disk.watermark.low: 3gb
+cluster.routing.allocation.disk.watermark.high: 2gb
+cluster.routing.allocation.disk.watermark.flood_stage: 1gb

@@ -14,7 +14,8 @@ YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
 # Configuration
-API_URL="http://localhost:5000"
+API_URL="${API_URL:-http://localhost:8080/api}"
+API_KEY="${API_KEY:-$(grep -E "^API_KEYS=" "$(dirname "$0")/../../../.env" 2>/dev/null | cut -d= -f2 | cut -d, -f1)}"
 APRS_FREQUENCY=144800000  # 144.800 MHz
 POCSAG_FREQUENCY=147325000  # 147.325 MHz
 GAIN=32  # 32 dB
@@ -42,7 +43,7 @@ log_warning() {
 # Function to check API health
 check_api() {
     log_info "Checking API health..."
-    RESPONSE=$(curl -s "$API_URL/health")
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/health")
     if echo "$RESPONSE" | grep -q "healthy"; then
         log_success "API is healthy"
         return 0
@@ -55,7 +56,7 @@ check_api() {
 # Function to detect SDR
 detect_sdr() {
     log_info "Detecting SDR hardware..."
-    RESPONSE=$(curl -s "$API_URL/sdr/detect")
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/sdr/detect")
     SDR_TYPE=$(echo "$RESPONSE" | grep -o '"type":"[^"]*"' | cut -d'"' -f4)
 
     if [ -z "$SDR_TYPE" ]; then
@@ -78,7 +79,7 @@ start_streaming() {
     log_info "Starting $SESSION_TYPE streaming session..."
     log_info "Frequency: $(echo "scale=3; $FREQUENCY / 1000000" | bc) MHz, Gain: ${GAIN}dB, Duration: ${DURATION}s"
 
-    RESPONSE=$(curl -s -X POST "$API_URL/stream/$SESSION_TYPE/start" \
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" -X POST "$API_URL/stream/$SESSION_TYPE/start" \
         -H "Content-Type: application/json" \
         -d "{
             \"frequency\": $FREQUENCY,
@@ -115,7 +116,7 @@ monitor_session() {
         sleep $CHECK_INTERVAL
         ELAPSED=$((ELAPSED + CHECK_INTERVAL))
 
-        STATUS_RESPONSE=$(curl -s "$API_URL/stream-decode/$SESSION_ID")
+        STATUS_RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/stream-decode/$SESSION_ID")
         SESSION_STATUS=$(echo "$STATUS_RESPONSE" | grep -o '"status":"[^"]*"' | head -1 | cut -d'"' -f4)
         PACKETS=$(echo "$STATUS_RESPONSE" | grep -o '"packets_decoded":[0-9]*' | cut -d':' -f2)
 
@@ -138,7 +139,7 @@ monitor_session() {
     sleep 10
 
     # Get final status
-    FINAL_RESPONSE=$(curl -s "$API_URL/stream-decode/$SESSION_ID")
+    FINAL_RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/stream-decode/$SESSION_ID")
     log_info "Final status:"
     echo "$FINAL_RESPONSE" | tee -a "$LOG_FILE"
 
@@ -152,7 +153,7 @@ get_session_stats() {
 
     log_info "Retrieving $SESSION_TYPE session statistics..."
 
-    STATS_RESPONSE=$(curl -s "$API_URL/stream-decode/$SESSION_ID")
+    STATS_RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/stream-decode/$SESSION_ID")
     echo "$STATS_RESPONSE" | tee -a "$LOG_FILE"
 
     PACKETS=$(echo "$STATS_RESPONSE" | grep -o '"packets_decoded":[0-9]*' | cut -d':' -f2)

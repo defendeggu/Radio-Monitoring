@@ -1,0 +1,94 @@
+{
+  "index_patterns": [
+    "radio-adsb-*"
+  ],
+  "priority": 200,
+  "version": 4,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-adsb daily indices"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "capture_id": {
+          "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        },
+        "icao": {
+          "type": "keyword"
+        },
+        "flight": {
+          "type": "keyword"
+        },
+        "squawk": {
+          "type": "keyword"
+        },
+        "category": {
+          "type": "keyword"
+        },
+        "altitude_ft": {
+          "type": "float"
+        },
+        "ground_speed_kt": {
+          "type": "float"
+        },
+        "track": {
+          "type": "float"
+        },
+        "vertical_rate": {
+          "type": "float"
+        },
+        "latitude": {
+          "type": "float"
+        },
+        "longitude": {
+          "type": "float"
+        },
+        "position": {
+          "type": "geo_point"
+        },
+        "rssi": {
+          "type": "float"
+        },
+        "messages": {
+          "type": "long"
+        },
+        "seen": {
+          "type": "float"
+        }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
+    }
+  }
+}
