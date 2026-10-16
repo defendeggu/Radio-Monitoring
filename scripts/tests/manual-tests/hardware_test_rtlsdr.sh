@@ -6,7 +6,8 @@
 set -e  # Exit on error
 
 # Configuration
-API_URL="http://localhost:5000"
+API_URL="${API_URL:-http://localhost:8080/api}"
+API_KEY="${API_KEY:-$(grep -E "^API_KEYS=" "$(dirname "$0")/../../../.env" 2>/dev/null | cut -d= -f2 | cut -d, -f1)}"
 KIBANA_URL="http://localhost:5601"
 ES_URL="http://elastic:***REMOVED***@localhost:9200"
 LOG_FILE="/home/spia/my-project/hardware-test-rtlsdr-$(date +%Y%m%d-%H%M%S).log"
@@ -89,7 +90,7 @@ check_kibana_data() {
     log "Checking Kibana data for $test_name..."
 
     # Query Elasticsearch for recent data
-    local count=$(curl -s -u "elastic:***REMOVED***" \
+    local count=$(curl -s -H "X-API-Key: ${API_KEY}" -u "elastic:***REMOVED***" \
         -X GET "$ES_URL/${index_pattern}/_count?q=@timestamp:[now-5m TO now]" \
         2>/dev/null | jq -r '.count' 2>/dev/null || echo "0")
 
@@ -161,7 +162,7 @@ main() {
 
     # Start capture
     log "Starting APRS capture..."
-    RESPONSE=$(curl -s -X POST "$API_URL/capture-and-transcribe" \
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" -X POST "$API_URL/capture-and-transcribe" \
         -H "Content-Type: application/json" \
         -d '{
             "frequency": 144800000,
@@ -228,7 +229,7 @@ main() {
 
     # Start capture
     log "Starting POCSAG capture..."
-    RESPONSE=$(curl -s -X POST "$API_URL/capture-and-transcribe" \
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" -X POST "$API_URL/capture-and-transcribe" \
         -H "Content-Type: application/json" \
         -d '{
             "frequency": 147375000,
@@ -295,7 +296,7 @@ main() {
 
     # Start streaming
     log "Starting APRS streaming session..."
-    RESPONSE=$(curl -s -X POST "$API_URL/stream/aprs/start" \
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" -X POST "$API_URL/stream/aprs/start" \
         -H "Content-Type: application/json" \
         -d '{
             "frequency": 144800000,
@@ -315,7 +316,7 @@ main() {
 
         # Check session status
         log "Checking session status..."
-        STATUS=$(curl -s "$API_URL/stream-decode/$SESSION_ID")
+        STATUS=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/stream-decode/$SESSION_ID")
         echo "$STATUS" >> "$LOG_FILE"
 
         PACKET_COUNT=$(echo "$STATUS" | jq -r '.session.packet_count // 0')
@@ -368,7 +369,7 @@ main() {
 
     # Start streaming
     log "Starting POCSAG streaming session..."
-    RESPONSE=$(curl -s -X POST "$API_URL/stream/pocsag/start" \
+    RESPONSE=$(curl -s -H "X-API-Key: ${API_KEY}" -X POST "$API_URL/stream/pocsag/start" \
         -H "Content-Type: application/json" \
         -d '{
             "frequency": 147375000,
@@ -388,7 +389,7 @@ main() {
 
         # Check session status
         log "Checking session status..."
-        STATUS=$(curl -s "$API_URL/stream-decode/$SESSION_ID")
+        STATUS=$(curl -s -H "X-API-Key: ${API_KEY}" "$API_URL/stream-decode/$SESSION_ID")
         echo "$STATUS" >> "$LOG_FILE"
 
         PACKET_COUNT=$(echo "$STATUS" | jq -r '.session.packet_count // 0')

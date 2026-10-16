@@ -1,157 +1,93 @@
-#!/bin/bash
+#!/usr/bin/env bash
 #
-# Set passwords for Elasticsearch built-in users
+# Configure Elasticsearch: built-in user passwords, least-privilege roles/users,
+# ILM policies and index templates. Idempotent — safe to run after every upgrade.
 #
+# Elasticsearch is not published on the host, so all calls run inside the
+# container via "docker exec".
 
-set -e
+set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+ROOT="$(pwd)"
+ES_CONTAINER="${ES_CONTAINER:-radio-elasticsearch}"
 
-cd "${PROJECT_ROOT}"
+[[ -f .env ]] || { echo "No .env — run ./scripts/setup-env.sh first" >&2; exit 1; }
+set -a; source .env; set +a
 
-# Source the passwords from .env.elk (project root)
-if [ -f "${PROJECT_ROOT}/.env.elk" ]; then
-    source "${PROJECT_ROOT}/.env.elk"
-elif [ -f "${PROJECT_ROOT}/.env" ]; then
-    source "${PROJECT_ROOT}/.env"
-else
-    echo "Error: Neither .env.elk nor .env found in project root!"
-    echo "Please run ./scripts/setup-elk-security.sh first"
-    exit 1
-fi
+es() {  # es METHOD PATH [JSON-FILE|-]
+  local method="$1" path="$2" body="${3:-}"
+  if [[ -n "$body" ]]; then
+    docker exec -i "$ES_CONTAINER" curl -s -o /dev/stderr -w '%{http_code}' -X "$method" \
+      -u "elastic:${ELASTIC_PASSWORD}" -H 'Content-Type: application/json' \
+      "http://localhost:9200${path}" --data-binary @- < "$body" 2>/dev/null
+  else
+    docker exec "$ES_CONTAINER" curl -s -o /dev/null -w '%{http_code}' -X "$method" \
+      -u "elastic:${ELASTIC_PASSWORD}" "http://localhost:9200${path}"
+  fi
+}
 
-echo "=========================================="
-echo "Setting up Elasticsearch built-in users"
-echo "=========================================="
-echo ""
+put_json() {  # put_json METHOD PATH 'json' LABEL
+  local tmp; tmp="$(mktemp)"
+  printf '%s' "$3" > "$tmp"
+  local code; code="$(es "$1" "$2" "$tmp")"; rm -f "$tmp"
+  if [[ "$code" =~ ^2 ]]; then echo "  ok   $4"; else echo "  FAIL $4 (HTTP $code)"; FAILED=1; fi
+}
 
-# Wait for Elasticsearch to be ready
-echo "Waiting for Elasticsearch to be ready..."
-until curl -s -u "elastic:${ELASTIC_PASSWORD}" http://localhost:9200/_cluster/health > /dev/null 2>&1; do
-    echo "  Elasticsearch not ready yet, waiting..."
-    sleep 5
+put_file() {  # put_file PATH FILE LABEL
+  local code; code="$(es PUT "$1" "$2")"
+  if [[ "$code" =~ ^2 ]]; then echo "  ok   $3"; else echo "  FAIL $3 (HTTP $code)"; FAILED=1; fi
+}
+
+FAILED=0
+echo "Waiting for Elasticsearch..."
+for _ in $(seq 1 60); do
+  [[ "$(es GET /_cluster/health)" == "200" ]] && break
+  sleep 3
 done
-echo "✅ Elasticsearch is ready"
-echo ""
+[[ "$(es GET /_cluster/health)" == "200" ]] || { echo "Elasticsearch not reachable" >&2; exit 1; }
 
-# Set kibana_system password
-echo "Setting kibana_system password..."
-curl -s -X POST -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/user/kibana_system/_password" \
-  -H "Content-Type: application/json" \
-  -d "{\"password\": \"${KIBANA_SYSTEM_PASSWORD}\"}" > /dev/null
-echo "✅ kibana_system password set"
+echo "Built-in users"
+put_json POST /_security/user/kibana_system/_password "{\"password\":\"${KIBANA_SYSTEM_PASSWORD}\"}" kibana_system
+put_json POST /_security/user/logstash_system/_password "{\"password\":\"${LOGSTASH_SYSTEM_PASSWORD}\"}" logstash_system
+put_json POST /_security/user/beats_system/_password "{\"password\":\"${BEATS_SYSTEM_PASSWORD}\"}" beats_system
 
-# Set logstash_system password
-echo "Setting logstash_system password..."
-curl -s -X POST -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/user/logstash_system/_password" \
-  -H "Content-Type: application/json" \
-  -d "{\"password\": \"${LOGSTASH_SYSTEM_PASSWORD}\"}" > /dev/null
-echo "✅ logstash_system password set"
+echo "Roles"
+put_json PUT /_security/role/logstash_writer '{
+  "cluster": ["monitor", "manage_index_templates", "manage_ilm"],
+  "indices": [{"names": ["radio-*"], "privileges": ["create_doc", "create", "index", "create_index", "auto_configure", "view_index_metadata"]}]
+}' "role logstash_writer"
+put_json PUT /_security/role/radio_api '{
+  "cluster": ["monitor"],
+  "indices": [{"names": ["radio-*"], "privileges": ["read", "view_index_metadata", "create_doc", "index", "create_index", "auto_configure"]}]
+}' "role radio_api"
+put_json PUT /_security/role/beats_writer '{
+  "cluster": ["monitor", "read_ilm", "read_pipeline", "manage_index_templates", "manage_ilm"],
+  "indices": [{"names": ["radio-logs-*", "metricbeat-*", ".ds-metricbeat-*"],
+               "privileges": ["create_doc", "create_index", "auto_configure", "view_index_metadata", "manage"]}]
+}' "role beats_writer"
 
-# Set beats_system password
-echo "Setting beats_system password..."
-curl -s -X POST -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/user/beats_system/_password" \
-  -H "Content-Type: application/json" \
-  -d "{\"password\": \"${BEATS_SYSTEM_PASSWORD}\"}" > /dev/null
-echo "✅ beats_system password set"
+echo "Service users"
+put_json PUT /_security/user/logstash_writer "{\"password\":\"${LOGSTASH_WRITER_PASSWORD}\",\"roles\":[\"logstash_writer\"],\"full_name\":\"Logstash writer\"}" logstash_writer
+put_json PUT /_security/user/radio_api "{\"password\":\"${RADIO_API_PASSWORD}\",\"roles\":[\"radio_api\"],\"full_name\":\"RadioMoni API\"}" radio_api
+put_json PUT /_security/user/beats_writer "{\"password\":\"${BEATS_WRITER_PASSWORD}\",\"roles\":[\"beats_writer\",\"remote_monitoring_collector\"],\"full_name\":\"Metricbeat/Filebeat\"}" beats_writer
 
-# Create logstash_writer role (custom role - not a built-in user)
-echo "Creating logstash_writer role..."
-curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/role/logstash_writer" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cluster": ["manage_index_templates", "monitor", "manage_ilm"],
-    "indices": [{
-      "names": ["radio-*", "logstash-*"],
-      "privileges": ["write", "create", "create_index", "manage", "manage_ilm"]
-    }]
-  }' > /dev/null
-echo "✅ logstash_writer role created"
+echo "ILM policies"
+for f in monitoring/elasticsearch/ilm-policies/*.json; do
+  put_file "/_ilm/policy/$(basename "$f" .json)" "$ROOT/$f" "ilm $(basename "$f" .json)"
+done
 
-# Create logstash_writer user
-echo "Creating logstash_writer user..."
-curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/user/logstash_writer" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"password\": \"${LOGSTASH_WRITER_PASSWORD}\",
-    \"roles\": [\"logstash_writer\"],
-    \"full_name\": \"Logstash Writer\"
-  }" > /dev/null
-echo "✅ logstash_writer user created"
+echo "Index templates"
+for f in monitoring/elasticsearch/index-templates/*.json; do
+  put_file "/_index_template/$(basename "$f" .json)" "$ROOT/$f" "template $(basename "$f" .json)"
+done
+# templates of older versions with conflicting patterns
+for old in radio-aprs-template radio-monitoring-performance; do
+  [[ "$(es DELETE "/_index_template/$old")" =~ ^(200|404)$ ]] || true
+done
 
-
-# Create radio_api role (least-privilege: read/write on radio-* indices, monitor only)
-echo "Creating radio_api role..."
-curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/role/radio_api" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "cluster": ["monitor"],
-    "indices": [{
-      "names": ["radio-*"],
-      "privileges": ["read", "write", "create", "create_index", "index", "delete", "manage"]
-    }]
-  }' > /dev/null
-echo "✅ radio_api role created"
-
-# Create radio_api user
-echo "Creating radio_api user..."
-curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_security/user/radio_api" \
-  -H "Content-Type: application/json" \
-  -d "{
-    \"password\": \"${RADIO_API_PASSWORD}\",
-    \"roles\": [\"radio_api\"],
-    \"full_name\": \"Radio API Service\"
-  }" > /dev/null
-echo "✅ radio_api user created"
-
-
-# Create logs ILM policy (7-day retention for Filebeat and Metricbeat indices)
-echo "Creating logs ILM policy (7d retention)..."
-curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_ilm/policy/logs-ilm-policy" \
-  -H "Content-Type: application/json" \
-  -d @"${PROJECT_ROOT}/monitoring/elasticsearch/ilm-policies/logs-ilm-policy.json" > /dev/null
-echo "✅ logs-ilm-policy created"
-
-# Create radio-logs index template with ILM
-echo "Creating radio-logs index template..."
-curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_index_template/radio-logs" \
-  -H "Content-Type: application/json" \
-  -d @"${PROJECT_ROOT}/monitoring/elasticsearch/index-templates/radio-logs.json" > /dev/null
-echo "✅ radio-logs index template created"
-
-# Apply logs ILM policy to metricbeat data stream template
-echo "Applying ILM to metricbeat index template..."
-TMPFILE=$(mktemp)
-curl -s -u "elastic:${ELASTIC_PASSWORD}" "http://localhost:9200/_index_template/metricbeat" > "$TMPFILE"
-python3 -c "
-import json, sys
-data = json.load(open('$TMPFILE'))
-t = data['index_templates'][0]['index_template']
-t.setdefault('template', {}).setdefault('settings', {}).setdefault('index', {})['lifecycle'] = {'name': 'logs-ilm-policy'}
-print(json.dumps(t))
-" | curl -s -X PUT -u "elastic:${ELASTIC_PASSWORD}" \
-  "http://localhost:9200/_index_template/metricbeat" \
-  -H "Content-Type: application/json" \
-  -d @- > /dev/null
-rm "$TMPFILE"
-echo "✅ metricbeat ILM applied"
-
-echo ""
-echo "=========================================="
-echo "User passwords configured successfully!"
-echo "=========================================="
-echo ""
-echo "You can now restart the services:"
-echo "  docker compose restart logstash"
-echo "  docker compose restart metricbeat"
-echo ""
+if [[ $FAILED == 1 ]]; then
+  echo "Some steps failed — see above." >&2
+  exit 1
+fi
+echo "Elasticsearch configured."

@@ -1,0 +1,94 @@
+{
+  "index_patterns": [
+    "radio-ism-*"
+  ],
+  "priority": 200,
+  "version": 4,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-ism daily indices"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "capture_id": {
+          "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        },
+        "sensor_id": {
+          "type": "keyword"
+        },
+        "model": {
+          "type": "keyword"
+        },
+        "id": {
+          "type": "keyword"
+        },
+        "channel": {
+          "type": "keyword"
+        },
+        "battery_ok": {
+          "type": "float"
+        },
+        "temperature_C": {
+          "type": "float"
+        },
+        "humidity": {
+          "type": "float"
+        },
+        "pressure_hPa": {
+          "type": "float"
+        },
+        "wind_avg_km_h": {
+          "type": "float"
+        },
+        "rain_mm": {
+          "type": "float"
+        },
+        "rssi": {
+          "type": "float"
+        },
+        "snr": {
+          "type": "float"
+        },
+        "noise": {
+          "type": "float"
+        },
+        "device_time": {
+          "type": "keyword"
+        }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,91 +1,92 @@
-# Multi-stage build for optimized image size
-# Stage 1: Builder - Install build dependencies and compile Python packages
-FROM python:3.11-slim AS builder
+# syntax=docker/dockerfile:1
+# RadioMoni API image (Python 3.13, Debian 13 "trixie")
+#
+#   docker build -t radiomoni-api .                       # runtime image
+#   docker build --target test -t radiomoni-api-test .     # image with tests + dev tools
+#   docker build --build-arg WITH_USRP=1 .                 # + UHD/GNU Radio for the USRP N200 (~1 GB)
+#   docker build --build-arg WITH_CUDA=1 .                 # + CUDA libraries for Whisper on a GPU
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
-    git \
-    cmake \
-    libusb-1.0-0-dev \
-    libhackrf-dev \
-    librtlsdr-dev \
-    libairspyhf-dev \
-    libasound2-dev \
-    && rm -rf /var/lib/apt/lists/*
+ARG PYTHON_IMAGE=python:3.13-slim-trixie
 
-# Set working directory
+# --------------------------------------------------------------------------- builder
+FROM ${PYTHON_IMAGE} AS builder
+ARG WITH_CUDA=0
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 PIP_NO_CACHE_DIR=1
+RUN python -m venv /opt/venv
+ENV PATH=/opt/venv/bin:$PATH
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt \
+ && if [ "$WITH_CUDA" = "1" ]; then pip install nvidia-cublas-cu12 'nvidia-cudnn-cu12==9.*'; fi
+
+# --------------------------------------------------------------------------- readsb
+# Debian's readsb package is built without RTL-SDR support, so build it from source.
+FROM ${PYTHON_IMAGE} AS readsb-build
+ARG READSB_VERSION=v3.16.17
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends build-essential git ca-certificates pkg-config \
+      librtlsdr-dev libncurses-dev zlib1g-dev libzstd-dev \
+ && git clone --depth 1 --branch "${READSB_VERSION}" https://github.com/wiedehopf/readsb.git /src/readsb \
+ && make -C /src/readsb -j"$(nproc)" RTLSDR=yes \
+ && /src/readsb/readsb --help | grep -q rtlsdr
+
+# --------------------------------------------------------------------------- runtime
+FROM ${PYTHON_IMAGE} AS runtime
+ARG WITH_USRP=0
+
+# SDR drivers and decoders:
+#   hackrf, rtl-sdr, airspyhf  - SDR command line tools
+#   direwolf, multimon-ng      - APRS / POCSAG
+#   rtl-433, rtl-ais           - ISM sensors / AIS (RTL-SDR); readsb (ADS-B) is built above
+#   tini                       - PID 1, reaps decoder subprocesses
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends \
+      ca-certificates libusb-1.0-0 tini \
+      hackrf rtl-sdr airspyhf \
+      direwolf multimon-ng \
+      rtl-433 rtl-ais libncurses6 libzstd1 zlib1g \
+ && if [ "$WITH_USRP" = "1" ]; then apt-get install -y --no-install-recommends uhd-host gnuradio; fi \
+ && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /opt/venv /opt/venv
+COPY --from=readsb-build /src/readsb/readsb /usr/local/bin/readsb
+
+ENV PATH=/opt/venv/bin:$PATH \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/app/models \
+    LD_LIBRARY_PATH=/opt/venv/lib/python3.13/site-packages/nvidia/cublas/lib:/opt/venv/lib/python3.13/site-packages/nvidia/cudnn/lib \
+    AUDIO_OUTPUT_DIR=/app/recordings
+
 WORKDIR /app
 
-# Upgrade pip to fix CVE-2025-8869
-RUN pip install --upgrade pip==25.3
-
-# Copy and install Python dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-
-# Stage 2: Runtime - Minimal image with only runtime dependencies
-FROM python:3.11-slim
-
-# Install only runtime dependencies (no -dev packages, no build tools)
-# Updated: Added Airspy HF+ support (libairspyhf1, airspyhf)
-RUN apt-get update && apt-get install -y \
-    libusb-1.0-0 \
-    libhackrf0 \
-    hackrf \
-    rtl-sdr \
-    librtlsdr0 \
-    libairspyhf1 \
-    airspyhf \
-    direwolf \
-    multimon-ng \
-    libasound2 \
-    && rm -rf /var/lib/apt/lists/*
-
-# Set working directory
-WORKDIR /app
-
-# Copy Python packages from builder
-COPY --from=builder /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
-COPY --from=builder /usr/local/bin /usr/local/bin
-
-# Copy application files
-COPY logging_config.py .
-COPY sdr_hardware.py .
-COPY transcription_service.py .
-COPY aprs_decoder_service.py .
-COPY pocsag_decoder_service.py .
-COPY streaming_decoder_service.py .
-COPY api_service.py .
-COPY elasticsearch_service.py .
-COPY repeater_activity_analyzer.py .
-COPY scan_session_manager.py .
-COPY session_store.py .
-COPY maidenhead_grid.py .
-COPY gunicorn_config.py .
-COPY direwolf.conf .
-COPY .env.example .env
-COPY scripts/ scripts/
+# Application code (no .env, no secrets — configuration comes from the environment)
+COPY *.py direwolf.conf ./
 COPY blueprints/ blueprints/
+COPY scripts/elasticsearch/ scripts/elasticsearch/
+COPY scripts/example_repeaters.csv scripts/repeaterbook_ch_fm.csv scripts/
 
-# Create recordings directory
-RUN mkdir -p recordings captures
+RUN groupadd -r -g 1000 radiouser \
+ && useradd -r -u 1000 -g radiouser -G plugdev,dialout -d /app radiouser \
+ && mkdir -p /app/recordings /app/captures /app/models /app/data \
+ && chown -R radiouser:radiouser /app/recordings /app/captures /app/models /app/data
 
-# Create non-root user for security
-# Note: We need access to USB devices, so user must be in plugdev/dialout groups
-RUN groupadd -r radiouser && \
-    useradd -r -g radiouser -G plugdev,dialout -u 1000 radiouser && \
-    chown -R radiouser:radiouser /app && \
-    chown -R radiouser:radiouser /app/recordings /app/captures
-
-# Switch to non-root user
 USER radiouser
-
-# Expose API port
 EXPOSE 5000
 
-# Set environment variables
-ENV PYTHONUNBUFFERED=1
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+  CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).status == 200 else 1)"
 
-# Run the API service with Gunicorn (production WSGI server)
+ENTRYPOINT ["/usr/bin/tini", "--"]
 CMD ["gunicorn", "--config", "gunicorn_config.py", "api_service:app"]
+
+# --------------------------------------------------------------------------- test
+FROM runtime AS test
+USER root
+COPY requirements.txt requirements-dev.txt /tmp/
+RUN pip install -r /tmp/requirements-dev.txt
+COPY tests/ tests/
+COPY pytest.ini mypy.ini .coveragerc pyproject.toml ./
+RUN chown -R radiouser:radiouser /app
+USER radiouser
+ENV SKIP_REDIS_CHECK=1 ALLOW_INSECURE=true
+CMD ["pytest", "-q"]

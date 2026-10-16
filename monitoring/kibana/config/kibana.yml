@@ -1,44 +1,18 @@
-# Kibana Configuration for Radio Monitoring System
-
-# Server Settings
+# Kibana configuration for RadioMoni
+# Credentials come from the environment (ELASTICSEARCH_USERNAME / ELASTICSEARCH_PASSWORD),
+# never from this file.
 server.name: radio-kibana
 server.host: "0.0.0.0"
 server.port: 5601
+server.compression.enabled: true
+server.publicBaseUrl: "http://localhost:5601"
 
-# Elasticsearch Connection
-elasticsearch.hosts: ["http://elasticsearch:9200"]
-elasticsearch.username: "kibana_system"
-elasticsearch.password: "***REMOVED***"
+elasticsearch.requestTimeout: 90000
 
-# Kibana Settings (defaults work fine for Kibana 8.x)
+i18n.locale: "en"
+telemetry.optIn: false
+telemetry.allowChangingOptInStatus: false
 
-# Monitoring
-monitoring.ui.container.elasticsearch.enabled: true
-
-# Security
-xpack.security.enabled: true
-
-# Logging (Kibana 8.x format)
 logging:
-  appenders:
-    default:
-      type: console
-      layout:
-        type: pattern
   root:
     level: info
-
-# Time Settings
-i18n.locale: "en"
-
-# Telemetry
-telemetry.enabled: false
-telemetry.optIn: false
-
-# Performance
-# Compress HTTP responses between Kibana and browser
-server.compression.enabled: true
-# Increase Elasticsearch request timeout for slow dashboard aggregations (default 30s)
-elasticsearch.requestTimeout: 90000
-# Reduce ops metrics polling overhead
-ops.interval: 10000

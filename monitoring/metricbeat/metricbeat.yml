@@ -38,6 +38,7 @@ metricbeat.modules:
 
 # System Metrics
 - module: system
+  hostfs: "/hostfs"
   metricsets:
     - cpu
     - load
@@ -54,6 +55,7 @@ metricbeat.modules:
 
 # Process-level Metrics
 - module: system
+  hostfs: "/hostfs"
   metricsets:
     - process
   period: 30s
