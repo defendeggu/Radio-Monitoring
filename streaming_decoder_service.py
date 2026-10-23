@@ -34,7 +34,7 @@ import alerts
 import events
 from redis_client import get_redis
 from sdr_hardware import detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction
-from sdr_lock import SdrLease
+from sdr_lock import SdrLease, current_holder
 
 logger = logging.getLogger(__name__)
 
@@ -176,6 +176,28 @@ class SessionManager:
         """Return all registered (running) decoder instances."""
         return dict(self._decoder_registry)
 
+    def reap_orphaned_sessions(self) -> int:
+        """Mark sessions left 'starting'/'running' by a restarted or crashed API as failed.
+
+        Every stream takes the SDR lock before its session is created and saves
+        its final state before releasing it. So while the lock is free, a
+        session without a decoder in this process cannot be alive anymore.
+        Returns the number of sessions marked.
+        """
+        if current_holder() is not None:
+            return 0
+        reaped = 0
+        for session in self.list_sessions():
+            if session.status in ('starting', 'running') and self.get_decoder(session.session_id) is None:
+                session.status = 'failed'
+                session.error = 'Interrupted — the API was restarted'
+                session.end_time = session.end_time or datetime.now(timezone.utc)
+                self.save_session(session)
+                reaped += 1
+        if reaped:
+            logger.warning(f"Marked {reaped} orphaned streaming session(s) as failed")
+        return reaped
+
     def get_user_active_session(self, user_id: str = 'default') -> Optional[StreamSession]:
         """Get user's active session (max 1 per user)"""
         for session in self.list_sessions():
@@ -208,6 +230,65 @@ class SessionManager:
         return session.session_id
 
 
+class _DecimationStage:
+    """IIR low-pass followed by decimation; filter state and decimation phase
+    carry over between chunks."""
+
+    def __init__(self, input_rate: float, cutoff_hz: float, factor: int, order: int):
+        self.factor = factor
+        self.sos = signal.butter(order, cutoff_hz, fs=input_rate, output='sos')
+        self.zi = np.zeros((self.sos.shape[0], 2), dtype=np.complex128)
+        self.offset = 0  # index in the next chunk of the next sample to keep
+
+    def process(self, x: NDArray[np.complex128]) -> NDArray[np.complex128]:
+        y, self.zi = signal.sosfilt(self.sos, x, zi=self.zi)
+        out: NDArray[np.complex128] = y[self.offset::self.factor]
+        self.offset = (self.offset - len(y)) % self.factor
+        return out
+
+
+class NarrowbandFMDemodulator:
+    """Channel filter, decimation and FM discriminator for one narrowband FM
+    channel at the tuned frequency.
+
+    Filtering the IQ down to the channel *before* demodulating keeps the noise
+    of the full SDR bandwidth out of the discriminator; without it, signals of
+    typical strength never decode. All state carries over between chunks, so
+    chunk boundaries leave no artefacts in the audio.
+
+    Output: audio at ``audio_rate`` (≥ min_audio_rate, an integer divisor chain
+    of the input rate), scaled so the given deviation maps to ±1.0.
+    """
+
+    def __init__(self, input_rate: int, channel_bw_hz: float, deviation_hz: float,
+                 min_audio_rate: int = 44100):
+        stage1_factor = max(1, input_rate // 200_000)
+        rate1 = input_rate / stage1_factor
+        stage2_factor = max(1, int(rate1 // min_audio_rate))
+        self.audio_rate = int(round(rate1 / stage2_factor))
+
+        self._stages: List[_DecimationStage] = []
+        if stage1_factor > 1:
+            self._stages.append(_DecimationStage(input_rate, 0.2 * rate1, stage1_factor, order=5))
+        self._stages.append(_DecimationStage(rate1, 0.6 * channel_bw_hz, stage2_factor, order=6))
+
+        self._gain = self.audio_rate / (2.0 * np.pi * deviation_hz)
+        self._last: Optional[complex] = None
+
+    def process(self, iq: NDArray[np.complex64]) -> NDArray[np.float64]:
+        x: NDArray[np.complex128] = iq.astype(np.complex128)
+        for stage in self._stages:
+            x = stage.process(x)
+        if len(x) == 0:
+            return np.zeros(0, dtype=np.float64)
+        if self._last is None:
+            self._last = complex(x[0])
+        prev = np.concatenate(([self._last], x[:-1]))
+        self._last = complex(x[-1])
+        audio: NDArray[np.float64] = np.angle(x * np.conj(prev)) * self._gain
+        return audio
+
+
 class BaseStreamingDecoder(ABC):
     """Base class for streaming decoders"""
 
@@ -236,6 +317,14 @@ class BaseStreamingDecoder(ABC):
         Override in subclasses with the actual signal deviation.
         Default: generic NFM at 5 kHz deviation."""
         return float(self.sample_rate) / (2.0 * 3.141592653589793 * 5000.0)
+
+    def _iq_to_decoder_audio(self, iq_complex: NDArray[np.complex64]) -> NDArray[np.float64]:
+        """Turn one IQ chunk into decoder audio, scaled so full deviation → ±1.0.
+        Default: demodulate at the full SDR rate and resample each chunk."""
+        audio = self._fm_demodulate(iq_complex)
+        # direwolf: 48000 Hz, multimon-ng -t raw: 22050 Hz
+        audio_rs = self._resample(audio, self.sample_rate, self._decoder_audio_rate)
+        return audio_rs * self._fm_gain
 
     @abstractmethod
     def _start_decoder(self) -> subprocess.Popen[bytes]:
@@ -509,23 +598,18 @@ class BaseStreamingDecoder(ABC):
 
                 iq_complex = self._bytes_to_iq(iq_bytes)
 
-                # FM demodulation
-                audio = self._fm_demodulate(iq_complex)
+                # FM demodulation, resampling and gain
+                audio = self._iq_to_decoder_audio(iq_complex)
 
-                # Resample to decoder's expected sample rate
-                # direwolf: 48000 Hz, multimon-ng -t raw: 22050 Hz
-                audio_48k = self._resample(audio, self.sample_rate, self._decoder_audio_rate)
-
-                # Apply FM gain and clip to ±1.0, then convert to int16
-                audio_scaled = np.clip(audio_48k * self._fm_gain, -1.0, 1.0)
-                audio_int16 = (audio_scaled * 32767).astype(np.int16)
+                # Clip to ±1.0, then convert to int16
+                audio_int16 = (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
 
                 # Write to decoder stdin
                 audio_sink.write(audio_int16.tobytes())
                 audio_sink.flush()
 
                 # Cleanup arrays to free memory immediately
-                del iq_bytes, iq_complex, audio, audio_48k, audio_scaled, audio_int16
+                del iq_bytes, iq_complex, audio, audio_int16
 
                 chunk_count += 1
 
@@ -632,6 +716,7 @@ class BaseStreamingDecoder(ABC):
                         # Check if we've been idle too long
                         if time.time() - last_activity > 300:  # 5 minutes
                             logger.warning("No decoder output for 5 minutes, continuing...")
+                            last_activity = time.time()  # warn once per idle period
                         continue
 
                 try:
@@ -709,7 +794,12 @@ class BaseStreamingDecoder(ABC):
 
                         stderr_output = self.sdr_proc.stderr.read()
                         if stderr_output:
-                            logger.error(f"SDR process stderr: {stderr_output.decode('utf-8', errors='ignore').strip()}")
+                            # hackrf_transfer & co. print progress to stderr; only a
+                            # non-zero exit code makes it an error
+                            failed = self.sdr_proc.poll() not in (None, 0)
+                            text = stderr_output.decode('utf-8', errors='ignore').strip()[-1500:]
+                            logger.log(logging.ERROR if failed else logging.DEBUG,
+                                       f"SDR process stderr: {text}")
                     except (BlockingIOError, IOError):
                         pass  # No data available
 
@@ -809,12 +899,18 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
         except ValueError as e:
             raise ValueError(f"Invalid parameters for {self.sdr_type.name}: {e}")
 
-        logger.info(f"Using {self.sdr_type.name} for APRS streaming session")
+        # 12.5 kHz channel, ±3000 Hz deviation (standard APRS/AFSK1200) → ±1.0
+        self._demod = NarrowbandFMDemodulator(sample_rate, channel_bw_hz=12_500, deviation_hz=3000.0)
+
+        logger.info(f"Using {self.sdr_type.name} for APRS streaming session "
+                    f"(decoder audio {self._demod.audio_rate} Hz)")
 
     @property
-    def _fm_gain(self) -> float:
-        """Scale FM output so ±3000 Hz deviation (standard APRS/AFSK1200) → ±1.0"""
-        return float(self.sample_rate) / (2.0 * 3.141592653589793 * 3000.0)
+    def _decoder_audio_rate(self) -> int:
+        return self._demod.audio_rate
+
+    def _iq_to_decoder_audio(self, iq_complex: NDArray[np.complex64]) -> NDArray[np.float64]:
+        return self._demod.process(iq_complex)
 
     def _get_mode(self) -> str:
         return 'aprs'
@@ -824,8 +920,8 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
         cmd = [
             'direwolf',
             '-c', '/app/direwolf.conf',  # Config with ADEVICE stdin null (no ALSA needed)
-            '-r', '48000',      # Audio sample rate
-            '-D', '1',          # Decode channel 1
+            '-r', str(self._decoder_audio_rate),  # Audio sample rate
+            '-D', '1',          # No further audio decimation inside direwolf
             '-t', '0',          # Text output format
             '-q', 'd',          # Quiet mode (only decoded packets)
             '-'                 # Read from stdin
