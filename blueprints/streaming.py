@@ -122,6 +122,7 @@ def start_multi_channel_streaming() -> Response:
 @streaming_bp.get('/stream-decode/<session_id>')
 @api('Status of a streaming session', tags=['Streaming'], responses={404: 'Unknown session'})
 def get_streaming_session(session_id: str) -> Response:
+    session_manager.reap_orphaned_sessions()
     session = session_manager.get_session(session_id)
     if not session:
         raise ApiError('Session not found', 404)
@@ -144,7 +145,7 @@ def stop_streaming_session(session_id: str) -> Response:
     session = session_manager.get_session(session_id)
     if not session:
         raise ApiError('Session not found', 404)
-    if not stop_session(session_id):
+    if not stop_session(session_id) and not session_manager.reap_orphaned_sessions():
         # owned by another API process: ask it to stop via the control channel
         events.send_control('stop', session_id=session_id)
     return jsonify({'status': 'success', 'message': 'Streaming session stopped'})
@@ -153,6 +154,7 @@ def stop_streaming_session(session_id: str) -> Response:
 @streaming_bp.get('/stream-decode')
 @api('List streaming sessions', tags=['Streaming'])
 def list_streaming_sessions() -> Response:
+    session_manager.reap_orphaned_sessions()
     sessions = sorted(session_manager.list_sessions(), key=lambda s: s.start_time, reverse=True)
     return jsonify({'status': 'success', 'count': len(sessions), 'sessions': [s.to_dict() for s in sessions]})
 

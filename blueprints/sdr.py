@@ -63,6 +63,7 @@ def detect_sdr_hardware() -> Response:
 @sdr_bp.get('/sdr/status')
 @api('Who is using the SDR right now', tags=['SDR'])
 def sdr_status() -> Response:
+    session_manager.reap_orphaned_sessions()
     holder = sdr_lock.current_holder()
     active = [s.to_dict() for s in session_manager.list_sessions() if s.status in ('starting', 'running')]
     return jsonify({'busy': holder is not None, 'holder': holder, 'active_sessions': active})
