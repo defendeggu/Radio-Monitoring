@@ -339,6 +339,42 @@ class TestStreamingAPRSDecoder:
         assert decoder.stop_event.is_set()
 
 
+class TestRecordSdrFailure:
+    """An SDR process that dies mid-stream must show up as a failed session"""
+
+    @pytest.fixture
+    def decoder(self, monkeypatch):
+        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        decoder = StreamingAPRSDecoder(144800000, 300, 20, 2000000)
+        decoder.session = StreamSession('aprs', 144800000, 300, 20, 2000000)
+        decoder.session.status = 'running'
+        return decoder
+
+    @staticmethod
+    def _sdr(stderr_text: str, code: int):
+        import subprocess
+        return subprocess.Popen(['sh', '-c', f'printf "%s\\n" "{stderr_text}" >&2; exit {code}'],
+                                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+    def test_usb_stall_marks_failed(self, decoder):
+        decoder.sdr_proc = self._sdr("Couldn't transfer any bytes for one second.", 1)
+        decoder._record_sdr_failure()
+        assert decoder.session.status == 'failed'
+        assert 'USB' in decoder.session.error
+
+    def test_busy_marks_failed(self, decoder):
+        decoder.sdr_proc = self._sdr("hackrf_open() failed: Resource busy (-1000)", 1)
+        decoder._record_sdr_failure()
+        assert decoder.session.status == 'failed'
+        assert 'busy' in decoder.session.error
+
+    def test_clean_exit_keeps_status(self, decoder):
+        decoder.sdr_proc = self._sdr("hackrf_exit() done", 0)
+        decoder._record_sdr_failure()
+        assert decoder.session.status == 'running'
+        assert decoder.session.error is None
+
+
 class TestReapOrphanedSessions:
     """Sessions left 'running' after an API restart must not stay active forever"""
 

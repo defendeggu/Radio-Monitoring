@@ -532,12 +532,14 @@ class BaseStreamingDecoder(ABC):
             if not converter_thread.is_alive() and not indexer_thread.is_alive():
                 logger.info("Both worker threads completed - ending session")
 
-                # Explicitly mark session as completed
+                # Explicitly mark session as completed (unless it already failed)
                 if self.session is not None:
-                    self.session.status = 'completed'
+                    if self.session.status != 'failed':
+                        self.session.status = 'completed'
                     self.session.end_time = datetime.now(timezone.utc)
                     session_manager.save_session(self.session)
-                    logger.info(f"Session {self.session.session_id} marked as completed via thread completion")
+                    logger.info(f"Session {self.session.session_id} marked as {self.session.status} "
+                                "via thread completion")
 
                 break
 
@@ -575,24 +577,8 @@ class BaseStreamingDecoder(ABC):
                 # Read IQ chunk with timeout support
                 iq_bytes = self._read_with_timeout(iq_stream, CHUNK_SIZE, timeout=5.0)
                 if not iq_bytes or len(iq_bytes) == 0:
-                    # Check if SDR process exited with an error (e.g. "Resource busy")
-                    if self.sdr_proc and self.sdr_proc.poll() is not None and self.sdr_proc.returncode != 0:
-                        try:
-                            import fcntl as _fcntl
-                            if self.sdr_proc.stderr is None:
-                                raise ValueError("stderr not captured")
-                            fd = self.sdr_proc.stderr.fileno()
-                            flags = _fcntl.fcntl(fd, _fcntl.F_GETFL)
-                            _fcntl.fcntl(fd, _fcntl.F_SETFL, flags | os.O_NONBLOCK)
-                            stderr_raw = self.sdr_proc.stderr.read()
-                            if stderr_raw:
-                                err_text = stderr_raw.decode('utf-8', errors='ignore').strip()
-                                logger.error(f"SDR process exited ({self.sdr_proc.returncode}): {err_text}")
-                                if self.session and 'busy' in err_text.lower():
-                                    self.session.status = 'failed'
-                                    self.session.error = 'SDR hardware busy — stop other sessions first'
-                        except Exception as _e:
-                            logger.debug(f"Could not read SDR stderr: {_e}")
+                    if not self.stop_event.is_set():
+                        self._record_sdr_failure()
                     logger.info("SDR stream ended")
                     break
 
@@ -632,6 +618,42 @@ class BaseStreamingDecoder(ABC):
                 pass
             # Final cleanup
             gc.collect()
+
+    def _record_sdr_failure(self) -> None:
+        """The IQ stream ended before the session did: if the SDR process exited
+        with an error, mark the session failed with a readable reason."""
+        proc = self.sdr_proc
+        if proc is None:
+            return
+        try:
+            returncode = proc.wait(timeout=3)  # stdout closes just before the process exits
+        except subprocess.TimeoutExpired:
+            return
+        if returncode == 0:
+            return
+
+        err_text = ''
+        try:
+            import fcntl as _fcntl
+            if proc.stderr is not None:
+                fd = proc.stderr.fileno()
+                _fcntl.fcntl(fd, _fcntl.F_SETFL, _fcntl.fcntl(fd, _fcntl.F_GETFL) | os.O_NONBLOCK)
+                err_text = (proc.stderr.read() or b'').decode('utf-8', errors='ignore').strip()
+        except Exception as e:
+            logger.debug(f"Could not read SDR stderr: {e}")
+        logger.error(f"SDR process exited ({returncode}): {err_text[-1500:]}")
+
+        lowered = err_text.lower()
+        if 'busy' in lowered:
+            reason = 'SDR hardware busy — stop other sessions first'
+        elif "couldn't transfer any bytes" in lowered:
+            reason = 'SDR stopped delivering data (USB transfer stalled) — start the session again'
+        else:
+            last_line = err_text.splitlines()[-1] if err_text else ''
+            reason = f"SDR process exited with code {returncode}" + (f": {last_line}" if last_line else '')
+        if self.session is not None:
+            self.session.status = 'failed'
+            self.session.error = reason
 
     def _bytes_to_iq(self, iq_bytes: bytes) -> NDArray[np.complex64]:
         """Convert raw SDR output to normalized complex64 samples (device-specific format)."""
