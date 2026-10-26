@@ -244,6 +244,9 @@ class VoxRecorder(BaseStreamingDecoder):
                                    'audio_file': doc['audio_file'], 'text': result.get('text')})
         except Exception as e:
             logger.warning(f"VOX transcription failed for {doc['audio_file']}: {e}")
+            doc['transcription_error'] = str(e)[:500]
+            events.publish('vox', {'session_id': doc['metadata']['session_id'], 'state': 'transcription_failed',
+                                   'audio_file': doc['audio_file'], 'error': str(e)[:200]})
         self._store(doc)
 
     @staticmethod

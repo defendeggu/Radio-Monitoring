@@ -217,6 +217,28 @@ class TestVoxRecorder:
         docs = get_storage().search_captures(mode='vox')['hits']
         assert docs and docs[0]['peak_power_db'] > docs[0]['noise_floor_db']
 
+    def test_failed_transcription_is_reported(self, mock_sdr_hardware, tmp_path, monkeypatch):
+        """The UI waits for an event per segment; a failure must not leave it 'transcribing' forever"""
+        import services
+        import vox_recorder
+        from storage import get_storage
+        failing = type('Failing', (), {'transcribe': lambda self, *a, **k: (_ for _ in ()).throw(
+            TypeError("open() got an unexpected keyword argument 'metadata_errors'"))})()
+        monkeypatch.setattr(services, 'get_transcription_service', lambda: failing)
+        published = []
+        monkeypatch.setattr(vox_recorder.events, 'publish', lambda kind, data: published.append((kind, data)))
+        rec = vox_recorder.VoxRecorder(frequency=118_000_000, duration=60, gain=20, sample_rate=2_000_000,
+                                       output_dir=str(tmp_path))
+        doc = {'uuid': 'u1', 'created_at': '2026-10-26T12:00:00+00:00', 'frequency': 118_000_000,
+               'audio_file': 'vox_x.wav', 'mode': 'vox', 'metadata': {'session_id': 's1'}}
+
+        rec._transcribe_and_store(str(tmp_path / 'vox_x.wav'), doc)
+
+        assert published == [('vox', {'session_id': 's1', 'state': 'transcription_failed', 'audio_file': 'vox_x.wav',
+                                       'error': "open() got an unexpected keyword argument 'metadata_errors'"})]
+        stored = get_storage().search_captures(mode='vox')['hits']
+        assert stored and 'metadata_errors' in stored[0]['transcription_error']
+
 
 # ============================================================================ external decoders
 class TestExternalDecoderParsers:

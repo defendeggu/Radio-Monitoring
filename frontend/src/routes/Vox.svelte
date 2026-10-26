@@ -14,6 +14,7 @@
     audio_file: string;
     duration?: number;
     text?: string;
+    error?: string;
     at: string;
   }
 
@@ -44,6 +45,7 @@
         audio_file?: string;
         duration?: number;
         text?: string;
+        error?: string;
       };
       if (sessionId && d.session_id && d.session_id !== sessionId) return;
       if (d.state === 'open') open = true;
@@ -56,6 +58,11 @@
       }
       if (d.state === 'transcribed' && d.audio_file) {
         segments = segments.map((s) => (s.audio_file === d.audio_file ? { ...s, text: d.text } : s));
+      }
+      if (d.state === 'transcription_failed' && d.audio_file) {
+        segments = segments.map((s) =>
+          s.audio_file === d.audio_file ? { ...s, error: d.error ?? 'unbekannter Fehler' } : s,
+        );
       }
     }),
   );
@@ -166,7 +173,11 @@
           >
             <span class="font-mono text-xs text-slate-500">{time(s.at)}</span>
             <span class="font-mono text-xs">{s.duration?.toFixed(1)} s</span>
-            <span class="flex-1">{s.text ?? (transcribe ? 'transkribiere…' : s.audio_file)}</span>
+            {#if s.error}
+              <span class="flex-1 text-red-500" title={s.error}>Transkription fehlgeschlagen</span>
+            {:else}
+              <span class="flex-1">{s.text ?? (transcribe ? 'transkribiere…' : s.audio_file)}</span>
+            {/if}
           </button>
           {#if selected === s.audio_file}<div class="mt-2"><AudioPlayer filename={s.audio_file} /></div>{/if}
         </li>
