@@ -17,6 +17,7 @@ from sdr_hardware import (
     SDRType,
     HackRFCapture,
     RTLSDRCapture,
+    AirspyHFCapture,
     USRPCapture,
     detect_sdr,
     get_sdr_instance,
@@ -175,6 +176,27 @@ class TestIQCorrection(unittest.TestCase):
         result = apply_hackrf_iq_correction(sig)
         self.assertEqual(result.shape, sig.shape)
         self.assertEqual(result.dtype, np.complex64)
+
+
+class TestCaptureSampleCount(unittest.TestCase):
+    """hackrf_transfer, rtl_sdr and airspyhf_rx all take -n as complex samples
+    (I+Q pairs); passing bytes made every capture twice as long as requested."""
+
+    def _n_arg(self, capture):
+        with patch('subprocess.run', return_value=Mock(returncode=1, stderr='stop here')) as run:
+            with self.assertRaises(RuntimeError):
+                capture.capture_iq(15, os.path.join(tempfile.gettempdir(), 'unused.iq'))
+        cmd = run.call_args[0][0]
+        return int(cmd[cmd.index('-n') + 1])
+
+    def test_hackrf(self):
+        self.assertEqual(self._n_arg(HackRFCapture(145_600_000, sample_rate=2_000_000)), 30_000_000)
+
+    def test_rtlsdr(self):
+        self.assertEqual(self._n_arg(RTLSDRCapture(145_600_000, sample_rate=2_048_000)), 30_720_000)
+
+    def test_airspyhf(self):
+        self.assertEqual(self._n_arg(AirspyHFCapture(145_600_000, sample_rate=768_000)), 11_520_000)
 
 
 class TestRTLSDRCapture(unittest.TestCase):

@@ -204,7 +204,7 @@ class HackRFCapture(SDRCapture):
                 '-s', str(self.sample_rate),
                 '-l', str(self.gain),
                 '-g', str(self.gain),
-                '-n', str(num_samples * 2)  # * 2 for I and Q
+                '-n', str(num_samples)  # complex samples (I+Q pairs), not bytes
             ]
 
             self.logger.info(f"Running: {' '.join(cmd)}")
@@ -296,8 +296,8 @@ class RTLSDRCapture(SDRCapture):
         """Capture raw IQ samples using RTL-SDR"""
         self.logger.info(f"RTL-SDR IQ capture: {self.frequency/1e6:.3f} MHz, {duration}s")
 
+        # rtl_sdr -n counts complex samples (it reads 2 bytes per sample itself)
         num_samples = int(duration * self.sample_rate)
-        num_bytes = num_samples * 2  # I and Q samples
 
         with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
             raw_file = tmpfile.name
@@ -309,7 +309,7 @@ class RTLSDRCapture(SDRCapture):
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
                 '-g', str(self.gain),
-                '-n', str(num_bytes),
+                '-n', str(num_samples),
                 raw_file
             ]
 
@@ -456,8 +456,8 @@ class AirspyHFCapture(SDRCapture):
         """Capture raw IQ samples using Airspy HF+"""
         self.logger.info(f"Airspy HF+ IQ capture: {self.frequency/1e6:.3f} MHz, {duration}s")
 
-        # Calculate number of samples (I+Q pairs)
-        num_samples = int(duration * self.sample_rate * 2)  # * 2 for I and Q
+        # airspyhf_rx -n counts complex samples (I+Q pairs)
+        num_samples = int(duration * self.sample_rate)
 
         with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
             raw_file = tmpfile.name
