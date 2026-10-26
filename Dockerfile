@@ -65,7 +65,7 @@ WORKDIR /app
 COPY *.py direwolf.conf ./
 COPY blueprints/ blueprints/
 COPY scripts/elasticsearch/ scripts/elasticsearch/
-COPY scripts/example_repeaters.csv scripts/repeaters_ch.csv scripts/
+COPY scripts/repeaters_ch.csv scripts/
 
 RUN groupadd -r -g 1000 radiouser \
  && useradd -r -u 1000 -g radiouser -G plugdev,dialout -d /app radiouser \
