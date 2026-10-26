@@ -118,7 +118,10 @@
   const ismColumns = ['model', 'id', 'channel', 'temperature_C', 'humidity', 'battery_ok'];
 </script>
 
-<PageHeader title="ADS-B · AIS · ISM" description="Flugzeuge, Schiffe und Funksensoren mit einem RTL-SDR">
+<PageHeader
+  title="ADS-B · AIS · ISM"
+  description="Flugzeuge (RTL-SDR oder HackRF), Schiffe und Funksensoren (RTL-SDR)"
+>
   {#snippet actions()}
     <button
       class="btn-secondary"
@@ -153,8 +156,9 @@
     <p class="text-sm text-red-500">{current.tool} ist im Container nicht installiert.</p>
   {/if}
   <p class="text-sm text-slate-500">
-    Werkzeug: <code>{current?.tool ?? '…'}</code> · benötigt einen RTL-SDR
-    {#if kind === 'adsb'}· 1090 MHz{:else if kind === 'ais'}· 161.975 / 162.025 MHz{/if}
+    Werkzeug: <code>{current?.tool ?? '…'}</code> ·
+    {#if kind === 'adsb'}RTL-SDR oder HackRF · 1090 MHz{:else if kind === 'ais'}benötigt einen RTL-SDR · 161.975 / 162.025
+      MHz{:else}benötigt einen RTL-SDR{/if}
   </p>
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
     {#if kind === 'ism'}<FrequencyField bind:value={ismFrequency} />{/if}

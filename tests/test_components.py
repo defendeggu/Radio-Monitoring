@@ -272,13 +272,35 @@ class TestExternalDecoderParsers:
         ais = external_decoders.ExternalDecoderSession('ais', 60, gain=10)
         assert ais.build_command()[:2] == ['rtl_ais', '-n']
 
-    def test_requires_rtlsdr(self, monkeypatch):
+    @staticmethod
+    def _hackrf_only(monkeypatch, rtlsdr_present=False):
         import external_decoders
         from sdr_hardware import SDRType
         monkeypatch.setattr(external_decoders, 'tool_available', lambda d: True)
         monkeypatch.setattr(external_decoders, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
-        with pytest.raises(ValueError):
-            external_decoders.ExternalDecoderSession('adsb', 60)
+        monkeypatch.setattr(external_decoders.RTLSDRCapture, 'is_available', lambda self: rtlsdr_present)
+        return external_decoders
+
+    def test_adsb_with_hackrf(self, monkeypatch):
+        ext = self._hackrf_only(monkeypatch)
+        auto = ext.ExternalDecoderSession('adsb', 60).build_command()
+        assert auto[auto.index('--device-type') + 1] == 'hackrf'
+        assert '--gain' not in auto and '--ppm' not in auto  # readsb defaults: LNA 40, VGA 48
+
+        cmd = ext.ExternalDecoderSession('adsb', 60, gain=35).build_command()
+        assert cmd[cmd.index('--gain') + 1] == '32'           # LNA in 8 dB steps
+        assert cmd[cmd.index('--hackrf-vgagain') + 1] == '34'  # VGA in 2 dB steps
+
+    def test_ais_and_ism_still_require_rtlsdr(self, monkeypatch):
+        ext = self._hackrf_only(monkeypatch)
+        for decoder in ('ais', 'ism'):
+            with pytest.raises(ValueError, match='RTL-SDR'):
+                ext.ExternalDecoderSession(decoder, 60)
+
+    def test_ais_uses_rtlsdr_next_to_hackrf(self, monkeypatch):
+        from sdr_hardware import SDRType
+        ext = self._hackrf_only(monkeypatch, rtlsdr_present=True)
+        assert ext.ExternalDecoderSession('ais', 60).sdr_type == SDRType.RTLSDR
 
 
 # ============================================================================ schemas

@@ -19,15 +19,17 @@ RUN pip install --upgrade pip && pip install -r /tmp/requirements.txt \
  && if [ "$WITH_CUDA" = "1" ]; then pip install nvidia-cublas-cu12 'nvidia-cudnn-cu12==9.*'; fi
 
 # --------------------------------------------------------------------------- readsb
-# Debian's readsb package is built without RTL-SDR support, so build it from source.
+# Debian's readsb package is built without RTL-SDR support, so build it from source
+# with RTL-SDR and HackRF support.
 FROM ${PYTHON_IMAGE} AS readsb-build
 ARG READSB_VERSION=v3.16.17
 RUN apt-get update \
  && apt-get install -y --no-install-recommends build-essential git ca-certificates pkg-config \
-      librtlsdr-dev libncurses-dev zlib1g-dev libzstd-dev \
+      librtlsdr-dev libhackrf-dev libncurses-dev zlib1g-dev libzstd-dev \
  && git clone --depth 1 --branch "${READSB_VERSION}" https://github.com/wiedehopf/readsb.git /src/readsb \
- && make -C /src/readsb -j"$(nproc)" RTLSDR=yes \
- && /src/readsb/readsb --help | grep -q rtlsdr
+ && make -C /src/readsb -j"$(nproc)" RTLSDR=yes HACKRF=yes \
+ && /src/readsb/readsb --help | grep -q rtlsdr \
+ && /src/readsb/readsb --help | grep -q hackrf-vgagain
 
 # --------------------------------------------------------------------------- runtime
 FROM ${PYTHON_IMAGE} AS runtime
@@ -36,7 +38,7 @@ ARG WITH_USRP=0
 # SDR drivers and decoders:
 #   hackrf, rtl-sdr, airspyhf  - SDR command line tools
 #   direwolf, multimon-ng      - APRS / POCSAG
-#   rtl-433, rtl-ais           - ISM sensors / AIS (RTL-SDR); readsb (ADS-B) is built above
+#   rtl-433, rtl-ais           - ISM sensors / AIS (RTL-SDR); readsb (ADS-B, RTL-SDR or HackRF) is built above
 #   tini                       - PID 1, reaps decoder subprocesses
 RUN apt-get update \
  && apt-get install -y --no-install-recommends \

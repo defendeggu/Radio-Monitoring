@@ -168,7 +168,7 @@ class VoxRequest(SdrParams):
 
 
 class ExternalDecoderRequest(StrictModel):
-    """ADS-B (readsb), AIS (rtl_ais) or ISM sensors (rtl_433) — RTL-SDR only."""
+    """ADS-B (readsb, RTL-SDR or HackRF), AIS (rtl_ais) or ISM sensors (rtl_433); AIS and ISM need an RTL-SDR."""
     decoder: Literal['adsb', 'ais', 'ism']
     frequency: Optional[int] = Field(None, ge=24_000_000, le=1_766_000_000,
                                      description='Only for ism (default 433.92 MHz)')

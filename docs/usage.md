@@ -43,7 +43,7 @@ Bei APRS zeigt die Karte die letzte Position jeder Station. Die Tabelle enthält
 
 ## ADS-B · AIS · ISM
 
-Diese Decoder steuern einen **RTL-SDR** direkt.
+Diese Decoder steuern das SDR direkt: ADS-B einen **RTL-SDR oder HackRF**, AIS und ISM einen **RTL-SDR**. Steckt neben dem HackRF ein RTL-SDR, nehmen AIS und ISM den RTL-SDR.
 
 | Reiter | Werkzeug | Anzeige |
 |---|---|---|

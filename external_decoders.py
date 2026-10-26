@@ -5,9 +5,9 @@ External decoders that drive the SDR themselves (N7):
 - AIS ships       — rtl_ais  (161.975 / 162.025 MHz)
 - ISM sensors     — rtl_433  (433.92 / 868 MHz weather stations, meters, ...)
 
-All three only support RTL-SDR dongles in the Debian packages used in the
-image. Output is parsed into documents that are stored, published live and
-checked against alert rules.
+readsb (built in the image) supports RTL-SDR and HackRF; rtl_ais and rtl_433
+(Debian packages) only RTL-SDR dongles. Output is parsed into documents that
+are stored, published live and checked against alert rules.
 """
 
 import json
@@ -24,13 +24,19 @@ from typing import IO, Any, Optional
 
 import alerts
 import events
-from sdr_hardware import SDRType, detect_sdr
+from sdr_hardware import RTLSDRCapture, SDRType, detect_sdr
 from streaming_decoder_service import BaseStreamingDecoder, SessionManager
 
 logger = logging.getLogger(__name__)
 
 DEFAULT_FREQUENCIES = {'adsb': 1_090_000_000, 'ais': 162_000_000, 'ism': 433_920_000}
 TOOLS = {'adsb': 'readsb', 'ais': 'rtl_ais', 'ism': 'rtl_433'}
+SUPPORTED_SDRS = {
+    'adsb': (SDRType.RTLSDR, SDRType.HACKRF),
+    'ais': (SDRType.RTLSDR,),
+    'ism': (SDRType.RTLSDR,),
+}
+SDR_NAMES = {SDRType.RTLSDR: 'RTL-SDR', SDRType.HACKRF: 'HackRF'}
 # ADS-B: store a position at most every N seconds per aircraft (keeps the index small)
 ADSB_STORE_INTERVAL = 30
 
@@ -163,12 +169,22 @@ class ExternalDecoderSession(BaseStreamingDecoder):
         self.auto_gain = gain is None
         if not tool_available(decoder):
             raise RuntimeError(f"{TOOLS[decoder]} is not installed")
-        self.sdr_type = detect_sdr()
-        if self.sdr_type != SDRType.RTLSDR:
-            raise ValueError(f"{decoder.upper()} decoding requires an RTL-SDR dongle "
-                             f"(detected: {self.sdr_type.value})")
+        self.sdr_type = self._pick_sdr(decoder)
         self._workdir: Optional[str] = None
         self._last_stored: dict[str, float] = {}
+
+    @staticmethod
+    def _pick_sdr(decoder: str) -> SDRType:
+        """Use the detected SDR if the tool supports it. Auto-detection prefers a
+        HackRF, so for RTL-SDR-only tools also look for a dongle next to it."""
+        supported = SUPPORTED_SDRS[decoder]
+        detected = detect_sdr()
+        if detected in supported:
+            return detected
+        if SDRType.RTLSDR in supported and RTLSDRCapture(frequency=100_000_000).is_available():
+            return SDRType.RTLSDR
+        names = ' or '.join(SDR_NAMES[t] for t in supported)
+        raise ValueError(f"{decoder.upper()} decoding requires {names} (detected: {detected.value})")
 
     def _get_mode(self) -> str:
         return self.decoder
@@ -202,9 +218,17 @@ class ExternalDecoderSession(BaseStreamingDecoder):
             return cmd
         # adsb
         self._workdir = tempfile.mkdtemp(prefix='readsb-')
-        return ['readsb', '--device-type', 'rtlsdr', '--quiet', '--write-json', self._workdir,
-                '--write-json-every', '2', '--ppm', str(self.ppm),
-                '--gain', 'auto' if self.auto_gain else str(self.gain)]
+        cmd = ['readsb', '--quiet', '--write-json', self._workdir, '--write-json-every', '2']
+        if self.sdr_type == SDRType.HACKRF:
+            cmd += ['--device-type', 'hackrf']
+            # No AGC on the HackRF: without a gain readsb uses LNA 40 dB / VGA 48 dB.
+            # Otherwise the same mapping as the IQ streams: LNA in 8 dB steps, VGA = gain.
+            if not self.auto_gain:
+                cmd += ['--gain', str(min(40, round(self.gain / 8) * 8)),
+                        '--hackrf-vgagain', str(min(62, self.gain // 2 * 2))]
+            return cmd
+        return cmd + ['--device-type', 'rtlsdr', '--ppm', str(self.ppm),
+                      '--gain', 'auto' if self.auto_gain else str(self.gain)]
 
     def _stream_worker_simple(self, session_manager: SessionManager) -> None:
         assert self.session is not None

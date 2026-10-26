@@ -11,7 +11,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **Sprache:** FM/AM/SSB aufnehmen und mit [faster-whisper](https://github.com/SYSTRAN/faster-whisper) transkribieren, auf CPU oder NVIDIA-GPU
 - **VOX-Aufnahme:** einen Kanal dauerhaft überwachen. Aufgenommen und transkribiert wird nur, wenn jemand sendet.
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
-- **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
+- **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
 - **Multi-Channel (USRP N200):** bis zu 8 Kanäle aus einem Breitband-Strom gleichzeitig dekodieren
 - **Alarme:** Rufzeichen, Pager-Adressen oder Stichworte melden, per ntfy, Telegram, Webhook oder E-Mail
@@ -22,8 +22,8 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 
 | Gerät | Frequenzbereich | Hinweise |
 |---|---|---|
-| RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz | einziges Gerät für ADS-B, AIS und ISM-Sensoren |
-| HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; lange Aufnahmen besser mit RTL-SDR |
+| RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz | einziges Gerät für AIS und ISM-Sensoren |
+| HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; auch ADS-B; lange Aufnahmen besser mit RTL-SDR |
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | Kurzwelle |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | über Gigabit-Ethernet; Image mit `WITH_USRP=1` bauen |
 

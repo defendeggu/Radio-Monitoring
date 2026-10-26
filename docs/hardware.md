@@ -5,7 +5,7 @@
 | Gerät | Bereich | Sample-Rate | Betriebsarten |
 |---|---|---|---|
 | RTL-SDR v3/v4 | 24 – 1766 MHz | 0.25 – 3.2 MS/s | alle, inkl. ADS-B/AIS/ISM |
-| HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | Sprache, VOX, APRS, POCSAG, Repeater |
+| HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | Sprache, VOX, APRS, POCSAG, Repeater, ADS-B |
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | bis 912 kS/s | Sprache, VOX |
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | bis 25 MS/s | zusätzlich Multi-Channel DDC |
 
@@ -46,6 +46,7 @@ Den Wert trägst du beim Start von ADS-B, AIS oder ISM im Feld *Frequenzkorrektu
 - **DC-Spike / IQ-Imbalance:** HackRF ist ein Direct-Conversion-Empfänger. Jede Aufnahme wird automatisch korrigiert (DC-Offset, Amplitude, Phase per Gram-Schmidt).
 - **Lange Aufnahmen brechen ab:** 2 MS/s bedeuten etwa 4 MB/s über USB. Hilfreich sind ein kurzes, gutes Kabel, ein aktiver USB-Hub, Aufnahmen unter 60 s oder für den Dauerbetrieb ein RTL-SDR.
 - POCSAG-Einzelaufnahmen mit HackRF sind aus Speichergründen auf 60 s begrenzt.
+- **ADS-B:** readsb steuert den HackRF selbst. Ohne Angabe der Verstärkung gelten LNA 40 dB und VGA 48 dB (der HackRF hat keine automatische Regelung). Ein Wert im Feld *Verstärkung* setzt LNA (in 8-dB-Schritten, max. 40) und VGA wie bei den übrigen HackRF-Betriebsarten. Die Frequenzkorrektur (ppm) wird beim HackRF nicht angewendet.
 
 ## USRP N200
 
@@ -80,4 +81,4 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 | „Resource busy“ in Session-Fehlern | Ein Prozess ausserhalb des Containers (z. B. gqrx) belegt den Dongle |
 | Transkription leer | Kein Sprachsignal; Gain auf 30–40 dB erhöhen; richtige Modulation (Flugfunk = AM) |
 | Keine APRS-Pakete | APRS ist sporadisch, besser im Dauerbetrieb laufen lassen; Gain und Antenne prüfen |
-| ADS-B zeigt nichts | Nur RTL-SDR unterstützt; 1090-MHz-Antenne mit freier Sicht; Gain auf *automatisch* |
+| ADS-B zeigt nichts | 1090-MHz-Antenne mit freier Sicht; Gain auf *automatisch* (HackRF: LNA 40 / VGA 48) |
