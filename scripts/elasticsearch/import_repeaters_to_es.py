@@ -3,9 +3,12 @@
 Import repeaters from CSV into the configured storage (Elasticsearch or SQLite).
 
 Usage (inside the API container):
-    docker compose exec radio-api python scripts/elasticsearch/import_repeaters_to_es.py scripts/repeaterbook_ch_fm.csv
+    docker compose exec radio-api python scripts/elasticsearch/import_repeaters_to_es.py scripts/repeaters_ch.csv
+    ... --deactivate-missing   # also mark stored repeaters that are not in the file as inactive
 
-IDs are derived from callsign and frequency, so re-importing updates instead of duplicating.
+IDs are derived from callsign and frequency (plus the location when the file lists
+the same callsign on the same frequency at several sites), so re-importing updates
+instead of duplicating.
 """
 
 import csv
@@ -41,12 +44,44 @@ def parse_optional_float(value: str) -> Optional[float]:
         return None
 
 
-def import_csv(csv_file: str) -> int:
+def repeater_uuid(callsign: str, output_frequency: int, location: str, shared_frequency: bool) -> str:
+    """Stable ID; the location only distinguishes several sites with the same callsign and frequency."""
+    key = f'radiomoni:repeater:{callsign}:{output_frequency}'
+    if shared_frequency:
+        key += f':{location}'
+    return str(uuid.uuid5(uuid.NAMESPACE_URL, key))
+
+
+def _shared_frequencies(csv_file: str) -> set[tuple[str, Optional[int]]]:
+    """(callsign, frequency) pairs that appear more than once in the file."""
+    with open(csv_file, 'r', encoding='utf-8') as f:
+        keys = [(row.get('callsign', '').strip().upper(), parse_frequency(row.get('frequency_mhz', '')))
+                for row in csv.DictReader(f)]
+    return {k for k in keys if keys.count(k) > 1}
+
+
+def deactivate_missing(storage, imported_ids: set[str]) -> int:
+    """Mark stored repeaters that are not in the imported file as inactive."""
+    deactivated = 0
+    for repeater in storage.get_repeaters(limit=10_000):
+        if repeater.get('uuid') in imported_ids or repeater.get('status') == 'inactive':
+            continue
+        repeater['status'] = 'inactive'
+        repeater['updated_at'] = datetime.now(timezone.utc).isoformat()
+        storage.index_repeater(repeater)
+        print(f"– {repeater.get('callsign', '?'):8s} {repeater.get('output_frequency', 0) / 1e6:9.4f} MHz  "
+              "not in the list any more → inactive")
+        deactivated += 1
+    return deactivated
+
+
+def import_csv(csv_file: str, deactivate: bool = False) -> int:
     """
     Import repeaters from CSV file into Elasticsearch.
 
     Args:
         csv_file: Path to CSV file
+        deactivate: mark stored repeaters that are not in the file as inactive
 
     Returns:
         Number of repeaters imported
@@ -56,6 +91,8 @@ def import_csv(csv_file: str) -> int:
         return 0
 
     es = get_storage()
+    shared = _shared_frequencies(csv_file)
+    imported_ids: set[str] = set()
 
     imported = 0
     errors = 0
@@ -103,8 +140,11 @@ def import_csv(csv_file: str) -> int:
                     status = 'active'
 
                 # Create repeater document
+                repeater_id = repeater_uuid(callsign, output_frequency, location,
+                                            (callsign, output_frequency) in shared)
+                imported_ids.add(repeater_id)
                 repeater_doc = {
-                    'uuid': str(uuid.uuid5(uuid.NAMESPACE_URL, f'radiomoni:repeater:{callsign}:{output_frequency}')),
+                    'uuid': repeater_id,
                     'callsign': callsign,
                     'output_frequency': output_frequency,
                     'input_frequency': input_frequency,
@@ -132,11 +172,15 @@ def import_csv(csv_file: str) -> int:
                 errors += 1
                 continue
 
+    deactivated = deactivate_missing(es, imported_ids) if deactivate and imported else 0
+
     print()
     print("=" * 60)
     print(f"Import complete!")
     print(f"  Imported: {imported}")
     print(f"  Errors:   {errors}")
+    if deactivate:
+        print(f"  Deactivated (not in list): {deactivated}")
     print("=" * 60)
 
     return imported
@@ -146,6 +190,8 @@ def main():
     parser = argparse.ArgumentParser(description='Import Swiss repeaters from CSV file to Elasticsearch')
     parser.add_argument('csv_file', help='Path to CSV file')
     parser.add_argument('--es-hosts', help='Elasticsearch hosts (default: ELASTICSEARCH_HOSTS)')
+    parser.add_argument('--deactivate-missing', action='store_true',
+                        help='mark stored repeaters that are not in the CSV as inactive')
     args = parser.parse_args()
     if args.es_hosts:
         import os
@@ -156,7 +202,7 @@ def main():
     print("=" * 60)
     print()
 
-    imported = import_csv(args.csv_file)
+    imported = import_csv(args.csv_file, deactivate=args.deactivate_missing)
 
     sys.exit(0 if imported > 0 else 1)
 

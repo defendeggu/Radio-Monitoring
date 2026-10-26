@@ -63,7 +63,7 @@ WORKDIR /app
 COPY *.py direwolf.conf ./
 COPY blueprints/ blueprints/
 COPY scripts/elasticsearch/ scripts/elasticsearch/
-COPY scripts/example_repeaters.csv scripts/repeaterbook_ch_fm.csv scripts/
+COPY scripts/example_repeaters.csv scripts/repeaters_ch.csv scripts/
 
 RUN groupadd -r -g 1000 radiouser \
  && useradd -r -u 1000 -g radiouser -G plugdev,dialout -d /app radiouser \
@@ -85,6 +85,7 @@ USER root
 COPY requirements.txt requirements-dev.txt /tmp/
 RUN pip install -r /tmp/requirements-dev.txt
 COPY tests/ tests/
+COPY scripts/update_repeaters_from_uska.py scripts/
 COPY pytest.ini mypy.ini .coveragerc pyproject.toml requirements.txt requirements-dev.txt ./
 RUN chown -R radiouser:radiouser /app
 USER radiouser

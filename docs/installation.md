@@ -14,7 +14,7 @@
 python3 scripts/validate_env.py   # optional: Konfiguration prüfen
 docker compose up -d --build
 ./scripts/post-docker-setup.sh    # ES-Benutzer und -Rollen, ILM, Templates, Kibana-Dashboards
-./scripts/run_import.sh           # Repeater-Liste (scripts/repeaterbook_ch_fm.csv)
+./scripts/run_import.sh           # Repeater-Liste der USKA (scripts/repeaters_ch.csv)
 ```
 
 Weboberfläche: `http://<host>:8080`. Den API-Key (`API_KEYS` in `.env`) gibst du dort unter *Einstellungen* ein.

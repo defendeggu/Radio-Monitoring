@@ -1,0 +1,310 @@
+callsign,frequency_mhz,offset_mhz,tone,mode,band,location,canton,status
+HB9HD,29.6500,-0.1,71.9,FM,10m,Fronalpstock/SZ,SZ,active
+HB9EE,29.6800,-0.1,,FM,10m,Eglisau,ZH,inactive
+HB9F,51.8500,-0.6,103.5,FM,6m,Schilthorn,BE,active
+HB9EE,51.8900,-0.6,,FM,6m,Eglisau,ZH,inactive
+HB9AM,51.9300,-0.6,77.0,FM,6m,Nütziweid,AG,active
+HB9NF,51.9700,-0.6,71.9,FM,6m,Warten,ZH,active
+HB9ID,144.5750,288.1,71.9,FM,2m,Kalchrain,TG,active
+HB9AC,144.8250,0,,FM,2m,Pfeffingen,BL,active
+HB9AW,144.8250,0,,D-STAR,2m,Willisau,LU,active
+HB9DS,144.8250,0,,D-STAR,2m,Grosswangen,LU,active
+HB9MH,144.8250,0,,C4FM,2m,Pregassona,TI,active
+HB9YSD,144.8250,0,,D-STAR,2m,Verbier,VS,inactive
+HB9Z,144.8250,0,,C4FM,2m,Forch,ZH,inactive
+HB9FU,144.8375,0,,C4FM,2m,Hemishofen,SH,active
+HB9XC,144.8500,0,,C4FM,2m,Corgémont,BE,inactive
+HB9OK,144.8625,0,,DMR/D-STAR/C4FM,2m,Poschiavo,GR,inactive
+HB9UCQ,144.8625,0,67.0,FM,2m,Tête-de-Ran,NE,active
+HB9T,144.8875,0,,C4FM,2m,Château-d'Oex,VD,active
+HB9PS,144.9000,0,,DMR/D-STAR/C4FM,2m,Martigny,VS,active
+HB9UCQ,144.9250,0,,DMR/D-STAR/C4FM,2m,La Berra,FR,inactive
+HB9DS,144.9875,0,,D-STAR,2m,Rothrist,AG,active
+HB9LC,145.2250,0,,FM,2m,Le Maillard,NE,active
+HB9UCQ,145.2375,0,,D-STAR,2m,Le Pâquier-M.,NE,active
+HB9BC,145.2875,0,71.9,FM,2m,Wolfwil,SO,active
+HB9AK,145.3375,0,123.0,FM,2m,Zernez,GR,active
+HB9FA,145.3375,0,,FM,2m,Balsthal,SO,active
+HB9PE,145.3375,0,,D-STAR,2m,Rougement,VD,inactive
+HB9PE,145.5750,-0.6,,FM,2m,Rougement,VD,inactive
+HB9TA,145.5750,-0.6,103.6,FM,2m,Monte Pécian,TI,active
+HB9ZRH,145.5750,-0.6,,D-STAR,2m,Üetliberg,ZH,active
+HB9HD,145.5875,-0.6,,D-STAR,2m,Oberheid TG,TG,active
+HB9OH,145.5875,-0.6,,C4FM,2m,Axalp,BE,active
+HB9RD,145.5875,-0.6,,DMR,2m,Châtonnaye,FR,inactive
+HB9BS,145.6000,-0.6,71.9,FM,2m,Schönenbuch,BL,active
+HB9LU,145.6000,-0.6,71.9,FM,2m,Luzern,LU,active
+HB9MM,145.6000,-0.6,67.0,FM,2m,Les Pléiades,VD,active
+HB9RW,145.6000,-0.6,,FM,2m,Parpaner Rothorn,GR,active
+HB9TA,145.6000,-0.6,233.6,FM,2m,Monte Tamaro,TI,active
+HB9BO,145.6125,-0.6,,DMR/D-STAR,2m,Brienzer Rothorn,LU,active
+HB9EE,145.6125,-0.6,69.3,FM,2m,Eglisau,ZH,active
+HB9RW,145.6125,-0.6,141.3,FM,2m,Parpaner Rothorn,LU,inactive
+HB9GE,145.6250,-0.6,,DMR,2m,Genève,GE,active
+HB9ND,145.6250,-0.6,94.8,FM,2m,Melchnau,BE,active
+HB9OK,145.6250,-0.6,103.5,FM,2m,Poschiavo,GR,active
+HB9OK,145.6250,-0.6,123.0,FM,2m,San Salvatore,TI,active
+HB9Y,145.6250,-0.6,103.5,FM,2m,Moosalpe,VS,active
+HB9ARRS,145.6375,-0.6,,FM,2m,Tête de Ran,NE,inactive
+HB9CF,145.6375,-0.6,71.9,FM,2m,Rigi Scheidegg,SZ,active
+HB9DD,145.6375,-0.6,,FM,2m,Monte Generoso,TI,inactive
+HB9VSD,145.6375,-0.6,,FM,2m,Verbier,VS,active
+HB9AC,145.6500,-0.6,71.9,FM,2m,Pfeffingen,BL,inactive
+HB9F,145.6500,-0.6,94.8,FM,2m,Magglingen,BE,active
+HB9HAI,145.6625,-0.6,141.3,FM,2m,Weissfluhgipfel,GR,active
+HB9BO,145.6875,-0.6,,DMR,2m,Interlaken,BE,inactive
+HB9DC,145.6875,-0.6,77.0,FM,2m,Alp Stofel SZ,SZ,active
+HB9F,145.6875,-0.6,,DMR,2m,Bern-Wankdorf,BE,active
+HB9F,145.7000,-0.6,94.8,FM,2m,Schilthorn,BE,active
+HB9G,145.7250,-0.6,,FM,2m,Poele Chaud,VD,active
+HB9T,145.7250,-0.6,94.8,FM,2m,Rothöchi,BE,active
+HB9Z,145.7250,-0.6,71.9,FM,2m,Wildberg,ZH,active
+HB9FS,145.7375,-0.6,,FM,2m,Bad Ramsach,BL,active
+HB9RAR,145.7375,-0.6,,D-STAR,2m,Morlon,FR,active
+HB9SP,145.7375,-0.6,77.0,FM,2m,Zürich,ZH,active
+HB9UCQ,145.7375,-0.6,,FM,2m,Tête-de-Ran,NE,inactive
+HB9BC,145.7500,-0.6,82.5,FM,2m,Läufelfingen,BL,active
+HB9Y,145.7500,-0.6,,FM,2m,Sex Carro,VS,active
+HB9GOMS,145.7625,-0.6,71.9,FM,2m,Reckingen VS,VS,inactive
+HB9H,145.7625,-0.6,103.5,FM,2m,Monte Tamaro,TI,active
+HB9IAC,145.7625,-0.6,,D-STAR,2m,La Barillette,VD,active
+HB9ZF,145.7625,-0.6,71.9,FM,2m,Bachtel,ZH,active
+HB9AG,145.7750,-0.6,77.0,FM,2m,Lägern,AG,active
+HB9AW,145.7875,-0.6,,D-STAR,2m,Twerenegg,LU,active
+HB9GR,145.7875,-0.6,141.3,FM,2m,Weisshorn,VS,inactive
+HB9PE,145.7875,-0.6,,DMR,2m,Château-d'Oeux,VD,active
+HB9ID,432.6750,-288.1,71.9,FM,70cm,Kalchrain,TG,active
+HB9RAR,432.7375,0,,D-STAR,70cm,Morlon,FR,active
+HB9AW,432.7500,0,,D-STAR,70cm,Sursee,LU,active
+HB9AW,432.7750,0,,D-STAR,70cm,Willisau,LU,active
+HB9F,432.8250,0,94.8,FM,70cm,Brienz,BE,inactive
+HB9FU,432.8250,0,77.0,FM,70cm,Hemishofen,SH,active
+HB9DS,434.5000,0,,D-STAR,70cm,Buttisholz,LU,active
+HB9XC,438.0250,0,,C4FM,70cm,Tavannes,BE,inactive
+HB9BO,438.0375,-7.6,,FM,70cm,Brienzer Rothorn,LU,active
+HB9GL,438.1000,0,,C4FM,70cm,Eschenbach,SG,active
+HB9EE,438.1500,0,,FM,70cm,Hüntwangen,ZH,inactive
+HB9GL,438.1500,0,,C4FM,70cm,Riedern GL,GL,active
+HB9GL,438.1750,0,,C4FM,70cm,Nuolen,SZ,active
+HB9DR,438.2000,-7.6,,DMR,70cm,Wohlen,AG,active
+HB9FG,438.2000,-7.6,67.0,FM,70cm,Le Landeron,NE,active
+HB9G,438.2000,-7.6,,FM,70cm,Petit Lancy,GE,active
+HB9DC,438.2125,-7.6,,DMR,70cm,Männedorf,ZH,active
+HB9DR,438.2125,-7.6,,DMR,70cm,St. Gallen,SG,active
+HB9F,438.2125,-7.6,,DMR,70cm,Schilthorn,BE,active
+HB9BA,438.2250,-7.6,,DMR,70cm,Weissenstein,SO,active
+HB9CF,438.2250,-7.6,,DMR,70cm,Andermatt,UR,active
+HB9DR,438.2250,-7.6,,DMR,70cm,St. Gallen,SG,active
+HB9BG,438.2375,-7.6,,DMR,70cm,Belp,BE,active
+HB9NF,438.2375,-7.6,71.9,FM,70cm,Sternenberg,ZH,inactive
+HB9NF,438.2375,-7.6,67.0,FM,70cm,Warten,ZH,active
+HB9IAP,438.2500,-7.6,,DMR,70cm,La Barillette,VD,active
+HB9ID,438.2500,-7.6,71.9,FM,70cm,St. Iddaburg,SG,active
+HB9IPA,438.2500,-7.6,,C4FM,70cm,Steinhof,SO,active
+HB9DM,438.2625,-7.6,,FM,70cm,Liestal,BL,active
+HB9DR,438.2625,-7.6,,DMR,70cm,Chur,GR,active
+HB9JEZ,438.2625,-7.6,,DMR,70cm,St. Gallen,SG,inactive
+HB9OH,438.2625,-7.6,77.0,FM,70cm,Brienzwiler,BE,active
+HB9ZF,438.2625,-7.6,,DMR,70cm,Uetliberg,ZH,active
+HB9CR,438.2750,-7.6,,C4FM,70cm,Grindel,SO,active
+HB9EE,438.2875,-7.6,,C4FM,70cm,Etzgen,AG,active
+HB9GF,438.2875,-7.6,71.9,FM,70cm,Leidenberg,LU,active
+HB9GF,438.2875,-7.6,,FM,70cm,Menzberg LU,LU,active
+HB9AR,438.3000,-7.6,,D-STAR,70cm,Genève,GE,active
+HB9GR,438.3000,-7.6,141.3,FM,70cm,Chur,GR,active
+HB9CSR,438.3125,-7.6,,DMR,70cm,Laufen,BL,active
+HB9DC,438.3125,-7.6,,DMR,70cm,Alp Stofel SZ,SZ,active
+HB9VD,438.3125,-7.6,,D-STAR,70cm,Middes,FR,active
+HB9BG,438.3250,-7.6,,DMR,70cm,Falkenfluh,BE,active
+HB9DM,438.3250,-7.6,,DMR,70cm,Läufelfingen,BL,active
+HB9DC,438.3375,-7.6,77.0,FM,70cm,Alp Stofel SZ,SZ,active
+HB9VD,438.3375,-7.6,,DMR,70cm,Le Chasseron,NE,active
+HB9EAS,438.3500,-7.6,,DMR,70cm,Nenzlingen,BL,active
+HB9AK,438.3625,-7.6,,DMR,70cm,Kloten,ZH,active
+HB9KK,438.3625,-7.6,,C4FM,70cm,Münsingen,BE,inactive
+HB9SG,438.3625,-7.6,,DMR,70cm,Hoher Kasten,AI,active
+HB9NFB,438.3750,-7.6,,DMR,70cm,Gempen,SO,active
+HB9UCQ,438.3750,-7.6,,FM,70cm,Le Pâquier-M.,FR,active
+HB9DM,438.3875,-7.6,,DMR,70cm,Langenbruck,BL,active
+HB9DM,438.3875,-7.6,,DMR,70cm,Läufelfingen,BL,inactive
+HB9ZG,438.3875,-7.6,71.9,FM,70cm,Rigi-Scheidegg,SZ,active
+HB9AK,438.4000,-7.6,88.5,FM,70cm,Schleitheim SH,SH,active
+HB9GE,438.4000,-7.6,,DMR,70cm,Verbier,VS,inactive
+HB9LU,438.4000,-7.6,71.9,FM,70cm,Luzern,LU,active
+HB9RS,438.4000,-7.6,,FM,70cm,Grangettes,FR,inactive
+HB9EAS,438.4125,-7.6,,DMR,70cm,Sunneberg BL,BL,active
+HB9W,438.4125,-7.6,88.5,FM,70cm,Brütten,ZH,active
+HB9AS,438.4250,-7.6,,DMR,70cm,La Berneuse,VD,active
+HB9DA,438.4250,-7.6,71.9,FM,70cm,Schmiedrued/AG,AG,active
+HB9DD,438.4375,-7.6,,DMR,70cm,Castel S. Pietro,TI,inactive
+HB9DD,438.4375,-7.6,203.5,FM,70cm,Costa Piana,TI,active
+HB9DD,438.4375,-7.6,,D-STAR/C4FM,70cm,Monte Generoso,TI,active
+HB9DM,438.4375,-7.6,,DMR,70cm,Liestal,BL,active
+HB9FB,438.4375,-7.6,71.9,FM,70cm,Scheidegg,ZH,active
+HB9TA,438.4375,-7.6,103.5,FM,70cm,Val Scura,TI,active
+HB0FL,438.4500,-7.6,,DMR,70cm,Gaflei,FL,active
+HB9FG,438.4500,-7.6,,FM,70cm,Coffrane,NE,active
+HB9FX,438.4500,-7.6,,DMR,70cm,Zofingen,AG,active
+HB9OK,438.4500,-7.6,,DMR,70cm,Poschiavo,GR,active
+HB9DD,438.4625,-7.6,,DMR,70cm,Monte Tamaro,TI,active
+HB9F,438.4625,-7.6,,DMR,70cm,Bern (City),BE,active
+HB9F,438.4625,-7.6,,DMR,70cm,Brienz,BE,active
+HB9F,438.4625,-7.6,,DMR,70cm,Ringgenberg,BE,active
+HB9F,438.4625,-7.6,,DMR,70cm,Seftigen,BE,active
+HB4FV,438.4750,-7.6,,C4FM,70cm,Premier VD,VD,active
+HB9SP,438.4750,-7.6,,DMR,70cm,Siblinger Randen,SH,active
+HB9DD,438.4875,-7.6,,DMR,70cm,Airolo,TI,active
+HB9DD,438.4875,-7.6,,DMR,70cm,Monte Generoso,TI,active
+HB9DD,438.4875,-7.6,,DMR,70cm,Poschiavo,GR,active
+HB9DR,438.4875,-7.6,,C4FM,70cm,St. Gallen,SG,active
+HB9NA,438.4875,-7.6,74.4,FM,70cm,Mellingen,AG,active
+HB9DR,438.5000,-7.6,,DMR,70cm,Wädenswil,ZH,active
+HB9ND,438.5000,-7.6,94.8,FM,70cm,Melchnau,BE,active
+HB9NFB,438.5125,-7.6,,DMR,70cm,Reinach,BL,active
+HB9TA,438.5125,-7.6,103.5,FM,70cm,San Bernardino,GR,active
+HB9LC,438.5250,-7.6,,DMR,70cm,Chaux-de-Fonds,NE,active
+HB9CSR,438.5500,-7.6,,DMR/C4FM,70cm,Basel,BS,active
+HB9GE,438.5500,-7.6,,DMR,70cm,Meyrin,GE,active
+HB9RD,438.5625,-7.6,,DMR,70cm,Châtonnaye,FR,active
+HB9VSD,438.5625,-7.6,67.0,FM,70cm,Verbier,VS,active
+HB9DC,438.5750,-7.6,,DMR,70cm,Männedorf,ZH,active
+HB9EAS,438.5750,-7.6,,DMR,70cm,Basel,BS,active
+HB9F,438.5875,-7.6,,DMR,70cm,Bern (City),BE,active
+HB9AK,438.6000,-7.6,,DMR,70cm,Hörnli,ZH,active
+HB9BG,438.6125,-7.6,,FM,70cm,Falkenfluh,BE,active
+HB9BSL,438.6250,-7.6,71.9,FM,70cm,Liestal,BL,active
+HB9LU,438.6250,-7.6,,DMR,70cm,Luzern,LU,active
+HB9UF,438.6500,-7.6,71.9,FM,70cm,Uetliberg,ZH,active
+HB9Y,438.6500,-7.6,,FM,70cm,Roc Blanc,VS,active
+HB9RD,438.6625,-7.6,,DMR,70cm,Châtonnaye,FR,active
+HB9DR,438.6750,-7.6,,DMR,70cm,Rheineck,SG,active
+HB9DR,438.6750,-7.6,,D-STAR,70cm,St. Gallen,SG,active
+HB9EI,438.6750,-7.6,103.5,FM,70cm,Monte Bar TI,TI,active
+HB9GE,438.6750,-7.6,,DMR,70cm,Genève,GE,active
+HB9UHF,438.6750,-7.6,71.9,FM,70cm,Muttenz,BL,active
+HB9Y,438.6750,-7.6,103.5,FM,70cm,Moosalpe,VS,active
+HB9ZG,438.6750,-7.6,71.9,FM,70cm,Hünenberg ZG,ZG,active
+HB9BA,438.7000,-7.6,123.0,FM,70cm,Weissenstein,SO,active
+HB9EE,438.7250,-7.6,69.3,FM,70cm,Eglisau,ZH,active
+HB9XC,438.7250,-7.6,67.0,FM,70cm,Chasseral,BE,active
+HB9DR,438.7375,-7.6,,C4FM,70cm,Rheineck,SG,active
+HB9RAR,438.7375,-7.6,,DMR,70cm,Morlon,FR,active
+HB9UF,438.7500,-7.6,71.9,FM,70cm,Säntis,AR,active
+HB9CF,438.7750,-7.6,88.5,FM,70cm,Seelisberg UR,UR,active
+HB9FS,438.7750,-7.6,,FM,70cm,Sissacherflue,BL,active
+HB9RL,438.7750,-7.6,,DMR/D-STAR/C4FM,70cm,Cimetta,TI,active
+HB9UF,438.8000,-7.6,71.9,FM,70cm,Pilatus,LU,active
+HB9CF,438.8250,-7.6,71.9,FM,70cm,Rigi Scheidegg,SZ,active
+HB9MM,438.8500,-7.6,,FM,70cm,La Praz,VD,active
+HB9LU,438.8750,-7.6,71.9,FM,70cm,Luzern,LU,active
+HB9F,438.9250,-7.6,,FM,70cm,Bern,BE,active
+HB9F,438.9250,-7.6,94.8,FM,70cm,Bern-Wankdorf,BE,active
+HB9HD,438.9250,-7.6,71.9,FM,70cm,Oberheid,SG,active
+HB9AG,438.9500,-7.6,77.0,FM,70cm,Strihen,AG,active
+HB9F,438.9750,-7.6,94.8,FM,70cm,Interlaken,BE,active
+HB9GL,438.9750,-7.6,71.9,FM,70cm,Mollis Fronalp,GL,active
+HB9H,438.9750,-7.6,103.5,FM,70cm,Monti Loga,TI,inactive
+HB9FG,439.0000,-7.6,67.0,FM,70cm,Le Gibloux,FR,active
+HB9H,439.0000,-7.6,,D-STAR,70cm,Cademario,TI,active
+HB9SP,439.0000,-7.6,,DMR,70cm,Zürich,ZH,active
+HB9AS,439.0250,-7.6,67.0,FM,70cm,La Berneuse,VD,active
+HB9BB,439.0250,-7.6,141.3,FM,70cm,Buchserberg,SG,active
+HB9FS,439.0250,-7.6,,FM,70cm,Basel,BS,active
+HB9PFI,439.0250,-7.6,94.8,FM,70cm,Grindelwald,BE,active
+HB9SH,439.0250,-7.6,88.5,FM,70cm,Neuhausen,SH,active
+HB9T,439.0250,-7.6,94.8,FM,70cm,Thun,BE,active
+HB9CF,439.0500,-7.6,71.9,FM,70cm,Andermatt,UR,active
+HB9F,439.0500,-7.6,94.8,FM,70cm,Niesen,BE,active
+HB9OK,439.0500,-7.6,123.0,FM,70cm,Monti di Malmera,TI,active
+HB9OK,439.0500,-7.6,,DMR/C4FM,70cm,Poschiavo,GR,active
+HB9DC,439.0750,-7.6,77.0,FM,70cm,Alp Stofel SZ,SZ,inactive
+HB9HB,439.0750,-7.6,88.5,FM,70cm,Unt.Grenchenberg,SO,active
+HB9G,439.1000,-7.6,,FM,70cm,Petit Lancy,GE,active
+HB9ZF,439.1000,-7.6,,DMR,70cm,Bachtel,ZH,active
+HB9AW,439.1250,-7.6,,D-STAR,70cm,Twerenegg,LU,active
+HB9FM,439.1250,-7.6,71.9,FM,70cm,Basel,BS,active
+HB9UF,439.1500,-7.6,88.5,FM,70cm,Winterthur,ZH,active
+HB9UF,439.1500,-7.6,71.9,FM,70cm,Zofingen,AG,active
+HB9UHF,439.1500,-7.6,71.9,FM,70cm,Vairano,TI,active
+HB9AE,439.2000,-7.6,,DMR,70cm,Lutry,VD,active
+HB9HORU,439.2000,-7.6,94.8,FM,70cm,Zermatt VS,VS,active
+HB9RW,439.2000,-7.6,141.3,FM,70cm,Domleschg,GR,inactive
+HB9T,439.2000,-7.6,100.0,FM,70cm,Trubschachen,BE,active
+HB9VD,439.2250,-7.6,67.0,FM,70cm,Le Chasseron,NE,active
+HB9ZO,439.2250,-7.6,71.9,FM,70cm,Gossau,SG,active
+HB4FL,439.2500,-7.6,,DMR,70cm,L'Aiguille,VS,active
+HB9AW,439.2500,-7.6,71.9,FM,70cm,Willisau,LU,active
+HB9FS,439.2500,-7.6,,FM,70cm,Bad Ramsach,BL,active
+HB9GE,439.2750,-7.6,88.5,FM,70cm,Genève,GE,active
+HB9HD,439.2750,-7.6,71.9,FM,70cm,Fronalpstock/SZ,SZ,active
+HB9TF,439.2750,-7.6,141.3,FM,70cm,Muottas Muragl,GR,active
+HB9SP,439.3000,-7.6,77.0,FM,70cm,Zürich,ZH,active
+HB9T,439.3000,-7.6,94.8,FM,70cm,Niederhorn,BE,active
+HB9BS,439.3250,-7.6,71.9,FM,70cm,Gempenfluh,SO,active
+HB9PE,439.3375,0,,FM,70cm,Château-d'Oex,VD,inactive
+HB9HAI,439.3500,-7.6,141.3,FM,70cm,Weissfluhgipfel,GR,active
+HB9ZG,439.3500,-7.6,103.5,FM,70cm,Affoltern a.A.,ZH,active
+HB9GL,439.3750,-7.6,71.9,FM,70cm,Zürich,ZH,active
+HB9XC,439.3750,-7.6,67.0,FM,70cm,Loveresse,BE,active
+HB9BR,439.4000,-7.6,67.0,FM,70cm,Lutry,VD,active
+HB9GOMS,439.4000,-7.6,71.9,FM,70cm,Reckingen VS,VS,inactive
+HB9Y,439.4000,-7.6,,FM,70cm,Hungerberg,VS,active
+HB9ZF,439.4000,-7.6,71.9,FM,70cm,Bachtel,ZH,active
+HB9BO,439.4125,-7.6,,DMR,70cm,Niesen,BE,active
+HB9GE,439.4250,-7.6,67.0,FM,70cm,Genève,GE,active
+HB9GR,439.4250,-7.6,141.3,FM,70cm,Valens,SG,active
+HB9PE,439.4375,-7.6,,DMR,70cm,Rougement,VD,active
+HB9TG,439.4375,-7.6,,DMR,70cm,Wetzikon TG,TG,active
+HB9BG,439.4500,-7.6,88.5,FM,70cm,Belp,BE,active
+HB9OK,439.4500,-7.6,,DMR,70cm,Viano,GR,active
+HB9RL,439.4500,-7.6,,D-STAR,70cm,Locarno,TI,inactive
+HB9W,439.4500,-7.6,,D-STAR,70cm,Winterthur,ZH,active
+HB9Y,439.4500,-7.6,,DMR,70cm,Bagnes,VS,active
+HB9ARRS,439.4625,-7.6,,C4FM,70cm,Fribourg,FR,active
+HB9ZG,439.4625,-7.6,,D-STAR,70cm,Rigi Scheidegg,SZ,active
+HB9F,439.4750,-7.6,94.8,FM,70cm,Schilthorn,BE,active
+HB9HAI,439.4750,-7.6,,DMR,70cm,Weissfluhgipfel,GR,active
+HB9DD,439.4875,-7.5,103.5,FM,70cm,Monte Generoso,TI,active
+HB9Y,439.4875,-7.6,,DMR,70cm,Hungerberg,VS,active
+HB9F,439.5000,-7.6,,DMR,70cm,Brienzer Rothorn,LU,active
+HB9GE,439.5000,-7.6,,DMR,70cm,Genève,GE,active
+HB9Y,439.5000,-7.6,,DMR,70cm,Trockener Steg,VS,active
+HB9DS,439.5125,-7.6,,DMR,70cm,Grosswangen,LU,active
+HB9VD,439.5125,-7.6,,D-STAR,70cm,Le Chasseron,NE,active
+HB9BO,439.5250,-7.6,,DMR/D-STAR,70cm,Brienzer Rothorn,LU,active
+HB9Y,439.5250,-7.6,,DMR,70cm,Vétroz,VS,active
+HB9EAS,439.5375,-7.6,,DMR/C4FM,70cm,Basel,BS,active
+HB9H,439.5375,-7.6,,D-STAR,70cm,San Bernardino,GR,active
+HB9VSD,439.5375,-7.6,,DMR,70cm,Verbier,VS,active
+HB9ZG,439.5375,-7.6,,DMR,70cm,Rigi Scheidegg,SZ,active
+HB9BO,439.5625,-7.6,,DMR,70cm,Interlaken,BE,active
+HB9DR,439.5625,-7.6,,DMR,70cm,Hinterrhein,GR,inactive
+HB9MM,439.5625,-7.6,,DMR,70cm,Les Pléiades,VD,active
+HB9OK,439.5625,-7.6,,DMR,70cm,Piz Nair,GR,active
+HB9TF,439.5625,-7.6,91.5,FM,70cm,Zürich,ZH,active
+HB9LU,439.5750,-7.6,,D-STAR,70cm,Luzern,LU,active
+HB9TG,439.5750,-7.6,,DMR,70cm,Sulgen,TG,active
+HB9Y,439.5750,-7.6,,DMR,70cm,Moosalp,VS,active
+HB9DS,439.5875,-7.6,,DMR,70cm,Grosswangen,LU,active
+HB9DS,439.5875,-7.6,,DMR/C4FM,70cm,Ruswil,LU,active
+HB9IAC,439.5875,-7.6,,C4FM,70cm,La Barillette,VD,active
+HB9SG,439.5875,-7.6,71.9,FM,70cm,Inzenberg,SG,active
+HB9PE,439.6625,-7.6,,DMR,70cm,Château-d'Oeux,VD,active
+HB9BO,439.7875,0,,DMR,70cm,Niesen,BE,active
+HB9FX,1258.1500,35,,FM,23cm,Zofingen,AG,active
+HB9UF,1258.3000,35,,FM,23cm,Uetliberg,ZH,active
+HB9BA,1258.7500,35,,FM,23cm,Weissenstein,SO,active
+HB9BO,1258.8000,35,,DMR/D-STAR,23cm,Brienzer Rothorn,LU,active
+HB9F,1258.9000,35,,FM,23cm,Jungfraujoch,BE,active
+HB9SH,1259.1750,35,,FM,23cm,Lohn,SH,inactive
+HB9UF,1260.3000,33,,FM,23cm,Uetliberg,ZH,active
+HB9DD,1297.1000,-24,103.5,FM,23cm,Monte Generoso,TI,active
+HB9EE,1297.5000,-28,,FM,23cm,Eglisau,ZH,inactive
+HB9CC,1298.2250,-28,,FM,23cm,Hohe Buche,AR,active
+HB9AM,1298.2750,-28,,FM,23cm,Chestenberg,AG,active
+HB9FS,1298.3250,-28,,FM,23cm,Basel,BS,active
+HB9F,1298.4750,-28,,D-STAR,23cm,Ringgenberg,BE,inactive
+HB9FM,1298.5000,-28,,FM,23cm,Basel,BS,active
+HB9F,1298.6000,-28,,FM,23cm,Bern,BE,active
+HB9F,1298.6500,-28,,FM,23cm,Brienzer Rothorn,LU,active
+HB9NF,1298.7000,-28,,FM,23cm,Warten,ZH,inactive
