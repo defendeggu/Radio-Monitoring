@@ -157,8 +157,8 @@
   {/if}
   <p class="text-sm text-slate-500">
     Werkzeug: <code>{current?.tool ?? '…'}</code> ·
-    {#if kind === 'adsb'}RTL-SDR oder HackRF · 1090 MHz{:else if kind === 'ais'}benötigt einen RTL-SDR · 161.975 / 162.025
-      MHz{:else}benötigt einen RTL-SDR{/if}
+    {#if kind === 'adsb'}RTL-SDR oder HackRF · 1090 MHz{:else if kind === 'ais'}benötigt einen RTL-SDR ·
+      161.975 / 162.025 MHz{:else}benötigt einen RTL-SDR{/if}
   </p>
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
     {#if kind === 'ism'}<FrequencyField bind:value={ismFrequency} />{/if}
