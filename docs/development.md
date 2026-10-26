@@ -67,4 +67,13 @@ Regeln:
 
 ## CI
 
-`.github/workflows/ci.yml`: gitleaks, ruff, mypy, pytest, pip-audit, ESLint, svelte-check, Vitest, npm audit, Playwright, Image-Build mit Trivy-Scan. Dependabot hält pip, npm, Docker und Actions aktuell.
+`.github/workflows/ci.yml`: gitleaks, ruff, mypy, pytest, pip-audit, ESLint, svelte-check, Vitest, npm audit, Playwright, Image-Build mit Trivy-Scan.
+
+Entwickelt wird direkt auf `main`, deshalb gibt es kein Dependabot (es arbeitet nur mit eigenen Branches und Pull Requests). Veraltete Abhängigkeiten findest du so:
+
+```bash
+docker run --rm radiomoni-api-test pip list --outdated     # Python (Test-Image)
+cd frontend && npm outdated                                  # Frontend
+```
+
+Neue Versionen in `requirements*.txt` bzw. `frontend/package.json` eintragen (bei npm danach `npm install`), die CI-Schritte lokal laufen lassen und direkt auf `main` committen. Ausnahmen: `av` bleibt auf 18.x, solange `faster-whisper` PyAV 19 nicht unterstützt; `typescript` bleibt auf 5.x, solange `svelte-check` TypeScript 7 nicht unterstützt.

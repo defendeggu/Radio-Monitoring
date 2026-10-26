@@ -52,7 +52,7 @@ APRS-Nachrichten, Pager-Texte, Schiffsnamen und Transkripte kann jeder senden.
 
 ## Abhängigkeiten
 
-- Python-, npm- und Docker-Versionen sind fest gepinnt. Dependabot schlägt wöchentlich Updates vor.
+- Python-, npm- und Docker-Versionen sind fest gepinnt. Updates werden von Hand eingespielt (siehe [development.md](development.md#ci)).
 - Die CI führt `pip-audit`, `npm audit` und Trivy (Images) aus.
 
 ## Bekannte Grenzen
