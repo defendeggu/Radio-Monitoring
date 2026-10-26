@@ -205,3 +205,13 @@ class TestTranscriptionServiceEdgeCases:
 
         assert result1['text'] == result2['text']
         assert result1['language'] == result2['language']
+
+
+class TestAudioDecoding:
+    """faster-whisper decodes audio with PyAV; incompatible versions only fail at runtime"""
+
+    def test_faster_whisper_decodes_wav_with_installed_pyav(self, sample_audio_file: str):
+        # PyAV 19 removed av.open(metadata_errors=...), which faster-whisper 1.2.1 passes
+        from faster_whisper import decode_audio
+        audio = decode_audio(sample_audio_file, sampling_rate=16000)
+        assert len(audio) > 0
