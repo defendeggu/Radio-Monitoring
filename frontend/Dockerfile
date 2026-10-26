@@ -9,6 +9,9 @@ COPY . .
 RUN npm run build
 
 FROM nginx:1.30.6-alpine
+# Pull Alpine security fixes that the upstream image does not contain yet
+# (the CI Trivy scan fails on fixable HIGH/CRITICAL findings)
+RUN apk upgrade --no-cache
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY --from=build /app/dist /usr/share/nginx/html
