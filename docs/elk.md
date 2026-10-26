@@ -23,7 +23,7 @@ Das Skript ist idempotent und gehört nach jedem Update ausgeführt.
 
 ## Kibana
 
-`http://127.0.0.1:5601`, Benutzer `elastic`, Passwort `ELASTIC_PASSWORD` aus `.env`. Die Dashboards (Captures, APRS mit Karte, POCSAG, Repeater, Logs, Systemzustand) importiert `./scripts/import-kibana-dashboards.sh`.
+`http://127.0.0.1:5601`, Benutzer `elastic`, Passwort `ELASTIC_PASSWORD` aus `.env`. Die Dashboards heissen wie die Module der Weboberfläche (`RadioMoni · Übersicht`, `Sprache`, `VOX-Aufnahme`, `APRS`, `POCSAG`, `ADS-B`, `AIS`, `ISM-Sensoren`, `Repeater-Scan`, `Alarme`, dazu `System – Logs` und `System – Zustand`). APRS, ADS-B und AIS haben eine Karte. Importiert werden sie mit `./scripts/import-kibana-dashboards.sh`, erzeugt von `monitoring/kibana/build_dashboards.py` (siehe [monitoring/kibana/dashboards/README.md](../monitoring/kibana/dashboards/README.md)).
 
 Von einem anderen Rechner aus erreichst du Kibana per SSH-Tunnel: `ssh -L 5601:127.0.0.1:5601 user@host`. Alternativ setzt du `KIBANA_BIND=0.0.0.0`, dann ist Kibana im ganzen LAN sichtbar.
 
