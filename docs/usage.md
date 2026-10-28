@@ -55,7 +55,14 @@ Die Verstärkung leer lassen heisst automatische Regelung. Die PPM-Korrektur ist
 
 ## Repeater-Scan
 
-Hört die importierten Relais nacheinander ab und misst Träger, Anzahl Durchgänge, Aktivität in % und Signalstärke. Filtern kannst du nach Band und Kanton. Die Tabelle *Aktivste Repeater* fasst die letzten 7 Tage zusammen. Die Repeater-Liste importierst du mit `./scripts/run_import.sh`.
+Hört die importierten FM-Relais nacheinander ab und misst Träger, Anzahl Durchgänge, Aktivität in % und Signalstärke.
+
+1. **Kanton** wählen (voreingestellt LU, oder *Alle Kantone*). Darunter erscheinen die aktiven FM-Relais des Kantons; mit den Häkchen wählst du einzelne ab.
+2. **Dauer des Scans:** *Ein Durchgang*, 30 Minuten bis 24 Stunden, oder *Bis Stopp*. Bei einer Dauer werden die Relais in Runden immer wieder abgehört; ein Relais wird nur noch begonnen, wenn seine Messung vor Ablauf der Dauer endet.
+3. **Sekunden pro Repeater** einstellen (5–600). Die Zeile über der Liste zeigt, wie lange eine Runde dauert.
+4. **Scan starten.** *Stopp* beendet den Scan sofort, auch mitten in einer Messung.
+
+Die Ergebnistabelle fasst alle Runden pro Relais zusammen (Messungen, davon mit Träger, Durchgänge, Ø Aktivität). Jede einzelne Messung landet in `radio-repeater-activity-*` (Kibana: *RadioMoni · Repeater-Scan*). Die Tabelle *Aktivste Repeater* zeigt die Relais, bei denen in den letzten 7 Tagen ein Träger gemessen wurde. Die Repeater-Liste importierst du mit `./scripts/run_import.sh`.
 
 ## Multi-Channel (nur USRP N200)
 

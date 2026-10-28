@@ -24,16 +24,21 @@ class RepeaterScanSession:
         repeaters_total: int,
         duration_per_repeater: int,
         sample_rate: int,
-        gain: int
+        gain: int,
+        total_duration: Optional[int] = None,
+        until_stopped: bool = False
     ):
         self.session_id = session_id
         self.repeaters_total = repeaters_total
         self.duration_per_repeater = duration_per_repeater
         self.sample_rate = sample_rate
         self.gain = gain
+        # End condition: one round (both unset), total_duration seconds, or until stopped
+        self.total_duration = total_duration
+        self.until_stopped = until_stopped
 
         # Status tracking
-        self.status = 'in_progress'  # in_progress, completed, failed
+        self.status = 'in_progress'  # in_progress, completed, stopped, failed
         self.start_time = datetime.now(timezone.utc)
         self.end_time: Optional[datetime] = None
 
@@ -43,6 +48,8 @@ class RepeaterScanSession:
         self.current_index = 0
         self.current_repeater: Optional[str] = None
         self.elapsed_time = 0.0
+        self.current_round = 1
+        self.rounds_completed = 0
 
         # Results
         self.results: List[Dict[str, Any]] = []
@@ -56,6 +63,8 @@ class RepeaterScanSession:
             'duration_per_repeater': self.duration_per_repeater,
             'sample_rate': self.sample_rate,
             'gain': self.gain,
+            'total_duration': self.total_duration,
+            'until_stopped': self.until_stopped,
             'status': self.status,
             'start_time': self.start_time.isoformat(),
             'end_time': self.end_time.isoformat() if self.end_time else None,
@@ -64,6 +73,8 @@ class RepeaterScanSession:
             'current_index': self.current_index,
             'current_repeater': self.current_repeater,
             'elapsed_time': self.elapsed_time,
+            'current_round': self.current_round,
+            'rounds_completed': self.rounds_completed,
             'results': self.results,
             'error': self.error
         }
@@ -76,7 +87,9 @@ class RepeaterScanSession:
             repeaters_total=data['repeaters_total'],
             duration_per_repeater=data['duration_per_repeater'],
             sample_rate=data['sample_rate'],
-            gain=data['gain']
+            gain=data['gain'],
+            total_duration=data.get('total_duration'),
+            until_stopped=data.get('until_stopped', False)
         )
 
         # Restore status
@@ -90,6 +103,8 @@ class RepeaterScanSession:
         session.current_index = data['current_index']
         session.current_repeater = data.get('current_repeater')
         session.elapsed_time = data['elapsed_time']
+        session.current_round = data.get('current_round', 1)
+        session.rounds_completed = data.get('rounds_completed', 0)
 
         # Restore results
         session.results = data.get('results', [])
@@ -124,6 +139,11 @@ class RepeaterScanSession:
         self.repeaters_with_activity = sum(
             1 for r in results if r.get('activity_detected')
         )
+
+    def stop(self) -> None:
+        """Mark session as stopped by the user"""
+        self.status = 'stopped'
+        self.end_time = datetime.now(timezone.utc)
 
     def fail(self, error: str) -> None:
         """Mark session as failed"""
@@ -251,6 +271,13 @@ class ScanSessionManager:
             logger.info(f"Cleaned up {cleaned} old scan sessions")
 
         return cleaned
+
+    def request_stop(self, session_id: int) -> None:
+        """Ask the scan worker to stop (separate key: the worker rewrites the session itself)."""
+        self.redis.set(f"scan_stop:{session_id}", '1', ex=86400)
+
+    def stop_requested(self, session_id: int) -> bool:
+        return bool(self.redis.exists(f"scan_stop:{session_id}"))
 
     def get_next_session_id(self) -> int:
         """

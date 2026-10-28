@@ -596,6 +596,141 @@ class TestElasticsearchIntegration:
 
 
 # ============================================================================
+# Scan rounds: once, total duration, until stopped
+# ============================================================================
+
+class TestScanRounds:
+    """scan_repeaters_worker with a fake measurement and a fake clock"""
+
+    REPEATERS = [
+        {'uuid': 'r1', 'callsign': 'HB9LU', 'output_frequency': 145_600_000, 'band': '2m', 'canton': 'LU',
+         'location_name': 'Luzern'},
+        {'uuid': 'r2', 'callsign': 'HB9AW', 'output_frequency': 439_250_000, 'band': '70cm', 'canton': 'LU',
+         'location_name': 'Willisau'},
+    ]
+
+    @pytest.fixture
+    def scan(self, monkeypatch):
+        """Run the worker; every measurement takes `duration` seconds on the fake clock."""
+        import types
+        import jobs
+        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        manager = get_scan_session_manager()
+        clock = {'now': 0.0}
+        calls: list[str] = []
+        monkeypatch.setattr(jobs, 'time', types.SimpleNamespace(monotonic=lambda: clock['now']))
+        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: jobs.SDRType.HACKRF)
+
+        def run(duration=60, total_duration=None, until_stopped=False, on_measure=None):
+            session_id = manager.get_next_session_id()
+            manager.save_session(RepeaterScanSession(session_id, len(self.REPEATERS), duration, 2_000_000, 20,
+                                                     total_duration, until_stopped))
+
+            def measure(repeater, sid, *args):
+                calls.append(repeater['callsign'])
+                clock['now'] += duration
+                if on_measure:
+                    on_measure(sid, len(calls))
+                return {'carrier_detected': repeater['callsign'] == 'HB9LU', 'transmission_count': 2,
+                        'activity_percentage': 10.0, 'average_signal_strength': -40.0, 'transmissions': [1, 2]}
+
+            monkeypatch.setattr(jobs, '_measure_repeater', measure)
+            jobs.scan_repeaters_worker(session_id, self.REPEATERS, duration, 2_000_000, 20, None,
+                                       total_duration, until_stopped)
+            return manager.get_session(session_id), calls
+
+        return run
+
+    def test_one_round_by_default(self, scan):
+        session, calls = scan()
+        assert session.status == 'completed'
+        assert calls == ['HB9LU', 'HB9AW']
+        assert session.rounds_completed == 1
+        assert session.repeaters_scanned == 2 and session.repeaters_with_activity == 1
+
+    def test_rounds_until_total_duration(self, scan):
+        # 2 repeaters x 60 s: rounds end at 120 s and 240 s; a third round would end at 360 s > 250 s
+        session, calls = scan(duration=60, total_duration=250)
+        assert session.status == 'completed'
+        assert calls == ['HB9LU', 'HB9AW'] * 2
+        assert session.rounds_completed == 2
+
+    def test_repeater_that_would_overrun_is_skipped(self, scan):
+        session, calls = scan(duration=60, total_duration=150)
+        assert calls == ['HB9LU', 'HB9AW']  # third measurement would end at 180 s
+        assert session.status == 'completed'
+
+    def test_until_stopped(self, scan):
+        from scan_session_manager import get_scan_session_manager
+
+        def stop_after_five(session_id, n):
+            if n == 5:
+                get_scan_session_manager().request_stop(session_id)
+
+        session, calls = scan(until_stopped=True, on_measure=stop_after_five)
+        assert session.status == 'stopped'
+        assert len(calls) == 5
+        lu = next(r for r in session.results if r['callsign'] == 'HB9LU')
+        assert lu['rounds'] == 3 and lu['active_rounds'] == 3 and lu['transmission_count'] == 6
+        assert 'transmissions' not in lu['activity']  # bounded result size
+
+    def test_results_are_aggregated_per_repeater(self, scan):
+        session, _ = scan(duration=60, total_duration=600)
+        assert len(session.results) == 2
+        assert {r['callsign']: r['rounds'] for r in session.results} == {'HB9LU': 5, 'HB9AW': 5}
+
+
+class TestScanRoundsAPI:
+
+    REPEATER = TestRepeaterScanningAPI.REPEATER
+
+    @pytest.fixture
+    def seeded(self):
+        from storage import get_storage
+        get_storage().index_repeater(dict(self.REPEATER))
+
+    @pytest.fixture
+    def no_worker(self, monkeypatch):
+        import jobs
+        submitted = []
+        monkeypatch.setattr(jobs.scan_pool, 'submit', lambda fn, *args: submitted.append(args))
+        return submitted
+
+    def test_end_condition_is_validated(self, client: FlaskClient):
+        both = {'total_duration': 1800, 'until_stopped': True}
+        assert client.post('/scan-repeaters', json=both).status_code == 400
+        assert client.post('/scan-repeaters', json={'total_duration': 10}).status_code == 400
+
+    def test_until_stopped_scan_and_stop(self, client: FlaskClient, seeded, no_worker):
+        r = client.post('/scan-repeaters', json={'until_stopped': True, 'duration_per_repeater': 30,
+                                                 'repeater_ids': [1]})
+        assert r.status_code == 200
+        assert r.get_json()['estimated_duration_seconds'] is None
+        session_id = r.get_json()['session_id']
+        assert no_worker[0][-2:] == (None, True)
+
+        progress = client.get(f'/scan-repeaters/{session_id}/progress').get_json()['progress']
+        assert progress['until_stopped'] is True and progress['estimated_remaining_seconds'] is None
+
+        assert client.post(f'/scan-repeaters/{session_id}/stop').status_code == 200
+        from scan_session_manager import get_scan_session_manager
+        assert get_scan_session_manager().stop_requested(session_id)
+
+    def test_total_duration_estimate(self, client: FlaskClient, seeded, no_worker):
+        r = client.post('/scan-repeaters', json={'total_duration': 1800, 'duration_per_repeater': 30})
+        assert r.get_json()['estimated_duration_seconds'] == 1800
+
+    def test_stop_unknown_or_finished_scan(self, client: FlaskClient):
+        assert client.post('/scan-repeaters/99999/stop').status_code == 404
+        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        manager = get_scan_session_manager()
+        done = RepeaterScanSession(manager.get_next_session_id(), 1, 30, 2_000_000, 20)
+        done.complete([])
+        manager.save_session(done)
+        assert client.post(f'/scan-repeaters/{done.session_id}/stop').status_code == 409
+
+
+# ============================================================================
 # Run Tests
 # ============================================================================
 

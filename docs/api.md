@@ -37,7 +37,8 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/vox/start` | VOX-Aufnahme starten |
 | POST | `/decoders/start` | ADS-B/AIS/ISM starten (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | Multi-Channel (USRP) |
-| POST | `/scan-repeaters` | Repeater-Scan |
+| POST | `/scan-repeaters` | Repeater-Scan (`repeater_ids` oder `band`/`canton`; `total_duration` in s oder `until_stopped`, sonst ein Durchgang) |
+| GET / POST | `/scan-repeaters/{id}/progress`, `/scan-repeaters/{id}/stop` | Fortschritt / Stopp eines Scans |
 | GET | `/search`, `/aprs/search`, `/pocsag/search`, `/decoders/{kind}/search` | Suchen |
 | GET | `/aprs/map` | APRS-Stationen als GeoJSON |
 | GET | `/dashboard/stats`, `/stats` | Statistiken |

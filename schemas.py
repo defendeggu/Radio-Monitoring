@@ -127,6 +127,17 @@ class RepeaterScanRequest(StrictModel):
     repeater_ids: Optional[list[Union[int, str]]] = Field(None, max_length=500)
     sample_rate: int = Field(2_000_000, ge=200_000, le=20_000_000)
     gain: int = Field(20, ge=0, le=76)
+    total_duration: Optional[int] = Field(
+        None, ge=60, le=config.MAX_STREAM_DURATION,
+        description='Total scan time in seconds: the repeaters are scanned in rounds until it is over. '
+                    'Empty = one round')
+    until_stopped: bool = Field(False, description='Scan in rounds until POST /scan-repeaters/<id>/stop')
+
+    @model_validator(mode='after')
+    def _one_end_condition(self) -> 'RepeaterScanRequest':
+        if self.until_stopped and self.total_duration is not None:
+            raise ValueError('use either total_duration or until_stopped')
+        return self
 
     @field_validator('repeater_ids')
     @classmethod
