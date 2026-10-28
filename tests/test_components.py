@@ -229,7 +229,7 @@ class TestVoxRecorder:
         monkeypatch.setattr(vox_recorder.events, 'publish', lambda kind, data: published.append((kind, data)))
         rec = vox_recorder.VoxRecorder(frequency=118_000_000, duration=60, gain=20, sample_rate=2_000_000,
                                        output_dir=str(tmp_path))
-        doc = {'uuid': 'u1', 'created_at': '2026-10-26T12:00:00+00:00', 'frequency': 118_000_000,
+        doc = {'uuid': 'u1', 'created_at': datetime.now(timezone.utc).isoformat(), 'frequency': 118_000_000,
                'audio_file': 'vox_x.wav', 'mode': 'vox', 'metadata': {'session_id': 's1'}}
 
         rec._transcribe_and_store(str(tmp_path / 'vox_x.wav'), doc)
