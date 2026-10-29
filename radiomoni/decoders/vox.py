@@ -28,7 +28,7 @@ from scipy.io import wavfile
 from radiomoni import alerts
 from radiomoni import events
 from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
-from radiomoni.streaming_decoder_service import BaseStreamingDecoder, SessionManager
+from radiomoni.decoders.streaming import BaseStreamingDecoder, SessionManager
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +252,7 @@ class VoxRecorder(BaseStreamingDecoder):
     @staticmethod
     def _store(doc: dict[str, Any]) -> None:
         try:
-            from radiomoni.storage import get_storage
+            from radiomoni.storage.base import get_storage
             get_storage().index_capture(doc)
         except Exception as e:
             logger.warning(f"Could not store VOX segment: {e}")

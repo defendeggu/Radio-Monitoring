@@ -13,7 +13,7 @@ from radiomoni.api_docs import api, parse_body, parse_query
 from radiomoni.errors import ApiError
 from radiomoni.schemas import AprsSearchQuery, DecodeFileRequest, HoursLimitQuery
 from radiomoni.services import get_aprs_decoder, validate_file_path
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 logger = logging.getLogger(__name__)
 aprs_bp = Blueprint('aprs', __name__)

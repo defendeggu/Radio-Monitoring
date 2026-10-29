@@ -50,8 +50,8 @@ def isolated_state(tmp_path, mock_transcription_service):
     from radiomoni import alerts
     import radiomoni.blueprints.sdr
     from radiomoni.redis_client import get_redis
-    from radiomoni.storage import set_storage
-    from radiomoni.storage_sqlite import SQLiteStorage
+    from radiomoni.storage.base import set_storage
+    from radiomoni.storage.sqlite import SQLiteStorage
 
     get_redis().flushall()
     set_storage(SQLiteStorage(str(tmp_path / 'storage.sqlite3')))
@@ -60,7 +60,7 @@ def isolated_state(tmp_path, mock_transcription_service):
     yield
     _drain_job_pools()
     get_redis().flushall()
-    from radiomoni import storage
+    from radiomoni.storage import base as storage
     if isinstance(storage._instance, SQLiteStorage):
         storage._instance.close()
     set_storage(None)
@@ -115,11 +115,11 @@ def mock_sdr_hardware(monkeypatch):
     """Pretend a HackRF is connected; captures produce synthetic files."""
     from radiomoni import jobs
     from radiomoni import sdr_hardware
-    from radiomoni import streaming_decoder_service
-    from radiomoni import vox_recorder
+    from radiomoni.decoders import streaming
+    from radiomoni.decoders import vox
 
     detect = lambda *args, **kwargs: SDRType.HACKRF  # noqa: E731
-    for module in (sdr_hardware, jobs, streaming_decoder_service, vox_recorder):
+    for module in (sdr_hardware, jobs, streaming, vox):
         monkeypatch.setattr(module, 'detect_sdr', detect)
     import radiomoni.blueprints.sdr
     monkeypatch.setattr(radiomoni.blueprints.sdr, 'detect_sdr', detect)

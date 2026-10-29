@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 
 from radiomoni import sdr_lock
-from radiomoni.storage_sqlite import SQLiteStorage
+from radiomoni.storage.sqlite import SQLiteStorage
 
 
 # ============================================================================ SDR lock
@@ -118,7 +118,7 @@ class TestSQLiteStorage:
 class TestElasticsearchStorage:
     @pytest.fixture
     def es(self, monkeypatch):
-        from radiomoni.elasticsearch_service import ElasticsearchService
+        from radiomoni.storage.elasticsearch import ElasticsearchService
         svc = ElasticsearchService(hosts=['http://es:9200'], logstash_auth=('radio', 'pw'))
         svc.es_client = MagicMock()
         svc._http = MagicMock()
@@ -159,7 +159,7 @@ class TestElasticsearchStorage:
         assert 'secret' not in json.dumps(es.health_check())
 
     def test_kind_from_index(self):
-        from radiomoni.elasticsearch_service import _kind_from_index
+        from radiomoni.storage.elasticsearch import _kind_from_index
         assert _kind_from_index('radio-captures-2026.10.16') == 'captures'
         assert _kind_from_index('radio-repeater-activity-2026.10.16') == 'repeater-activity'
 
@@ -167,7 +167,7 @@ class TestElasticsearchStorage:
 # ============================================================================ VOX
 class TestSquelchGate:
     def test_opens_and_closes_with_hysteresis(self):
-        from radiomoni.vox_recorder import SquelchGate
+        from radiomoni.decoders.vox import SquelchGate
         gate = SquelchGate(squelch_db=10, hang_time=0.2, chunk_seconds=0.05)
         transitions = [gate.update(-80.0) for _ in range(20)]
         assert 'open' not in transitions
@@ -178,7 +178,7 @@ class TestSquelchGate:
         assert not gate.is_open
 
     def test_short_dropout_keeps_gate_open(self):
-        from radiomoni.vox_recorder import SquelchGate
+        from radiomoni.decoders.vox import SquelchGate
         gate = SquelchGate(squelch_db=10, hang_time=0.5, chunk_seconds=0.05)
         for _ in range(20):
             gate.update(-80.0)
@@ -188,7 +188,7 @@ class TestSquelchGate:
         assert gate.is_open
 
     def test_chunk_power(self):
-        from radiomoni.vox_recorder import chunk_power_db
+        from radiomoni.decoders.vox import chunk_power_db
         assert chunk_power_db(np.ones(100, dtype=np.complex64)) == pytest.approx(0.0, abs=1e-6)
         assert chunk_power_db(np.array([], dtype=np.complex64)) < -100
 
@@ -196,8 +196,8 @@ class TestSquelchGate:
 class TestVoxRecorder:
     def test_segment_written_and_stored(self, mock_sdr_hardware, tmp_path):
         from radiomoni.session_store import session_manager
-        from radiomoni.storage import get_storage
-        from radiomoni.vox_recorder import VoxRecorder
+        from radiomoni.storage.base import get_storage
+        from radiomoni.decoders.vox import VoxRecorder
         rec = VoxRecorder(frequency=145_500_000, duration=60, gain=20, sample_rate=2_000_000,
                           transcribe=False, min_segment_ms=100, hang_time_ms=100, output_dir=str(tmp_path))
         session_manager.create_session('vox', rec, 145_500_000, rec.sample_rate, 20)
@@ -220,14 +220,14 @@ class TestVoxRecorder:
     def test_failed_transcription_is_reported(self, mock_sdr_hardware, tmp_path, monkeypatch):
         """The UI waits for an event per segment; a failure must not leave it 'transcribing' forever"""
         from radiomoni import services
-        from radiomoni import vox_recorder
-        from radiomoni.storage import get_storage
+        from radiomoni.decoders import vox
+        from radiomoni.storage.base import get_storage
         failing = type('Failing', (), {'transcribe': lambda self, *a, **k: (_ for _ in ()).throw(
             TypeError("open() got an unexpected keyword argument 'metadata_errors'"))})()
         monkeypatch.setattr(services, 'get_transcription_service', lambda: failing)
         published = []
-        monkeypatch.setattr(vox_recorder.events, 'publish', lambda kind, data: published.append((kind, data)))
-        rec = vox_recorder.VoxRecorder(frequency=118_000_000, duration=60, gain=20, sample_rate=2_000_000,
+        monkeypatch.setattr(vox.events, 'publish', lambda kind, data: published.append((kind, data)))
+        rec = vox.VoxRecorder(frequency=118_000_000, duration=60, gain=20, sample_rate=2_000_000,
                                        output_dir=str(tmp_path))
         doc = {'uuid': 'u1', 'created_at': datetime.now(timezone.utc).isoformat(), 'frequency': 118_000_000,
                'audio_file': 'vox_x.wav', 'mode': 'vox', 'metadata': {'session_id': 's1'}}
@@ -243,7 +243,7 @@ class TestVoxRecorder:
 # ============================================================================ external decoders
 class TestExternalDecoderParsers:
     def test_rtl433(self):
-        from radiomoni.external_decoders import parse_rtl433_line
+        from radiomoni.decoders.external import parse_rtl433_line
         line = '{"time":"2026-10-16T10:00:00Z","model":"Acurite-Tower","id":1234,"channel":"A",' \
                '"battery_ok":1,"temperature_C":21.4,"humidity":45,"nested":{"x":1}}'
         doc = parse_rtl433_line(line)
@@ -256,7 +256,7 @@ class TestExternalDecoderParsers:
         assert parse_rtl433_line('{broken') is None
 
     def test_readsb(self):
-        from radiomoni.external_decoders import parse_readsb_aircraft
+        from radiomoni.decoders.external import parse_readsb_aircraft
         payload = {'now': 1, 'aircraft': [
             {'hex': '4b1234', 'flight': 'SWR123  ', 'alt_baro': 35000, 'gs': 450.1, 'lat': 47.4, 'lon': 8.5, 'seen': 1},
             {'hex': '4b9999', 'alt_baro': 'ground', 'seen': 2},
@@ -269,7 +269,7 @@ class TestExternalDecoderParsers:
         assert aircraft[1]['altitude_ft'] is None
 
     def test_ais_single_and_multipart(self):
-        from radiomoni.external_decoders import AisAssembler
+        from radiomoni.decoders.external import AisAssembler
         asm = AisAssembler()
         doc = asm.feed('!AIVDM,1,1,,B,15M67FC000G?ufbE`FepT@3n00Sa,0*5C')
         assert doc['mmsi'] == '366053209'
@@ -281,27 +281,27 @@ class TestExternalDecoderParsers:
         assert asm.feed('garbage') is None
 
     def test_command_lines(self, monkeypatch):
-        from radiomoni import external_decoders
+        from radiomoni.decoders import external
         from radiomoni.sdr_hardware import SDRType
-        monkeypatch.setattr(external_decoders, 'tool_available', lambda d: True)
-        monkeypatch.setattr(external_decoders, 'detect_sdr', lambda *a, **k: SDRType.RTLSDR)
-        ism = external_decoders.ExternalDecoderSession('ism', 60, gain=30, frequency=868_300_000, ppm=5)
+        monkeypatch.setattr(external, 'tool_available', lambda d: True)
+        monkeypatch.setattr(external, 'detect_sdr', lambda *a, **k: SDRType.RTLSDR)
+        ism = external.ExternalDecoderSession('ism', 60, gain=30, frequency=868_300_000, ppm=5)
         cmd = ism.build_command()
         assert cmd[:3] == ['rtl_433', '-f', '868300000'] and '-g' in cmd and '5' in cmd
-        adsb = external_decoders.ExternalDecoderSession('adsb', 60)
+        adsb = external.ExternalDecoderSession('adsb', 60)
         assert adsb.frequency == 1_090_000_000
         assert 'auto' in adsb.build_command()
-        ais = external_decoders.ExternalDecoderSession('ais', 60, gain=10)
+        ais = external.ExternalDecoderSession('ais', 60, gain=10)
         assert ais.build_command()[:2] == ['rtl_ais', '-n']
 
     @staticmethod
     def _hackrf_only(monkeypatch, rtlsdr_present=False):
-        from radiomoni import external_decoders
+        from radiomoni.decoders import external
         from radiomoni.sdr_hardware import SDRType
-        monkeypatch.setattr(external_decoders, 'tool_available', lambda d: True)
-        monkeypatch.setattr(external_decoders, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
-        monkeypatch.setattr(external_decoders.RTLSDRCapture, 'is_available', lambda self: rtlsdr_present)
-        return external_decoders
+        monkeypatch.setattr(external, 'tool_available', lambda d: True)
+        monkeypatch.setattr(external, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
+        monkeypatch.setattr(external.RTLSDRCapture, 'is_available', lambda self: rtlsdr_present)
+        return external
 
     def test_adsb_with_hackrf(self, monkeypatch):
         ext = self._hackrf_only(monkeypatch)

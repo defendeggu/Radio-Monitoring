@@ -2,9 +2,9 @@
 Storage backend abstraction.
 
 Two implementations:
-- ElasticsearchService (elasticsearch_service.py): full stack with Logstash,
+- ElasticsearchService (storage/elasticsearch.py): full stack with Logstash,
   Kibana dashboards and ILM.
-- SQLiteStorage (storage_sqlite.py): "light" profile without ELK, for small
+- SQLiteStorage (storage/sqlite.py): "light" profile without ELK, for small
   hosts such as a Raspberry Pi.
 
 Select with STORAGE_BACKEND=elasticsearch|sqlite. All API code uses
@@ -127,10 +127,10 @@ def get_storage() -> StorageBackend:
         with _lock:
             if _instance is None:
                 if config.STORAGE_BACKEND == 'sqlite':
-                    from radiomoni.storage_sqlite import SQLiteStorage
+                    from radiomoni.storage.sqlite import SQLiteStorage
                     _instance = SQLiteStorage(config.SQLITE_PATH)
                 elif config.STORAGE_BACKEND == 'elasticsearch':
-                    from radiomoni.elasticsearch_service import create_elasticsearch_service
+                    from radiomoni.storage.elasticsearch import create_elasticsearch_service
                     _instance = create_elasticsearch_service()
                 else:
                     raise RuntimeError(f"Unknown STORAGE_BACKEND: {config.STORAGE_BACKEND!r}")

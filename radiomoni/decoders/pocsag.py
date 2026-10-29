@@ -252,7 +252,7 @@ if __name__ == '__main__':
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python pocsag_decoder_service.py <audio_file.wav>")
+        print("Usage: python -m radiomoni.decoders.pocsag <audio_file.wav>")
         print("\nDecodes POCSAG pager messages from WAV audio files.")
         print("Supports 512, 1200, and 2400 baud POCSAG signals.")
         sys.exit(1)

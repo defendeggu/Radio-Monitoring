@@ -12,7 +12,7 @@ from radiomoni.schemas import CaptureRequest, ExternalDecoderRequest, StreamRequ
 
 def start_stream(req: StreamRequest) -> dict[str, Any]:
     from radiomoni.jobs import start_stream_session
-    from radiomoni.streaming_decoder_service import StreamingAPRSDecoder, StreamingPOCSAGDecoder
+    from radiomoni.decoders.streaming import StreamingAPRSDecoder, StreamingPOCSAGDecoder
 
     cls = StreamingAPRSDecoder if req.mode == 'aprs' else StreamingPOCSAGDecoder
     decoder = cls(frequency=req.frequency, duration=req.duration, sample_rate=req.sample_rate, gain=req.gain,
@@ -29,7 +29,7 @@ def start_capture(req: CaptureRequest) -> dict[str, Any]:
 def start_vox(req: VoxRequest) -> dict[str, Any]:
     from radiomoni.jobs import start_stream_session
     from radiomoni.services import ensure_disk_space, recording_dir
-    from radiomoni.vox_recorder import VoxRecorder
+    from radiomoni.decoders.vox import VoxRecorder
 
     ensure_disk_space()
     recorder = VoxRecorder(
@@ -43,7 +43,7 @@ def start_vox(req: VoxRequest) -> dict[str, Any]:
 
 
 def start_external_decoder(req: ExternalDecoderRequest) -> dict[str, Any]:
-    from radiomoni.external_decoders import ExternalDecoderSession
+    from radiomoni.decoders.external import ExternalDecoderSession
     from radiomoni.jobs import start_stream_session
 
     session = ExternalDecoderSession(decoder=req.decoder, duration=req.duration, gain=req.gain,

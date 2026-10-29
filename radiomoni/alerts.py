@@ -169,7 +169,7 @@ def _fire(rule: dict[str, Any], source: str, doc: dict[str, Any]) -> dict[str, A
     r.ltrim(RECENT_KEY, 0, RECENT_MAX - 1)
     events.publish('alert', alert)
     try:
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         get_storage().index_event('alerts', dict(alert))
     except Exception as e:
         logger.warning(f"Could not store alert: {e}")

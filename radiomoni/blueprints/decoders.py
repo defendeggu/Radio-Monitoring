@@ -8,9 +8,9 @@ from flask import Blueprint, Response, jsonify
 
 from radiomoni.api_docs import api, parse_query
 from radiomoni.errors import ApiError
-from radiomoni.external_decoders import DEFAULT_FREQUENCIES, TOOLS, tool_available
+from radiomoni.decoders.external import DEFAULT_FREQUENCIES, TOOLS, tool_available
 from radiomoni.schemas import EventSearchQuery
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 decoders_bp = Blueprint('decoders', __name__)
 

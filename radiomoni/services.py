@@ -12,8 +12,8 @@ import threading
 from typing import Optional
 
 from radiomoni import config
-from radiomoni.aprs_decoder_service import APRSDecoder
-from radiomoni.pocsag_decoder_service import POCSAGDecoder
+from radiomoni.decoders.aprs import APRSDecoder
+from radiomoni.decoders.pocsag import POCSAGDecoder
 from radiomoni.transcription_service import TranscriptionService
 
 RECORDING_DIR = config.RECORDING_DIR

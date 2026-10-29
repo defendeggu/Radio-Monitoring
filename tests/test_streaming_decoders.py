@@ -26,8 +26,8 @@ from flask.testing import FlaskClient
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from radiomoni import streaming_decoder_service
-from radiomoni.streaming_decoder_service import (
+from radiomoni.decoders import streaming
+from radiomoni.decoders.streaming import (
     StreamSession,
     SessionManager,
     StreamingAPRSDecoder,
@@ -269,7 +269,7 @@ class TestStreamingAPRSDecoder:
     @pytest.fixture(autouse=True)
     def mock_detect_sdr(self, monkeypatch):
         """Mock detect_sdr so decoder can be instantiated without SDR hardware"""
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
 
     def test_aprs_decoder_initialization(self):
         """Test APRS decoder initialization"""
@@ -344,7 +344,7 @@ class TestRecordSdrFailure:
 
     @pytest.fixture
     def decoder(self, monkeypatch):
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
         decoder = StreamingAPRSDecoder(144800000, 300, 20, 2000000)
         decoder.session = StreamSession('aprs', 144800000, 300, 20, 2000000)
         decoder.session.status = 'running'
@@ -463,10 +463,10 @@ class TestNarrowbandFMDemodulator:
         np.testing.assert_allclose(chunked, whole, atol=1e-9)
 
     def test_aprs_decoder_passes_audio_rate_to_direwolf(self, monkeypatch):
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
         decoder = StreamingAPRSDecoder(144800000, 300, 20, 2000000)
 
-        with patch.object(streaming_decoder_service.subprocess, "Popen") as popen:
+        with patch.object(streaming.subprocess, "Popen") as popen:
             decoder._start_decoder()
 
         cmd = popen.call_args[0][0]
@@ -483,7 +483,7 @@ class TestStreamingPOCSAGDecoder:
     @pytest.fixture(autouse=True)
     def mock_detect_sdr(self, monkeypatch):
         """Mock detect_sdr so decoder can be instantiated without SDR hardware"""
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
 
     def test_pocsag_decoder_initialization(self):
         """Test POCSAG decoder initialization"""
@@ -568,7 +568,7 @@ class TestStreamingAPI:
         assert response.status_code == 400
 
     def test_stream_decode_without_sdr_is_503(self, client: FlaskClient, monkeypatch):
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.UNKNOWN)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.UNKNOWN)
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000})
         assert response.status_code == 400  # "No SDR hardware detected" is a ValueError
 
@@ -578,7 +578,7 @@ class TestStreamingAPI:
 
     def test_stream_decode_conflict_when_sdr_busy(self, client: FlaskClient, monkeypatch):
         from radiomoni import sdr_lock
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
         assert sdr_lock.acquire('other-job', 'capture')
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000, 'duration': 10})
         assert response.status_code == 409
@@ -586,7 +586,7 @@ class TestStreamingAPI:
 
     def test_legacy_endpoint_is_deprecated(self, client: FlaskClient, monkeypatch):
         from radiomoni import sdr_lock
-        monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
         assert sdr_lock.acquire('other-job', 'capture')
         response = client.post('/stream/aprs/start', json={'duration': 10})
         assert response.status_code == 409

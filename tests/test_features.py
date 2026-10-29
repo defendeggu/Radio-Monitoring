@@ -84,7 +84,7 @@ class TestAlertMatching:
         assert alerts.evaluate('aprs', doc) == []
         recent = client.get('/alerts/recent').get_json()['alerts']
         assert recent[0]['rule_id'] == rule['id']
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         assert get_storage().search_events('alerts', hours=1)['total'] == 1
 
     def test_disabled_rule(self):
@@ -189,7 +189,7 @@ class TestSchedules:
 class TestExport:
     @pytest.fixture
     def data(self):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         s = get_storage()
         s.index_aprs({'source_callsign': 'HB9AA', 'latitude': 47.1, 'longitude': 8.5, 'message_text': 'hi <b>'})
         s.index_aprs({'source_callsign': 'HB9AA', 'latitude': 47.0, 'longitude': 8.4, 'timestamp': '2020-01-01T00:00:00+00:00'})
@@ -219,7 +219,7 @@ class TestExport:
         assert 'hi &lt;b&gt;' in body
 
     def test_capture_zip(self, client: FlaskClient, sample_audio_file):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         cid = get_storage().index_capture({'audio_file': 'test_audio.wav', 'transcription': 'hello',
                                            'json_file': '../../etc/passwd'})
         response = client.get(f'/export/capture/{cid}.zip')
@@ -299,7 +299,7 @@ class TestSdrEndpoints:
         assert set(decoders) == {'adsb', 'ais', 'ism'}
 
     def test_decoder_search_and_latest(self, client: FlaskClient):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         s = get_storage()
         s.index_event('ism', {'sensor_id': 'Acurite:1:A', 'model': 'Acurite', 'temperature_C': 21.5})
         s.index_event('ism', {'sensor_id': 'Acurite:1:A', 'model': 'Acurite', 'temperature_C': 22.0})

@@ -244,7 +244,7 @@ class TestSearchAndStats:
         assert client.get('/search?hours=abc').status_code == 400
 
     def test_search_finds_transcription(self, client: FlaskClient):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         get_storage().index_capture({'transcription': 'CQ CQ de HB9XYZ', 'frequency': 145500000, 'mode': 'voice'})
         data = client.get('/search?query=hb9xyz').get_json()
         assert data['count'] == 1
@@ -255,7 +255,7 @@ class TestSearchAndStats:
         assert data['statistics']['total_captures'] == 0
 
     def test_dashboard(self, client: FlaskClient):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         get_storage().index_aprs({'source_callsign': 'HB9AA', 'packet_type': 'position'})
         data = client.get('/dashboard/stats?hours=6').get_json()
         assert data['counts']['aprs'] == 1
@@ -263,7 +263,7 @@ class TestSearchAndStats:
         assert data['latest']['aprs'][0]['source_callsign'] == 'HB9AA'
 
     def test_frequency_stats(self, client: FlaskClient):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         for _ in range(3):
             get_storage().index_capture({'frequency': 145500000, 'modulation': 'FM'})
         freqs = client.get('/stats/frequencies').get_json()['frequencies']

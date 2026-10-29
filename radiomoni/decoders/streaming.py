@@ -1056,7 +1056,7 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
 
     def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Store APRS packet"""
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
 
         try:
             get_storage().index_aprs(packet)
@@ -1207,7 +1207,7 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
 
     def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Store POCSAG packet"""
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
 
         try:
             get_storage().index_pocsag(packet)
@@ -1557,7 +1557,7 @@ class MultiChannelStreamingDecoder(BaseStreamingDecoder):
                 packet['channel_label'] = ch.label
 
                 try:
-                    from radiomoni.storage import get_storage
+                    from radiomoni.storage.base import get_storage
                     if ch.mode == 'aprs':
                         get_storage().index_aprs(packet)
                     else:

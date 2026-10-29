@@ -7,7 +7,7 @@ from flask import Blueprint, Response, jsonify, request, stream_with_context
 from radiomoni.api_docs import api, parse_query
 from radiomoni.events import sse_stream
 from radiomoni.schemas import HoursLimitQuery
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 stats_bp = Blueprint('stats', __name__)
 

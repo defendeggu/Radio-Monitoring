@@ -351,7 +351,7 @@ class TestRepeaterScanningAPI:
 
     @pytest.fixture
     def seeded(self):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         get_storage().index_repeater(dict(self.REPEATER))
 
     @pytest.fixture
@@ -408,7 +408,7 @@ class TestRepeaterScanningAPI:
         """The worker stores carrier metrics at top level so the summary aggregation works"""
         from radiomoni import jobs
         from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         from radiomoni.repeater_activity_analyzer import ActivityMetrics
         from radiomoni.sdr_hardware import SDRType
 
@@ -687,7 +687,7 @@ class TestScanRoundsAPI:
 
     @pytest.fixture
     def seeded(self):
-        from radiomoni.storage import get_storage
+        from radiomoni.storage.base import get_storage
         get_storage().index_repeater(dict(self.REPEATER))
 
     @pytest.fixture

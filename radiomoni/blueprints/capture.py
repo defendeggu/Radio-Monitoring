@@ -21,7 +21,7 @@ from radiomoni.errors import ApiError, call_action
 from radiomoni.jobs import get_capture_session
 from radiomoni.schemas import CaptureRequest, RawCaptureRequest, SearchQuery, TranscribeRequest
 from radiomoni.services import get_transcription_service, validate_file_path
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 logger = logging.getLogger(__name__)
 capture_bp = Blueprint('capture', __name__)

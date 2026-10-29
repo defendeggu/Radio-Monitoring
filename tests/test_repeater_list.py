@@ -14,7 +14,7 @@ sys.path.insert(0, str(ROOT / 'scripts' / 'elasticsearch'))
 
 import update_repeaters_from_uska as uska  # noqa: E402
 import import_repeaters_to_es as importer  # noqa: E402
-from radiomoni.storage import get_storage  # noqa: E402
+from radiomoni.storage.base import get_storage  # noqa: E402
 
 FIELDS = uska.FIELDS
 

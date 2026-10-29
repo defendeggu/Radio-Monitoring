@@ -11,7 +11,7 @@ from radiomoni.errors import ApiError, call_action
 from radiomoni.jobs import stop_repeater_scan, submit_repeater_scan
 from radiomoni.scan_session_manager import get_scan_session_manager
 from radiomoni.schemas import RepeaterListQuery, RepeaterScanRequest, RepeaterSummaryQuery
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 repeater_bp = Blueprint('repeater', __name__)
 

@@ -6,6 +6,6 @@ Kept in its own module so blueprints, jobs and the scheduler can import it
 without circular imports.
 """
 
-from radiomoni.streaming_decoder_service import SessionManager
+from radiomoni.decoders.streaming import SessionManager
 
 session_manager = SessionManager()

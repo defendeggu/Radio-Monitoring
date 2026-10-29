@@ -28,7 +28,7 @@ from radiomoni import sdr_lock
 from radiomoni.sdr_lock import SdrLease
 from radiomoni.services import (ensure_disk_space, get_aprs_decoder, get_pocsag_decoder,
                       get_transcription_service, recording_dir)
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 logger = logging.getLogger(__name__)
 

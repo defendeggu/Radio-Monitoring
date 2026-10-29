@@ -17,7 +17,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 
-from radiomoni.storage import EVENT_KINDS, StorageBackend, enrich_aprs
+from radiomoni.storage.base import EVENT_KINDS, StorageBackend, enrich_aprs
 
 logger = logging.getLogger(__name__)
 

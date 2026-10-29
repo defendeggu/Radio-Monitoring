@@ -25,7 +25,7 @@ from flask.testing import FlaskClient
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from radiomoni.pocsag_decoder_service import POCSAGDecoder, POCSAGMessage
+from radiomoni.decoders.pocsag import POCSAGDecoder, POCSAGMessage
 
 
 # ============================================================================

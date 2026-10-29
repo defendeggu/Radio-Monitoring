@@ -14,11 +14,10 @@ radiomoni/                Python-Paket der API:
   jobs.py / actions.py    SDR-Jobs (Capture, Scan, Stream-Start) / gemeinsame Aktionen für API + Scheduler
   sdr_lock.py             SDR-Sperre in Redis (Lease mit Heartbeat)
   events.py               Event-Bus (Redis Pub/Sub) für SSE und Steuerbefehle
-  streaming_decoder_service.py  APRS/POCSAG/Multi-Channel-Streaming
-  vox_recorder.py         VOX (Squelch-Gate)
-  external_decoders.py    readsb / rtl_ais / rtl_433
+  decoders/               aprs.py / pocsag.py (Einzeldatei), streaming.py (APRS/POCSAG/Multi-Channel-Streaming),
+                          vox.py (VOX, Squelch-Gate), external.py (readsb / rtl_ais / rtl_433)
   alerts.py / scheduler.py  Alarmregeln + Benachrichtigung / Zeitpläne (APScheduler)
-  storage.py              Storage-Interface; elasticsearch_service.py, storage_sqlite.py
+  storage/                base.py (Storage-Interface, get_storage), elasticsearch.py, sqlite.py
   sdr_hardware.py         Hardware-Abstraktion (HackRF, RTL-SDR, Airspy HF+, USRP)
 config/                   gunicorn_config.py, direwolf.conf (im Image unter /app)
 tests/                    pytest; Konfiguration von pytest, mypy, coverage und ruff in pyproject.toml

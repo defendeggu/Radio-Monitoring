@@ -22,7 +22,7 @@ from radiomoni.blueprints.aprs import to_geojson
 from radiomoni.errors import ApiError
 from radiomoni.schemas import HoursLimitQuery
 from radiomoni.services import safe_recording_path
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 export_bp = Blueprint('export', __name__)
 

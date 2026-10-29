@@ -51,10 +51,10 @@ python3 -m pytest \
     tests/test_streaming_decoders.py \
     tests/test_aprs_decoder.py \
     tests/test_pocsag_decoder.py \
-    --cov=repeater_activity_analyzer \
-    --cov=streaming_decoder_service \
-    --cov=aprs_decoder_service \
-    --cov=pocsag_decoder_service \
+    --cov=radiomoni.repeater_activity_analyzer \
+    --cov=radiomoni.decoders.streaming \
+    --cov=radiomoni.decoders.aprs \
+    --cov=radiomoni.decoders.pocsag \
     --cov-report=term-missing \
     --cov-report=html:htmlcov/phase2
 

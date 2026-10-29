@@ -420,7 +420,7 @@ if __name__ == '__main__':
     import sys
 
     if len(sys.argv) < 2:
-        print("Usage: python aprs_decoder_service.py <audio_file.wav>")
+        print("Usage: python -m radiomoni.decoders.aprs <audio_file.wav>")
         sys.exit(1)
 
     audio_file = sys.argv[1]

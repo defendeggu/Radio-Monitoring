@@ -17,7 +17,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 
 from radiomoni import config
-from radiomoni.storage import EVENT_KINDS, StorageBackend, enrich_aprs
+from radiomoni.storage.base import EVENT_KINDS, StorageBackend, enrich_aprs
 
 logger = logging.getLogger(__name__)
 
@@ -468,5 +468,5 @@ def create_elasticsearch_service() -> ElasticsearchService:
 
 def get_elasticsearch_service() -> StorageBackend:
     """Backwards-compatible alias for storage.get_storage()"""
-    from radiomoni.storage import get_storage
+    from radiomoni.storage.base import get_storage
     return get_storage()

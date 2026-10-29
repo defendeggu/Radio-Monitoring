@@ -3,7 +3,7 @@
 Scan Session Manager for Radio Monitoring System
 Provides Redis-based session management for repeater scanning operations
 
-Similar to streaming_decoder_service.py SessionManager but for repeater scans.
+Similar to the SessionManager in decoders/streaming.py but for repeater scans.
 """
 
 import json

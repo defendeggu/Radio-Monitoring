@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 # Add project root to path to allow importing the 'radiomoni' package
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 
 def parse_frequency(freq_str: str) -> Optional[int]:

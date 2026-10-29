@@ -17,7 +17,7 @@ from radiomoni.jobs import start_stream_session
 from radiomoni.schemas import (ExternalDecoderRequest, LegacyStreamRequest, MultiChannelRequest, StreamRequest,
                      VoxRequest)
 from radiomoni.session_store import session_manager
-from radiomoni.streaming_decoder_service import ChannelConfig, MultiChannelStreamingDecoder
+from radiomoni.decoders.streaming import ChannelConfig, MultiChannelStreamingDecoder
 
 logger = logging.getLogger(__name__)
 streaming_bp = Blueprint('streaming', __name__)

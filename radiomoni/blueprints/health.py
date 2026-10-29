@@ -32,7 +32,7 @@ def health() -> Response:
 @health_bp.get('/health/ready')
 @api('Readiness check (Redis, storage, SDR)', tags=['System'], responses={503: 'A dependency is down'})
 def ready() -> tuple[Response, int]:
-    from radiomoni.storage import get_storage
+    from radiomoni.storage.base import get_storage
 
     redis_ok = redis_client.ping()
     try:

@@ -12,7 +12,7 @@ from radiomoni.api_docs import api, parse_body, parse_query
 from radiomoni.errors import ApiError
 from radiomoni.schemas import DecodeFileRequest, HoursLimitQuery, PocsagSearchQuery
 from radiomoni.services import get_pocsag_decoder, validate_file_path
-from radiomoni.storage import get_storage
+from radiomoni.storage.base import get_storage
 
 logger = logging.getLogger(__name__)
 pocsag_bp = Blueprint('pocsag', __name__)
