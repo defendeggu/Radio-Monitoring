@@ -31,7 +31,7 @@ jobs:
       - name: Ruff
         run: docker run --rm radiomoni-api-test ruff check --exclude tests,scripts .
       - name: Mypy (strict)
-        run: docker run --rm radiomoni-api-test sh -c 'mypy --config-file mypy.ini *.py blueprints/'
+        run: docker run --rm radiomoni-api-test mypy radiomoni/
       - name: Pytest (coverage >= 60 %)
         run: docker run --rm radiomoni-api-test pytest -q
       - name: pip-audit

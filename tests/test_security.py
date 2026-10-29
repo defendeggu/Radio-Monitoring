@@ -3,8 +3,8 @@
 import pytest
 from flask.testing import FlaskClient
 
-import config
-import security
+from radiomoni import config
+from radiomoni import security
 
 KEY = 'k' * 43
 
@@ -101,7 +101,7 @@ class TestHttpHardening:
         assert response.headers['X-Frame-Options'] == 'DENY'
 
     def test_errors_do_not_leak_internals(self, client: FlaskClient, monkeypatch):
-        import storage
+        from radiomoni import storage
 
         class Broken:
             def get_overall_stats(self):
@@ -118,7 +118,7 @@ class TestHttpHardening:
         assert response.status_code == 413
 
     def test_csv_formula_injection_neutralised(self, client: FlaskClient):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         get_storage().index_pocsag({'address': 123, 'message_type': 'alpha',
                                     'message_text': '=HYPERLINK("http://evil","x")'})
         body = client.get('/export/pocsag.csv').get_data(as_text=True)

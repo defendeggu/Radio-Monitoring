@@ -3,7 +3,7 @@
 import os
 import json
 import pytest
-from transcription_service import TranscriptionService, SegmentDict, TranscriptionResult
+from radiomoni.transcription_service import TranscriptionService, SegmentDict, TranscriptionResult
 
 
 class TestTranscriptionServiceInit:

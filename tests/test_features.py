@@ -9,9 +9,9 @@ import zipfile
 import pytest
 from flask.testing import FlaskClient
 
-import alerts
-import events
-import sdr_lock
+from radiomoni import alerts
+from radiomoni import events
+from radiomoni import sdr_lock
 
 
 # ============================================================================ bookmarks
@@ -84,7 +84,7 @@ class TestAlertMatching:
         assert alerts.evaluate('aprs', doc) == []
         recent = client.get('/alerts/recent').get_json()['alerts']
         assert recent[0]['rule_id'] == rule['id']
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         assert get_storage().search_events('alerts', hours=1)['total'] == 1
 
     def test_disabled_rule(self):
@@ -114,7 +114,7 @@ class TestAlertApi:
         assert response.status_code == 400
 
     def test_notification_channels(self, client: FlaskClient, monkeypatch):
-        import config
+        from radiomoni import config
         sent = []
 
         class Resp:
@@ -151,7 +151,7 @@ class TestSchedules:
         assert client.post('/schedules', json={**self.BODY, **patch}).status_code == 400
 
     def test_run_now(self, client: FlaskClient, monkeypatch):
-        import actions
+        from radiomoni import actions
         calls = []
         monkeypatch.setattr(actions, 'start_stream', lambda req: calls.append(req) or {'session_id': 's1'})
         sid = client.post('/schedules', json=self.BODY).get_json()['id']
@@ -166,16 +166,16 @@ class TestSchedules:
         assert client.post(f'/schedules/{sid}/run').get_json()['status'] == 'skipped'
 
     def test_fire_dedupe(self, monkeypatch):
-        import actions
-        import scheduler
+        from radiomoni import actions
+        from radiomoni import scheduler
         monkeypatch.setattr(actions, 'start_stream', lambda req: {'session_id': 's'})
         item = scheduler.save_schedule(dict(self.BODY))
         assert scheduler.run_schedule(item['id'], fire_key='202601010700', wait=0)['status'] == 'started'
         assert scheduler.run_schedule(item['id'], fire_key='202601010700', wait=0)['status'] == 'duplicate'
 
     def test_scheduler_registers_jobs(self, monkeypatch):
-        import config
-        import scheduler
+        from radiomoni import config
+        from radiomoni import scheduler
         monkeypatch.setattr(config, 'SCHEDULER_ENABLED', True)
         try:
             scheduler.start()
@@ -189,7 +189,7 @@ class TestSchedules:
 class TestExport:
     @pytest.fixture
     def data(self):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         s = get_storage()
         s.index_aprs({'source_callsign': 'HB9AA', 'latitude': 47.1, 'longitude': 8.5, 'message_text': 'hi <b>'})
         s.index_aprs({'source_callsign': 'HB9AA', 'latitude': 47.0, 'longitude': 8.4, 'timestamp': '2020-01-01T00:00:00+00:00'})
@@ -219,7 +219,7 @@ class TestExport:
         assert 'hi &lt;b&gt;' in body
 
     def test_capture_zip(self, client: FlaskClient, sample_audio_file):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         cid = get_storage().index_capture({'audio_file': 'test_audio.wav', 'transcription': 'hello',
                                            'json_file': '../../etc/passwd'})
         response = client.get(f'/export/capture/{cid}.zip')
@@ -274,9 +274,9 @@ class TestEvents:
 # ============================================================================ SDR control
 class TestSdrEndpoints:
     def test_detect_without_hardware(self, client: FlaskClient, monkeypatch):
-        import blueprints.sdr
-        from sdr_hardware import SDRType
-        monkeypatch.setattr(blueprints.sdr, 'detect_sdr', lambda *a, **k: SDRType.UNKNOWN)
+        import radiomoni.blueprints.sdr
+        from radiomoni.sdr_hardware import SDRType
+        monkeypatch.setattr(radiomoni.blueprints.sdr, 'detect_sdr', lambda *a, **k: SDRType.UNKNOWN)
         data = client.get('/sdr/detect').get_json()
         assert data == {**data, 'detected': False, 'type': 'unknown'}
 
@@ -299,7 +299,7 @@ class TestSdrEndpoints:
         assert set(decoders) == {'adsb', 'ais', 'ism'}
 
     def test_decoder_search_and_latest(self, client: FlaskClient):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         s = get_storage()
         s.index_event('ism', {'sensor_id': 'Acurite:1:A', 'model': 'Acurite', 'temperature_C': 21.5})
         s.index_event('ism', {'sensor_id': 'Acurite:1:A', 'model': 'Acurite', 'temperature_C': 22.0})

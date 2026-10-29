@@ -62,8 +62,8 @@ ENV PATH=/opt/venv/bin:$PATH \
 WORKDIR /app
 
 # Application code (no .env, no secrets — configuration comes from the environment)
-COPY *.py direwolf.conf ./
-COPY blueprints/ blueprints/
+COPY radiomoni/ radiomoni/
+COPY config/gunicorn_config.py config/direwolf.conf ./
 COPY scripts/elasticsearch/ scripts/elasticsearch/
 COPY scripts/repeaters_ch.csv scripts/
 
@@ -79,7 +79,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
   CMD python -c "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:5000/health', timeout=5).status == 200 else 1)"
 
 ENTRYPOINT ["/usr/bin/tini", "--"]
-CMD ["gunicorn", "--config", "gunicorn_config.py", "api_service:app"]
+CMD ["gunicorn", "--config", "gunicorn_config.py", "radiomoni.api_service:app"]
 
 # --------------------------------------------------------------------------- test
 FROM runtime AS test
@@ -88,7 +88,7 @@ COPY requirements.txt requirements-dev.txt /tmp/
 RUN pip install -r /tmp/requirements-dev.txt
 COPY tests/ tests/
 COPY scripts/update_repeaters_from_uska.py scripts/
-COPY pytest.ini mypy.ini .coveragerc pyproject.toml requirements.txt requirements-dev.txt ./
+COPY pyproject.toml requirements.txt requirements-dev.txt ./
 RUN chown -R radiouser:radiouser /app
 USER radiouser
 ENV SKIP_REDIS_CHECK=1 ALLOW_INSECURE=true

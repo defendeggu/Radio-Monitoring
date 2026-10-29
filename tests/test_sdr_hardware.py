@@ -13,7 +13,7 @@ import os
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from sdr_hardware import (
+from radiomoni.sdr_hardware import (
     SDRType,
     HackRFCapture,
     RTLSDRCapture,
@@ -256,7 +256,7 @@ class TestRTLSDRCapture(unittest.TestCase):
 class TestFactoryFunction(unittest.TestCase):
     """Test get_sdr_instance factory function"""
 
-    @patch('sdr_hardware.detect_sdr')
+    @patch('radiomoni.sdr_hardware.detect_sdr')
     def test_factory_auto_detect_hackrf(self, mock_detect):
         """Test factory with auto-detection returning HackRF"""
         mock_detect.return_value = SDRType.HACKRF
@@ -266,7 +266,7 @@ class TestFactoryFunction(unittest.TestCase):
         self.assertIsInstance(instance, HackRFCapture)
         self.assertEqual(instance.frequency, 100_000_000)
 
-    @patch('sdr_hardware.detect_sdr')
+    @patch('radiomoni.sdr_hardware.detect_sdr')
     def test_factory_auto_detect_rtlsdr(self, mock_detect):
         """Test factory with auto-detection returning RTL-SDR"""
         mock_detect.return_value = SDRType.RTLSDR
@@ -276,7 +276,7 @@ class TestFactoryFunction(unittest.TestCase):
         self.assertIsInstance(instance, RTLSDRCapture)
         self.assertEqual(instance.frequency, 100_000_000)
 
-    @patch('sdr_hardware.detect_sdr')
+    @patch('radiomoni.sdr_hardware.detect_sdr')
     def test_factory_no_sdr_raises(self, mock_detect):
         """Test factory raises when no SDR detected"""
         mock_detect.return_value = SDRType.UNKNOWN
@@ -439,7 +439,7 @@ class TestUSRPCapture(unittest.TestCase):
 
     def test_detect_sdr_usrp_preferred(self):
         """detect_sdr returns USRP when preferred_type='usrp' and device_address given"""
-        with patch('sdr_hardware.USRPCapture') as MockUSRP:
+        with patch('radiomoni.sdr_hardware.USRPCapture') as MockUSRP:
             mock_instance = Mock()
             mock_instance.is_available.return_value = True
             MockUSRP.return_value = mock_instance

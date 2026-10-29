@@ -26,15 +26,15 @@ from flask.testing import FlaskClient
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-import streaming_decoder_service
-from streaming_decoder_service import (
+from radiomoni import streaming_decoder_service
+from radiomoni.streaming_decoder_service import (
     StreamSession,
     SessionManager,
     StreamingAPRSDecoder,
     StreamingPOCSAGDecoder,
     NarrowbandFMDemodulator,
 )
-from sdr_hardware import SDRType
+from radiomoni.sdr_hardware import SDRType
 
 
 # ============================================================================
@@ -380,7 +380,7 @@ class TestReapOrphanedSessions:
 
     @pytest.fixture
     def manager(self):
-        from redis_client import get_redis
+        from radiomoni.redis_client import get_redis
         return SessionManager(redis_client=get_redis())
 
     @staticmethod
@@ -400,7 +400,7 @@ class TestReapOrphanedSessions:
         assert 'restarted' in session.error
 
     def test_nothing_reaped_while_sdr_lock_held(self, manager):
-        import sdr_lock
+        from radiomoni import sdr_lock
         session_id = self._running(manager)
         assert sdr_lock.acquire('stream:other-worker', 'aprs')
 
@@ -577,7 +577,7 @@ class TestStreamingAPI:
         assert client.delete('/stream-decode/nope').status_code == 404
 
     def test_stream_decode_conflict_when_sdr_busy(self, client: FlaskClient, monkeypatch):
-        import sdr_lock
+        from radiomoni import sdr_lock
         monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
         assert sdr_lock.acquire('other-job', 'capture')
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000, 'duration': 10})
@@ -585,7 +585,7 @@ class TestStreamingAPI:
         assert response.get_json()['holder']['owner'] == 'other-job'
 
     def test_legacy_endpoint_is_deprecated(self, client: FlaskClient, monkeypatch):
-        import sdr_lock
+        from radiomoni import sdr_lock
         monkeypatch.setattr(streaming_decoder_service, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
         assert sdr_lock.acquire('other-job', 'capture')
         response = client.post('/stream/aprs/start', json={'duration': 10})

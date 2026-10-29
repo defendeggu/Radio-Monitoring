@@ -3,25 +3,28 @@
 ## Struktur
 
 ```
-api_service.py          Einstieg (Gunicorn: api_service:app)
-app_factory.py          Flask-App: Security, Fehler, Blueprints, Scheduler, Control-Listener
-config.py               alle Umgebungsvariablen
-schemas.py              pydantic-Schemas (Validierung + OpenAPI)
-api_docs.py             @api-Decorator, parse_body/parse_query, OpenAPI-Generator
-security.py / errors.py Auth, CORS, Header / einheitliche Fehlerantworten
-blueprints/             REST-Endpunkte
-jobs.py / actions.py    SDR-Jobs (Capture, Scan, Stream-Start) / gemeinsame Aktionen für API + Scheduler
-sdr_lock.py             SDR-Sperre in Redis (Lease mit Heartbeat)
-events.py               Event-Bus (Redis Pub/Sub) für SSE und Steuerbefehle
-streaming_decoder_service.py  APRS/POCSAG/Multi-Channel-Streaming
-vox_recorder.py         VOX (Squelch-Gate)
-external_decoders.py    readsb / rtl_ais / rtl_433
-alerts.py / scheduler.py  Alarmregeln + Benachrichtigung / Zeitpläne (APScheduler)
-storage.py              Storage-Interface; elasticsearch_service.py, storage_sqlite.py
-sdr_hardware.py         Hardware-Abstraktion (HackRF, RTL-SDR, Airspy HF+, USRP)
-frontend/               Svelte 5 + TypeScript + Vite + Tailwind 4
-monitoring/             ELK-Konfiguration, Templates, Dashboards
-scripts/                Setup, Import, Hardware-Tests
+radiomoni/                Python-Paket der API:
+  api_service.py          Einstieg (Gunicorn: radiomoni.api_service:app)
+  app_factory.py          Flask-App: Security, Fehler, Blueprints, Scheduler, Control-Listener
+  config.py               alle Umgebungsvariablen
+  schemas.py              pydantic-Schemas (Validierung + OpenAPI)
+  api_docs.py             @api-Decorator, parse_body/parse_query, OpenAPI-Generator
+  security.py / errors.py Auth, CORS, Header / einheitliche Fehlerantworten
+  blueprints/             REST-Endpunkte
+  jobs.py / actions.py    SDR-Jobs (Capture, Scan, Stream-Start) / gemeinsame Aktionen für API + Scheduler
+  sdr_lock.py             SDR-Sperre in Redis (Lease mit Heartbeat)
+  events.py               Event-Bus (Redis Pub/Sub) für SSE und Steuerbefehle
+  streaming_decoder_service.py  APRS/POCSAG/Multi-Channel-Streaming
+  vox_recorder.py         VOX (Squelch-Gate)
+  external_decoders.py    readsb / rtl_ais / rtl_433
+  alerts.py / scheduler.py  Alarmregeln + Benachrichtigung / Zeitpläne (APScheduler)
+  storage.py              Storage-Interface; elasticsearch_service.py, storage_sqlite.py
+  sdr_hardware.py         Hardware-Abstraktion (HackRF, RTL-SDR, Airspy HF+, USRP)
+config/                   gunicorn_config.py, direwolf.conf (im Image unter /app)
+tests/                    pytest; Konfiguration von pytest, mypy, coverage und ruff in pyproject.toml
+frontend/                 Svelte 5 + TypeScript + Vite + Tailwind 4
+monitoring/               ELK-Konfiguration, Templates, Dashboards
+scripts/                  Setup, Import, Hardware-Tests
 ```
 
 ## Backend
@@ -41,7 +44,7 @@ Lokale API ohne Docker (nur zum Entwickeln):
 
 ```bash
 pip install -r requirements-dev.txt
-ALLOW_INSECURE=true REDIS_FAKE=1 STORAGE_BACKEND=sqlite python3 api_service.py
+ALLOW_INSECURE=true REDIS_FAKE=1 STORAGE_BACKEND=sqlite python3 -m radiomoni.api_service
 ```
 
 ## Frontend

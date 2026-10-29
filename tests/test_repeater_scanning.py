@@ -24,7 +24,7 @@ from flask.testing import FlaskClient
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from repeater_activity_analyzer import (
+from radiomoni.repeater_activity_analyzer import (
     RepeaterActivityAnalyzer,
     ActivityMetrics,
     TransmissionEvent
@@ -351,13 +351,13 @@ class TestRepeaterScanningAPI:
 
     @pytest.fixture
     def seeded(self):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         get_storage().index_repeater(dict(self.REPEATER))
 
     @pytest.fixture
     def no_worker(self, monkeypatch):
         """Do not actually scan: record the submitted job instead"""
-        import jobs
+        from radiomoni import jobs
         submitted = []
         monkeypatch.setattr(jobs.scan_pool, 'submit', lambda fn, *args: submitted.append(args))
         return submitted
@@ -388,7 +388,7 @@ class TestRepeaterScanningAPI:
     def test_scan_with_filters(self, client: FlaskClient, seeded, no_worker):
         assert client.post('/scan-repeaters', json={'band': '2m', 'canton': 'zh',
                                                     'duration_per_repeater': 10}).status_code == 200
-        import sdr_lock
+        from radiomoni import sdr_lock
         sdr_lock.force_release()
         assert client.post('/scan-repeaters', json={'band': '70cm', 'duration_per_repeater': 10}).status_code == 404
 
@@ -406,12 +406,13 @@ class TestRepeaterScanningAPI:
     def test_worker_scans_and_stores_flat_metrics(self, client: FlaskClient, seeded, mock_sdr_hardware,
                                                   monkeypatch):
         """The worker stores carrier metrics at top level so the summary aggregation works"""
-        import jobs
-        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
-        from storage import get_storage
-        from repeater_activity_analyzer import ActivityMetrics
+        from radiomoni import jobs
+        from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        from radiomoni.storage import get_storage
+        from radiomoni.repeater_activity_analyzer import ActivityMetrics
+        from radiomoni.sdr_hardware import SDRType
 
-        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: __import__('sdr_hardware').SDRType.HACKRF)
+        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
         monkeypatch.setattr(jobs.RepeaterActivityAnalyzer, 'analyze_iq_file', lambda self, path: ActivityMetrics(
             carrier_detected=True, transmission_count=2, total_active_seconds=3.0, activity_percentage=30.0,
             average_signal_strength=-40.0, peak_signal_strength=-30.0, noise_floor=-80.0))
@@ -462,7 +463,7 @@ class TestProgressTracking:
     def test_progress_updates_during_scan(self, client: FlaskClient, monkeypatch):
         """Test that progress updates are available during scan"""
         # This test verifies the structure, actual scanning tested elsewhere
-        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
         manager = get_scan_session_manager()
 
         # Create test session
@@ -493,7 +494,7 @@ class TestProgressTracking:
 
     def test_completed_scan_has_results(self, client: FlaskClient, monkeypatch):
         """Test that completed scans have results available"""
-        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
         manager = get_scan_session_manager()
 
         # Create completed test session
@@ -613,8 +614,8 @@ class TestScanRounds:
     def scan(self, monkeypatch):
         """Run the worker; every measurement takes `duration` seconds on the fake clock."""
         import types
-        import jobs
-        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        from radiomoni import jobs
+        from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
         manager = get_scan_session_manager()
         clock = {'now': 0.0}
         calls: list[str] = []
@@ -661,7 +662,7 @@ class TestScanRounds:
         assert session.status == 'completed'
 
     def test_until_stopped(self, scan):
-        from scan_session_manager import get_scan_session_manager
+        from radiomoni.scan_session_manager import get_scan_session_manager
 
         def stop_after_five(session_id, n):
             if n == 5:
@@ -686,12 +687,12 @@ class TestScanRoundsAPI:
 
     @pytest.fixture
     def seeded(self):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         get_storage().index_repeater(dict(self.REPEATER))
 
     @pytest.fixture
     def no_worker(self, monkeypatch):
-        import jobs
+        from radiomoni import jobs
         submitted = []
         monkeypatch.setattr(jobs.scan_pool, 'submit', lambda fn, *args: submitted.append(args))
         return submitted
@@ -713,7 +714,7 @@ class TestScanRoundsAPI:
         assert progress['until_stopped'] is True and progress['estimated_remaining_seconds'] is None
 
         assert client.post(f'/scan-repeaters/{session_id}/stop').status_code == 200
-        from scan_session_manager import get_scan_session_manager
+        from radiomoni.scan_session_manager import get_scan_session_manager
         assert get_scan_session_manager().stop_requested(session_id)
 
     def test_total_duration_estimate(self, client: FlaskClient, seeded, no_worker):
@@ -722,7 +723,7 @@ class TestScanRoundsAPI:
 
     def test_stop_unknown_or_finished_scan(self, client: FlaskClient):
         assert client.post('/scan-repeaters/99999/stop').status_code == 404
-        from scan_session_manager import RepeaterScanSession, get_scan_session_manager
+        from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
         manager = get_scan_session_manager()
         done = RepeaterScanSession(manager.get_next_session_id(), 1, 30, 2_000_000, 20)
         done.complete([])

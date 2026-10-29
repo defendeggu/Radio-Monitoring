@@ -14,7 +14,7 @@ class TestHealth:
         assert response.status_code == 200
         data = response.get_json()
         assert data['status'] == 'healthy'
-        from version import __version__
+        from radiomoni.version import __version__
         assert data['version'] == __version__
 
     def test_ready_reports_dependencies(self, client: FlaskClient):
@@ -69,8 +69,8 @@ class TestCaptureValidation:
         assert 'does not support' in response.get_json()['error']
 
     def test_no_sdr_is_503(self, client: FlaskClient, monkeypatch):
-        import jobs
-        from sdr_hardware import SDRType
+        from radiomoni import jobs
+        from radiomoni.sdr_hardware import SDRType
         monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: SDRType.UNKNOWN)
         response = client.post('/capture-and-transcribe', json={'frequency': 100e6, 'duration': 1})
         assert response.status_code == 503
@@ -112,20 +112,20 @@ class TestCaptureJobs:
         assert isinstance(result['result'][mode][key], list)
 
     def test_sdr_busy_returns_409(self, client: FlaskClient, mock_sdr_hardware):
-        import sdr_lock
+        from radiomoni import sdr_lock
         assert sdr_lock.acquire('stream:xyz', 'aprs')
         response = client.post('/capture-and-transcribe', json={'frequency': 100e6, 'duration': 1})
         assert response.status_code == 409
         assert response.get_json()['holder']['kind'] == 'aprs'
 
     def test_lock_released_after_capture(self, client: FlaskClient, mock_sdr_hardware):
-        import sdr_lock
+        from radiomoni import sdr_lock
         response = client.post('/capture', json={'frequency': 100e6, 'duration': 1})
         wait_for_capture(client, response.get_json()['capture_id'])
         assert sdr_lock.current_holder() is None
 
     def test_failed_capture_reports_error(self, client: FlaskClient, mock_sdr_hardware, monkeypatch):
-        from sdr_hardware import HackRFCapture
+        from radiomoni.sdr_hardware import HackRFCapture
 
         def boom(self, *a, **k):
             raise RuntimeError('hackrf_transfer failed: USB error')
@@ -141,7 +141,7 @@ class TestCaptureJobs:
         assert client.get('/capture-status/..%2F..%2Fetc').status_code in (400, 404)
 
     def test_disk_full_is_rejected(self, client: FlaskClient, mock_sdr_hardware, monkeypatch):
-        import config
+        from radiomoni import config
         monkeypatch.setattr(config, 'MIN_FREE_DISK_MB', 10**12)
         response = client.post('/capture', json={'frequency': 100e6, 'duration': 1})
         assert response.status_code == 400
@@ -224,7 +224,7 @@ class TestRecordings:
         assert client.delete('/recordings/delete_me.wav').status_code == 404
 
     def test_retention_cleanup(self, client: FlaskClient, temp_recording_dir, monkeypatch):
-        import config
+        from radiomoni import config
         path = os.path.join(temp_recording_dir, 'old.wav')
         open(path, 'wb').write(b'RIFF')
         os.utime(path, (1, 1))
@@ -244,7 +244,7 @@ class TestSearchAndStats:
         assert client.get('/search?hours=abc').status_code == 400
 
     def test_search_finds_transcription(self, client: FlaskClient):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         get_storage().index_capture({'transcription': 'CQ CQ de HB9XYZ', 'frequency': 145500000, 'mode': 'voice'})
         data = client.get('/search?query=hb9xyz').get_json()
         assert data['count'] == 1
@@ -255,7 +255,7 @@ class TestSearchAndStats:
         assert data['statistics']['total_captures'] == 0
 
     def test_dashboard(self, client: FlaskClient):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         get_storage().index_aprs({'source_callsign': 'HB9AA', 'packet_type': 'position'})
         data = client.get('/dashboard/stats?hours=6').get_json()
         assert data['counts']['aprs'] == 1
@@ -263,7 +263,7 @@ class TestSearchAndStats:
         assert data['latest']['aprs'][0]['source_callsign'] == 'HB9AA'
 
     def test_frequency_stats(self, client: FlaskClient):
-        from storage import get_storage
+        from radiomoni.storage import get_storage
         for _ in range(3):
             get_storage().index_capture({'frequency': 145500000, 'modulation': 'FM'})
         freqs = client.get('/stats/frequencies').get_json()['frequencies']
@@ -284,7 +284,7 @@ class TestOpenApi:
         assert doc['paths']['/stream/aprs/start']['post']['deprecated'] is True
 
     def test_all_routes_documented(self, client: FlaskClient):
-        from api_service import app
+        from radiomoni.api_service import app
         doc = client.get('/openapi.json').get_json()
         documented = {p.replace('{', '<').replace('}', '>') for p in doc['paths']}
         missing = []

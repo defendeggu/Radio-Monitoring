@@ -29,9 +29,9 @@ os.environ.update({
     'PROXY_COUNT': '0',
 })
 
-from api_service import app  # noqa: E402
-from sdr_hardware import HackRFCapture, SDRType  # noqa: E402
-from transcription_service import TranscriptionService  # noqa: E402
+from radiomoni.api_service import app  # noqa: E402
+from radiomoni.sdr_hardware import HackRFCapture, SDRType  # noqa: E402
+from radiomoni.transcription_service import TranscriptionService  # noqa: E402
 
 
 @pytest.fixture(scope='session')
@@ -47,20 +47,20 @@ def pytest_sessionfinish(session, exitstatus):
 @pytest.fixture(autouse=True)
 def isolated_state(tmp_path, mock_transcription_service):
     """Fresh Redis and storage for every test."""
-    import alerts
-    import blueprints.sdr
-    from redis_client import get_redis
-    from storage import set_storage
-    from storage_sqlite import SQLiteStorage
+    from radiomoni import alerts
+    import radiomoni.blueprints.sdr
+    from radiomoni.redis_client import get_redis
+    from radiomoni.storage import set_storage
+    from radiomoni.storage_sqlite import SQLiteStorage
 
     get_redis().flushall()
     set_storage(SQLiteStorage(str(tmp_path / 'storage.sqlite3')))
     alerts._invalidate()
-    blueprints.sdr._detect_cache = (0.0, {})
+    radiomoni.blueprints.sdr._detect_cache = (0.0, {})
     yield
     _drain_job_pools()
     get_redis().flushall()
-    import storage
+    from radiomoni import storage
     if isinstance(storage._instance, SQLiteStorage):
         storage._instance.close()
     set_storage(None)
@@ -70,7 +70,7 @@ def _drain_job_pools(timeout: float = 30.0) -> None:
     """Wait for background jobs of the finished test (pools are FIFO, one worker each)."""
     from concurrent.futures import ThreadPoolExecutor
 
-    import jobs
+    from radiomoni import jobs
     for pool in (jobs.capture_pool, jobs.scan_pool):
         # call the class method: tests may monkeypatch pool.submit
         ThreadPoolExecutor.submit(pool, lambda: None).result(timeout=timeout)
@@ -106,23 +106,23 @@ def mock_transcription_service(monkeypatch):
         self.simulation_mode = True
 
     monkeypatch.setattr(TranscriptionService, '__init__', mock_init)
-    import services
+    from radiomoni import services
     monkeypatch.setattr(services, '_transcription', None)
 
 
 @pytest.fixture
 def mock_sdr_hardware(monkeypatch):
     """Pretend a HackRF is connected; captures produce synthetic files."""
-    import jobs
-    import sdr_hardware
-    import streaming_decoder_service
-    import vox_recorder
+    from radiomoni import jobs
+    from radiomoni import sdr_hardware
+    from radiomoni import streaming_decoder_service
+    from radiomoni import vox_recorder
 
     detect = lambda *args, **kwargs: SDRType.HACKRF  # noqa: E731
     for module in (sdr_hardware, jobs, streaming_decoder_service, vox_recorder):
         monkeypatch.setattr(module, 'detect_sdr', detect)
-    import blueprints.sdr
-    monkeypatch.setattr(blueprints.sdr, 'detect_sdr', detect)
+    import radiomoni.blueprints.sdr
+    monkeypatch.setattr(radiomoni.blueprints.sdr, 'detect_sdr', detect)
     monkeypatch.setattr(HackRFCapture, 'is_available', lambda self: True)
 
     def mock_capture_audio(self, duration: int, output_file: str, modulation: str = 'FM'):
