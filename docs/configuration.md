@@ -1,5 +1,7 @@
 # Konfiguration (`.env`)
 
+🇬🇧 **[English Version](#english-version)** below
+
 `./scripts/setup-env.sh` legt die Datei an. Die vollständige, kommentierte Liste aller Variablen steht in [`.env.example`](../.env.example). Hier die wichtigsten:
 
 ## Betrieb
@@ -63,4 +65,75 @@ Testen kannst du die Kanäle in der Weboberfläche unter *Alarme → Test senden
 ```bash
 python3 scripts/validate_env.py          # Fehler → Exit-Code 1
 python3 scripts/validate_env.py --strict # Warnungen zählen als Fehler
+```
+
+---
+
+<a id="english-version"></a>
+
+## English Version
+
+`./scripts/setup-env.sh` creates the file. The complete, commented list of all variables is in [`.env.example`](../.env.example). The most important ones:
+
+### Operation
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `COMPOSE_PROFILES` | `elk` | `elk` = full stack, empty = light profile |
+| `STORAGE_BACKEND` | `elasticsearch` | `elasticsearch` or `sqlite` |
+| `WEB_PORT` / `WEB_BIND` | `8080` / `0.0.0.0` | port and interface of the web interface |
+| `KIBANA_BIND` / `KIBANA_PORT` | `127.0.0.1` / `5601` | Kibana only locally; `0.0.0.0` makes it visible on the LAN |
+| `TZ` | `Europe/Zurich` | time zone of the schedules |
+| `ELK_VERSION` | `9.5.5` | version of the Elastic stack |
+| `ES_HEAP` | `2g` | Java heap of Elasticsearch |
+| `WITH_USRP` | `0` | `1` = UHD/GNU Radio in the API image (USRP N200) |
+
+### Security
+
+| Variable | Meaning |
+|---|---|
+| `API_KEYS` | Comma-separated keys (32 characters or more). **Required**: the API does not start without a key. |
+| `TRUSTED_IPS` | Networks that need no key, e.g. `192.168.1.0/24`. Default: none (only `localhost` inside the container). |
+| `ALLOW_INSECURE` | Only for development outside Docker: start the API without keys. |
+
+Generated secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWORD`, `LOGSTASH_SYSTEM_PASSWORD`, `LOGSTASH_WRITER_PASSWORD`, `LOGSTASH_HTTP_PASSWORD`, `BEATS_SYSTEM_PASSWORD`, `BEATS_WRITER_PASSWORD`, `RADIO_API_PASSWORD`, `KIBANA_ENCRYPTION_KEY`.
+
+### Whisper
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`, `distil-large-v3` |
+| `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
+| `WHISPER_COMPUTE_TYPE` | `int8` | CPU: `int8`; GPU: `float16` |
+| `WHISPER_INITIAL_PROMPT` | – | vocabulary hint for all transcriptions (callsigns, place names) |
+
+Language, `beam_size`, `initial_prompt` and `task` (`transcribe`/`translate`) can also be set per recording in the API or the web interface.
+
+### Recordings
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RECORDING_RETENTION_DAYS` | `30` | older files in `recordings/` are deleted daily at 03:30 (`0` = never) |
+| `MIN_FREE_DISK_MB` | `500` | below this free space, new recordings are rejected |
+
+Elasticsearch data is deleted after 90 days (ILM policy `radio-retention-policy`), container logs and metrics after 7 days.
+
+### Alert notifications
+
+All targets are optional. In the alert rules you only choose the channel; the targets themselves are defined only here. This way a rule cannot make the server send requests to arbitrary URLs.
+
+| Channel | Variables |
+|---|---|
+| ntfy | `NTFY_URL` (full topic URL), optional `NTFY_TOKEN` |
+| Telegram | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
+| Webhook | `ALERT_WEBHOOK_URL` (JSON POST with `title`, `message`, `alert`) |
+| E-mail | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `ALERT_EMAIL_TO` |
+
+You can test the channels in the web interface under *Alarme → Test senden* (Alerts → Send test).
+
+### Checking
+
+```bash
+python3 scripts/validate_env.py          # errors → exit code 1
+python3 scripts/validate_env.py --strict # warnings count as errors
 ```

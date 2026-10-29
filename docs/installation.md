@@ -1,5 +1,7 @@
 # Installation
 
+🇬🇧 **[English Version](#english-version)** below
+
 ## Voraussetzungen
 
 - Linux-Host (getestet mit Ubuntu 24.04 und Debian 13), Docker Engine mit Compose v2.20 oder neuer
@@ -80,3 +82,90 @@ docker compose down -v         # zusätzlich alle Volumes löschen (Elasticsearc
 ```
 
 Die Aufnahmen liegen in `./recordings` und bleiben in beiden Fällen erhalten.
+
+---
+
+<a id="english-version"></a>
+
+## English Version
+
+### Requirements
+
+- Linux host (tested with Ubuntu 24.04 and Debian 13), Docker Engine with Compose v2.20 or newer
+- An SDR on a USB port or a USRP N200 on the network. The stack also starts without an SDR; recordings then fail with "Kein SDR erkannt" (no SDR detected).
+- RAM: about 6 GB for the full stack (Elasticsearch 2 GB heap, Logstash 1 GB, Kibana 1 GB, Whisper `small` about 1 GB). Light profile about 2 GB.
+- Disk space: about 6 GB for the images, plus the recordings (30 s of WAV at 16 kHz is about 1 MB).
+
+### First installation
+
+```bash
+./scripts/setup-env.sh            # .env with random secrets (chmod 600)
+python3 scripts/validate_env.py   # optional: check the configuration
+docker compose up -d --build
+./scripts/post-docker-setup.sh    # ES users and roles, ILM, templates, Kibana dashboards
+./scripts/run_import.sh           # USKA repeater list (scripts/repeaters_ch.csv)
+```
+
+Web interface: `http://<host>:8080`. Enter the API key (`API_KEYS` in `.env`) there under *Einstellungen* (Settings).
+
+`setup-env.sh` is idempotent. Existing values stay unchanged, missing variables are added and placeholders such as `changeme` are replaced. You can simply run it again after an update.
+
+### Profiles
+
+| Profile | Start | Storage | Kibana |
+|---|---|---|---|
+| Full (default) | `COMPOSE_PROFILES=elk` | Elasticsearch | yes |
+| Light | `./scripts/setup-env.sh --light` (sets `COMPOSE_PROFILES=` and `STORAGE_BACKEND=sqlite`) | SQLite in the `api-data` volume | no |
+
+Dashboard, search, export, alerts and schedules of the web interface work in both profiles.
+
+### Whisper on the GPU
+
+faster-whisper (CTranslate2) uses NVIDIA GPUs via CUDA 12 and cuDNN 9.
+
+1. Install the NVIDIA driver and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host. `docker run --rm --gpus all ubuntu nvidia-smi` must work.
+2. Start with the override:
+   ```bash
+   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+   ```
+   The API image is then built with `WITH_CUDA=1`, i.e. with the CUDA libraries as Python wheels. `WHISPER_DEVICE=cuda` and `float16` are set, the default model is `large-v3-turbo`.
+
+Rough figures: `small` on the CPU takes about half of real time, `large-v3-turbo` on a mid-range GPU is more than 20 times faster than real time. The models are downloaded into the `whisper-models` volume on first use (100 MB to 1.6 GB).
+
+> The GPU path is prepared, but not tested with every combination of driver and card.
+
+### USRP N200
+
+The default image does not contain UHD or GNU Radio (about 1 GB). For the USRP:
+
+```bash
+echo "WITH_USRP=1" >> .env
+docker compose build radio-api && docker compose up -d radio-api
+docker compose exec radio-api uhd_images_downloader   # FPGA images (once)
+```
+
+Enter the device's IP address in the web interface under *Einstellungen* (Settings). Network setup: see [hardware.md](hardware.md#usrp-n200-1).
+
+### Dockge / Portainer
+
+The stack uses relative bind mounts and reads all values from `.env`. You can use the directory directly as a stack in Dockge. Set the port of the web interface with `WEB_PORT`.
+
+### Update
+
+```bash
+git pull
+./scripts/setup-env.sh            # add new variables
+docker compose up -d --build
+./scripts/post-docker-setup.sh    # update templates/roles (idempotent)
+```
+
+For a major update of Elasticsearch: see [elk.md](elk.md#upgrade-1). For the step from 3.x to 4.0: see [upgrade-4.0.md](upgrade-4.0.md#english-version).
+
+### Uninstalling
+
+```bash
+docker compose down            # stop the containers, data is kept
+docker compose down -v         # also delete all volumes (Elasticsearch, Redis, models)
+```
+
+The recordings are stored in `./recordings` and are kept in both cases.

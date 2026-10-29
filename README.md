@@ -127,7 +127,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | shortwave |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | via Gigabit Ethernet; build the image with `WITH_USRP=1` |
 
-Details, udev rules, PPM correction and troubleshooting: [docs/hardware.md](docs/hardware.md).
+Details, udev rules, PPM correction and troubleshooting: [docs/hardware.md](docs/hardware.md#english-version).
 
 ### Quick start (Docker)
 
@@ -141,7 +141,7 @@ docker compose up -d --build        # build and start the stack
 ./scripts/run_import.sh             # optional: import the Swiss repeater list
 ```
 
-Then open **http://localhost:8080** in your browser and enter the API key under *Settings*.
+Then open **http://localhost:8080** in your browser and enter the API key under *Einstellungen* (Settings). The web interface is in German.
 
 **Light profile** (no ELK, data in SQLite, e.g. for a Raspberry Pi):
 
@@ -175,19 +175,19 @@ flowchart LR
 
 ### Documentation
 
-The detailed documentation is currently available in German only.
+Each file is written in German first, followed by an English version.
 
 | Topic | File |
 |---|---|
-| Installation, profiles, GPU, updates | [docs/installation.md](docs/installation.md) |
-| All settings (`.env`) | [docs/configuration.md](docs/configuration.md) |
-| Hardware, drivers, troubleshooting | [docs/hardware.md](docs/hardware.md) |
-| Using the web interface | [docs/usage.md](docs/usage.md) |
-| REST API, examples, live events | [docs/api.md](docs/api.md) |
-| Security | [docs/security.md](docs/security.md) |
-| Elasticsearch, Kibana, backup | [docs/elk.md](docs/elk.md) |
-| Development and tests | [docs/development.md](docs/development.md) |
-| Upgrading from 3.x to 4.0 | [docs/upgrade-4.0.md](docs/upgrade-4.0.md) |
+| Installation, profiles, GPU, updates | [docs/installation.md](docs/installation.md#english-version) |
+| All settings (`.env`) | [docs/configuration.md](docs/configuration.md#english-version) |
+| Hardware, drivers, troubleshooting | [docs/hardware.md](docs/hardware.md#english-version) |
+| Using the web interface | [docs/usage.md](docs/usage.md#english-version) |
+| REST API, examples, live events | [docs/api.md](docs/api.md#english-version) |
+| Security | [docs/security.md](docs/security.md#english-version) |
+| Elasticsearch, Kibana, backup | [docs/elk.md](docs/elk.md#english-version) |
+| Development and tests | [docs/development.md](docs/development.md#english-version) |
+| Upgrading from 3.x to 4.0 | [docs/upgrade-4.0.md](docs/upgrade-4.0.md#english-version) |
 | Changes | [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md) |
 
 ### Legal notice

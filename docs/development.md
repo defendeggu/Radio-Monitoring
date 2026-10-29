@@ -1,5 +1,7 @@
 # Entwicklung
 
+🇬🇧 **[English Version](#english-version)** below
+
 ## Struktur
 
 ```
@@ -79,3 +81,89 @@ cd frontend && npm outdated                                  # Frontend
 ```
 
 Neue Versionen in `requirements*.txt` bzw. `frontend/package.json` eintragen (bei npm danach `npm install`), die CI-Schritte lokal laufen lassen und direkt auf `main` committen. Ausnahmen: `av` bleibt auf 18.x, solange `faster-whisper` PyAV 19 nicht unterstützt; `typescript` bleibt auf 5.x, solange `svelte-check` TypeScript 7 nicht unterstützt.
+
+---
+
+<a id="english-version"></a>
+
+## English Version
+
+### Structure
+
+```
+radiomoni/                Python package of the API:
+  api_service.py          entry point (Gunicorn: radiomoni.api_service:app)
+  app_factory.py          Flask app: security, errors, blueprints, scheduler, control listener
+  config.py               all environment variables
+  schemas.py              pydantic schemas (validation + OpenAPI)
+  api_docs.py             @api decorator, parse_body/parse_query, OpenAPI generator
+  security.py / errors.py auth, CORS, headers / uniform error responses
+  blueprints/             REST endpoints
+  jobs.py / actions.py    SDR jobs (capture, scan, stream start) / shared actions for API + scheduler
+  sdr_lock.py             SDR lock in Redis (lease with heartbeat)
+  events.py               event bus (Redis pub/sub) for SSE and control commands
+  decoders/               aprs.py / pocsag.py (single file), streaming.py (APRS/POCSAG/multi-channel streaming),
+                          vox.py (VOX, squelch gate), external.py (readsb / rtl_ais / rtl_433)
+  alerts.py / scheduler.py  alert rules + notification / schedules (APScheduler)
+  storage/                base.py (storage interface, get_storage), elasticsearch.py, sqlite.py
+  sdr_hardware.py         hardware abstraction (HackRF, RTL-SDR, Airspy HF+, USRP)
+config/                   gunicorn_config.py, direwolf.conf (under /app in the image)
+tests/                    pytest; configuration of pytest, mypy, coverage and ruff in pyproject.toml
+frontend/                 Svelte 5 + TypeScript + Vite + Tailwind 4
+monitoring/               ELK configuration, templates, dashboards
+scripts/                  setup, import, hardware tests
+```
+
+### Backend
+
+Tests run in the Docker image, which also contains all SDR tools (Python 3.13):
+
+```bash
+docker build --target test -t radiomoni-api-test .
+docker run --rm -v "$PWD":/src -w /src -e HOME=/tmp radiomoni-api-test pytest -q        # coverage ≥ 60 %
+docker run --rm -v "$PWD":/src -w /src radiomoni-api-test ruff check --exclude tests,scripts .
+docker run --rm -v "$PWD":/src -w /src radiomoni-api-test ./scripts/run_mypy.sh          # strict
+```
+
+The tests run with fakeredis, one SQLite instance per test and simulated hardware (`mock_sdr_hardware`). Hardware tests with a real device are in `scripts/tests/manual-tests/`.
+
+Local API without Docker (for development only):
+
+```bash
+pip install -r requirements-dev.txt
+ALLOW_INSECURE=true REDIS_FAKE=1 STORAGE_BACKEND=sqlite python3 -m radiomoni.api_service
+```
+
+### Frontend
+
+```bash
+cd frontend
+npm ci
+API_TARGET=http://localhost:8080/api npm run dev   # Vite dev server, proxies /api to the running stack
+npm run check && npm run lint && npm test           # svelte-check, ESLint/Prettier, Vitest
+npm run e2e                                         # Playwright with a mocked API
+```
+
+Rules:
+- Never output radio data with `{@html}` (the lint rule is an error).
+- All API calls go through `src/lib/api.ts`, live data through `live.on()` in `stores.svelte.ts`.
+
+### New endpoint
+
+1. Create a pydantic model in `schemas.py`.
+2. In the blueprint: `@bp.post(...)` + `@api('Description', tags=[...], body=Model)`, in the handler `parse_body(Model)`.
+3. Raise expected errors as `ApiError`, call SDR actions through `call_action()` (produces 409/400/503).
+4. Write a test. `test_all_routes_documented` makes sure the endpoint appears in the OpenAPI document.
+
+### CI
+
+`.github/workflows/ci.yml`: gitleaks, ruff, mypy, pytest, pip-audit, ESLint, svelte-check, Vitest, npm audit, Playwright, image build with Trivy scan.
+
+Development happens directly on `main`, so there is no Dependabot (it only works with its own branches and pull requests). To find outdated dependencies:
+
+```bash
+docker run --rm radiomoni-api-test pip list --outdated     # Python (test image)
+cd frontend && npm outdated                                  # frontend
+```
+
+Enter new versions in `requirements*.txt` or `frontend/package.json` (for npm, run `npm install` afterwards), run the CI steps locally and commit directly to `main`. Exceptions: `av` stays on 18.x as long as `faster-whisper` does not support PyAV 19; `typescript` stays on 5.x as long as `svelte-check` does not support TypeScript 7.

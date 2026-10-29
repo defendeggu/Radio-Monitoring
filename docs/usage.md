@@ -1,5 +1,7 @@
 # Bedienung der Weboberfläche
 
+🇬🇧 **[English Version](#english-version)** below
+
 Öffne `http://<host>:8080`. Beim ersten Aufruf erscheint der Einstellungsdialog. Trage dort den **API-Key** ein (`API_KEYS` in `.env`) und wähle das **SDR-Gerät**. *Automatisch* genügt meist, für einen USRP N200 die IP-Adresse eintragen. Die Einstellungen bleiben nur in diesem Browser gespeichert.
 
 Unten links in der Seitenleiste siehst du den SDR-Status:
@@ -95,3 +97,107 @@ Listet alle Endpunkte mit Parametern und Body-Feldern auf, inklusive kopierbarem
 ## Darstellung
 
 In den Einstellungen wählst du zwischen System, Dunkel und Hell. Die Seitenleiste lässt sich einklappen. Auf dem Handy öffnet das ☰-Symbol die Navigation.
+
+---
+
+<a id="english-version"></a>
+
+## English Version
+
+The web interface is in German. UI labels are quoted below in German with the English meaning in parentheses.
+
+Open `http://<host>:8080`. On the first visit the settings dialog appears. Enter the **API key** there (`API_KEYS` in `.env`) and choose the **SDR device**. *Automatisch* (automatic) is usually enough; for a USRP N200 enter its IP address. The settings are only stored in this browser.
+
+At the bottom left of the sidebar you see the SDR status:
+- green: device free
+- yellow, pulsing: busy, with the name of the job
+- red: API not reachable or key missing
+
+Next to it is the state of the live connection (● live).
+
+### Dashboard
+
+Figures per mode, activity per hour, SDR status, the latest alerts and APRS packets, and a live feed of all events. Set the time range at the top right (6 h to 7 days).
+
+### Voice (*Sprache*)
+
+Single recording followed by Whisper transcription.
+
+1. Enter a frequency, e.g. `145.5`, `433.92M` or `118000000`, or click a bookmark.
+2. Choose the modulation (FM/AM/USB/LSB), duration (1–600 s) and gain.
+3. Optionally under *Whisper-Optionen* (Whisper options): language, beam size and a vocabulary hint (e.g. "HB9" and local place names).
+4. *Aufnahme starten* (start recording): the progress bar shows waiting, recording and transcription.
+
+The result shows the text, the segments with timestamps and an audio player with a waveform. *Als ZIP exportieren* (export as ZIP) gives you the WAV, the transcript and the metadata.
+
+### VOX recording (*VOX-Aufnahme*)
+
+For continuously monitoring a voice channel. Recording only happens while a signal is above the noise threshold. Each transmission becomes its own file and is optionally transcribed.
+
+- **Squelch:** distance to the measured noise level in dB. Lower is more sensitive, but triggers falsely more often.
+- **Hang time (*Nachlaufzeit*):** the recording stays open this long after the signal ends, so that short pauses do not split a transmission.
+- Transmissions longer than 60 s are split into several files.
+
+The list of transmissions updates live. Clicking an entry plays it.
+
+### APRS and POCSAG
+
+- **Continuous operation (streaming):** runs for up to 24 h and stores every packet immediately.
+- **Single capture:** records first and decodes afterwards (APRS up to 300 s, POCSAG up to 120 s).
+
+For APRS the map shows the last position of every station. The table also contains the Maidenhead locator. Use the search to filter by callsign (APRS) or RIC address (POCSAG). You can export as CSV, for APRS also as GeoJSON and as KML for Google Earth.
+
+### ADS-B · AIS · ISM
+
+These decoders control the SDR directly: ADS-B an **RTL-SDR or HackRF**, AIS and ISM an **RTL-SDR**. If an RTL-SDR is plugged in next to the HackRF, AIS and ISM use the RTL-SDR.
+
+| Tab | Tool | Display |
+|---|---|---|
+| ADS-B | readsb (1090 MHz) | aircraft with identifier, altitude and speed, live on the map |
+| AIS | rtl_ais (161.975/162.025 MHz) | ships with name and position |
+| ISM | rtl_433 (433.92/868 MHz) | weather stations, thermometers, meters (last value per sensor) |
+
+Leaving the gain empty means automatic gain control. The PPM correction is described in [hardware.md](hardware.md#frequency-correction-ppm).
+
+### Repeater scan
+
+Listens to the imported FM repeaters one after another and measures carrier, number of transmissions, activity in % and signal strength.
+
+1. Choose the **canton** (*Kanton*, LU by default, or *Alle Kantone* for all cantons). The active FM repeaters of the canton appear below; untick the ones you want to skip.
+2. **Scan duration** (*Dauer des Scans*): *Ein Durchgang* (one round), 30 minutes to 24 hours, or *Bis Stopp* (until stopped). With a duration, the repeaters are scanned again and again in rounds; a repeater is only started if its measurement ends before the duration is over.
+3. Set the **seconds per repeater** (*Sekunden pro Repeater*, 5–600). The line above the list shows how long one round takes.
+4. *Scan starten* (start scan). *Stopp* ends the scan immediately, even in the middle of a measurement.
+
+The result table summarizes all rounds per repeater (measurements, those with a carrier, transmissions, average activity). Every single measurement is stored in `radio-repeater-activity-*` (Kibana: *RadioMoni · Repeater-Scan*). The table *Aktivste Repeater* (most active repeaters) shows the repeaters where a carrier was measured in the last 7 days. Import the repeater list with `./scripts/run_import.sh`.
+
+### Multi-channel (USRP N200 only)
+
+Only appears when *USRP N200* is selected in the settings. Enter the center frequency, the bandwidth and 2 to 8 channels (APRS/POCSAG). Channels outside the bandwidth are marked red.
+
+### Recordings (*Aufnahmen*)
+
+All WAV files with size and date. A click opens the player and, if available, the transcript. You can also download and delete files here. At the top you see the disk usage, the free space and the retention period.
+
+### Bookmarks (*Lesezeichen*)
+
+Your own frequencies with mode, modulation, tags and a note. Clicking the name opens the matching page with the frequency filled in. Import and export use JSON. As long as there are no bookmarks of your own, default frequencies are offered.
+
+### Alerts (*Alarme*)
+
+A rule consists of a source (e.g. POCSAG), a field (e.g. text), a comparison (contains, equals or regular expression) and a pattern. In addition there are the channels and a pause, so that the same rule does not fire every second. Triggered alerts appear as a notification in the interface, in the list and on the dashboard. *Test senden* (send test) checks the configured channels.
+
+Examples:
+- A specific callsign on APRS: source APRS, field callsign, *contains* `HB9XYZ`
+- A keyword in radio traffic: source voice, field text, *regular expression* `\b(mayday|notfall)\b`
+
+### Schedules (*Zeitpläne*)
+
+Starts actions with a cron expression (`minute hour day month weekday`, time zone `TZ`). The parameters are the same as in the API; when you change the action, a template is inserted. If the SDR is busy at the start time, the schedule waits up to 60 s and is skipped otherwise. The column *Letzter Lauf* (last run) shows the reason. ▶ runs a schedule immediately.
+
+### API
+
+Lists all endpoints with parameters and body fields, including a `curl` command you can copy. The list is generated from `/api/openapi.json`.
+
+### Appearance
+
+In the settings you choose between system, dark and light. The sidebar can be collapsed. On a phone the ☰ icon opens the navigation.

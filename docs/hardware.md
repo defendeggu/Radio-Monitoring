@@ -1,5 +1,7 @@
 # Hardware
 
+🇬🇧 **[English Version](#english-version)** below
+
 ## Übersicht
 
 | Gerät | Bereich | Sample-Rate | Betriebsarten |
@@ -82,3 +84,92 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 | Transkription leer | Kein Sprachsignal; Gain auf 30–40 dB erhöhen; richtige Modulation (Flugfunk = AM) |
 | Keine APRS-Pakete | APRS ist sporadisch, besser im Dauerbetrieb laufen lassen; Gain und Antenne prüfen |
 | ADS-B zeigt nichts | 1090-MHz-Antenne mit freier Sicht; Gain auf *automatisch* (HackRF: LNA 40 / VGA 48) |
+
+---
+
+<a id="english-version"></a>
+
+## English Version
+
+### Overview
+
+| Device | Range | Sample rate | Modes |
+|---|---|---|---|
+| RTL-SDR v3/v4 | 24 – 1766 MHz | 0.25 – 3.2 MS/s | all, incl. ADS-B/AIS/ISM |
+| HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | voice, VOX, APRS, POCSAG, repeaters, ADS-B |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | up to 912 kS/s | voice, VOX |
+| USRP N200 + WBX | 50 MHz – 2.2 GHz | up to 25 MS/s | additionally multi-channel DDC |
+
+Detection: with *Automatisch* (automatic) selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR. The USRP is selected explicitly by its IP address.
+
+### USB access (Linux host)
+
+The API container gets `/dev/bus/usb` and runs as UID 1000 in the groups `plugdev` and `dialout`. On the host:
+
+```bash
+sudo apt install rtl-sdr hackrf          # brings the udev rules
+sudo usermod -aG plugdev $USER           # log in again
+echo 'blacklist dvb_usb_rtl28xxu' | sudo tee /etc/modprobe.d/blacklist-rtl.conf   # block the DVB-T driver
+```
+
+Check whether the container sees the device:
+
+```bash
+docker compose exec radio-api rtl_test -t        # RTL-SDR
+docker compose exec radio-api hackrf_info        # HackRF
+docker compose exec radio-api airspyhf_info      # Airspy HF+
+```
+
+If a device is plugged in after the container has started: `docker compose restart radio-api`.
+
+### Frequency correction (PPM)
+
+Cheap RTL-SDR dongles are often off by 20 to 80 ppm. At 433 MHz that is up to 35 kHz. To measure:
+
+```bash
+docker compose exec radio-api rtl_test -p 60    # read the "cumulative PPM" value after ~60 s
+```
+
+Enter the value in the *Frequenzkorrektur* (frequency correction) field when starting ADS-B, AIS or ISM. Dongles with a TCXO (RTL-SDR Blog v3/v4) usually do not need it.
+
+### HackRF notes
+
+- **DC spike / IQ imbalance:** the HackRF is a direct-conversion receiver. Every recording is corrected automatically (DC offset, amplitude, phase via Gram-Schmidt).
+- **Long recordings abort:** 2 MS/s means about 4 MB/s over USB. A short, good cable, a powered USB hub, recordings under 60 s or an RTL-SDR for continuous operation help.
+- POCSAG single captures with the HackRF are limited to 60 s for memory reasons.
+- **ADS-B:** readsb controls the HackRF itself. Without a gain setting, LNA 40 dB and VGA 48 dB apply (the HackRF has no automatic gain control). A value in the *Verstärkung* (gain) field sets LNA (in 8 dB steps, max. 40) and VGA as in the other HackRF modes. The frequency correction (ppm) is not applied to the HackRF.
+
+### USRP N200
+
+1. Configure the host port with a static IP in the N200's network (N200 default: `192.168.10.2`):
+   ```bash
+   sudo ip addr add 192.168.10.1/24 dev enp3s0
+   sudo ip link set enp3s0 mtu 9000      # optional, for high rates
+   ```
+2. Build the image with UHD (`WITH_USRP=1`, see [installation.md](installation.md#usrp-n200-1)).
+3. Check: `docker compose exec radio-api uhd_find_devices --args addr=192.168.10.2`
+
+Multi-channel: the center frequency plus/minus half the bandwidth must cover all channels, and the channels must be at least 50 kHz apart.
+
+### Antennas and frequencies (examples for Switzerland/Europe)
+
+| Service | Frequency | Modulation |
+|---|---|---|
+| APRS Europe | 144.800 MHz | FM (streaming) |
+| Amateur radio 2 m / 70 cm calling | 145.500 / 433.500 MHz | FM |
+| PMR446 channel 1 | 446.00625 MHz | FM (VOX) |
+| Airband | 118 – 137 MHz | AM |
+| ADS-B | 1090 MHz | readsb |
+| AIS | 161.975 / 162.025 MHz | rtl_ais |
+| ISM sensors | 433.92 / 868.3 MHz | rtl_433 |
+
+### Troubleshooting
+
+| Symptom | Cause / solution |
+|---|---|
+| "Kein SDR erkannt" (no SDR detected) | Device plugged in? `rtl_test -t` in the container; DVB driver blocked? Restart the container |
+| HTTP 409 "SDR device is busy" | Another job is using the device. Stop it with *Stopp* or `POST /api/sdr/force-stop`. |
+| "Resource busy" in session errors | A process outside the container (e.g. gqrx) is using the dongle |
+| Empty transcription | No voice signal; raise the gain to 30–40 dB; correct modulation (airband = AM) |
+| No APRS packets | APRS is sporadic, better run it continuously; check gain and antenna |
+| ADS-B shows nothing | 1090 MHz antenna with a clear view; gain on *automatisch* (HackRF: LNA 40 / VGA 48) |
