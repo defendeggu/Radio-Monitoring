@@ -6,6 +6,7 @@
   import PageHeader from '../lib/components/PageHeader.svelte';
   import Progress from '../lib/components/Progress.svelte';
   import { duration as fmt, mhz } from '../lib/format';
+  import { i18n, t } from '../lib/i18n.svelte';
   import { sdr, toasts } from '../lib/stores.svelte';
 
   interface RepeaterInfo {
@@ -85,25 +86,41 @@
     ZG: 'Zug',
     ZH: 'Zürich',
   };
+  /** English names where they differ from the German ones */
+  const CANTONS_EN: Record<string, string> = {
+    AI: 'Appenzell Inner Rhodes',
+    AR: 'Appenzell Outer Rhodes',
+    FR: 'Fribourg',
+    GE: 'Geneva',
+    GR: 'Grisons',
+    LU: 'Lucerne',
+    NE: 'Neuchâtel',
+    TI: 'Ticino',
+    VD: 'Vaud',
+    VS: 'Valais',
+    ZH: 'Zurich',
+  };
+  const cantonName = (code: string) =>
+    (i18n.locale === 'en' ? CANTONS_EN[code] : undefined) ?? CANTONS[code] ?? code;
   const DEFAULT_CANTON = 'LU';
   const ALL = '*';
   /** total scan time in seconds; 0 = one round, -1 = until stopped */
-  const TOTALS: { value: number; label: string }[] = [
-    { value: 0, label: 'Ein Durchgang' },
-    { value: 1800, label: '30 Minuten' },
-    { value: 3600, label: '1 Stunde' },
-    { value: 7200, label: '2 Stunden' },
-    { value: 14400, label: '4 Stunden' },
-    { value: 28800, label: '8 Stunden' },
-    { value: 43200, label: '12 Stunden' },
-    { value: 86400, label: '24 Stunden' },
-    { value: -1, label: 'Bis Stopp' },
+  const TOTALS: { value: number; label: () => string }[] = [
+    { value: 0, label: () => t('Ein Durchgang') },
+    { value: 1800, label: () => t('{n} Minuten', { n: 30 }) },
+    { value: 3600, label: () => t('1 Stunde') },
+    { value: 7200, label: () => t('{n} Stunden', { n: 2 }) },
+    { value: 14400, label: () => t('{n} Stunden', { n: 4 }) },
+    { value: 28800, label: () => t('{n} Stunden', { n: 8 }) },
+    { value: 43200, label: () => t('{n} Stunden', { n: 12 }) },
+    { value: 86400, label: () => t('{n} Stunden', { n: 24 }) },
+    { value: -1, label: () => t('Bis Stopp') },
   ];
-  const STATUS: Record<string, string> = {
-    in_progress: 'läuft',
-    completed: 'abgeschlossen',
-    stopped: 'gestoppt',
-    failed: 'Fehler',
+  const STATUS: Record<string, () => string> = {
+    in_progress: () => t('läuft'),
+    completed: () => t('abgeschlossen'),
+    stopped: () => t('gestoppt'),
+    failed: () => t('Fehler'),
   };
 
   let repeaters = $state<RepeaterInfo[]>([]);
@@ -120,7 +137,7 @@
 
   const cantons = $derived(
     [...new Set(repeaters.map((r) => r.canton).filter((c): c is string => !!c))]
-      .sort((a, b) => (CANTONS[a] ?? a).localeCompare(CANTONS[b] ?? b, 'de'))
+      .sort((a, b) => cantonName(a).localeCompare(cantonName(b), i18n.locale))
       .map((c) => ({ code: c, count: repeaters.filter((r) => r.canton === c).length })),
   );
   const visible = $derived(
@@ -200,7 +217,7 @@
 
   async function start() {
     if (!chosen.length) {
-      toasts.push('Mindestens einen Repeater auswählen', 'error');
+      toasts.push(t('Mindestens einen Repeater auswählen'), 'error');
       return;
     }
     starting = true;
@@ -214,7 +231,7 @@
       const r = await api.post<{ session_id: number; repeaters_count: number }>('/scan-repeaters', body);
       progress = null;
       sessionId = r.session_id;
-      toasts.push(`Scan von ${r.repeaters_count} Repeatern gestartet`, 'success');
+      toasts.push(t('Scan von {n} Repeatern gestartet', { n: r.repeaters_count }), 'success');
       void sdr.refresh();
     } catch (e) {
       toasts.error(e);
@@ -228,7 +245,7 @@
     stopping = true;
     try {
       await api.post(`/scan-repeaters/${sessionId}/stop`, {});
-      toasts.push('Scan wird gestoppt', 'success');
+      toasts.push(t('Scan wird gestoppt'), 'success');
     } catch (e) {
       stopping = false;
       toasts.error(e);
@@ -246,18 +263,22 @@
   const progressLabel = $derived.by(() => {
     const p = progress?.progress;
     if (!p || !progress) return '';
-    if (progress.status !== 'in_progress') return `${STATUS[progress.status]} nach ${fmt(p.elapsed_seconds)}`;
+    if (progress.status !== 'in_progress')
+      return t('{status} nach {time}', { status: STATUS[progress.status](), time: fmt(p.elapsed_seconds) });
     const where = `${p.current_callsign ?? ''} (${p.current_repeater}/${p.total_repeaters})`;
-    const round = p.until_stopped || p.total_duration ? `Runde ${p.current_round ?? 1} · ` : '';
+    const round =
+      p.until_stopped || p.total_duration ? `${t('Runde {n}', { n: p.current_round ?? 1 })} · ` : '';
     const rest =
-      p.estimated_remaining_seconds === null ? 'bis Stopp' : `noch ~${fmt(p.estimated_remaining_seconds)}`;
+      p.estimated_remaining_seconds === null
+        ? t('bis Stopp')
+        : t('noch ~{time}', { time: fmt(p.estimated_remaining_seconds) });
     return `${round}${where} · ${fmt(p.elapsed_seconds)} · ${rest}`;
   });
 </script>
 
 <PageHeader
-  title="Repeater-Scan"
-  description="Schweizer FM-Relais nacheinander abhören und Aktivität messen"
+  title={t('Repeater-Scan')}
+  description={t('Schweizer FM-Relais nacheinander abhören und Aktivität messen')}
 />
 
 <form
@@ -269,7 +290,7 @@
 >
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
     <div>
-      <label class="label" for="canton">Kanton</label>
+      <label class="label" for="canton">{t('Kanton')}</label>
       <select
         id="canton"
         class="input"
@@ -278,19 +299,19 @@
         disabled={running}
       >
         {#each cantons as c (c.code)}
-          <option value={c.code}>{c.code} – {CANTONS[c.code] ?? c.code} ({c.count})</option>
+          <option value={c.code}>{c.code} – {cantonName(c.code)} ({c.count})</option>
         {/each}
-        <option value={ALL}>Alle Kantone ({repeaters.length})</option>
+        <option value={ALL}>{t('Alle Kantone ({n})', { n: repeaters.length })}</option>
       </select>
     </div>
     <div>
-      <label class="label" for="total">Dauer des Scans</label>
+      <label class="label" for="total">{t('Dauer des Scans')}</label>
       <select id="total" class="input" bind:value={total} disabled={running}>
-        {#each TOTALS as t (t.value)}<option value={t.value}>{t.label}</option>{/each}
+        {#each TOTALS as o (o.value)}<option value={o.value}>{o.label()}</option>{/each}
       </select>
     </div>
     <div>
-      <label class="label" for="per">Sekunden pro Repeater</label>
+      <label class="label" for="per">{t('Sekunden pro Repeater')}</label>
       <input
         id="per"
         class="input"
@@ -305,27 +326,33 @@
 
   {#if loaded && repeaters.length === 0}
     <p class="text-sm text-amber-600">
-      Noch keine Repeater importiert — <code>./scripts/run_import.sh</code> ausführen.
+      {t('Noch keine Repeater importiert — ./scripts/run_import.sh ausführen.')}
     </p>
   {:else if visible.length}
     <div>
       <div class="mb-2 flex flex-wrap items-baseline justify-between gap-2 text-sm">
         <span class="font-semibold"
-          >{chosen.length} von {visible.length} Repeatern ausgewählt · eine Runde ≈ {fmt(roundSeconds)}</span
+          >{t('{n} von {total} Repeatern ausgewählt · eine Runde ≈ {time}', {
+            n: chosen.length,
+            total: visible.length,
+            time: fmt(roundSeconds),
+          })}</span
         >
         <span class="flex gap-3 text-xs">
           <button type="button" class="text-accent-600" onclick={() => selectAll(visible)} disabled={running}
-            >alle</button
+            >{t('alle')}</button
           >
           <button type="button" class="text-accent-600" onclick={() => selected.clear()} disabled={running}
-            >keine</button
+            >{t('keine')}</button
           >
         </span>
       </div>
       <div class="max-h-80 overflow-y-auto">
         <table class="table">
           <thead
-            ><tr><th></th><th>Rufzeichen</th><th>Standort</th><th>Frequenz</th><th>Band</th><th>CTCSS</th></tr
+            ><tr
+              ><th></th><th>{t('Rufzeichen')}</th><th>{t('Standort')}</th><th>{t('Frequenz')}</th><th>Band</th
+              ><th>CTCSS</th></tr
             ></thead
           >
           <tbody>
@@ -339,7 +366,7 @@
                   ><input
                     type="checkbox"
                     class="h-4 w-4 accent-cyan-500"
-                    aria-label="{r.callsign} scannen"
+                    aria-label={t('{call} scannen', { call: r.callsign })}
                     checked={selected.has(r.uuid)}
                     onchange={() => toggle(r.uuid)}
                     disabled={running}
@@ -360,13 +387,13 @@
 
   <div class="flex flex-wrap gap-3">
     <button class="btn-primary" type="submit" disabled={running || starting || sdr.busy || !chosen.length}
-      ><Play size={16} /> Scan starten</button
+      ><Play size={16} /> {t('Scan starten')}</button
     >
     <button class="btn-danger" type="button" onclick={stop} disabled={!running || stopping}
-      ><Square size={16} /> {stopping ? 'Stoppe…' : 'Stopp'}</button
+      ><Square size={16} /> {stopping ? t('Stoppe…') : t('Stopp')}</button
     >
     {#if sdr.busy && !running}<span class="self-center text-sm text-amber-600"
-        >SDR ist belegt ({sdr.status?.holder?.kind})</span
+        >{t('SDR ist belegt ({kind})', { kind: sdr.status?.holder?.kind })}</span
       >{/if}
   </div>
 </form>
@@ -379,16 +406,16 @@
       <table class="table">
         <thead
           ><tr
-            ><th>Rufzeichen</th><th>Frequenz</th><th>Messungen</th><th>Mit Träger</th><th>Durchgänge</th><th
-              >Ø Aktivität</th
-            ><th>Signal</th></tr
+            ><th>{t('Rufzeichen')}</th><th>{t('Frequenz')}</th><th>{t('Messungen')}</th><th
+              >{t('Mit Träger')}</th
+            ><th>{t('Durchgänge')}</th><th>{t('Ø Aktivität')}</th><th>Signal</th></tr
           ></thead
         >
         <tbody>
           {#each progress.results as r, i (r.callsign + i)}
             <tr class={r.active_rounds ? 'bg-emerald-500/5' : ''}>
               <td class="font-mono">{r.callsign}</td><td class="font-mono text-xs">{mhz(r.frequency)}</td>
-              <td>{r.rounds ?? 0}{r.errors ? ` (${r.errors} Fehler)` : ''}</td>
+              <td>{r.rounds ?? 0}{r.errors ? ` (${t('{n} Fehler', { n: r.errors })})` : ''}</td>
               <td>{r.active_rounds ?? 0}</td>
               <td>{r.transmission_count ?? 0}</td>
               <td>{r.activity_percentage?.toFixed(1) ?? 0} %</td>
@@ -402,14 +429,14 @@
 {/if}
 
 <section class="card mt-6">
-  <h2 class="mb-3 text-sm font-semibold">Aktivste Repeater (7 Tage)</h2>
+  <h2 class="mb-3 text-sm font-semibold">{t('Aktivste Repeater (7 Tage)')}</h2>
   {#if summary.length}
     <table class="table">
       <thead
         ><tr
-          ><th>Rufzeichen</th><th>Frequenz</th><th>Band</th><th>Kanton</th><th>Ø Aktivität</th><th
-            >Durchgänge</th
-          ></tr
+          ><th>{t('Rufzeichen')}</th><th>{t('Frequenz')}</th><th>Band</th><th>{t('Kanton')}</th><th
+            >{t('Ø Aktivität')}</th
+          ><th>{t('Durchgänge')}</th></tr
         ></thead
       >
       <tbody>
@@ -425,6 +452,6 @@
       </tbody>
     </table>
   {:else}
-    <EmptyState text="In den letzten 7 Tagen wurde noch keine Aktivität gemessen." />
+    <EmptyState text={t('In den letzten 7 Tagen wurde noch keine Aktivität gemessen.')} />
   {/if}
 </section>

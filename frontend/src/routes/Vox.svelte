@@ -8,6 +8,7 @@
   import Presets from '../lib/components/Presets.svelte';
   import SessionCard from '../lib/components/SessionCard.svelte';
   import { time } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { live, sdr, settings, toasts } from '../lib/stores.svelte';
 
   interface Segment {
@@ -61,7 +62,7 @@
       }
       if (d.state === 'transcription_failed' && d.audio_file) {
         segments = segments.map((s) =>
-          s.audio_file === d.audio_file ? { ...s, error: d.error ?? 'unbekannter Fehler' } : s,
+          s.audio_file === d.audio_file ? { ...s, error: d.error ?? t('unbekannter Fehler') } : s,
         );
       }
     }),
@@ -83,7 +84,7 @@
       });
       sessionId = r.session_id;
       segments = [];
-      toasts.push('VOX-Aufnahme gestartet', 'success');
+      toasts.push(t('VOX-Aufnahme gestartet'), 'success');
       void sdr.refresh();
     } catch (e) {
       toasts.error(e);
@@ -94,8 +95,8 @@
 </script>
 
 <PageHeader
-  title="VOX-Aufnahme"
-  description="Kanal dauerhaft überwachen — aufgenommen und transkribiert wird nur, wenn jemand sendet"
+  title={t('VOX-Aufnahme')}
+  description={t('Kanal dauerhaft überwachen — aufgenommen und transkribiert wird nur, wenn jemand sendet')}
 />
 
 <Presets
@@ -120,49 +121,50 @@
       <select id="vmod" class="input" bind:value={modulation}><option>FM</option><option>AM</option></select>
     </div>
     <div>
-      <label class="label" for="vgain">Verstärkung (dB)</label>
+      <label class="label" for="vgain">{t('Verstärkung (dB)')}</label>
       <input id="vgain" class="input" type="number" min="0" max="76" bind:value={gain} />
     </div>
     <div>
-      <label class="label" for="vh">Laufzeit (Stunden)</label>
+      <label class="label" for="vh">{t('Laufzeit (Stunden)')}</label>
       <input id="vh" class="input" type="number" min="0.5" max="24" step="0.5" bind:value={hours} />
     </div>
     <div>
-      <label class="label" for="sq">Squelch: {squelch} dB über Rauschen</label>
+      <label class="label" for="sq">{t('Squelch: {n} dB über Rauschen', { n: squelch })}</label>
       <input id="sq" type="range" min="3" max="40" bind:value={squelch} class="w-full accent-cyan-500" />
-      <p class="hint">Niedriger = empfindlicher, mehr Fehlauslösungen</p>
+      <p class="hint">{t('Niedriger = empfindlicher, mehr Fehlauslösungen')}</p>
     </div>
     <div>
-      <label class="label" for="hang">Nachlaufzeit (ms)</label>
+      <label class="label" for="hang">{t('Nachlaufzeit (ms)')}</label>
       <input id="hang" class="input" type="number" min="100" max="10000" step="100" bind:value={hang} />
     </div>
     <div>
-      <label class="label" for="vlang">Sprache</label>
-      <input id="vlang" class="input" bind:value={language} placeholder="automatisch" maxlength="3" />
+      <label class="label" for="vlang">{t('Sprache||language')}</label>
+      <input id="vlang" class="input" bind:value={language} placeholder={t('automatisch')} maxlength="3" />
     </div>
     <label class="flex items-center gap-2 self-end pb-2 text-sm">
-      <input type="checkbox" class="h-4 w-4 accent-cyan-500" bind:checked={transcribe} /> Transkribieren
+      <input type="checkbox" class="h-4 w-4 accent-cyan-500" bind:checked={transcribe} />
+      {t('Transkribieren')}
     </label>
   </div>
   <button class="btn-primary" type="submit" disabled={busy || sdr.busy}
-    ><Radio size={16} /> VOX starten</button
+    ><Radio size={16} /> {t('VOX starten')}</button
   >
 </form>
 
 {#if sessionId}
   <div class="mt-4 space-y-2">
-    <SessionCard {sessionId} countLabel="Segmente" />
+    <SessionCard {sessionId} countLabel={t('Segmente')} />
     <p class="text-sm">
       Squelch:
       <span class="font-medium {open ? 'text-emerald-600' : 'text-slate-500'}"
-        >{open ? 'offen — Signal' : 'geschlossen'}</span
+        >{open ? t('offen — Signal') : t('geschlossen')}</span
       >
     </p>
   </div>
 {/if}
 
 <section class="card mt-6">
-  <h2 class="mb-3 text-sm font-semibold">Aufgenommene Durchgänge</h2>
+  <h2 class="mb-3 text-sm font-semibold">{t('Aufgenommene Durchgänge')}</h2>
   {#if segments.length}
     <ul class="divide-y divide-slate-100 dark:divide-slate-800">
       {#each segments as s (s.audio_file)}
@@ -174,9 +176,9 @@
             <span class="font-mono text-xs text-slate-500">{time(s.at)}</span>
             <span class="font-mono text-xs">{s.duration?.toFixed(1)} s</span>
             {#if s.error}
-              <span class="flex-1 text-red-500" title={s.error}>Transkription fehlgeschlagen</span>
+              <span class="flex-1 text-red-500" title={s.error}>{t('Transkription fehlgeschlagen')}</span>
             {:else}
-              <span class="flex-1">{s.text ?? (transcribe ? 'transkribiere…' : s.audio_file)}</span>
+              <span class="flex-1">{s.text ?? (transcribe ? t('transkribiere…') : s.audio_file)}</span>
             {/if}
           </button>
           {#if selected === s.audio_file}<div class="mt-2"><AudioPlayer filename={s.audio_file} /></div>{/if}
@@ -184,6 +186,6 @@
       {/each}
     </ul>
   {:else}
-    <EmptyState text="Noch keine Durchgänge. Ältere VOX-Aufnahmen findest du unter Aufnahmen." />
+    <EmptyState text={t('Noch keine Durchgänge. Ältere VOX-Aufnahmen findest du unter Aufnahmen.')} />
   {/if}
 </section>

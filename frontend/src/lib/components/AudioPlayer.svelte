@@ -2,6 +2,7 @@
   import { Download, Pause, Play } from '@lucide/svelte';
   import WaveSurfer from 'wavesurfer.js';
   import { download, fetchBlobUrl } from '../api';
+  import { t } from '../i18n.svelte';
   import { toasts } from '../stores.svelte';
 
   let { filename }: { filename: string } = $props();
@@ -37,7 +38,7 @@
         ws.on('pause', () => (playing = false));
         ws.on('finish', () => (playing = false));
       })
-      .catch((e) => (error = `Audio nicht verfügbar (${e.message})`));
+      .catch((e) => (error = t('Audio nicht verfügbar ({error})', { error: e.message })));
     return () => {
       cancelled = true;
       ws?.destroy();
@@ -56,7 +57,7 @@
         class="btn-secondary !px-3"
         onclick={() => ws?.playPause()}
         disabled={!ready}
-        aria-label={playing ? 'Pause' : 'Abspielen'}
+        aria-label={playing ? t('Pause') : t('Abspielen')}
       >
         {#if playing}<Pause size={16} />{:else}<Play size={16} />{/if}
       </button>
@@ -65,7 +66,7 @@
         class="btn-secondary !px-3"
         onclick={() =>
           download(`/recordings/${encodeURIComponent(filename)}`, filename).catch(toasts.error.bind(toasts))}
-        aria-label="Herunterladen"
+        aria-label={t('Herunterladen')}
       >
         <Download size={16} />
       </button>

@@ -18,7 +18,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **Multi-Channel (USRP N200):** bis zu 8 Kanäle aus einem Breitband-Strom gleichzeitig dekodieren
 - **Alarme:** Rufzeichen, Pager-Adressen oder Stichworte melden, per ntfy, Telegram, Webhook oder E-Mail
 - **Zeitpläne, Lesezeichen, Export:** Cron-Jobs, Frequenz-Presets, CSV/GeoJSON/KML/ZIP
-- **Live-Weboberfläche** (Svelte) mit Dashboard, Server-Sent Events und dokumentierter REST-API (OpenAPI 3.1)
+- **Live-Weboberfläche** (Svelte, Deutsch/Englisch) mit Dashboard, Server-Sent Events und dokumentierter REST-API (OpenAPI 3.1)
 
 ## Unterstützte Hardware
 
@@ -116,7 +116,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **Multi-channel (USRP N200):** decode up to 8 channels simultaneously from one wideband stream
 - **Alerts:** report callsigns, pager addresses or keywords via ntfy, Telegram, webhook or e-mail
 - **Schedules, bookmarks, export:** cron jobs, frequency presets, CSV/GeoJSON/KML/ZIP
-- **Live web interface** (Svelte) with dashboard, server-sent events and a documented REST API (OpenAPI 3.1)
+- **Live web interface** (Svelte, German/English) with dashboard, server-sent events and a documented REST API (OpenAPI 3.1)
 
 ### Supported hardware
 
@@ -141,7 +141,7 @@ docker compose up -d --build        # build and start the stack
 ./scripts/run_import.sh             # optional: import the Swiss repeater list
 ```
 
-Then open **http://localhost:8080** in your browser and enter the API key under *Einstellungen* (Settings). The web interface is in German.
+Then open **http://localhost:8080** in your browser and enter the API key under *Settings*. The web interface is available in German and English (button **EN/DE** in the sidebar).
 
 **Light profile** (no ELK, data in SQLite, e.g. for a Raspberry Pi):
 

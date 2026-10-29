@@ -1,5 +1,7 @@
 // Small typed client for the RadioMoni API (served same-origin under /api by nginx).
 
+import { t } from './i18n.svelte';
+
 export const API_BASE: string = import.meta.env.VITE_API_BASE ?? '/api';
 const KEY_STORAGE = 'radiomoni.apiKey';
 
@@ -59,7 +61,7 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
   try {
     response = await fetch(buildUrl(path, query), init);
   } catch {
-    throw new ApiError('API nicht erreichbar', 0);
+    throw new ApiError(t('API nicht erreichbar'), 0);
   }
   const text = await response.text();
   let data: Record<string, unknown> = {};
@@ -74,7 +76,7 @@ async function request<T>(method: string, path: string, body?: unknown, query?: 
     const message =
       (data.error as string) ||
       (data.message as string) ||
-      (response.status === 401 ? 'API-Key fehlt' : `HTTP ${response.status}`);
+      (response.status === 401 ? t('API-Key fehlt') : `HTTP ${response.status}`);
     throw new ApiError(message, response.status, data);
   }
   return data as T;

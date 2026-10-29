@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Play, Radio } from '@lucide/svelte';
   import { api } from '../api';
+  import { t } from '../i18n.svelte';
   import { waitForCapture } from '../polling';
   import { router } from '../router.svelte';
   import { sdr, settings, toasts } from '../stores.svelte';
@@ -51,7 +52,7 @@
           ...settings.deviceParams(),
         });
         sessionId = r.session_id;
-        toasts.push(`${mode.toUpperCase()}-Streaming gestartet`, 'success');
+        toasts.push(t('{mode}-Streaming gestartet', { mode: mode.toUpperCase() }), 'success');
         void sdr.refresh();
       } else {
         const r = await api.post<{ capture_id: string }>('/capture-and-transcribe', {
@@ -63,7 +64,7 @@
         });
         const job = await waitForCapture(r.capture_id, (j) => (captureStatus = j.status));
         if (job.status === 'completed' && job.result) oncapture(job.result);
-        else toasts.push(`Aufnahme fehlgeschlagen: ${job.error}`, 'error');
+        else toasts.push(t('Aufnahme fehlgeschlagen: {error}', { error: job.error }), 'error');
       }
     } catch (e) {
       toasts.error(e);
@@ -87,9 +88,9 @@
     <label class="flex cursor-pointer items-center gap-3 text-sm">
       <input type="checkbox" class="h-4 w-4 accent-cyan-500" bind:checked={streaming} />
       <span>
-        <span class="font-medium">Dauerbetrieb (Streaming)</span>
+        <span class="font-medium">{t('Dauerbetrieb (Streaming)')}</span>
         <span class="block text-xs text-slate-500"
-          >Pakete werden live gespeichert und angezeigt — bis 24 h</span
+          >{t('Pakete werden live gespeichert und angezeigt — bis 24 h')}</span
         >
       </span>
     </label>
@@ -97,12 +98,12 @@
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
     <FrequencyField bind:value={frequency} />
     <div>
-      <label class="label" for="{mode}-gain">Verstärkung (dB)</label>
+      <label class="label" for="{mode}-gain">{t('Verstärkung (dB)')}</label>
       <input id="{mode}-gain" class="input" type="number" min="0" max="76" bind:value={gain} />
     </div>
     {#if streaming}
       <div>
-        <label class="label" for="{mode}-hours">Laufzeit (Stunden)</label>
+        <label class="label" for="{mode}-hours">{t('Laufzeit (Stunden)')}</label>
         <input
           id="{mode}-hours"
           class="input"
@@ -115,7 +116,7 @@
       </div>
     {:else}
       <div>
-        <label class="label" for="{mode}-sec">Dauer (s)</label>
+        <label class="label" for="{mode}-sec">{t('Dauer (s)')}</label>
         <input
           id="{mode}-sec"
           class="input"
@@ -130,10 +131,11 @@
   </div>
   {#if captureStatus}<Progress value={captureStatus === 'processing' ? 85 : 40} label={captureStatus} />{/if}
   <button class="btn-primary" type="submit" disabled={busy || sdr.busy}>
-    {#if streaming}<Radio size={16} /> Streaming starten{:else}<Play size={16} /> Aufnahme starten{/if}
+    {#if streaming}<Radio size={16} /> {t('Streaming starten')}{:else}<Play size={16} />
+      {t('Aufnahme starten')}{/if}
   </button>
   {#if sdr.busy && !sessionId}<span class="ml-3 text-sm text-amber-600"
-      >SDR belegt ({sdr.status?.holder?.kind})</span
+      >{t('SDR belegt ({kind})', { kind: sdr.status?.holder?.kind })}</span
     >{/if}
 </form>
 
@@ -141,7 +143,7 @@
   <div class="mt-4">
     <SessionCard
       {sessionId}
-      countLabel={mode === 'aprs' ? 'Pakete' : 'Meldungen'}
+      countLabel={mode === 'aprs' ? t('Pakete') : t('Meldungen')}
       onended={() => void sdr.refresh()}
     />
   </div>

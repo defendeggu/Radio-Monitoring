@@ -1,5 +1,6 @@
 <script lang="ts">
   // Stacked bar chart of events per hour (plain SVG, no chart library)
+  import { t } from '../i18n.svelte';
   let {
     rows,
     series,
@@ -17,7 +18,12 @@
 </script>
 
 <figure>
-  <svg viewBox="0 0 {width} {height + 20}" class="h-44 w-full" role="img" aria-label="Aktivität pro Stunde">
+  <svg
+    viewBox="0 0 {width} {height + 20}"
+    class="h-44 w-full"
+    role="img"
+    aria-label={t('Aktivität pro Stunde')}
+  >
     {#each rows as row, i (row.time)}
       {@const hour = new Date(row.time).getHours()}
       {#each series as s, j (s.key)}

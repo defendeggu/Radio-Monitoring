@@ -7,6 +7,7 @@
   import Presets from '../lib/components/Presets.svelte';
   import Progress from '../lib/components/Progress.svelte';
   import { duration as fmtDuration, mhz } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { waitForCapture } from '../lib/polling';
   import { router } from '../lib/router.svelte';
   import { sdr, settings, toasts } from '../lib/stores.svelte';
@@ -38,8 +39,8 @@
 
   $effect(() => {
     if (!running) return;
-    const t = setInterval(() => (now = Date.now()), 500);
-    return () => clearInterval(t);
+    const timer = setInterval(() => (now = Date.now()), 500);
+    return () => clearInterval(timer);
   });
 
   async function start() {
@@ -70,9 +71,9 @@
       );
       if (final.status === 'completed') {
         result = final.result;
-        toasts.push('Transkription fertig', 'success');
+        toasts.push(t('Transkription fertig'), 'success');
       } else {
-        toasts.push(`Aufnahme fehlgeschlagen: ${final.error}`, 'error', 10_000);
+        toasts.push(t('Aufnahme fehlgeschlagen: {error}', { error: final.error }), 'error', 10_000);
       }
     } catch (e) {
       if ((e as Error).name !== 'AbortError') toasts.error(e);
@@ -84,7 +85,7 @@
     abort?.abort();
     try {
       await api.post('/sdr/force-stop');
-      toasts.push('SDR gestoppt', 'info');
+      toasts.push(t('SDR gestoppt'), 'info');
     } catch (e) {
       toasts.error(e);
     }
@@ -92,7 +93,7 @@
   }
 </script>
 
-<PageHeader title="Sprache" description="Aufnehmen und mit Whisper transkribieren (FM/AM/SSB)" />
+<PageHeader title={t('Sprache')} description={t('Aufnehmen und mit Whisper transkribieren (FM/AM/SSB)')} />
 
 <Presets
   modes={['voice', 'vox']}
@@ -118,12 +119,12 @@
       </select>
     </div>
     <div>
-      <label class="label" for="dur">Dauer (s)</label>
+      <label class="label" for="dur">{t('Dauer (s)')}</label>
       <input id="dur" class="input" type="number" min="1" max="600" bind:value={duration} />
       <p class="hint">1–600 s</p>
     </div>
     <div>
-      <label class="label" for="gain">Verstärkung (dB)</label>
+      <label class="label" for="gain">{t('Verstärkung (dB)')}</label>
       <input id="gain" class="input" type="number" min="0" max="76" bind:value={gain} />
     </div>
   </div>
@@ -134,33 +135,33 @@
     onclick={() => (showAdvanced = !showAdvanced)}
     aria-expanded={showAdvanced}
   >
-    Whisper-Optionen {showAdvanced ? 'ausblenden' : 'anzeigen'}
+    {showAdvanced ? t('Whisper-Optionen ausblenden') : t('Whisper-Optionen anzeigen')}
   </button>
   {#if showAdvanced}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
       <div>
-        <label class="label" for="lang">Sprache</label>
+        <label class="label" for="lang">{t('Sprache||language')}</label>
         <input
           id="lang"
           class="input"
           bind:value={language}
-          placeholder="automatisch (de, en, fr…)"
+          placeholder={t('automatisch (de, en, fr…)')}
           maxlength="3"
         />
       </div>
       <div>
         <label class="label" for="beam">Beam size</label>
         <input id="beam" class="input" type="number" min="1" max="10" bind:value={beamSize} />
-        <p class="hint">Höher = genauer, langsamer</p>
+        <p class="hint">{t('Höher = genauer, langsamer')}</p>
       </div>
       <div>
-        <label class="label" for="prompt">Vokabular-Hinweis</label>
+        <label class="label" for="prompt">{t('Vokabular-Hinweis')}</label>
         <input
           id="prompt"
           class="input"
           bind:value={prompt}
           maxlength="500"
-          placeholder="z. B. HB9 Rufzeichen, Ortsnamen"
+          placeholder={t('z. B. HB9 Rufzeichen, Ortsnamen')}
         />
       </div>
     </div>
@@ -169,54 +170,56 @@
   {#if running}<Progress
       value={progress}
       label={job?.status === 'processing'
-        ? 'Transkribiere…'
+        ? t('Transkribiere…')
         : job?.status === 'queued'
-          ? 'Warte auf SDR…'
-          : 'Nehme auf…'}
+          ? t('Warte auf SDR…')
+          : t('Nehme auf…')}
     />{/if}
 
   <div class="flex flex-wrap gap-3">
     <button class="btn-primary" type="submit" disabled={running || sdr.busy}
-      ><Play size={16} /> Aufnahme starten</button
+      ><Play size={16} /> {t('Aufnahme starten')}</button
     >
     <button class="btn-danger" type="button" onclick={stop} disabled={!running && !sdr.busy}
-      ><Square size={16} /> Stopp</button
+      ><Square size={16} /> {t('Stopp')}</button
     >
     {#if sdr.busy && !running}<span class="self-center text-sm text-amber-600"
-        >SDR ist belegt ({sdr.status?.holder?.kind})</span
+        >{t('SDR ist belegt ({kind})', { kind: sdr.status?.holder?.kind })}</span
       >{/if}
   </div>
 </form>
 
 {#if result?.transcription}
-  {@const t = result.transcription}
+  {@const tr = result.transcription}
   <section class="card mt-6 space-y-4">
     {#if result.simulation_mode}
       <p class="rounded bg-amber-500/10 p-2 text-sm text-amber-700 dark:text-amber-300">
-        Simulationsmodus: Diese Transkription ist nicht echt.
+        {t('Simulationsmodus: Diese Transkription ist nicht echt.')}
       </p>
     {/if}
     <div class="flex flex-wrap gap-6 text-sm">
       <span
-        ><span class="text-slate-500">Frequenz</span>
+        ><span class="text-slate-500">{t('Frequenz')}</span>
         <span class="font-mono">{mhz(result.capture.frequency)}</span></span
       >
       <span
-        ><span class="text-slate-500">Sprache</span>
-        {t.language} ({Math.round(t.language_probability * 100)} %)</span
+        ><span class="text-slate-500">{t('Sprache||language')}</span>
+        {tr.language} ({Math.round(tr.language_probability * 100)} %)</span
       >
-      <span><span class="text-slate-500">Dauer</span> {fmtDuration(t.duration)}</span>
+      <span><span class="text-slate-500">{t('Dauer')}</span> {fmtDuration(tr.duration)}</span>
     </div>
     <p
       class="rounded-lg bg-slate-100 p-4 font-mono text-sm leading-relaxed whitespace-pre-wrap dark:bg-slate-800"
     >
-      {t.text || 'Keine Sprache erkannt (Rauschen oder Stille).'}
+      {tr.text || t('Keine Sprache erkannt (Rauschen oder Stille).')}
     </p>
-    {#if t.segments.length > 1}
+    {#if tr.segments.length > 1}
       <details>
-        <summary class="cursor-pointer text-sm text-slate-500">{t.segments.length} Segmente</summary>
+        <summary class="cursor-pointer text-sm text-slate-500"
+          >{t('{n} Segmente', { n: tr.segments.length })}</summary
+        >
         <ol class="mt-2 space-y-1 text-sm">
-          {#each t.segments as s, i (i)}
+          {#each tr.segments as s, i (i)}
             <li>
               <span class="font-mono text-xs text-slate-500">{s.start.toFixed(1)}–{s.end.toFixed(1)} s</span>
               {s.text}
@@ -235,7 +238,8 @@
             `capture-${result?.capture.id?.slice(0, 8)}.zip`,
           ).catch(toasts.error.bind(toasts))}
       >
-        <FileArchive size={16} /> Als ZIP exportieren
+        <FileArchive size={16} />
+        {t('Als ZIP exportieren')}
       </button>
     {/if}
   </section>

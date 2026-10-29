@@ -1,10 +1,11 @@
 <script lang="ts">
   import { mhz, parseFrequency } from '../format';
+  import { t } from '../i18n.svelte';
   import { sdr } from '../stores.svelte';
 
   let {
     value = $bindable(),
-    label = 'Frequenz',
+    label = t('Frequenz'),
     id = 'frequency',
     checkDevice = true,
   }: { value: number; label?: string; id?: string; checkDevice?: boolean } = $props();
@@ -43,11 +44,15 @@
     placeholder="144.800"
   />
   {#if parsed === null && text}
-    <p class="mt-1 text-xs text-red-500">Ungültige Frequenz — z. B. 144.8, 433.92M oder 1090 MHz</p>
+    <p class="mt-1 text-xs text-red-500">{t('Ungültige Frequenz — z. B. 144.8, 433.92M oder 1090 MHz')}</p>
   {:else if outOfRange}
     <p class="mt-1 text-xs text-amber-600">
-      {mhz(parsed)} liegt ausserhalb von {sdr.detect?.type?.toUpperCase()} ({sdr.detect?.frequency_range
-        ?.min_mhz}–{sdr.detect?.frequency_range?.max_mhz} MHz)
+      {t('{freq} liegt ausserhalb von {type} ({min}–{max} MHz)', {
+        freq: mhz(parsed),
+        type: sdr.detect?.type?.toUpperCase(),
+        min: sdr.detect?.frequency_range?.min_mhz,
+        max: sdr.detect?.frequency_range?.max_mhz,
+      })}
     </p>
   {:else}
     <p class="hint">{mhz(parsed)}</p>

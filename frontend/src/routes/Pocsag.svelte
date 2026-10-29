@@ -5,6 +5,7 @@
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import { packetTime, time } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { live, toasts } from '../lib/stores.svelte';
   import type { PocsagMessage } from '../lib/types';
 
@@ -35,7 +36,7 @@
   });
 </script>
 
-<PageHeader title="POCSAG" description="Pager-Meldungen (512 / 1200 / 2400 Baud)">
+<PageHeader title="POCSAG" description={t('Pager-Meldungen (512 / 1200 / 2400 Baud)')}>
   {#snippet actions()}
     <button
       class="btn-secondary"
@@ -65,7 +66,7 @@
     }}
   >
     <div>
-      <label class="label" for="ric">Adresse (RIC)</label>
+      <label class="label" for="ric">{t('Adresse (RIC)')}</label>
       <input
         id="ric"
         class="input font-mono"
@@ -76,17 +77,25 @@
       />
     </div>
     <div>
-      <label class="label" for="ph">Zeitraum</label>
+      <label class="label" for="ph">{t('Zeitraum')}</label>
       <select id="ph" class="input" bind:value={hours}>
-        <option value={1}>1 h</option><option value={24}>24 h</option><option value={168}>7 Tage</option>
+        <option value={1}>1 h</option><option value={24}>24 h</option><option value={168}
+          >{t('{n} Tage', { n: 7 })}</option
+        >
       </select>
     </div>
-    <button class="btn-secondary" type="submit"><Search size={14} /> Suchen</button>
+    <button class="btn-secondary" type="submit"><Search size={14} /> {t('Suchen')}</button>
   </form>
   {#if messages.length}
     <div class="overflow-x-auto">
       <table class="table">
-        <thead><tr><th>Zeit</th><th>Adresse</th><th>Typ</th><th>Baud</th><th>Nachricht</th></tr></thead>
+        <thead
+          ><tr
+            ><th>{t('Zeit')}</th><th>{t('Adresse')}</th><th>{t('Typ')}</th><th>Baud</th><th
+              >{t('Nachricht')}</th
+            ></tr
+          ></thead
+        >
         <tbody>
           {#each messages as m, i (m.uuid ?? i)}
             <tr>
@@ -94,13 +103,13 @@
               <td class="font-mono">{m.address}</td>
               <td>{m.message_type}</td>
               <td>{m.baud_rate}</td>
-              <td class="break-all">{m.message_text || 'Tone only'}</td>
+              <td class="break-all">{m.message_text || t('Nur Ton')}</td>
             </tr>
           {/each}
         </tbody>
       </table>
     </div>
   {:else}
-    <EmptyState text="Noch keine POCSAG-Meldungen." />
+    <EmptyState text={t('Noch keine POCSAG-Meldungen.')} />
   {/if}
 </section>

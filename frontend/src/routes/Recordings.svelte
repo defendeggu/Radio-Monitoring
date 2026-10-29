@@ -5,6 +5,7 @@
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import { bytes, dateTime } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { toasts } from '../lib/stores.svelte';
   import type { Recording } from '../lib/types';
 
@@ -53,11 +54,11 @@
   }
 
   async function remove(rec: Recording) {
-    if (!confirm(`${rec.filename} löschen?`)) return;
+    if (!confirm(t('{name} löschen?', { name: rec.filename }))) return;
     try {
       await api.del(`/recordings/${encodeURIComponent(rec.filename)}`);
       recordings = recordings.filter((r) => r.filename !== rec.filename);
-      toasts.push('Gelöscht', 'success');
+      toasts.push(t('Gelöscht'), 'success');
     } catch (e) {
       toasts.error(e);
     }
@@ -66,18 +67,25 @@
   const shown = $derived(recordings.filter((r) => r.filename.toLowerCase().includes(filter.toLowerCase())));
 </script>
 
-<PageHeader title="Aufnahmen" description="Gespeicherte Audiodateien abspielen, herunterladen und löschen">
+<PageHeader
+  title={t('Aufnahmen')}
+  description={t('Gespeicherte Audiodateien abspielen, herunterladen und löschen')}
+>
   {#snippet actions()}
-    <button class="btn-secondary" onclick={load} aria-label="Aktualisieren"><RefreshCw size={16} /></button>
+    <button class="btn-secondary" onclick={load} aria-label={t('Aktualisieren')}
+      ><RefreshCw size={16} /></button
+    >
   {/snippet}
 </PageHeader>
 
 {#if stats}
   <p class="mb-4 text-sm text-slate-500">
-    {stats.count} Dateien · {bytes(stats.total_bytes)} · frei {bytes(stats.disk_free_bytes)} ·
+    {t('{n} Dateien', { n: stats.count })} · {bytes(stats.total_bytes)} · {t('frei {size}', {
+      size: bytes(stats.disk_free_bytes),
+    })} ·
     {stats.retention_days > 0
-      ? `automatisch gelöscht nach ${stats.retention_days} Tagen`
-      : 'keine automatische Löschung'}
+      ? t('automatisch gelöscht nach {n} Tagen', { n: stats.retention_days })
+      : t('keine automatische Löschung')}
   </p>
 {/if}
 
@@ -85,8 +93,8 @@
   <input
     class="input mb-4"
     bind:value={filter}
-    placeholder="Filtern (z. B. vox_, capture_2026…)"
-    aria-label="Filter"
+    placeholder={t('Filtern (z. B. vox_, capture_2026…)')}
+    aria-label={t('Filter')}
   />
   {#if shown.length}
     <ul class="divide-y divide-slate-100 dark:divide-slate-800">
@@ -103,12 +111,14 @@
             {#if rec.has_transcript}<FileText
                 size={14}
                 class="text-slate-400"
-                aria-label="mit Transkript"
+                aria-label={t('mit Transkript')}
               />{/if}
             <span class="text-xs text-slate-500">{bytes(rec.size)}</span>
             <span class="text-xs text-slate-500">{dateTime(rec.created)}</span>
-            <button class="text-slate-400 hover:text-red-500" onclick={() => remove(rec)} aria-label="Löschen"
-              ><Trash2 size={16} /></button
+            <button
+              class="text-slate-400 hover:text-red-500"
+              onclick={() => remove(rec)}
+              aria-label={t('Löschen')}><Trash2 size={16} /></button
             >
           </div>
           {#if selected === rec.filename}
@@ -123,6 +133,6 @@
       {/each}
     </ul>
   {:else}
-    <EmptyState text="Keine Aufnahmen." />
+    <EmptyState text={t('Keine Aufnahmen.')} />
   {/if}
 </section>

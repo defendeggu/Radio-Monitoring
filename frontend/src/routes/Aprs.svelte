@@ -6,6 +6,7 @@
   import MapView, { type MapPoint } from '../lib/components/MapView.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import { packetTime, time } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { live, toasts } from '../lib/stores.svelte';
   import type { AprsPacket } from '../lib/types';
 
@@ -74,7 +75,10 @@
   }
 </script>
 
-<PageHeader title="APRS" description="Automatic Packet Reporting System — Positionen, Nachrichten, Wetter">
+<PageHeader
+  title="APRS"
+  description={t('Automatic Packet Reporting System — Positionen, Nachrichten, Wetter')}
+>
   {#snippet actions()}
     <button class="btn-secondary" onclick={() => exportAs('csv')}><Download size={14} /> CSV</button>
     <button class="btn-secondary" onclick={() => exportAs('geojson')}>GeoJSON</button>
@@ -94,9 +98,11 @@
 
 <section class="card mt-6">
   <div class="mb-3 flex items-center justify-between">
-    <h2 class="text-sm font-semibold">Stationen ({points.length})</h2>
-    <select class="input !w-auto" bind:value={hours} aria-label="Zeitraum">
-      <option value={1}>1 h</option><option value={24}>24 h</option><option value={168}>7 Tage</option>
+    <h2 class="text-sm font-semibold">{t('Stationen ({n})', { n: points.length })}</h2>
+    <select class="input !w-auto" bind:value={hours} aria-label={t('Zeitraum')}>
+      <option value={1}>1 h</option><option value={24}>24 h</option><option value={168}
+        >{t('{n} Tage', { n: 7 })}</option
+      >
     </select>
   </div>
   <MapView {points} />
@@ -111,7 +117,7 @@
     }}
   >
     <div>
-      <label class="label" for="call">Rufzeichen</label>
+      <label class="label" for="call">{t('Rufzeichen')}</label>
       <input
         id="call"
         class="input font-mono uppercase"
@@ -120,15 +126,16 @@
         maxlength="12"
       />
     </div>
-    <button class="btn-secondary" type="submit"><Search size={14} /> Suchen</button>
+    <button class="btn-secondary" type="submit"><Search size={14} /> {t('Suchen')}</button>
   </form>
   {#if packets.length}
     <div class="overflow-x-auto">
       <table class="table">
         <thead
           ><tr
-            ><th>Zeit</th><th>Rufzeichen</th><th>Typ</th><th>Position</th><th>Locator</th><th>Nachricht</th
-            ></tr
+            ><th>{t('Zeit')}</th><th>{t('Rufzeichen')}</th><th>{t('Typ')}</th><th>{t('Position')}</th><th
+              >Locator</th
+            ><th>{t('Nachricht')}</th></tr
           ></thead
         >
         <tbody>
@@ -150,6 +157,6 @@
       </table>
     </div>
   {:else}
-    <EmptyState text="Noch keine APRS-Pakete — starte oben eine Aufnahme oder einen Stream." />
+    <EmptyState text={t('Noch keine APRS-Pakete — starte oben eine Aufnahme oder einen Stream.')} />
   {/if}
 </section>

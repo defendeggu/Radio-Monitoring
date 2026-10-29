@@ -1,5 +1,7 @@
 // Formatting helpers (pure functions, unit tested)
 
+import { i18n, t } from './i18n.svelte';
+
 export function mhz(hz: number | null | undefined, digits = 4): string {
   if (hz === null || hz === undefined || !Number.isFinite(hz)) return '—';
   return `${(hz / 1e6).toFixed(digits)} MHz`;
@@ -48,22 +50,22 @@ export function bytes(n: number | null | undefined): string {
 export function time(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString('de-CH');
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleTimeString(i18n.dateLocale);
 }
 
 export function dateTime(iso: string | null | undefined): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString('de-CH');
+  return Number.isNaN(d.getTime()) ? '—' : d.toLocaleString(i18n.dateLocale);
 }
 
 export function relative(iso: string | null | undefined, now = Date.now()): string {
   if (!iso) return '—';
   const diff = (now - new Date(iso).getTime()) / 1000;
   if (!Number.isFinite(diff)) return '—';
-  if (diff < 0) return `in ${duration(-diff)}`;
-  if (diff < 60) return 'gerade eben';
-  return `vor ${duration(diff)}`;
+  if (diff < 0) return t('in {duration}', { duration: duration(-diff) });
+  if (diff < 60) return t('gerade eben');
+  return t('vor {duration}', { duration: duration(diff) });
 }
 
 export function packetTime(p: { timestamp?: string; '@timestamp'?: string }): string | undefined {

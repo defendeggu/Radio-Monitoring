@@ -100,7 +100,7 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | up to 912 kS/s | voice, VOX |
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | up to 25 MS/s | additionally multi-channel DDC |
 
-Detection: with *Automatisch* (automatic) selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR. The USRP is selected explicitly by its IP address.
+Detection: with *Detect automatically* selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR. The USRP is selected explicitly by its IP address.
 
 ### USB access (Linux host)
 
@@ -130,14 +130,14 @@ Cheap RTL-SDR dongles are often off by 20 to 80 ppm. At 433 MHz that is up to 35
 docker compose exec radio-api rtl_test -p 60    # read the "cumulative PPM" value after ~60 s
 ```
 
-Enter the value in the *Frequenzkorrektur* (frequency correction) field when starting ADS-B, AIS or ISM. Dongles with a TCXO (RTL-SDR Blog v3/v4) usually do not need it.
+Enter the value in the *Frequency correction (ppm)* field when starting ADS-B, AIS or ISM. Dongles with a TCXO (RTL-SDR Blog v3/v4) usually do not need it.
 
 ### HackRF notes
 
 - **DC spike / IQ imbalance:** the HackRF is a direct-conversion receiver. Every recording is corrected automatically (DC offset, amplitude, phase via Gram-Schmidt).
 - **Long recordings abort:** 2 MS/s means about 4 MB/s over USB. A short, good cable, a powered USB hub, recordings under 60 s or an RTL-SDR for continuous operation help.
 - POCSAG single captures with the HackRF are limited to 60 s for memory reasons.
-- **ADS-B:** readsb controls the HackRF itself. Without a gain setting, LNA 40 dB and VGA 48 dB apply (the HackRF has no automatic gain control). A value in the *Verstärkung* (gain) field sets LNA (in 8 dB steps, max. 40) and VGA as in the other HackRF modes. The frequency correction (ppm) is not applied to the HackRF.
+- **ADS-B:** readsb controls the HackRF itself. Without a gain setting, LNA 40 dB and VGA 48 dB apply (the HackRF has no automatic gain control). A value in the *Gain (dB)* field sets LNA (in 8 dB steps, max. 40) and VGA as in the other HackRF modes. The frequency correction (ppm) is not applied to the HackRF.
 
 ### USRP N200
 
@@ -167,9 +167,9 @@ Multi-channel: the center frequency plus/minus half the bandwidth must cover all
 
 | Symptom | Cause / solution |
 |---|---|
-| "Kein SDR erkannt" (no SDR detected) | Device plugged in? `rtl_test -t` in the container; DVB driver blocked? Restart the container |
-| HTTP 409 "SDR device is busy" | Another job is using the device. Stop it with *Stopp* or `POST /api/sdr/force-stop`. |
+| "No SDR detected" | Device plugged in? `rtl_test -t` in the container; DVB driver blocked? Restart the container |
+| HTTP 409 "SDR device is busy" | Another job is using the device. Stop it with *Stop* or `POST /api/sdr/force-stop`. |
 | "Resource busy" in session errors | A process outside the container (e.g. gqrx) is using the dongle |
 | Empty transcription | No voice signal; raise the gain to 30–40 dB; correct modulation (airband = AM) |
 | No APRS packets | APRS is sporadic, better run it continuously; check gain and antenna |
-| ADS-B shows nothing | 1090 MHz antenna with a clear view; gain on *automatisch* (HackRF: LNA 40 / VGA 48) |
+| ADS-B shows nothing | 1090 MHz antenna with a clear view; gain empty = automatic (HackRF: LNA 40 / VGA 48) |

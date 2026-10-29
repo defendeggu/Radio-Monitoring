@@ -1,5 +1,8 @@
-import { describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it } from 'vitest';
 import { bytes, duration, mhz, parseFrequency, relative } from './format';
+import { i18n } from './i18n.svelte';
+
+beforeEach(() => i18n.set('de'));
 
 describe('parseFrequency', () => {
   it.each([
@@ -35,5 +38,8 @@ describe('formatters', () => {
     const now = Date.parse('2026-10-16T10:00:00Z');
     expect(relative('2026-10-16T09:59:30Z', now)).toBe('gerade eben');
     expect(relative('2026-10-16T09:58:00Z', now)).toBe('vor 2m 00s');
+    i18n.set('en');
+    expect(relative('2026-10-16T09:59:30Z', now)).toBe('just now');
+    expect(relative('2026-10-16T09:58:00Z', now)).toBe('2m 00s ago');
   });
 });

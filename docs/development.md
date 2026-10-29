@@ -61,6 +61,7 @@ npm run e2e                                         # Playwright mit gemockter A
 Regeln:
 - Radio-Daten nie per `{@html}` ausgeben (die Lint-Regel ist ein Fehler).
 - Alle API-Aufrufe gehen über `src/lib/api.ts`, live-Daten über `live.on()` in `stores.svelte.ts`.
+- Texte der Oberfläche immer mit `t('Deutscher Text')` aus `src/lib/i18n.svelte.ts` ausgeben und die englische Übersetzung in `src/lib/i18n/en.ts` eintragen. Platzhalter: `t('{n} Pakete', { n })`. `i18n.test.ts` schlägt fehl, wenn eine Übersetzung fehlt oder übrig ist.
 
 ## Neuer Endpunkt
 
@@ -147,6 +148,7 @@ npm run e2e                                         # Playwright with a mocked A
 Rules:
 - Never output radio data with `{@html}` (the lint rule is an error).
 - All API calls go through `src/lib/api.ts`, live data through `live.on()` in `stores.svelte.ts`.
+- Always output UI texts with `t('German text')` from `src/lib/i18n.svelte.ts` and add the English translation to `src/lib/i18n/en.ts`. Placeholders: `t('{n} Pakete', { n })`. `i18n.test.ts` fails when a translation is missing or left over.
 
 ### New endpoint
 

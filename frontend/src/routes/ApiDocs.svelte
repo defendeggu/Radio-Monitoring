@@ -2,6 +2,7 @@
   import { Copy } from '@lucide/svelte';
   import { API_BASE, api } from '../lib/api';
   import PageHeader from '../lib/components/PageHeader.svelte';
+  import { t } from '../lib/i18n.svelte';
   import { toasts } from '../lib/stores.svelte';
 
   interface Operation {
@@ -88,7 +89,7 @@
   };
 </script>
 
-<PageHeader title="API" description="REST-API von RadioMoni — generiert aus den Validierungs-Schemas">
+<PageHeader title="API" description={t('REST-API von RadioMoni — generiert aus den Validierungs-Schemas')}>
   {#snippet actions()}
     <a class="btn-secondary" href="{API_BASE}/openapi.json" target="_blank" rel="noopener">openapi.json</a>
   {/snippet}
@@ -96,7 +97,12 @@
 
 {#if doc}
   <p class="mb-4 text-sm text-slate-500">{doc.info.title} {doc.info.version} — {doc.info.description}</p>
-  <input class="input mb-6" bind:value={filter} placeholder="Endpunkte filtern…" aria-label="Filter" />
+  <input
+    class="input mb-6"
+    bind:value={filter}
+    placeholder={t('Endpunkte filtern…')}
+    aria-label={t('Filter')}
+  />
   {#each tags as tag (tag)}
     <section class="mb-6">
       <h2 class="mb-2 text-sm font-semibold">{tag}</h2>
@@ -117,7 +123,7 @@
               {#if o.op.description}<p class="text-slate-500">{o.op.description}</p>{/if}
               {#if o.op.parameters?.length}
                 <table class="table">
-                  <thead><tr><th>Parameter</th><th>in</th><th>Typ</th></tr></thead>
+                  <thead><tr><th>Parameter</th><th>in</th><th>{t('Typ')}</th></tr></thead>
                   <tbody>
                     {#each o.op.parameters as p (p.in + p.name)}
                       <tr
@@ -131,7 +137,7 @@
               {/if}
               {#if schema?.properties}
                 <table class="table">
-                  <thead><tr><th>Body-Feld</th><th>Typ</th><th>Standard</th></tr></thead>
+                  <thead><tr><th>{t('Body-Feld')}</th><th>{t('Typ')}</th><th>{t('Standard')}</th></tr></thead>
                   <tbody>
                     {#each Object.entries(schema.properties) as [field, prop] (field)}
                       <tr>
@@ -157,7 +163,7 @@
                 <button
                   class="btn-secondary !px-2"
                   onclick={() => navigator.clipboard?.writeText(curl(o.method, o.path))}
-                  aria-label="Kopieren"><Copy size={14} /></button
+                  aria-label={t('Kopieren')}><Copy size={14} /></button
                 >
               </div>
             </div>
@@ -167,5 +173,5 @@
     </section>
   {/each}
 {:else}
-  <p class="text-sm text-slate-500">Lade API-Beschreibung…</p>
+  <p class="text-sm text-slate-500">{t('Lade API-Beschreibung…')}</p>
 {/if}

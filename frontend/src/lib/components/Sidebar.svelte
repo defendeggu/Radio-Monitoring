@@ -1,6 +1,7 @@
 <script lang="ts">
   import { ChevronsLeft, ChevronsRight, Settings } from '@lucide/svelte';
   import { router } from '../router.svelte';
+  import { i18n, t } from '../i18n.svelte';
   import { live, sdr, settings } from '../stores.svelte';
   import { routes, groups } from '../../routes';
 
@@ -11,11 +12,11 @@
   const visible = $derived(routes.filter((r) => !r.usrpOnly || settings.deviceType === 'usrp'));
 
   const sdrText = $derived.by(() => {
-    if (!sdr.apiReachable) return 'API nicht erreichbar';
-    if (sdr.authRequired) return 'API-Key erforderlich';
-    if (sdr.status?.busy) return `Belegt: ${sdr.status.holder?.kind ?? ''}`;
-    if (sdr.detect && !sdr.detect.detected) return 'Kein SDR erkannt';
-    return sdr.detect?.detected ? `${sdr.detect.type.toUpperCase()} frei` : 'Prüfe SDR…';
+    if (!sdr.apiReachable) return t('API nicht erreichbar');
+    if (sdr.authRequired) return t('API-Key erforderlich');
+    if (sdr.status?.busy) return t('Belegt: {kind}', { kind: sdr.status.holder?.kind });
+    if (sdr.detect && !sdr.detect.detected) return t('Kein SDR erkannt');
+    return sdr.detect?.detected ? t('{type} frei', { type: sdr.detect.type.toUpperCase() }) : t('Prüfe SDR…');
   });
   const sdrColor = $derived(
     !sdr.apiReachable || sdr.authRequired
@@ -44,13 +45,13 @@
   </div>
 
   <nav class="flex-1 overflow-y-auto px-2 py-3">
-    {#each groups as group (group)}
+    {#each groups as group (group.id)}
       {#if !collapsed}<div
           class="px-3 pt-3 pb-1 text-[10px] font-semibold tracking-widest text-slate-400 uppercase"
         >
-          {group}
+          {group.label()}
         </div>{/if}
-      {#each visible.filter((r) => r.group === group) as route (route.path)}
+      {#each visible.filter((r) => r.group === group.id) as route (route.path)}
         {@const Icon = route.icon}
         <a
           href="#/{route.path}"
@@ -62,10 +63,10 @@
             ? 'justify-center'
             : ''}"
           aria-current={router.path === route.path ? 'page' : undefined}
-          title={collapsed ? route.label : undefined}
+          title={collapsed ? route.label() : undefined}
         >
           <Icon size={18} class="shrink-0" />
-          {#if !collapsed}<span>{route.label}</span>{/if}
+          {#if !collapsed}<span>{route.label()}</span>{/if}
         </a>
       {/each}
     {/each}
@@ -82,21 +83,31 @@
       <span class="h-2 w-2 shrink-0 rounded-full {sdrColor}"></span>
       {#if !collapsed}
         <span class="flex-1 truncate">{sdrText}</span>
-        <span class="text-slate-400" title="Live-Verbindung">{live.state === 'open' ? '● live' : '○'}</span>
+        <span class="text-slate-400" title={t('Live-Verbindung')}
+          >{live.state === 'open' ? '● live' : '○'}</span
+        >
       {/if}
     </button>
     <div class="flex gap-2 {collapsed ? 'flex-col' : ''}">
       <button
         class="btn-secondary flex-1 !px-2 !py-1.5 text-xs"
         onclick={onsettings}
-        aria-label="Einstellungen"
+        aria-label={t('Einstellungen')}
       >
-        <Settings size={14} />{#if !collapsed}Einstellungen{/if}
+        <Settings size={14} />{#if !collapsed}{t('Einstellungen')}{/if}
+      </button>
+      <button
+        class="btn-secondary !px-2 !py-1.5 text-xs font-semibold"
+        onclick={() => i18n.set(i18n.locale === 'de' ? 'en' : 'de')}
+        aria-label={t('Sprache wechseln')}
+        title={i18n.locale === 'de' ? 'English' : 'Deutsch'}
+      >
+        {i18n.locale === 'de' ? 'EN' : 'DE'}
       </button>
       <button
         class="btn-secondary hidden !px-2 !py-1.5 md:inline-flex"
         onclick={() => settings.toggleSidebar()}
-        aria-label="Seitenleiste ein-/ausklappen"
+        aria-label={t('Seitenleiste ein-/ausklappen')}
       >
         {#if settings.sidebarCollapsed}<ChevronsRight size={14} />{:else}<ChevronsLeft size={14} />{/if}
       </button>
@@ -107,7 +118,7 @@
 {#if mobileOpen}
   <button
     class="fixed inset-0 z-[999] bg-slate-950/60 md:hidden"
-    aria-label="Menü schliessen"
+    aria-label={t('Menü schliessen')}
     onclick={() => (mobileOpen = false)}
   ></button>
 {/if}

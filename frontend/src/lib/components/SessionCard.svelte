@@ -1,13 +1,14 @@
 <script lang="ts">
   import { Square } from '@lucide/svelte';
   import { api } from '../api';
+  import { t } from '../i18n.svelte';
   import { dateTime, duration, mhz } from '../format';
   import { live, toasts } from '../stores.svelte';
   import type { StreamSession } from '../types';
 
   let {
     sessionId,
-    countLabel = 'Pakete',
+    countLabel = t('Pakete'),
     onended,
   }: { sessionId: string; countLabel?: string; onended?: (s: StreamSession) => void } = $props();
 
@@ -44,7 +45,7 @@
     stopping = true;
     try {
       await api.del(`/stream-decode/${sessionId}`);
-      toasts.push('Session gestoppt', 'success');
+      toasts.push(t('Session gestoppt'), 'success');
       await poll();
     } catch (e) {
       toasts.error(e);
@@ -65,27 +66,29 @@
           ? 'bg-red-500'
           : 'bg-slate-400'}"
     ></span>
-    <span class="text-sm font-medium">{session?.status ?? 'lädt…'}</span>
+    <span class="text-sm font-medium">{session?.status ?? t('lädt…')}</span>
   </div>
   <div class="text-sm">
-    <span class="text-slate-500">Frequenz</span> <span class="font-mono">{mhz(session?.frequency)}</span>
+    <span class="text-slate-500">{t('Frequenz')}</span>
+    <span class="font-mono">{mhz(session?.frequency)}</span>
   </div>
   <div class="text-sm">
     <span class="text-slate-500">{countLabel}</span>
     <span class="font-mono text-accent-600 dark:text-accent-400">{session?.packet_count ?? 0}</span>
   </div>
   <div class="text-sm">
-    <span class="text-slate-500">Laufzeit</span> <span class="font-mono">{duration(elapsed)}</span>
+    <span class="text-slate-500">{t('Laufzeit')}</span> <span class="font-mono">{duration(elapsed)}</span>
   </div>
   {#if session?.last_packet_time}
     <div class="text-sm">
-      <span class="text-slate-500">Letztes</span>
+      <span class="text-slate-500">{t('Letztes')}</span>
       {dateTime(session.last_packet_time)}
     </div>
   {/if}
   {#if session?.error}<div class="w-full text-sm text-red-500">{session.error}</div>{/if}
   {#if running}
-    <button class="btn-danger ml-auto" onclick={stop} disabled={stopping}><Square size={14} /> Stoppen</button
+    <button class="btn-danger ml-auto" onclick={stop} disabled={stopping}
+      ><Square size={14} /> {t('Stoppen')}</button
     >
   {/if}
 </div>

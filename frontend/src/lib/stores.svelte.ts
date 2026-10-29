@@ -1,6 +1,7 @@
 // Global UI state (Svelte 5 runes). Imported by components as singletons.
 
 import { api, getApiKey, setApiKey } from './api';
+import { t } from './i18n.svelte';
 import { connectEvents, type LiveConnection } from './sse';
 import type { DeviceType, LiveEvent, SdrDetect, SdrStatus } from './types';
 
@@ -197,7 +198,11 @@ class Live {
     }
     if (['session', 'capture', 'sdr', 'scan'].includes(event.type)) void sdr.refresh();
     if (event.type === 'alert') {
-      toasts.push(`Alarm: ${(event.data as { summary?: string }).summary ?? ''}`, 'warning', 10_000);
+      toasts.push(
+        t('Alarm: {summary}', { summary: (event.data as { summary?: string }).summary }),
+        'warning',
+        10_000,
+      );
     }
     for (const listener of this.listeners) listener(event);
   }

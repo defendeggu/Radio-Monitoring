@@ -11,6 +11,7 @@
 
 <script lang="ts">
   import L from 'leaflet';
+  import { t } from '../i18n.svelte';
 
   let { points, height = '420px' }: { points: MapPoint[]; height?: string } = $props();
 
@@ -75,5 +76,5 @@
   style="height: {height}"
   class="z-0 w-full overflow-hidden rounded-xl"
   role="region"
-  aria-label="Karte"
+  aria-label={t('Karte')}
 ></div>

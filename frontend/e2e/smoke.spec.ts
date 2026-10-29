@@ -85,3 +85,27 @@ test('settings dialog stores the API key', async ({ page }) => {
   await page.getByRole('button', { name: 'Speichern & testen' }).click();
   expect(await page.evaluate(() => localStorage.getItem('radiomoni.apiKey'))).toBe('new-key');
 });
+
+test('switches the interface to English and remembers it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Sprache wechseln' }).click();
+  await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+  await expect(page.getByText('RTLSDR free')).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Recordings' })).toBeVisible();
+  await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+
+  await page.reload();
+  await page.getByRole('link', { name: 'Voice' }).click();
+  await expect(page.getByRole('button', { name: 'Start recording' })).toBeVisible();
+  await expect(page.getByLabel('Frequency (MHz)')).toBeVisible();
+});
+
+test('uses English for an English browser', async ({ browser }) => {
+  const context = await browser.newContext({ locale: 'en-US' });
+  const page = await context.newPage();
+  await page.addInitScript(() => localStorage.setItem('radiomoni.apiKey', 'test-key'));
+  await mockApi(page);
+  await page.goto('/');
+  await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
+  await context.close();
+});

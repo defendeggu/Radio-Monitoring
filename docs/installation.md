@@ -92,7 +92,7 @@ Die Aufnahmen liegen in `./recordings` und bleiben in beiden Fällen erhalten.
 ### Requirements
 
 - Linux host (tested with Ubuntu 24.04 and Debian 13), Docker Engine with Compose v2.20 or newer
-- An SDR on a USB port or a USRP N200 on the network. The stack also starts without an SDR; recordings then fail with "Kein SDR erkannt" (no SDR detected).
+- An SDR on a USB port or a USRP N200 on the network. The stack also starts without an SDR; recordings then fail with "No SDR detected".
 - RAM: about 6 GB for the full stack (Elasticsearch 2 GB heap, Logstash 1 GB, Kibana 1 GB, Whisper `small` about 1 GB). Light profile about 2 GB.
 - Disk space: about 6 GB for the images, plus the recordings (30 s of WAV at 16 kHz is about 1 MB).
 
@@ -106,7 +106,7 @@ docker compose up -d --build
 ./scripts/run_import.sh           # USKA repeater list (scripts/repeaters_ch.csv)
 ```
 
-Web interface: `http://<host>:8080`. Enter the API key (`API_KEYS` in `.env`) there under *Einstellungen* (Settings).
+Web interface: `http://<host>:8080`. Enter the API key (`API_KEYS` in `.env`) there under *Settings*.
 
 `setup-env.sh` is idempotent. Existing values stay unchanged, missing variables are added and placeholders such as `changeme` are replaced. You can simply run it again after an update.
 
@@ -144,7 +144,7 @@ docker compose build radio-api && docker compose up -d radio-api
 docker compose exec radio-api uhd_images_downloader   # FPGA images (once)
 ```
 
-Enter the device's IP address in the web interface under *Einstellungen* (Settings). Network setup: see [hardware.md](hardware.md#usrp-n200-1).
+Enter the device's IP address in the web interface under *Settings*. Network setup: see [hardware.md](hardware.md#usrp-n200-1).
 
 ### Dockge / Portainer
 

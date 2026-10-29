@@ -94,9 +94,11 @@ Startet Aktionen per Cron-Ausdruck (`Minute Stunde Tag Monat Wochentag`, Zeitzon
 
 Listet alle Endpunkte mit Parametern und Body-Feldern auf, inklusive kopierbarem `curl`-Befehl. Die Liste wird aus `/api/openapi.json` erzeugt.
 
-## Darstellung
+## Sprache und Darstellung
 
-In den Einstellungen wählst du zwischen System, Dunkel und Hell. Die Seitenleiste lässt sich einklappen. Auf dem Handy öffnet das ☰-Symbol die Navigation.
+Die Oberfläche gibt es auf Deutsch und Englisch. Sie richtet sich nach der Sprache des Browsers; umschalten kannst du mit dem Knopf **EN/DE** unten in der Seitenleiste oder unter *Einstellungen → Sprache / Language*. Die Wahl bleibt im Browser gespeichert.
+
+In den Einstellungen wählst du ausserdem zwischen System, Dunkel und Hell. Die Seitenleiste lässt sich einklappen. Auf dem Handy öffnet das ☰-Symbol die Navigation.
 
 ---
 
@@ -104,9 +106,9 @@ In den Einstellungen wählst du zwischen System, Dunkel und Hell. Die Seitenleis
 
 ## English Version
 
-The web interface is in German. UI labels are quoted below in German with the English meaning in parentheses.
+The web interface is available in German and English. It follows the browser language; switch it with the **EN/DE** button at the bottom of the sidebar or under *Settings → Sprache / Language*. The choice is stored in the browser.
 
-Open `http://<host>:8080`. On the first visit the settings dialog appears. Enter the **API key** there (`API_KEYS` in `.env`) and choose the **SDR device**. *Automatisch* (automatic) is usually enough; for a USRP N200 enter its IP address. The settings are only stored in this browser.
+Open `http://<host>:8080`. On the first visit the settings dialog appears. Enter the **API key** there (`API_KEYS` in `.env`) and choose the **SDR device**. *Detect automatically* is usually enough; for a USRP N200 enter its IP address. The settings are only stored in this browser.
 
 At the bottom left of the sidebar you see the SDR status:
 - green: device free
@@ -119,23 +121,23 @@ Next to it is the state of the live connection (● live).
 
 Figures per mode, activity per hour, SDR status, the latest alerts and APRS packets, and a live feed of all events. Set the time range at the top right (6 h to 7 days).
 
-### Voice (*Sprache*)
+### Voice
 
 Single recording followed by Whisper transcription.
 
 1. Enter a frequency, e.g. `145.5`, `433.92M` or `118000000`, or click a bookmark.
 2. Choose the modulation (FM/AM/USB/LSB), duration (1–600 s) and gain.
-3. Optionally under *Whisper-Optionen* (Whisper options): language, beam size and a vocabulary hint (e.g. "HB9" and local place names).
-4. *Aufnahme starten* (start recording): the progress bar shows waiting, recording and transcription.
+3. Optionally under *Show Whisper options*: language, beam size and a vocabulary hint (e.g. "HB9" and local place names).
+4. *Start recording*: the progress bar shows waiting, recording and transcription.
 
-The result shows the text, the segments with timestamps and an audio player with a waveform. *Als ZIP exportieren* (export as ZIP) gives you the WAV, the transcript and the metadata.
+The result shows the text, the segments with timestamps and an audio player with a waveform. *Export as ZIP* gives you the WAV, the transcript and the metadata.
 
-### VOX recording (*VOX-Aufnahme*)
+### VOX recording
 
 For continuously monitoring a voice channel. Recording only happens while a signal is above the noise threshold. Each transmission becomes its own file and is optionally transcribed.
 
 - **Squelch:** distance to the measured noise level in dB. Lower is more sensitive, but triggers falsely more often.
-- **Hang time (*Nachlaufzeit*):** the recording stays open this long after the signal ends, so that short pauses do not split a transmission.
+- **Hang time:** the recording stays open this long after the signal ends, so that short pauses do not split a transmission.
 - Transmissions longer than 60 s are split into several files.
 
 The list of transmissions updates live. Clicking an entry plays it.
@@ -163,41 +165,41 @@ Leaving the gain empty means automatic gain control. The PPM correction is descr
 
 Listens to the imported FM repeaters one after another and measures carrier, number of transmissions, activity in % and signal strength.
 
-1. Choose the **canton** (*Kanton*, LU by default, or *Alle Kantone* for all cantons). The active FM repeaters of the canton appear below; untick the ones you want to skip.
-2. **Scan duration** (*Dauer des Scans*): *Ein Durchgang* (one round), 30 minutes to 24 hours, or *Bis Stopp* (until stopped). With a duration, the repeaters are scanned again and again in rounds; a repeater is only started if its measurement ends before the duration is over.
-3. Set the **seconds per repeater** (*Sekunden pro Repeater*, 5–600). The line above the list shows how long one round takes.
-4. *Scan starten* (start scan). *Stopp* ends the scan immediately, even in the middle of a measurement.
+1. Choose the **canton** (LU by default, or *All cantons*). The active FM repeaters of the canton appear below; untick the ones you want to skip.
+2. **Scan duration:** *One round*, 30 minutes to 24 hours, or *Until stopped*. With a duration, the repeaters are scanned again and again in rounds; a repeater is only started if its measurement ends before the duration is over.
+3. Set the **seconds per repeater** (5–600). The line above the list shows how long one round takes.
+4. *Start scan*. *Stop* ends the scan immediately, even in the middle of a measurement.
 
-The result table summarizes all rounds per repeater (measurements, those with a carrier, transmissions, average activity). Every single measurement is stored in `radio-repeater-activity-*` (Kibana: *RadioMoni · Repeater-Scan*). The table *Aktivste Repeater* (most active repeaters) shows the repeaters where a carrier was measured in the last 7 days. Import the repeater list with `./scripts/run_import.sh`.
+The result table summarizes all rounds per repeater (measurements, those with a carrier, transmissions, average activity). Every single measurement is stored in `radio-repeater-activity-*` (Kibana: *RadioMoni · Repeater-Scan*). The table *Most active repeaters* shows the repeaters where a carrier was measured in the last 7 days. Import the repeater list with `./scripts/run_import.sh`.
 
 ### Multi-channel (USRP N200 only)
 
 Only appears when *USRP N200* is selected in the settings. Enter the center frequency, the bandwidth and 2 to 8 channels (APRS/POCSAG). Channels outside the bandwidth are marked red.
 
-### Recordings (*Aufnahmen*)
+### Recordings
 
 All WAV files with size and date. A click opens the player and, if available, the transcript. You can also download and delete files here. At the top you see the disk usage, the free space and the retention period.
 
-### Bookmarks (*Lesezeichen*)
+### Bookmarks
 
 Your own frequencies with mode, modulation, tags and a note. Clicking the name opens the matching page with the frequency filled in. Import and export use JSON. As long as there are no bookmarks of your own, default frequencies are offered.
 
-### Alerts (*Alarme*)
+### Alerts
 
-A rule consists of a source (e.g. POCSAG), a field (e.g. text), a comparison (contains, equals or regular expression) and a pattern. In addition there are the channels and a pause, so that the same rule does not fire every second. Triggered alerts appear as a notification in the interface, in the list and on the dashboard. *Test senden* (send test) checks the configured channels.
+A rule consists of a source (e.g. POCSAG), a field (e.g. text), a comparison (contains, equals or regular expression) and a pattern. In addition there are the channels and a pause, so that the same rule does not fire every second. Triggered alerts appear as a notification in the interface, in the list and on the dashboard. *Send test* checks the configured channels.
 
 Examples:
 - A specific callsign on APRS: source APRS, field callsign, *contains* `HB9XYZ`
 - A keyword in radio traffic: source voice, field text, *regular expression* `\b(mayday|notfall)\b`
 
-### Schedules (*Zeitpläne*)
+### Schedules
 
-Starts actions with a cron expression (`minute hour day month weekday`, time zone `TZ`). The parameters are the same as in the API; when you change the action, a template is inserted. If the SDR is busy at the start time, the schedule waits up to 60 s and is skipped otherwise. The column *Letzter Lauf* (last run) shows the reason. ▶ runs a schedule immediately.
+Starts actions with a cron expression (`minute hour day month weekday`, time zone `TZ`). The parameters are the same as in the API; when you change the action, a template is inserted. If the SDR is busy at the start time, the schedule waits up to 60 s and is skipped otherwise. The column *Last run* shows the reason. ▶ runs a schedule immediately.
 
 ### API
 
 Lists all endpoints with parameters and body fields, including a `curl` command you can copy. The list is generated from `/api/openapi.json`.
 
-### Appearance
+### Language and appearance
 
-In the settings you choose between system, dark and light. The sidebar can be collapsed. On a phone the ☰ icon opens the navigation.
+In the settings you also choose between system, dark and light. The sidebar can be collapsed. On a phone the ☰ icon opens the navigation.

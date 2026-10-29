@@ -129,7 +129,7 @@ All targets are optional. In the alert rules you only choose the channel; the ta
 | Webhook | `ALERT_WEBHOOK_URL` (JSON POST with `title`, `message`, `alert`) |
 | E-mail | `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_FROM`, `ALERT_EMAIL_TO` |
 
-You can test the channels in the web interface under *Alarme → Test senden* (Alerts → Send test).
+You can test the channels in the web interface under *Alerts → Send test*.
 
 ### Checking
 

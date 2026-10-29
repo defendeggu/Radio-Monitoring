@@ -4,6 +4,7 @@
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import { dateTime } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { toasts } from '../lib/stores.svelte';
   import type { Schedule } from '../lib/types';
 
@@ -14,11 +15,11 @@
     vox: { frequency: 446006250, modulation: 'FM', duration: 3600, squelch_db: 10, transcribe: true },
     decoder: { decoder: 'adsb', duration: 3600 },
   };
-  const ACTION_LABELS: Record<Action, string> = {
-    stream: 'Streaming (APRS/POCSAG)',
-    capture: 'Einzelaufnahme',
-    vox: 'VOX-Aufnahme',
-    decoder: 'ADS-B/AIS/ISM',
+  const ACTION_LABELS: Record<Action, () => string> = {
+    stream: () => 'Streaming (APRS/POCSAG)',
+    capture: () => t('Einzelaufnahme'),
+    vox: () => t('VOX-Aufnahme'),
+    decoder: () => 'ADS-B/AIS/ISM',
   };
 
   let schedules = $state<Schedule[]>([]);
@@ -61,7 +62,7 @@
       params = JSON.parse(paramsText);
       paramsError = '';
     } catch {
-      paramsError = 'Parameter sind kein gültiges JSON';
+      paramsError = t('Parameter sind kein gültiges JSON');
       return;
     }
     try {
@@ -70,7 +71,7 @@
       else await api.post('/schedules', body);
       reset();
       await load();
-      toasts.push('Zeitplan gespeichert', 'success');
+      toasts.push(t('Zeitplan gespeichert'), 'success');
     } catch (e) {
       toasts.error(e);
     }
@@ -108,7 +109,10 @@
   }
 </script>
 
-<PageHeader title="Zeitpläne" description="Aufnahmen und Decoder automatisch zu festen Zeiten starten" />
+<PageHeader
+  title={t('Zeitpläne')}
+  description={t('Aufnahmen und Decoder automatisch zu festen Zeiten starten')}
+/>
 
 <form
   class="card grid grid-cols-1 gap-4 lg:grid-cols-2"
@@ -119,51 +123,54 @@
 >
   <div class="space-y-4">
     <div>
-      <label class="label" for="sname">Name</label>
+      <label class="label" for="sname">{t('Name')}</label>
       <input
         id="sname"
         class="input"
         bind:value={name}
         required
         maxlength="80"
-        placeholder="APRS am Morgen"
+        placeholder={t('APRS am Morgen')}
       />
     </div>
     <div>
-      <label class="label" for="scron">Cron-Ausdruck</label>
+      <label class="label" for="scron">{t('Cron-Ausdruck')}</label>
       <input id="scron" class="input font-mono" bind:value={cron} required />
-      <p class="hint">Minute Stunde Tag Monat Wochentag — z. B. <code>0 7 * * 1-5</code> = werktags 07:00</p>
+      <p class="hint">{t('Minute Stunde Tag Monat Wochentag — z. B. 0 7 * * 1-5 = werktags 07:00')}</p>
     </div>
     <div>
-      <label class="label" for="saction">Aktion</label>
+      <label class="label" for="saction">{t('Aktion')}</label>
       <select
         id="saction"
         class="input"
         value={action}
         onchange={(e) => setAction(e.currentTarget.value as Action)}
       >
-        {#each Object.entries(ACTION_LABELS) as [value, text] (value)}<option {value}>{text}</option>{/each}
+        {#each Object.entries(ACTION_LABELS) as [value, label] (value)}<option {value}>{label()}</option
+          >{/each}
       </select>
     </div>
     <label class="flex items-center gap-2 text-sm"
-      ><input type="checkbox" class="accent-cyan-500" bind:checked={enabled} /> aktiv</label
+      ><input type="checkbox" class="accent-cyan-500" bind:checked={enabled} />
+      {t('aktiv')}</label
     >
   </div>
   <div>
-    <label class="label" for="sparams">Parameter (JSON)</label>
+    <label class="label" for="sparams">{t('Parameter (JSON)')}</label>
     <textarea id="sparams" class="input h-48 font-mono text-xs" bind:value={paramsText} spellcheck="false"
     ></textarea>
     {#if paramsError}<p class="mt-1 text-xs text-red-500">{paramsError}</p>{/if}
     <p class="hint">
-      Gleiche Felder wie die API (siehe API-Seite). Bei belegtem SDR wird bis zu 60 s gewartet, danach
-      übersprungen.
+      {t(
+        'Gleiche Felder wie die API (siehe API-Seite). Bei belegtem SDR wird bis zu 60 s gewartet, danach übersprungen.',
+      )}
     </p>
   </div>
   <div class="flex gap-2 lg:col-span-2">
     <button class="btn-primary" type="submit"
-      ><CalendarClock size={16} /> {editId ? 'Speichern' : 'Zeitplan anlegen'}</button
+      ><CalendarClock size={16} /> {editId ? t('Speichern') : t('Zeitplan anlegen')}</button
     >
-    {#if editId}<button type="button" class="btn-secondary" onclick={reset}>Abbrechen</button>{/if}
+    {#if editId}<button type="button" class="btn-secondary" onclick={reset}>{t('Abbrechen')}</button>{/if}
   </div>
 </form>
 
@@ -171,7 +178,10 @@
   {#if schedules.length}
     <table class="table">
       <thead
-        ><tr><th>Name</th><th>Cron</th><th>Aktion</th><th>Nächster Lauf</th><th>Letzter Lauf</th><th></th></tr
+        ><tr
+          ><th>{t('Name')}</th><th>Cron</th><th>{t('Aktion')}</th><th>{t('Nächster Lauf')}</th><th
+            >{t('Letzter Lauf')}</th
+          ><th></th></tr
         ></thead
       >
       <tbody>
@@ -179,22 +189,24 @@
           <tr class={s.enabled ? '' : 'opacity-50'}>
             <td>{s.name}</td>
             <td class="font-mono text-xs">{s.cron}</td>
-            <td>{ACTION_LABELS[s.action]}</td>
+            <td>{ACTION_LABELS[s.action]()}</td>
             <td class="text-xs">{dateTime(s.next_run)}</td>
             <td class="text-xs">{s.last_run ? `${dateTime(s.last_run)} · ${s.last_status}` : '—'}</td>
             <td class="whitespace-nowrap text-right">
               <button
                 class="mr-2 text-slate-400 hover:text-emerald-600"
                 onclick={() => runNow(s)}
-                aria-label="Jetzt ausführen"><Play size={14} /></button
+                aria-label={t('Jetzt ausführen')}><Play size={14} /></button
               >
               <button
                 class="mr-2 text-slate-400 hover:text-accent-600"
                 onclick={() => edit(s)}
-                aria-label="Bearbeiten"><Pencil size={14} /></button
+                aria-label={t('Bearbeiten')}><Pencil size={14} /></button
               >
-              <button class="text-slate-400 hover:text-red-500" onclick={() => remove(s)} aria-label="Löschen"
-                ><Trash2 size={14} /></button
+              <button
+                class="text-slate-400 hover:text-red-500"
+                onclick={() => remove(s)}
+                aria-label={t('Löschen')}><Trash2 size={14} /></button
               >
             </td>
           </tr>
@@ -202,6 +214,6 @@
       </tbody>
     </table>
   {:else}
-    <EmptyState text="Noch keine Zeitpläne." />
+    <EmptyState text={t('Noch keine Zeitpläne.')} />
   {/if}
 </section>

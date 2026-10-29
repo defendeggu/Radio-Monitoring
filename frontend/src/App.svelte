@@ -4,6 +4,7 @@
   import Sidebar from './lib/components/Sidebar.svelte';
   import Toasts from './lib/components/Toasts.svelte';
   import { router } from './lib/router.svelte';
+  import { t } from './lib/i18n.svelte';
   import { live, sdr, settings } from './lib/stores.svelte';
   import { routes } from './routes';
 
@@ -19,7 +20,7 @@
   });
 
   $effect(() => {
-    document.title = `${route.label} · RadioMoni`;
+    document.title = `${route.label()} · RadioMoni`;
   });
 </script>
 
@@ -30,20 +31,20 @@
     <div
       class="flex items-center gap-3 border-b border-slate-200 bg-white px-4 py-3 md:hidden dark:border-slate-800 dark:bg-slate-900"
     >
-      <button onclick={() => (mobileOpen = true)} aria-label="Menü öffnen"><Menu size={20} /></button>
-      <span class="text-sm font-semibold">RadioMoni · {route.label}</span>
+      <button onclick={() => (mobileOpen = true)} aria-label={t('Menü öffnen')}><Menu size={20} /></button>
+      <span class="text-sm font-semibold">RadioMoni · {route.label()}</span>
     </div>
 
     {#if sdr.authRequired}
       <div
         class="border-b border-amber-500/30 bg-amber-500/10 px-6 py-2 text-sm text-amber-700 dark:text-amber-300"
       >
-        Die API verlangt einen API-Key.
-        <button class="underline" onclick={() => (settingsOpen = true)}>Jetzt eingeben</button>
+        {t('Die API verlangt einen API-Key.')}
+        <button class="underline" onclick={() => (settingsOpen = true)}>{t('Jetzt eingeben')}</button>
       </div>
     {:else if !sdr.apiReachable}
       <div class="border-b border-red-500/30 bg-red-500/10 px-6 py-2 text-sm text-red-700 dark:text-red-300">
-        Die API ist nicht erreichbar. Läuft der Container <code>radio-transcription-api</code>?
+        {t('Die API ist nicht erreichbar. Läuft der Container radio-transcription-api?')}
       </div>
     {/if}
 

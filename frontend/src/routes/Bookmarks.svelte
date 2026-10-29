@@ -5,6 +5,7 @@
   import FrequencyField from '../lib/components/FrequencyField.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import { mhz } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { router } from '../lib/router.svelte';
   import { toasts } from '../lib/stores.svelte';
   import type { Bookmark } from '../lib/types';
@@ -60,7 +61,7 @@
       draft = empty();
       tagText = '';
       await load();
-      toasts.push('Gespeichert', 'success');
+      toasts.push(t('Gespeichert'), 'success');
     } catch (e) {
       toasts.error(e);
     }
@@ -80,7 +81,7 @@
     if (!file) return;
     try {
       const r = await api.post<{ imported: number }>('/bookmarks/import', JSON.parse(await file.text()));
-      toasts.push(`${r.imported} Lesezeichen importiert`, 'success');
+      toasts.push(t('{n} Lesezeichen importiert', { n: r.imported }), 'success');
       await load();
     } catch (e) {
       toasts.error(e);
@@ -93,7 +94,7 @@
   }
 </script>
 
-<PageHeader title="Lesezeichen" description="Eigene Frequenzen und Presets für alle Betriebsarten">
+<PageHeader title={t('Lesezeichen')} description={t('Eigene Frequenzen und Presets für alle Betriebsarten')}>
   {#snippet actions()}
     <button
       class="btn-secondary"
@@ -114,12 +115,12 @@
   }}
 >
   <div>
-    <label class="label" for="bname">Name</label>
+    <label class="label" for="bname">{t('Name')}</label>
     <input id="bname" class="input" bind:value={draft.name} maxlength="80" required />
   </div>
   <FrequencyField bind:value={draft.frequency} id="bfreq" checkDevice={false} />
   <div>
-    <label class="label" for="bmode">Betriebsart</label>
+    <label class="label" for="bmode">{t('Betriebsart')}</label>
     <select id="bmode" class="input" bind:value={draft.mode}>
       {#each Object.keys(pages) as m (m)}<option value={m}>{m.toUpperCase()}</option>{/each}
     </select>
@@ -132,15 +133,15 @@
   </div>
   <div>
     <label class="label" for="btags">Tags</label>
-    <input id="btags" class="input" bind:value={tagText} placeholder="ham, relais" />
+    <input id="btags" class="input" bind:value={tagText} placeholder={t('ham, relais')} />
   </div>
   <div class="sm:col-span-2 lg:col-span-4">
-    <label class="label" for="bnotes">Notiz</label>
+    <label class="label" for="bnotes">{t('Notiz')}</label>
     <input id="bnotes" class="input" bind:value={draft.notes} maxlength="500" />
   </div>
   <div class="flex items-end gap-2">
     <button class="btn-primary" type="submit"
-      ><Plus size={16} /> {draft.id ? 'Speichern' : 'Hinzufügen'}</button
+      ><Plus size={16} /> {draft.id ? t('Speichern') : t('Hinzufügen')}</button
     >
     {#if draft.id}<button
         type="button"
@@ -148,7 +149,7 @@
         onclick={() => {
           draft = empty();
           tagText = '';
-        }}>Abbrechen</button
+        }}>{t('Abbrechen')}</button
       >{/if}
   </div>
 </form>
@@ -156,7 +157,12 @@
 <section class="card mt-6 overflow-x-auto">
   {#if items.length}
     <table class="table">
-      <thead><tr><th>Name</th><th>Frequenz</th><th>Art</th><th>Mod.</th><th>Tags</th><th></th></tr></thead>
+      <thead
+        ><tr
+          ><th>{t('Name')}</th><th>{t('Frequenz')}</th><th>{t('Art')}</th><th>Mod.</th><th>Tags</th><th
+          ></th></tr
+        ></thead
+      >
       <tbody>
         {#each items as b (b.id)}
           <tr>
@@ -178,10 +184,12 @@
                   draft = { ...b };
                   tagText = b.tags.join(', ');
                 }}
-                aria-label="Bearbeiten"><Pencil size={14} /></button
+                aria-label={t('Bearbeiten')}><Pencil size={14} /></button
               >
-              <button class="text-slate-400 hover:text-red-500" onclick={() => remove(b)} aria-label="Löschen"
-                ><Trash2 size={14} /></button
+              <button
+                class="text-slate-400 hover:text-red-500"
+                onclick={() => remove(b)}
+                aria-label={t('Löschen')}><Trash2 size={14} /></button
               >
             </td>
           </tr>
@@ -189,10 +197,10 @@
       </tbody>
     </table>
   {:else}
-    <EmptyState text="Noch keine eigenen Lesezeichen." />
+    <EmptyState text={t('Noch keine eigenen Lesezeichen.')} />
     {#if defaults.length}
       <button class="btn-secondary mt-3" onclick={adoptDefaults}
-        >{defaults.length} Standard-Frequenzen übernehmen</button
+        >{t('{n} Standard-Frequenzen übernehmen', { n: defaults.length })}</button
       >
     {/if}
   {/if}

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { api } from '../api';
   import { mhz } from '../format';
+  import { t } from '../i18n.svelte';
   import type { Bookmark } from '../types';
 
   let {
@@ -23,13 +24,13 @@
 </script>
 
 {#if items.length}
-  <div class="mb-5 flex flex-wrap gap-2" aria-label="Frequenz-Lesezeichen">
+  <div class="mb-5 flex flex-wrap gap-2" aria-label={t('Frequenz-Lesezeichen')}>
     {#each items as item (item.name + item.frequency)}
       <button class="chip" type="button" onclick={() => onpick(item)}>
         {item.name}
         <span class="ml-1 font-mono text-accent-600 dark:text-accent-400">{mhz(item.frequency, 3)}</span>
       </button>
     {/each}
-    <a class="chip" href="#/bookmarks">+ Lesezeichen</a>
+    <a class="chip" href="#/bookmarks">+ {t('Lesezeichen')}</a>
   </div>
 {/if}

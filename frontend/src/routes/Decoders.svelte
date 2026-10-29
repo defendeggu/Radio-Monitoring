@@ -7,6 +7,7 @@
   import PageHeader from '../lib/components/PageHeader.svelte';
   import SessionCard from '../lib/components/SessionCard.svelte';
   import { packetTime, time } from '../lib/format';
+  import { t } from '../lib/i18n.svelte';
   import { live, sdr, toasts } from '../lib/stores.svelte';
   import type { Aircraft } from '../lib/types';
 
@@ -19,10 +20,10 @@
   }
   type Doc = Record<string, unknown> & { '@timestamp'?: string; timestamp?: string };
 
-  const labels: Record<Kind, string> = {
-    adsb: 'ADS-B (Flugzeuge)',
-    ais: 'AIS (Schiffe)',
-    ism: 'ISM-Sensoren',
+  const labels: Record<Kind, () => string> = {
+    adsb: () => t('ADS-B (Flugzeuge)'),
+    ais: () => t('AIS (Schiffe)'),
+    ism: () => t('ISM-Sensoren'),
   };
   let kind = $state<Kind>('adsb');
   let info = $state<DecoderInfo[]>([]);
@@ -80,7 +81,7 @@
         frequency: kind === 'ism' ? ismFrequency : null,
       });
       sessionId = r.session_id;
-      toasts.push(`${labels[kind]} gestartet`, 'success');
+      toasts.push(t('{name} gestartet', { name: labels[kind]() }), 'success');
       void sdr.refresh();
     } catch (e) {
       toasts.error(e);
@@ -120,7 +121,7 @@
 
 <PageHeader
   title="ADS-B · AIS · ISM"
-  description="Flugzeuge (RTL-SDR oder HackRF), Schiffe und Funksensoren (RTL-SDR)"
+  description={t('Flugzeuge (RTL-SDR oder HackRF), Schiffe und Funksensoren (RTL-SDR)')}
 >
   {#snippet actions()}
     <button
@@ -140,7 +141,7 @@
       class="chip {kind === k ? '!border-accent-500 text-accent-600 dark:text-accent-400' : ''}"
       onclick={() => (kind = k as Kind)}
     >
-      {labels[k as Kind]}
+      {labels[k as Kind]()}
     </button>
   {/each}
 </div>
@@ -153,17 +154,20 @@
   }}
 >
   {#if current && !current.installed}
-    <p class="text-sm text-red-500">{current.tool} ist im Container nicht installiert.</p>
+    <p class="text-sm text-red-500">
+      {t('{tool} ist im Container nicht installiert.', { tool: current.tool })}
+    </p>
   {/if}
   <p class="text-sm text-slate-500">
-    Werkzeug: <code>{current?.tool ?? '…'}</code> ·
-    {#if kind === 'adsb'}RTL-SDR oder HackRF · 1090 MHz{:else if kind === 'ais'}benötigt einen RTL-SDR ·
-      161.975 / 162.025 MHz{:else}benötigt einen RTL-SDR{/if}
+    {t('Werkzeug')}: <code>{current?.tool ?? '…'}</code> ·
+    {#if kind === 'adsb'}{t('RTL-SDR oder HackRF')} · 1090 MHz{:else if kind === 'ais'}{t(
+        'benötigt einen RTL-SDR',
+      )} · 161.975 / 162.025 MHz{:else}{t('benötigt einen RTL-SDR')}{/if}
   </p>
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
     {#if kind === 'ism'}<FrequencyField bind:value={ismFrequency} />{/if}
     <div>
-      <label class="label" for="dgain">Verstärkung (dB)</label>
+      <label class="label" for="dgain">{t('Verstärkung (dB)')}</label>
       <input
         id="dgain"
         class="input"
@@ -171,24 +175,24 @@
         min="0"
         max="50"
         bind:value={gain}
-        placeholder="automatisch"
+        placeholder={t('automatisch')}
       />
     </div>
     <div>
-      <label class="label" for="ppm">Frequenzkorrektur (ppm)</label>
+      <label class="label" for="ppm">{t('Frequenzkorrektur (ppm)')}</label>
       <input id="ppm" class="input" type="number" min="-200" max="200" bind:value={ppm} />
     </div>
     <div>
-      <label class="label" for="dh">Laufzeit (Stunden)</label>
+      <label class="label" for="dh">{t('Laufzeit (Stunden)')}</label>
       <input id="dh" class="input" type="number" min="0.5" max="24" step="0.5" bind:value={hours} />
     </div>
   </div>
   <button class="btn-primary" type="submit" disabled={busy || sdr.busy || current?.installed === false}
-    ><Play size={16} /> Starten</button
+    ><Play size={16} /> {t('Starten')}</button
   >
 </form>
 
-{#if sessionId}<div class="mt-4"><SessionCard {sessionId} countLabel="Meldungen" /></div>{/if}
+{#if sessionId}<div class="mt-4"><SessionCard {sessionId} countLabel={t('Meldungen')} /></div>{/if}
 
 {#if kind !== 'ism'}
   <section class="card mt-6"><MapView {points} /></section>
@@ -200,9 +204,9 @@
       <table class="table">
         <thead
           ><tr
-            ><th>ICAO</th><th>Flug</th><th>Höhe (ft)</th><th>Speed (kt)</th><th>Kurs</th><th>Squawk</th><th
-              >RSSI</th
-            ></tr
+            ><th>ICAO</th><th>{t('Flug')}</th><th>{t('Höhe (ft)')}</th><th>{t('Speed (kt)')}</th><th
+              >{t('Kurs')}</th
+            ><th>Squawk</th><th>RSSI</th></tr
           ></thead
         >
         <tbody>
@@ -217,14 +221,15 @@
           {/each}
         </tbody>
       </table>
-    {:else}<EmptyState text="Keine Flugzeuge empfangen." />{/if}
+    {:else}<EmptyState text={t('Keine Flugzeuge empfangen.')} />{/if}
   {:else if kind === 'ais'}
     {#if docs.length}
       <table class="table">
         <thead
           ><tr
-            ><th>Zeit</th><th>MMSI</th><th>Name</th><th>Rufzeichen</th><th>Speed</th><th>Kurs</th><th>Ziel</th
-            ></tr
+            ><th>{t('Zeit')}</th><th>MMSI</th><th>{t('Name')}</th><th>{t('Rufzeichen')}</th><th
+              >{t('Speed')}</th
+            ><th>{t('Kurs')}</th><th>{t('Ziel')}</th></tr
           ></thead
         >
         <tbody>
@@ -239,12 +244,12 @@
           {/each}
         </tbody>
       </table>
-    {:else}<EmptyState text="Keine Schiffe empfangen." />{/if}
+    {:else}<EmptyState text={t('Keine Schiffe empfangen.')} />{/if}
   {:else if docs.length}
     <table class="table">
       <thead
         ><tr
-          ><th>Zeit</th>{#each ismColumns as c (c)}<th>{c}</th>{/each}</tr
+          ><th>{t('Zeit')}</th>{#each ismColumns as c (c)}<th>{c}</th>{/each}</tr
         ></thead
       >
       <tbody>
@@ -256,5 +261,5 @@
         {/each}
       </tbody>
     </table>
-  {:else}<EmptyState text="Keine Sensoren empfangen." />{/if}
+  {:else}<EmptyState text={t('Keine Sensoren empfangen.')} />{/if}
 </section>

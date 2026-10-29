@@ -1,6 +1,7 @@
 <script lang="ts">
   import { RefreshCw } from '@lucide/svelte';
   import { api } from '../lib/api';
+  import { t } from '../lib/i18n.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import StatCard from '../lib/components/StatCard.svelte';
@@ -14,14 +15,14 @@
   let alerts = $state<AlertEvent[]>([]);
   let loading = $state(false);
 
-  const series = [
+  const series = $derived([
     { key: 'captures', label: 'Captures', color: '#06b6d4' },
     { key: 'aprs', label: 'APRS', color: '#22c55e' },
     { key: 'pocsag', label: 'POCSAG', color: '#f59e0b' },
     { key: 'adsb', label: 'ADS-B', color: '#a855f7' },
     { key: 'ais', label: 'AIS', color: '#3b82f6' },
     { key: 'ism', label: 'ISM', color: '#ec4899' },
-  ];
+  ]);
 
   async function load() {
     loading = true;
@@ -55,7 +56,7 @@
       case 'aprs':
         return `${d.source_callsign ?? '?'} — ${String(d.message_text ?? '').slice(0, 80)}`;
       case 'pocsag':
-        return `RIC ${d.address} — ${String(d.message_text ?? 'Tone only').slice(0, 80)}`;
+        return `RIC ${d.address} — ${String(d.message_text ?? t('Nur Ton')).slice(0, 80)}`;
       case 'adsb':
         return `${d.flight ?? d.icao} ${d.altitude_ft ? `${d.altitude_ft} ft` : ''}`;
       case 'ais':
@@ -72,15 +73,15 @@
   }
 </script>
 
-<PageHeader title="Dashboard" description="Aktivität der letzten Stunden über alle Betriebsarten">
+<PageHeader title={t('Dashboard')} description={t('Aktivität der letzten Stunden über alle Betriebsarten')}>
   {#snippet actions()}
-    <select class="input !w-auto" bind:value={hours} aria-label="Zeitraum">
-      <option value={6}>6 Stunden</option>
-      <option value={24}>24 Stunden</option>
-      <option value={72}>3 Tage</option>
-      <option value={168}>7 Tage</option>
+    <select class="input !w-auto" bind:value={hours} aria-label={t('Zeitraum')}>
+      <option value={6}>{t('{n} Stunden', { n: 6 })}</option>
+      <option value={24}>{t('{n} Stunden', { n: 24 })}</option>
+      <option value={72}>{t('{n} Tage', { n: 3 })}</option>
+      <option value={168}>{t('{n} Tage', { n: 7 })}</option>
     </select>
-    <button class="btn-secondary" onclick={load} disabled={loading} aria-label="Aktualisieren"
+    <button class="btn-secondary" onclick={load} disabled={loading} aria-label={t('Aktualisieren')}
       ><RefreshCw size={16} /></button
     >
   {/snippet}
@@ -92,16 +93,16 @@
   <StatCard label="POCSAG" value={stats?.counts.pocsag ?? '–'} />
   <StatCard label="ADS-B" value={stats?.counts.adsb ?? '–'} />
   <StatCard label="AIS" value={stats?.counts.ais ?? '–'} />
-  <StatCard label="Alarme" value={stats?.counts.alerts ?? '–'} />
+  <StatCard label={t('Alarme')} value={stats?.counts.alerts ?? '–'} />
 </div>
 
 <div class="grid gap-6 lg:grid-cols-3">
   <section class="card lg:col-span-2">
-    <h2 class="mb-3 text-sm font-semibold">Aktivität pro Stunde</h2>
+    <h2 class="mb-3 text-sm font-semibold">{t('Aktivität pro Stunde')}</h2>
     {#if stats?.timeline.length}
       <TimelineChart rows={stats.timeline} {series} />
     {:else}
-      <EmptyState text="Noch keine Daten im gewählten Zeitraum" />
+      <EmptyState text={t('Noch keine Daten im gewählten Zeitraum')} />
     {/if}
   </section>
 
@@ -109,24 +110,25 @@
     <h2 class="mb-3 text-sm font-semibold">SDR</h2>
     {#if sdr.status?.busy}
       <p class="text-sm">
-        Belegt durch <strong>{sdr.status.holder?.kind}</strong>
-        seit {relative(sdr.status.holder?.since)}
+        {t('Belegt durch')} <strong>{sdr.status.holder?.kind}</strong>
+        {t('seit {when}', { when: relative(sdr.status.holder?.since) })}
       </p>
       {#each sdr.status.active_sessions as s (s.session_id)}
         <p class="mt-2 text-sm text-slate-500">
-          {s.mode.toUpperCase()} · {mhz(s.frequency)} · {s.packet_count} Pakete
+          {s.mode.toUpperCase()} · {mhz(s.frequency)} · {s.packet_count}
+          {t('Pakete')}
         </p>
       {/each}
     {:else if sdr.detect?.detected}
-      <p class="text-sm">{sdr.detect.type.toUpperCase()} ist frei.</p>
+      <p class="text-sm">{t('{type} ist frei.', { type: sdr.detect.type.toUpperCase() })}</p>
       <p class="mt-1 text-xs text-slate-500">
         {sdr.detect.frequency_range?.min_mhz}–{sdr.detect.frequency_range?.max_mhz} MHz
       </p>
     {:else}
-      <p class="text-sm text-slate-500">{sdr.detect?.message ?? 'Kein SDR erkannt.'}</p>
+      <p class="text-sm text-slate-500">{sdr.detect?.message ?? t('Kein SDR erkannt.')}</p>
     {/if}
 
-    <h2 class="mt-6 mb-2 text-sm font-semibold">Letzte Alarme</h2>
+    <h2 class="mt-6 mb-2 text-sm font-semibold">{t('Letzte Alarme')}</h2>
     {#if alerts.length}
       <ul class="space-y-2 text-sm">
         {#each alerts as a (a.uuid)}
@@ -134,15 +136,17 @@
         {/each}
       </ul>
     {:else}
-      <p class="text-sm text-slate-500">Keine. <a class="underline" href="#/alerts">Regeln anlegen</a></p>
+      <p class="text-sm text-slate-500">
+        {t('Keine.')} <a class="underline" href="#/alerts">{t('Regeln anlegen')}</a>
+      </p>
     {/if}
   </section>
 
   <section class="card lg:col-span-2">
-    <h2 class="mb-3 text-sm font-semibold">Neueste APRS-Pakete</h2>
+    <h2 class="mb-3 text-sm font-semibold">{t('Neueste APRS-Pakete')}</h2>
     {#if stats?.latest.aprs.length}
       <table class="table">
-        <thead><tr><th>Zeit</th><th>Rufzeichen</th><th>Nachricht</th></tr></thead>
+        <thead><tr><th>{t('Zeit')}</th><th>{t('Rufzeichen')}</th><th>{t('Nachricht')}</th></tr></thead>
         <tbody>
           {#each stats.latest.aprs as p, i (p.uuid ?? i)}
             <tr
@@ -154,14 +158,14 @@
         </tbody>
       </table>
     {:else}
-      <EmptyState text="Keine APRS-Pakete" />
+      <EmptyState text={t('Keine APRS-Pakete')} />
     {/if}
   </section>
 
   <section class="card">
     <h2 class="mb-3 flex items-center justify-between text-sm font-semibold">
       Live <span class="text-xs font-normal text-slate-500"
-        >{live.state === 'open' ? 'verbunden' : live.state}</span
+        >{live.state === 'open' ? t('verbunden') : live.state}</span
       >
     </h2>
     {#if feed.length}
@@ -177,7 +181,7 @@
         {/each}
       </ul>
     {:else}
-      <p class="text-sm text-slate-500">Wartet auf Ereignisse…</p>
+      <p class="text-sm text-slate-500">{t('Wartet auf Ereignisse…')}</p>
     {/if}
   </section>
 </div>

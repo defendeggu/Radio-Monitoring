@@ -1,6 +1,7 @@
 <script lang="ts">
   import { CircleAlert, CircleCheck, Info, TriangleAlert, X } from '@lucide/svelte';
   import { toasts } from '../stores.svelte';
+  import { t } from '../i18n.svelte';
 
   const icons = { info: Info, success: CircleCheck, error: CircleAlert, warning: TriangleAlert };
   const colors = {
@@ -25,7 +26,7 @@
       <button
         class="text-slate-400 hover:text-slate-600"
         onclick={() => toasts.dismiss(toast.id)}
-        aria-label="Schliessen"
+        aria-label={t('Schliessen')}
       >
         <X size={14} />
       </button>
