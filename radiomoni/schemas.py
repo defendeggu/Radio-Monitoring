@@ -99,12 +99,6 @@ class StreamRequest(SdrParams):
     duration: int = Field(3600, ge=10, le=config.MAX_STREAM_DURATION)
 
 
-class LegacyStreamRequest(SdrParams):
-    """Body of the deprecated /stream/<mode>/start endpoints (frequency has a default)."""
-    frequency: int = Field(0, ge=0, le=MAX_FREQ)
-    duration: int = Field(3600, ge=10, le=config.MAX_STREAM_DURATION)
-
-
 class ChannelModel(StrictModel):
     mode: StreamMode
     frequency: int = Field(..., ge=50_000_000, le=2_200_000_000)

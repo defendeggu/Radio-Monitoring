@@ -203,8 +203,6 @@ class TestRecordings:
         names = [r['filename'] for r in data['recordings']]
         assert 'test_audio.wav' in names
         assert all('path' not in r for r in data['recordings'])
-        legacy = client.get('/list-recordings').get_json()
-        assert any(r['filename'] == 'test_audio.wav' for r in legacy['recordings'])
 
     def test_download(self, client: FlaskClient, sample_audio_file):
         response = client.get('/recordings/test_audio.wav')
@@ -281,7 +279,6 @@ class TestOpenApi:
         body = doc['paths']['/stream-decode']['post']['requestBody']
         assert body['content']['application/json']['schema']['$ref'].endswith('StreamRequest')
         assert 'StreamRequest' in doc['components']['schemas']
-        assert doc['paths']['/stream/aprs/start']['post']['deprecated'] is True
 
     def test_all_routes_documented(self, client: FlaskClient):
         from radiomoni.api_service import app

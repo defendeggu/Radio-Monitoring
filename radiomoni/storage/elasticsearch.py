@@ -464,9 +464,3 @@ def create_elasticsearch_service() -> ElasticsearchService:
         logstash_repeater_host=os.getenv('LOGSTASH_REPEATER_HOST', 'http://logstash:9603'),
         logstash_auth=auth,
     )
-
-
-def get_elasticsearch_service() -> StorageBackend:
-    """Backwards-compatible alias for storage.get_storage()"""
-    from radiomoni.storage.base import get_storage
-    return get_storage()

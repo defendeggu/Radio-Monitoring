@@ -237,27 +237,6 @@ class TestSessionManager:
         assert len(sessions) == 2
         assert all(isinstance(s, StreamSession) for s in sessions)
 
-    def test_get_user_active_session_none(self, session_manager, mock_redis):
-        """Test getting active session when none exist"""
-        mock_redis.scan_iter.return_value = []
-
-        active = session_manager.get_user_active_session()
-
-        assert active is None
-
-    def test_get_user_active_session_exists(self, session_manager, mock_redis):
-        """Test getting active session when one exists"""
-        session = StreamSession('aprs', 144800000, 300, 20, 2000000)
-        session.status = 'running'
-
-        mock_redis.scan_iter.return_value = ['stream_session:test']
-        mock_redis.get.return_value = json.dumps(session.to_dict())
-
-        active = session_manager.get_user_active_session()
-
-        assert active is not None
-        assert active.status in ['starting', 'running']
-
 
 # ============================================================================
 # StreamingAPRSDecoder Tests
@@ -583,13 +562,6 @@ class TestStreamingAPI:
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000, 'duration': 10})
         assert response.status_code == 409
         assert response.get_json()['holder']['owner'] == 'other-job'
-
-    def test_legacy_endpoint_is_deprecated(self, client: FlaskClient, monkeypatch):
-        from radiomoni import sdr_lock
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
-        assert sdr_lock.acquire('other-job', 'capture')
-        response = client.post('/stream/aprs/start', json={'duration': 10})
-        assert response.status_code == 409
 
     def test_usrp_requires_address(self, client: FlaskClient):
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000,

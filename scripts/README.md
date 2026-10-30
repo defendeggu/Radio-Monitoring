@@ -11,7 +11,6 @@
 | `update_repeaters_from_uska.py` | `repeaters_ch.csv` aus der aktuellen USKA-Liste neu erzeugen |
 | `generate_api_keys.py` | zusätzliche API-Keys erzeugen |
 | `run_mypy.sh` | Typprüfung (strict) |
-| `tests/manual-tests/` | Tests mit echter Hardware (`API_URL`, `API_KEY` aus `.env`) |
 
 ## Repeater-CSV
 

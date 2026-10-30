@@ -112,24 +112,6 @@ class RepeaterScanSession:
 
         return session
 
-    def update_progress(
-        self,
-        current_index: int,
-        current_repeater: str,
-        elapsed_time: float
-    ) -> None:
-        """Update scan progress"""
-        self.current_index = current_index
-        self.current_repeater = current_repeater
-        self.elapsed_time = elapsed_time
-
-    def add_result(self, result: Dict[str, Any]) -> None:
-        """Add a scan result"""
-        self.results.append(result)
-        self.repeaters_scanned += 1
-        if result.get('activity_detected'):
-            self.repeaters_with_activity += 1
-
     def complete(self, results: List[Dict[str, Any]]) -> None:
         """Mark session as completed"""
         self.status = 'completed'
@@ -229,18 +211,6 @@ class ScanSessionManager:
                     continue
 
         return sessions
-
-    def get_active_sessions(self) -> List[RepeaterScanSession]:
-        """
-        Get all active (in_progress) scan sessions
-
-        Returns:
-            List of active RepeaterScanSession instances
-        """
-        return [
-            session for session in self.list_sessions()
-            if session.status == 'in_progress'
-        ]
 
     def cleanup_old_sessions(self, max_age_hours: int = 24) -> int:
         """

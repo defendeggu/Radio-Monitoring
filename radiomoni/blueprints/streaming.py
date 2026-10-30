@@ -14,16 +14,12 @@ from radiomoni import events
 from radiomoni.api_docs import api, parse_body
 from radiomoni.errors import ApiError, call_action
 from radiomoni.jobs import start_stream_session
-from radiomoni.schemas import (ExternalDecoderRequest, LegacyStreamRequest, MultiChannelRequest, StreamRequest,
-                     VoxRequest)
+from radiomoni.schemas import ExternalDecoderRequest, MultiChannelRequest, StreamRequest, VoxRequest
 from radiomoni.session_store import session_manager
 from radiomoni.decoders.streaming import ChannelConfig, MultiChannelStreamingDecoder
 
 logger = logging.getLogger(__name__)
 streaming_bp = Blueprint('streaming', __name__)
-
-LEGACY_DEFAULT_FREQ = {'aprs': 144_800_000, 'pocsag': 147_325_000}
-
 
 @streaming_bp.post('/stream-decode')
 @api('Start an APRS or POCSAG streaming session', tags=['Streaming'], body=StreamRequest,
@@ -32,32 +28,6 @@ def start_streaming_decode() -> Response:
     req = parse_body(StreamRequest)
     result = call_action(actions.start_stream, req)
     return jsonify({'status': 'success', 'message': f'{req.mode.upper()} streaming started', **result})
-
-
-def _legacy_start(mode: str) -> Response:
-    raw = parse_body(LegacyStreamRequest)
-    data = raw.model_dump()
-    data['frequency'] = data['frequency'] or LEGACY_DEFAULT_FREQ[mode]
-    req = StreamRequest.model_validate({**data, 'mode': mode})
-    result = call_action(actions.start_stream, req)
-    response = jsonify({'status': 'success', 'message': f'{mode.upper()} streaming started', **result})
-    response.headers['Deprecation'] = 'true'
-    response.headers['Link'] = '</stream-decode>; rel="successor-version"'
-    return response
-
-
-@streaming_bp.post('/stream/aprs/start')
-@api('Start APRS streaming (deprecated, use POST /stream-decode)', tags=['Streaming'],
-     body=LegacyStreamRequest, deprecated=True)
-def start_aprs_streaming() -> Response:
-    return _legacy_start('aprs')
-
-
-@streaming_bp.post('/stream/pocsag/start')
-@api('Start POCSAG streaming (deprecated, use POST /stream-decode)', tags=['Streaming'],
-     body=LegacyStreamRequest, deprecated=True)
-def start_pocsag_streaming() -> Response:
-    return _legacy_start('pocsag')
 
 
 @streaming_bp.post('/vox/start')

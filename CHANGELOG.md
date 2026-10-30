@@ -2,6 +2,32 @@
 
 Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionierung nach [SemVer](https://semver.org/lang/de/).
 
+## [Unreleased]
+
+### Neu
+- Repeater-Scan nach Kanton (voreingestellt LU) mit Auswahl einzelner Relais, Gesamtdauer (ein Durchgang, 30 min bis 24 h oder bis Stopp) und Sekunden pro Relais; Ergebnisse pro Relais über alle Runden zusammengefasst. API: `total_duration`, `until_stopped` und `POST /scan-repeaters/{id}/stop`.
+- Schweizer Repeater-Liste aus der USKA HB Voice Repeater List (`scripts/update_repeaters_from_uska.py`).
+- ADS-B auch mit dem HackRF.
+- Kibana-Dashboards pro Modul der Weboberfläche, neu auch für ADS-B, AIS, ISM und Alarme.
+- Weboberfläche auf Deutsch und Englisch umschaltbar; README und Dokumentation zusätzlich auf Englisch.
+
+### Behoben
+- Aufnahmen dauerten doppelt so lange wie verlangt.
+- APRS: Kanal wird vor der FM-Demodulation gefiltert, damit Pakete dekodiert werden.
+- Streaming-Sessions werden als fehlgeschlagen markiert, wenn der SDR-Prozess abbricht.
+- VOX meldet fehlgeschlagene Transkriptionen statt endlos „transkribiere…“ anzuzeigen; PyAV auf 18 fixiert, weil 19 faster-whisper bricht.
+- Gunicorn-Steuersocket abgeschaltet (Fehlermeldung im schreibgeschützten Container).
+- Sicherheitsupdates von Alpine im nginx-Image.
+
+### Geändert
+- Python-Code im Paket `radiomoni/` mit Unterpaketen für Decoder und Speicher; Konfigurationsdateien unter `config/`, Tool-Einstellungen in `pyproject.toml`.
+- Abhängigkeiten von Frontend und Tests aktualisiert; Dependabot entfernt.
+
+### Entfernt
+- Veraltete Endpunkte `POST /stream/aprs/start`, `POST /stream/pocsag/start` (ersetzt durch `POST /stream-decode`) und `GET /list-recordings` (ersetzt durch `/recordings`).
+- RepeaterBook-Import und -Daten.
+- Alte manuelle Hardware-Testskripte (`scripts/tests/`), der Verbesserungsbericht unter `docs/reports/` und ungenutzter Code.
+
 ## [4.0.0] – 2026-10-16
 
 ### Sicherheit

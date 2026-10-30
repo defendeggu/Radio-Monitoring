@@ -39,7 +39,7 @@ docker run --rm -v "$PWD":/src -w /src radiomoni-api-test ruff check --exclude t
 docker run --rm -v "$PWD":/src -w /src radiomoni-api-test ./scripts/run_mypy.sh          # strict
 ```
 
-Die Tests laufen mit fakeredis, einer SQLite-Instanz pro Test und simulierter Hardware (`mock_sdr_hardware`). Hardware-Tests mit echtem Gerät liegen in `scripts/tests/manual-tests/`.
+Die Tests laufen mit fakeredis, einer SQLite-Instanz pro Test und simulierter Hardware (`mock_sdr_hardware`).
 
 Lokale API ohne Docker (nur zum Entwickeln):
 
@@ -126,7 +126,7 @@ docker run --rm -v "$PWD":/src -w /src radiomoni-api-test ruff check --exclude t
 docker run --rm -v "$PWD":/src -w /src radiomoni-api-test ./scripts/run_mypy.sh          # strict
 ```
 
-The tests run with fakeredis, one SQLite instance per test and simulated hardware (`mock_sdr_hardware`). Hardware tests with a real device are in `scripts/tests/manual-tests/`.
+The tests run with fakeredis, one SQLite instance per test and simulated hardware (`mock_sdr_hardware`).
 
 Local API without Docker (for development only):
 

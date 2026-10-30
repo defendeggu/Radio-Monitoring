@@ -198,14 +198,6 @@ class SessionManager:
             logger.warning(f"Marked {reaped} orphaned streaming session(s) as failed")
         return reaped
 
-    def get_user_active_session(self, user_id: str = 'default') -> Optional[StreamSession]:
-        """Get user's active session (max 1 per user)"""
-        for session in self.list_sessions():
-            if session.status in ['starting', 'running']:
-                # In future: check user_id
-                return session
-        return None
-
     def create_session(self, decoder_type: str, decoder: 'BaseStreamingDecoder',
                       frequency: int, sample_rate: int, gain: int) -> str:
         """Create a new streaming session"""

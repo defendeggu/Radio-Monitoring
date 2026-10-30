@@ -45,12 +45,6 @@ def list_recordings() -> Response:
     return jsonify({'recordings': _list(), 'stats': recordings_stats()})
 
 
-@recordings_bp.get('/list-recordings')
-@api('List recordings (legacy alias of /recordings)', tags=['Recordings'], deprecated=True)
-def list_recordings_legacy() -> Response:
-    return jsonify({'recordings': _list()})
-
-
 @recordings_bp.get('/recordings/<filename>')
 @api('Download a recording (WAV) or its transcript (JSON)', tags=['Recordings'], responses={404: 'Not found'})
 def get_recording(filename: str) -> Response:

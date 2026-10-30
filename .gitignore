@@ -36,5 +36,6 @@ frontend/test-results/
 
 # Editors / tools
 .vscode/
+.claude/
 claude.md
 CLAUDE.md

@@ -94,9 +94,9 @@ curl -N -H "X-API-Key: $API_KEY" "$API/events?types=aprs,alert"
 ## Änderungen gegenüber 3.x
 
 - `POST /capture` arbeitet jetzt asynchron (HTTP 202 + `capture_id`), wie `/capture-and-transcribe`.
-- `/stream/aprs/start` und `/stream/pocsag/start` sind veraltet (Header `Deprecation: true`). Nutze `POST /stream-decode`.
+- `/stream/aprs/start` und `/stream/pocsag/start` sind entfernt. Nutze `POST /stream-decode`.
 - `/sdr/detect` antwortet ohne Gerät mit HTTP 200 und `"detected": false` statt mit 404.
-- `/list-recordings` ist ein Alias von `/recordings` und liefert nur noch Dateinamen statt Serverpfaden.
+- `/list-recordings` ist entfernt. Nutze `/recordings`, das nur Dateinamen statt Serverpfaden liefert.
 - Unbekannte Felder im Body werden mit 400 abgelehnt (`extra='forbid'`).
 
 ---
@@ -197,7 +197,7 @@ curl -N -H "X-API-Key: $API_KEY" "$API/events?types=aprs,alert"
 ### Changes compared to 3.x
 
 - `POST /capture` now works asynchronously (HTTP 202 + `capture_id`), like `/capture-and-transcribe`.
-- `/stream/aprs/start` and `/stream/pocsag/start` are deprecated (header `Deprecation: true`). Use `POST /stream-decode`.
+- `/stream/aprs/start` and `/stream/pocsag/start` are removed. Use `POST /stream-decode`.
 - Without a device, `/sdr/detect` answers with HTTP 200 and `"detected": false` instead of 404.
-- `/list-recordings` is an alias of `/recordings` and only returns file names instead of server paths.
+- `/list-recordings` is removed. Use `/recordings`, which only returns file names instead of server paths.
 - Unknown fields in the body are rejected with 400 (`extra='forbid'`).
