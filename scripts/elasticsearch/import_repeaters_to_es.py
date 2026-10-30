@@ -16,7 +16,7 @@ import sys
 import uuid
 import argparse
 from pathlib import Path
-from typing import Optional, List
+from typing import Optional
 from datetime import datetime, timezone
 
 # Add project root to path to allow importing the 'radiomoni' package
@@ -54,7 +54,7 @@ def repeater_uuid(callsign: str, output_frequency: int, location: str, shared_fr
 
 def _shared_frequencies(csv_file: str) -> set[tuple[str, Optional[int]]]:
     """(callsign, frequency) pairs that appear more than once in the file."""
-    with open(csv_file, 'r', encoding='utf-8') as f:
+    with open(csv_file, encoding='utf-8') as f:
         keys = [(row.get('callsign', '').strip().upper(), parse_frequency(row.get('frequency_mhz', '')))
                 for row in csv.DictReader(f)]
     return {k for k in keys if keys.count(k) > 1}
@@ -97,7 +97,7 @@ def import_csv(csv_file: str, deactivate: bool = False) -> int:
     imported = 0
     errors = 0
 
-    with open(csv_file, 'r', encoding='utf-8') as f:
+    with open(csv_file, encoding='utf-8') as f:
         reader = csv.DictReader(f)
 
         # Validate headers
@@ -176,7 +176,7 @@ def import_csv(csv_file: str, deactivate: bool = False) -> int:
 
     print()
     print("=" * 60)
-    print(f"Import complete!")
+    print("Import complete!")
     print(f"  Imported: {imported}")
     print(f"  Errors:   {errors}")
     if deactivate:

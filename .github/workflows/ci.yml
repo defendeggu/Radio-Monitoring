@@ -29,7 +29,7 @@ jobs:
       - name: Build test image (Python 3.13 + SDR tools)
         run: docker build --target test -t radiomoni-api-test .
       - name: Ruff
-        run: docker run --rm radiomoni-api-test ruff check --exclude tests,scripts .
+        run: docker run --rm radiomoni-api-test ruff check .
       - name: Mypy (strict)
         run: docker run --rm radiomoni-api-test mypy radiomoni/
       - name: Pytest (coverage >= 60 %)

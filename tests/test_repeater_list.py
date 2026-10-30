@@ -3,7 +3,6 @@ Tests for the Swiss repeater list: USKA conversion, CSV import and the shipped C
 """
 
 import csv
-import os
 import sys
 from pathlib import Path
 

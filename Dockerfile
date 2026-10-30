@@ -87,7 +87,7 @@ USER root
 COPY requirements.txt requirements-dev.txt /tmp/
 RUN pip install -r /tmp/requirements-dev.txt
 COPY tests/ tests/
-COPY scripts/update_repeaters_from_uska.py scripts/
+COPY scripts/*.py scripts/
 COPY pyproject.toml requirements.txt requirements-dev.txt ./
 RUN chown -R radiouser:radiouser /app
 USER radiouser

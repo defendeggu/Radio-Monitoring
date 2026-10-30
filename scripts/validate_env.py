@@ -30,7 +30,7 @@ def load(path: Path) -> dict[str, str]:
 def main() -> int:
     strict = '--strict' in sys.argv
     if not ENV_FILE.exists():
-        print(f"No .env found. Create it with: ./scripts/setup-env.sh")
+        print("No .env found. Create it with: ./scripts/setup-env.sh")
         return 1
     env = load(ENV_FILE)
     errors: list[str] = []

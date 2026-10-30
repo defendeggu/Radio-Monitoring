@@ -3,7 +3,7 @@
 import os
 import json
 import pytest
-from radiomoni.transcription_service import TranscriptionService, SegmentDict, TranscriptionResult
+from radiomoni.transcription_service import TranscriptionService
 
 
 class TestTranscriptionServiceInit:
@@ -145,7 +145,7 @@ class TestTranscriptionServiceTranscribeAndSave:
         assert os.path.exists(output_file)
 
         # Check file content
-        with open(output_file, 'r') as f:
+        with open(output_file) as f:
             saved_data = json.load(f)
 
         assert saved_data == result
@@ -157,7 +157,7 @@ class TestTranscriptionServiceTranscribeAndSave:
         nested_dir = os.path.join(temp_recording_dir, 'nested', 'dir')
         output_file = os.path.join(nested_dir, 'output.json')
 
-        result = service.transcribe_and_save(sample_audio_file, output_file)
+        service.transcribe_and_save(sample_audio_file, output_file)
 
         assert os.path.exists(output_file)
         assert os.path.exists(nested_dir)

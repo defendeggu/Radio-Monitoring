@@ -17,15 +17,12 @@ Total: 30 tests covering POCSAG decoding functionality
 import os
 import sys
 import pytest
-import tempfile
-from pathlib import Path
-from typing import List
 from flask.testing import FlaskClient
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from radiomoni.decoders.pocsag import POCSAGDecoder, POCSAGMessage
+from radiomoni.decoders.pocsag import POCSAGDecoder
 
 
 # ============================================================================

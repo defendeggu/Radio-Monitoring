@@ -4,7 +4,7 @@ Unit tests for SDR Hardware Abstraction Layer
 """
 
 import unittest
-from unittest.mock import Mock, patch, MagicMock
+from unittest.mock import Mock, patch
 import numpy as np
 import tempfile
 import os

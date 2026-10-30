@@ -14,11 +14,6 @@ import os
 import sys
 import pytest
 import numpy as np
-import tempfile
-import time
-import json
-from pathlib import Path
-from typing import Dict, Any
 from flask.testing import FlaskClient
 
 # Add parent directory to path
@@ -203,7 +198,7 @@ class TestRepeaterActivityAnalyzer:
         metrics = analyzer.analyze_iq_samples(noise_only_iq_samples)
 
         assert isinstance(metrics, ActivityMetrics)
-        assert metrics.carrier_detected == False
+        assert not metrics.carrier_detected
         assert metrics.transmission_count == 0
         assert metrics.total_active_seconds >= 0
         assert metrics.activity_percentage < 10  # Should be very low
@@ -216,7 +211,7 @@ class TestRepeaterActivityAnalyzer:
         metrics = analyzer.analyze_iq_samples(single_transmission_iq_samples)
 
         assert isinstance(metrics, ActivityMetrics)
-        assert metrics.carrier_detected == True
+        assert metrics.carrier_detected
         assert metrics.transmission_count >= 1
         assert metrics.total_active_seconds > 0
         assert metrics.activity_percentage > 0
@@ -229,7 +224,7 @@ class TestRepeaterActivityAnalyzer:
         metrics = analyzer.analyze_iq_samples(multiple_transmission_iq_samples)
 
         assert isinstance(metrics, ActivityMetrics)
-        assert metrics.carrier_detected == True
+        assert metrics.carrier_detected
         assert metrics.transmission_count >= 2  # At least 2 transmissions
         assert metrics.total_active_seconds > 0
         assert len(metrics.transmissions) >= 2
@@ -267,7 +262,7 @@ class TestRepeaterActivityAnalyzer:
         result = metrics.to_dict()
 
         assert isinstance(result, dict)
-        assert result['carrier_detected'] == True
+        assert result['carrier_detected']
         assert result['transmission_count'] == 3
         assert result['total_active_seconds'] == 12.5
         assert result['activity_percentage'] == 25.3

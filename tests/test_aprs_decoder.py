@@ -18,15 +18,12 @@ Total: 35 tests covering APRS decoding functionality
 import os
 import sys
 import pytest
-import tempfile
-from pathlib import Path
-from typing import List
 from flask.testing import FlaskClient
 
 # Add parent directory to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from radiomoni.decoders.aprs import APRSDecoder, APRSPacket
+from radiomoni.decoders.aprs import APRSDecoder
 
 
 # ============================================================================
