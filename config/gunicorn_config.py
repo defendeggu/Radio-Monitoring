@@ -40,6 +40,8 @@ pidfile = None
 # Recordings must not be world-writable
 umask = 0o027
 worker_tmp_dir = '/dev/shm' if os.path.isdir('/dev/shm') else None
+# No gunicornc control socket: /app is read-only in the container and nothing uses it
+control_socket_disable = True
 
 limit_request_line = 4094
 limit_request_fields = 100
