@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [4.1.0] – 2026-11-01
+
 ### Neu
 - Die Versionsnummer wird mit `scripts/version.py` überall gesetzt (README-Badge, Frontend); die CI prüft, dass alle Stellen zu `radiomoni/version.py` passen.
 - Sprachauswahl für Whisper (VOX-Aufnahme und Sprache) als Dropdown: automatisch, Englisch, Deutsch, Italienisch, Französisch oder „Andere…“ mit freiem ISO-Code.

@@ -5,7 +5,7 @@
 Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribieren, durchsuchen und alarmieren. Das Ganze läuft als Docker-Stack mit Weboberfläche, REST-API und optional mit Elasticsearch/Kibana.
 
 [![CI](https://github.com/defendeggu/Radio-Monitoring/actions/workflows/ci.yml/badge.svg)](https://github.com/defendeggu/Radio-Monitoring/actions/workflows/ci.yml)
-[![Version](https://img.shields.io/badge/version-4.0.0-06b6d4)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-4.1.0-06b6d4)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 ## Funktionen
