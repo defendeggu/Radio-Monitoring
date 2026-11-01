@@ -26,6 +26,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
+      - name: Version consistency (radiomoni/version.py, README badge, frontend)
+        run: python3 scripts/version.py check
       - name: Build test image (Python 3.13 + SDR tools)
         run: docker build --target test -t radiomoni-api-test .
       - name: Ruff

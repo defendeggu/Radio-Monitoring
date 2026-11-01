@@ -5,6 +5,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 ## [Unreleased]
 
 ### Neu
+- Die Versionsnummer wird mit `scripts/version.py` überall gesetzt (README-Badge, Frontend); die CI prüft, dass alle Stellen zu `radiomoni/version.py` passen.
 - Sprachauswahl für Whisper (VOX-Aufnahme und Sprache) als Dropdown: automatisch, Englisch, Deutsch, Italienisch, Französisch oder „Andere…“ mit freiem ISO-Code.
 - GPU-Auslastung, -Speicher und -Temperatur im Kibana-Dashboard *System – Zustand* (GPU-Setup): API-Endpunkt `/metrics/gpu`, den Metricbeat mit dem eigenen, nur dafür gültigen `METRICS_API_KEY` liest.
 - Play-Button in Kibana: Sprach- und VOX-Aufnahmen lassen sich direkt aus den Dashboard-Listen abspielen (Feld `audio_url`, signierte Links mit `RECORDING_LINK_SECRET`).

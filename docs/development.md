@@ -83,6 +83,17 @@ cd frontend && npm outdated                                  # Frontend
 
 Neue Versionen in `requirements*.txt` bzw. `frontend/package.json` eintragen (bei npm danach `npm install`), die CI-Schritte lokal laufen lassen und direkt auf `main` committen. Ausnahmen: `av` bleibt auf 18.x, solange `faster-whisper` PyAV 19 nicht unterstützt; `typescript` bleibt auf 5.x, solange `svelte-check` TypeScript 7 nicht unterstützt.
 
+## Version und Release
+
+Die Versionsnummer (SemVer) steht in `radiomoni/version.py`. Von dort liest sie `pyproject.toml`, die API (OpenAPI, `/health`) und `scripts/version.py`, das sie ins README-Badge und nach `frontend/package.json`/`package-lock.json` schreibt. Die CI bricht ab, wenn eine Stelle abweicht.
+
+```bash
+python3 scripts/version.py set 4.1.0     # alle Stellen setzen
+python3 scripts/version.py check         # prüfen (läuft in der CI)
+```
+
+Release: Abschnitt `## [Unreleased]` im CHANGELOG in `## [4.1.0] – JJJJ-MM-TT` umbenennen und einen leeren `[Unreleased]`-Abschnitt darüber anlegen, Version setzen, committen, `git tag v4.1.0` und `git push --tags`.
+
 ---
 
 <a id="english-version"></a>
@@ -169,3 +180,14 @@ cd frontend && npm outdated                                  # frontend
 ```
 
 Enter new versions in `requirements*.txt` or `frontend/package.json` (for npm, run `npm install` afterwards), run the CI steps locally and commit directly to `main`. Exceptions: `av` stays on 18.x as long as `faster-whisper` does not support PyAV 19; `typescript` stays on 5.x as long as `svelte-check` does not support TypeScript 7.
+
+### Version and release
+
+The version number (SemVer) lives in `radiomoni/version.py`. `pyproject.toml`, the API (OpenAPI, `/health`) and `scripts/version.py` read it from there; the script writes it to the README badge and to `frontend/package.json`/`package-lock.json`. CI fails if any place differs.
+
+```bash
+python3 scripts/version.py set 4.1.0     # set all places
+python3 scripts/version.py check         # check (runs in CI)
+```
+
+Release: rename the `## [Unreleased]` section in the CHANGELOG to `## [4.1.0] – YYYY-MM-DD` and add an empty `[Unreleased]` section above it, set the version, commit, `git tag v4.1.0` and `git push --tags`.
