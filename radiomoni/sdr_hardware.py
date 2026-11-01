@@ -9,6 +9,7 @@ import subprocess
 import tempfile
 import logging
 import gc
+import math
 from abc import ABC, abstractmethod
 from enum import Enum
 from typing import Optional, Tuple
@@ -120,17 +121,17 @@ class SDRCapture(ABC):
             audio = self._fm_demodulate(iq_samples)
         elif modulation == 'AM':
             audio = np.abs(iq_samples).astype(np.float64)
-        elif modulation == 'USB':
-            audio = iq_samples.real.astype(np.float64)
-        elif modulation == 'LSB':
-            audio = -iq_samples.real.astype(np.float64)
+        elif modulation in ('USB', 'LSB'):
+            # Already at audio sample rate, skip the generic decimation below
+            audio = self._ssb_demodulate(iq_samples, upper=(modulation == 'USB'))
         else:
             raise ValueError(f"Unsupported modulation: {modulation}")
 
-        # Decimate to audio sample rate
-        decimation_factor = int(self.sample_rate / self.audio_sample_rate)
-        if decimation_factor > 1:
-            audio = signal.decimate(audio, decimation_factor, zero_phase=True)
+        if modulation not in ('USB', 'LSB'):
+            # Decimate to audio sample rate
+            decimation_factor = int(self.sample_rate / self.audio_sample_rate)
+            if decimation_factor > 1:
+                audio = signal.decimate(audio, decimation_factor, zero_phase=True)
 
         # Normalize
         max_val = np.max(np.abs(audio))
@@ -138,6 +139,33 @@ class SDRCapture(ABC):
             audio = audio / max_val
 
         return audio
+
+    def _ssb_demodulate(self, iq_samples: NDArray[np.complex64], upper: bool) -> NDArray[np.float64]:
+        """SSB demodulation that keeps only one sideband.
+
+        Taking iq.real alone folds negative and positive frequencies onto each other,
+        so USB and LSB stations (and neighbours up to the decimation cutoff) are heard
+        together. Here the complex signal is decimated first (sideband information is
+        kept), then a complex low-pass selects 300-2700 Hz above (USB) or below (LSB)
+        the tuned frequency before the real part is taken.
+        """
+        # 1. Decimate the complex IQ to audio rate; resample_poly handles large factors
+        #    and complex input and needs no integer ratio
+        g = math.gcd(self.audio_sample_rate, self.sample_rate)
+        baseband = signal.resample_poly(iq_samples.astype(np.complex128),
+                                        self.audio_sample_rate // g, self.sample_rate // g)
+
+        # 2. Move the middle of the voice band (+/-1500 Hz) to 0 Hz, low-pass +/-1200 Hz
+        #    -> only 300-2700 Hz of the wanted sideband survives
+        centre = 1500.0 if upper else -1500.0
+        t = np.arange(len(baseband)) / self.audio_sample_rate
+        baseband = baseband * np.exp(-2j * np.pi * centre * t)
+        taps = signal.firwin(255, 1200.0, fs=self.audio_sample_rate)
+        baseband = signal.lfilter(taps, 1.0, baseband)
+
+        # 3. Move back and take the real part = audio
+        audio = (baseband * np.exp(2j * np.pi * centre * t)).real
+        return np.asarray(audio, dtype=np.float64)
 
     def _fm_demodulate(self, iq_samples: NDArray[np.complex64]) -> NDArray[np.float64]:
         """FM demodulation using phase differentiation"""
