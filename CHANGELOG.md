@@ -12,6 +12,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Weboberfläche auf Deutsch und Englisch umschaltbar; README und Dokumentation zusätzlich auf Englisch.
 
 ### Behoben
+- SDR nach einem Reboot des Hosts oder erneutem Einstecken im API-Container nicht mehr sichtbar: `/dev/bus/usb` wird jetzt als Bind-Mount eingebunden.
 - Aufnahmen dauerten doppelt so lange wie verlangt.
 - APRS: Kanal wird vor der FM-Demodulation gefiltert, damit Pakete dekodiert werden.
 - Streaming-Sessions werden als fehlgeschlagen markiert, wenn der SDR-Prozess abbricht.

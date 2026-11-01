@@ -205,9 +205,13 @@ services:
     tmpfs:
       - /tmp:size=1g
     cap_drop: [ALL]
-    devices:
-      - /dev/bus/usb:/dev/bus/usb        # HackRF, RTL-SDR, Airspy HF+
+    # HackRF, RTL-SDR, Airspy HF+: bind the live /dev/bus/usb instead of "devices:",
+    # which only copies the nodes present at container creation (SDR lost after
+    # a host reboot or replug). Access is limited by the host's udev rules (plugdev).
+    device_cgroup_rules:
+      - "c 189:* rmw"
     volumes:
+      - /dev/bus/usb:/dev/bus/usb
       - ./recordings:/app/recordings
       - ./captures:/app/captures
       - whisper-models:/app/models

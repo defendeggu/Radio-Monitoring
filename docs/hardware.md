@@ -15,7 +15,7 @@ Erkennung: Ist *Automatisch* gewählt, wird in der Reihenfolge HackRF, Airspy HF
 
 ## USB-Zugriff (Linux-Host)
 
-Der API-Container bekommt `/dev/bus/usb` und läuft als UID 1000 in den Gruppen `plugdev` und `dialout`. Auf dem Host:
+Der API-Container bekommt `/dev/bus/usb` als Bind-Mount und läuft als UID 1000 in den Gruppen `plugdev` und `dialout`. Auf dem Host:
 
 ```bash
 sudo apt install rtl-sdr hackrf          # bringt die udev-Regeln mit
@@ -31,7 +31,7 @@ docker compose exec radio-api hackrf_info        # HackRF
 docker compose exec radio-api airspyhf_info      # Airspy HF+
 ```
 
-Wird ein Gerät erst nach dem Containerstart eingesteckt: `docker compose restart radio-api`.
+Geräte, die nach dem Containerstart eingesteckt werden oder nach einem Reboot eine neue USB-Nummer haben, sind ohne Neustart sichtbar. Die udev-Regeln auf dem Host sind dafür Voraussetzung: Ohne sie gehört das Gerät `root` und der Container meldet „Access denied“.
 
 ## Frequenzkorrektur (PPM)
 
@@ -79,6 +79,7 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 | Symptom | Ursache / Lösung |
 |---|---|
 | „Kein SDR erkannt“ | Gerät eingesteckt? `rtl_test -t` im Container; DVB-Treiber gesperrt? Container neu starten |
+| „Access denied (insufficient permissions)“ | udev-Regeln fehlen auf dem Host: `sudo apt install rtl-sdr hackrf`, Gerät neu einstecken |
 | HTTP 409 „SDR device is busy“ | Ein anderer Job nutzt das Gerät. Mit *Stopp* oder `POST /api/sdr/force-stop` beenden. |
 | „Resource busy“ in Session-Fehlern | Ein Prozess ausserhalb des Containers (z. B. gqrx) belegt den Dongle |
 | Transkription leer | Kein Sprachsignal; Gain auf 30–40 dB erhöhen; richtige Modulation (Flugfunk = AM) |
@@ -104,7 +105,7 @@ Detection: with *Detect automatically* selected, devices are searched in the ord
 
 ### USB access (Linux host)
 
-The API container gets `/dev/bus/usb` and runs as UID 1000 in the groups `plugdev` and `dialout`. On the host:
+The API container gets `/dev/bus/usb` as a bind mount and runs as UID 1000 in the groups `plugdev` and `dialout`. On the host:
 
 ```bash
 sudo apt install rtl-sdr hackrf          # brings the udev rules
@@ -120,7 +121,7 @@ docker compose exec radio-api hackrf_info        # HackRF
 docker compose exec radio-api airspyhf_info      # Airspy HF+
 ```
 
-If a device is plugged in after the container has started: `docker compose restart radio-api`.
+Devices plugged in after the container has started, or with a new USB number after a reboot, are visible without a restart. This requires the udev rules on the host: without them the device belongs to `root` and the container reports "Access denied".
 
 ### Frequency correction (PPM)
 
@@ -168,6 +169,7 @@ Multi-channel: the center frequency plus/minus half the bandwidth must cover all
 | Symptom | Cause / solution |
 |---|---|
 | "No SDR detected" | Device plugged in? `rtl_test -t` in the container; DVB driver blocked? Restart the container |
+| "Access denied (insufficient permissions)" | udev rules missing on the host: `sudo apt install rtl-sdr hackrf`, replug the device |
 | HTTP 409 "SDR device is busy" | Another job is using the device. Stop it with *Stop* or `POST /api/sdr/force-stop`. |
 | "Resource busy" in session errors | A process outside the container (e.g. gqrx) is using the dongle |
 | Empty transcription | No voice signal; raise the gain to 30–40 dB; correct modulation (airband = AM) |
