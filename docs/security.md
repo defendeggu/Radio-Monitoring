@@ -22,6 +22,7 @@ Für den Zugriff aus dem Internet gehört ein Reverse-Proxy mit TLS davor (Caddy
 - nginx überschreibt `X-Forwarded-For` mit der echten Client-Adresse. Die API wertet genau einen Proxy aus (`PROXY_COUNT=1`).
 - Die Weboberfläche speichert den Key im `localStorage` des Browsers und schickt ihn als Header mit, auch für Live-Events und Audio-Downloads.
 - Einzige Ausnahme sind signierte Links für den Play-Button in Kibana (`/api/recordings/<datei>.wav?sig=…`): Die Signatur ist ein HMAC über den Dateinamen mit `RECORDING_LINK_SECRET` und öffnet nur `GET`/`HEAD` genau dieser WAV-Datei, keine andere Route. Die Links laufen nicht ab; wer Lesezugriff auf `radio-captures-*` hat, kann die zugehörigen Aufnahmen abspielen. Mit einem neuen `RECORDING_LINK_SECRET` werden alle Links ungültig.
+- `METRICS_API_KEY` (nur im GPU-Setup von Metricbeat benutzt) öffnet ausschliesslich `GET /metrics/*`, also Messwerte ohne Inhalte. Alle anderen Routen lehnen ihn mit 403 ab.
 
 ## Eingaben
 
@@ -89,6 +90,7 @@ For access from the internet, put a reverse proxy with TLS in front (Caddy, Trae
 - nginx overwrites `X-Forwarded-For` with the real client address. The API evaluates exactly one proxy (`PROXY_COUNT=1`).
 - The web interface stores the key in the browser's `localStorage` and sends it as a header, also for live events and audio downloads.
 - The only exception are signed links for the play button in Kibana (`/api/recordings/<file>.wav?sig=…`): the signature is an HMAC of the file name with `RECORDING_LINK_SECRET` and only opens `GET`/`HEAD` of exactly this WAV file, no other route. The links do not expire; anyone with read access to `radio-captures-*` can play the corresponding recordings. A new `RECORDING_LINK_SECRET` invalidates all links.
+- `METRICS_API_KEY` (used only by Metricbeat in the GPU setup) opens nothing but `GET /metrics/*`, i.e. measurements without content. All other routes reject it with 403.
 
 ### Input
 

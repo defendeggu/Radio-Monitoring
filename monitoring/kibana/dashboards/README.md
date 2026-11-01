@@ -23,7 +23,7 @@ python3 monitoring/kibana/build_dashboards.py
 | `repeater-dashboard.ndjson` | RadioMoni · Repeater-Scan | `radio-repeater-activity-*` |
 | `alerts-dashboard.ndjson` | RadioMoni · Alarme | `radio-alerts-*` |
 | `logs-dashboard.ndjson` | RadioMoni · System – Logs | Container-Logs (`radio-logs-*`) |
-| `health-dashboard.ndjson` | RadioMoni · System – Zustand | Host, Container und Elasticsearch (Metricbeat) |
+| `health-dashboard.ndjson` | RadioMoni · System – Zustand | Host, Container, Elasticsearch und GPU (Metricbeat; GPU nur mit `docker-compose.gpu.yml`). Von Hand gepflegt, nicht von `build_dashboards.py` erzeugt |
 
 Die Karten sind Kibana-Maps auf dem Feld `position` und laden die Grundkarte vom Elastic Maps Service (Internetzugang im Browser nötig). Multi-Channel-Sessions schreiben in die APRS- und POCSAG-Indizes (Feld `channel_label`) und erscheinen dort.
 

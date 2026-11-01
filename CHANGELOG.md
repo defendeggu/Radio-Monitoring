@@ -5,6 +5,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 ## [Unreleased]
 
 ### Neu
+- GPU-Auslastung, -Speicher und -Temperatur im Kibana-Dashboard *System – Zustand* (GPU-Setup): API-Endpunkt `/metrics/gpu`, den Metricbeat mit dem eigenen, nur dafür gültigen `METRICS_API_KEY` liest.
 - Play-Button in Kibana: Sprach- und VOX-Aufnahmen lassen sich direkt aus den Dashboard-Listen abspielen (Feld `audio_url`, signierte Links mit `RECORDING_LINK_SECRET`).
 - Repeater-Scan nach Kanton (voreingestellt LU) mit Auswahl einzelner Relais, Gesamtdauer (ein Durchgang, 30 min bis 24 h oder bis Stopp) und Sekunden pro Relais; Ergebnisse pro Relais über alle Runden zusammengefasst. API: `total_duration`, `until_stopped` und `POST /scan-repeaters/{id}/stop`.
 - Schweizer Repeater-Liste aus der USKA HB Voice Repeater List (`scripts/update_repeaters_from_uska.py`).

@@ -41,7 +41,7 @@ faster-whisper (CTranslate2) nutzt NVIDIA-GPUs über CUDA 12 und cuDNN 9.
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
    ```
-   Das API-Image wird dabei mit `WITH_CUDA=1` gebaut, also mit den CUDA-Bibliotheken als Python-Wheels. Eingestellt sind `WHISPER_DEVICE=cuda` und `float16`, Standardmodell ist `large-v3-turbo`.
+   Das API-Image wird dabei mit `WITH_CUDA=1` gebaut, also mit den CUDA-Bibliotheken als Python-Wheels. Eingestellt sind `WHISPER_DEVICE=cuda` und `float16`, Standardmodell ist `large-v3-turbo`. Zusätzlich liest Metricbeat die GPU-Auslastung über `/metrics/gpu` der API (mit `METRICS_API_KEY` aus `.env`); sie erscheint im Kibana-Dashboard *System – Zustand*.
 
 Grobe Richtwerte: `small` auf der CPU braucht etwa die halbe Echtzeit, `large-v3-turbo` auf einer Mittelklasse-GPU ist mehr als 20-mal schneller als Echtzeit. Die Modelle werden beim ersten Gebrauch in das Volume `whisper-models` geladen (100 MB bis 1.6 GB).
 
@@ -128,7 +128,7 @@ faster-whisper (CTranslate2) uses NVIDIA GPUs via CUDA 12 and cuDNN 9.
    ```bash
    docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
    ```
-   The API image is then built with `WITH_CUDA=1`, i.e. with the CUDA libraries as Python wheels. `WHISPER_DEVICE=cuda` and `float16` are set, the default model is `large-v3-turbo`.
+   The API image is then built with `WITH_CUDA=1`, i.e. with the CUDA libraries as Python wheels. `WHISPER_DEVICE=cuda` and `float16` are set, the default model is `large-v3-turbo`. In addition, Metricbeat reads the GPU usage from the API's `/metrics/gpu` (with `METRICS_API_KEY` from `.env`); it appears in the Kibana dashboard *System – Zustand* (health).
 
 Rough figures: `small` on the CPU takes about half of real time, `large-v3-turbo` on a mid-range GPU is more than 20 times faster than real time. The models are downloaded into the `whisper-models` volume on first use (100 MB to 1.6 GB).
 

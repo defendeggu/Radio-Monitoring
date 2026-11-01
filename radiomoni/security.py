@@ -3,7 +3,8 @@ API authentication, CORS and HTTP hardening.
 
 Rules:
 - Every route except PUBLIC_PATHS needs a valid X-API-Key header. Exception: a
-  WAV recording with a valid signed link (?sig=, see recording_links).
+  WAV recording with a valid signed link (?sig=, see recording_links), and
+  METRICS_API_KEY, which only opens GET /metrics/* (Metricbeat).
 - Without configured API keys the API refuses to start, unless ALLOW_INSECURE=true
   is set explicitly (local development / tests).
 - Only loopback is trusted by default. Additional networks must be listed in
@@ -115,6 +116,10 @@ def init_security(app: Flask) -> None:
                                                                                    request.args.get('sig')):
             return None
         api_key = request.headers.get('X-API-Key')
+        # read-only metrics key (Metricbeat), valid for /metrics/* only
+        if api_key and config.METRICS_API_KEY and request.method == 'GET' and request.path.startswith('/metrics/') \
+                and hmac.compare_digest(api_key.encode(), config.METRICS_API_KEY.encode()):
+            return None
         if not api_key:
             logger.warning(f"Unauthorized request to {request.path} from {request.remote_addr}: missing API key")
             return jsonify({'error': 'Missing API key', 'message': 'Please provide the X-API-Key header'}), 401

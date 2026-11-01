@@ -1,0 +1,9 @@
+# GPU usage from the radio API (only mounted by docker-compose.gpu.yml)
+# -> metricbeat-*, fields prometheus.metrics.radiomoni_gpu_* with label prometheus.labels.gpu
+- module: prometheus
+  metricsets: ["collector"]
+  period: 15s
+  hosts: ["radio-api:5000"]
+  metrics_path: /metrics/gpu
+  headers:
+    X-API-Key: "${METRICS_API_KEY}"

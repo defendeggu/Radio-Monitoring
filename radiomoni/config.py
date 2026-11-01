@@ -32,6 +32,8 @@ TRUSTED_IPS: list[str] = _list('TRUSTED_IPS')
 CORS_ORIGINS: list[str] = _list('CORS_ORIGINS')
 # Without API keys the API refuses to start unless this is explicitly set.
 ALLOW_INSECURE: bool = _bool('ALLOW_INSECURE')
+# Key that only opens /metrics/* (Metricbeat reads GPU usage with it). Empty = disabled.
+METRICS_API_KEY: str = os.getenv('METRICS_API_KEY', '')
 # Number of reverse proxies in front of the API (nginx = 1). Used for X-Forwarded-For.
 PROXY_COUNT: int = _int('PROXY_COUNT', 1)
 

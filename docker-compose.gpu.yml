@@ -4,6 +4,7 @@
 #
 # Installs the CUDA 12 / cuDNN 9 runtime wheels used by CTranslate2 into the
 # API image and reserves one GPU. Not tested on every setup — see docs/installation.md.
+# Metricbeat additionally reads the GPU usage from the API (dashboard "System – Zustand").
 
 services:
   radio-api:
@@ -14,6 +15,7 @@ services:
       - WHISPER_DEVICE=cuda
       - WHISPER_COMPUTE_TYPE=${WHISPER_COMPUTE_TYPE:-float16}
       - WHISPER_MODEL=${WHISPER_MODEL:-large-v3-turbo}
+      - METRICS_API_KEY=${METRICS_API_KEY:-}
     deploy:
       resources:
         reservations:
@@ -21,3 +23,9 @@ services:
             - driver: nvidia
               count: 1
               capabilities: [gpu]
+
+  metricbeat:
+    environment:
+      - METRICS_API_KEY=${METRICS_API_KEY:?METRICS_API_KEY missing — run scripts/setup-env.sh}
+    volumes:
+      - ./monitoring/metricbeat/gpu.yml:/usr/share/metricbeat/modules.d/gpu.yml:ro

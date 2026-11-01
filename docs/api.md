@@ -28,6 +28,7 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | Methode | Pfad | Zweck |
 |---|---|---|
 | GET | `/health`, `/health/ready` | Liveness / Readiness (Redis, Storage, SDR) |
+| GET | `/metrics/gpu` | GPU-Auslastung, Speicher, Temperatur im Prometheus-Format (für Metricbeat; auch mit `METRICS_API_KEY`) |
 | GET | `/sdr/detect`, `/sdr/status` | Hardware, aktueller Belegungsstatus |
 | POST | `/sdr/force-stop` | Notstopp aller SDR-Jobs |
 | POST | `/capture-and-transcribe` | Aufnahme + Dekodierung (`mode`: voice/aprs/pocsag), HTTP 202 |
@@ -131,6 +132,7 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/health`, `/health/ready` | liveness / readiness (Redis, storage, SDR) |
+| GET | `/metrics/gpu` | GPU utilization, memory, temperature in Prometheus format (for Metricbeat; also with `METRICS_API_KEY`) |
 | GET | `/sdr/detect`, `/sdr/status` | hardware, current busy state |
 | POST | `/sdr/force-stop` | emergency stop of all SDR jobs |
 | POST | `/capture-and-transcribe` | recording + decoding (`mode`: voice/aprs/pocsag), HTTP 202 |
