@@ -4,6 +4,7 @@
   import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
+  import LanguageField from '../lib/components/LanguageField.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import Presets from '../lib/components/Presets.svelte';
   import SessionCard from '../lib/components/SessionCard.svelte';
@@ -137,10 +138,7 @@
       <label class="label" for="hang">{t('Nachlaufzeit (ms)')}</label>
       <input id="hang" class="input" type="number" min="100" max="10000" step="100" bind:value={hang} />
     </div>
-    <div>
-      <label class="label" for="vlang">{t('Sprache||language')}</label>
-      <input id="vlang" class="input" bind:value={language} placeholder={t('automatisch')} maxlength="3" />
-    </div>
+    <LanguageField id="vlang" bind:value={language} />
     <label class="flex items-center gap-2 self-end pb-2 text-sm">
       <input type="checkbox" class="h-4 w-4 accent-cyan-500" bind:checked={transcribe} />
       {t('Transkribieren')}

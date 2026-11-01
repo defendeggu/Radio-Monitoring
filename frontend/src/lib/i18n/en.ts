@@ -2,6 +2,7 @@
 
 export const en: Record<string, string> = {
   '1 Stunde': '1 hour',
+  '2–3 Buchstaben, z. B. es, nl, rm': '2–3 letters, e.g. es, nl, rm',
   Abbrechen: 'Cancel',
   abgeschlossen: 'completed',
   Abspielen: 'Play',
@@ -20,6 +21,7 @@ export const en: Record<string, string> = {
   alle: 'all',
   'Alle Kantone ({n})': 'All cantons ({n})',
   'Als ZIP exportieren': 'Export as ZIP',
+  'Andere…': 'Other…',
   'API nicht erreichbar': 'API not reachable',
   'API-Key': 'API key',
   'API-Key erforderlich': 'API key required',
@@ -39,7 +41,6 @@ export const en: Record<string, string> = {
   'Automatic Packet Reporting System — Positionen, Nachrichten, Wetter':
     'Automatic Packet Reporting System — positions, messages, weather',
   automatisch: 'automatic',
-  'automatisch (de, en, fr…)': 'automatic (de, en, fr…)',
   'Automatisch erkennen': 'Detect automatically',
   'automatisch gelöscht nach {n} Tagen': 'deleted automatically after {n} days',
   'Bandbreite (MS/s)': 'Bandwidth (MS/s)',
@@ -70,6 +71,7 @@ export const en: Record<string, string> = {
   'Dauerbetrieb (Streaming)': 'Continuous operation (streaming)',
   'Die API ist nicht erreichbar. Läuft der Container radio-transcription-api?':
     'The API is not reachable. Is the radio-transcription-api container running?',
+  Deutsch: 'German',
   'Die API verlangt einen API-Key.': 'The API requires an API key.',
   Dunkel: 'Dark',
   Durchgänge: 'Transmissions',
@@ -81,6 +83,7 @@ export const en: Record<string, string> = {
   Einzelaufnahme: 'Single capture',
   Empfang: 'Receive',
   'Endpunkte filtern…': 'Filter endpoints…',
+  Englisch: 'English',
   enthält: 'contains',
   Fehler: 'Error',
   Feld: 'Field',
@@ -89,6 +92,7 @@ export const en: Record<string, string> = {
   Flug: 'Flight',
   'Flugzeuge (RTL-SDR oder HackRF), Schiffe und Funksensoren (RTL-SDR)':
     'Aircraft (RTL-SDR or HackRF), ships and wireless sensors (RTL-SDR)',
+  Französisch: 'French',
   'frei {size}': '{size} free',
   Frequenz: 'Frequency',
   'Frequenz-Lesezeichen': 'Frequency bookmarks',
@@ -113,7 +117,10 @@ export const en: Record<string, string> = {
   'In den letzten 7 Tagen wurde noch keine Aktivität gemessen.': 'No activity measured in the last 7 days.',
   'in {duration}': 'in {duration}',
   'ISM-Sensoren': 'ISM sensors',
+  'ISO-Sprachcode': 'ISO language code',
+  'ISO-Sprachcode, leer = automatisch': 'ISO language code, empty = automatic',
   'ist gleich': 'equals',
+  Italienisch: 'Italian',
   'Jetzt ausführen': 'Run now',
   'Jetzt eingeben': 'Enter it now',
   Kanal: 'Channel',

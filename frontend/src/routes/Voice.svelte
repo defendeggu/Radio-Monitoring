@@ -3,6 +3,7 @@
   import { api, download } from '../lib/api';
   import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
+  import LanguageField from '../lib/components/LanguageField.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import Presets from '../lib/components/Presets.svelte';
   import Progress from '../lib/components/Progress.svelte';
@@ -139,16 +140,7 @@
   </button>
   {#if showAdvanced}
     <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
-      <div>
-        <label class="label" for="lang">{t('Sprache||language')}</label>
-        <input
-          id="lang"
-          class="input"
-          bind:value={language}
-          placeholder={t('automatisch (de, en, fr…)')}
-          maxlength="3"
-        />
-      </div>
+      <LanguageField id="lang" bind:value={language} />
       <div>
         <label class="label" for="beam">Beam size</label>
         <input id="beam" class="input" type="number" min="1" max="10" bind:value={beamSize} />
