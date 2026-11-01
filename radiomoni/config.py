@@ -52,6 +52,8 @@ REDIS_FAKE: bool = _bool('SKIP_REDIS_CHECK') or _bool('REDIS_FAKE')
 RECORDING_DIR: str = os.getenv('AUDIO_OUTPUT_DIR', './recordings')
 RECORDING_RETENTION_DAYS: int = _int('RECORDING_RETENTION_DAYS', 30)
 MIN_FREE_DISK_MB: int = _int('MIN_FREE_DISK_MB', 500)
+# Secret for signed recording links (audio player in Kibana). Empty = no links.
+RECORDING_LINK_SECRET: str = os.getenv('RECORDING_LINK_SECRET', '')
 
 # --- Whisper ----------------------------------------------------------------
 WHISPER_MODEL: str = os.getenv('WHISPER_MODEL', 'small')

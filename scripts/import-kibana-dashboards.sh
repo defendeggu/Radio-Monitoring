@@ -36,11 +36,17 @@ while read -r type id; do
 done < monitoring/kibana/obsolete-objects.txt
 (( removed )) && echo "  removed $removed objects of earlier dashboard versions"
 
+# Audio links in Kibana point to the web UI (field format of audio_url)
+WEB_PUBLIC_URL="${WEB_PUBLIC_URL:-http://localhost:${WEB_PORT:-8080}}"
+tmp="$(mktemp --suffix=.ndjson)"
+trap 'rm -f "$tmp"' EXIT
+
 failed=0
 # index patterns first, dashboards afterwards
 for f in $(ls monitoring/kibana/dashboards/*index-patterns*.ndjson; ls monitoring/kibana/dashboards/*.ndjson | grep -v index-patterns); do
+  sed "s|__RADIOMONI_WEB_URL__|${WEB_PUBLIC_URL%/}|g" "$f" > "$tmp"
   result="$(curl -s -u "elastic:${ELASTIC_PASSWORD}" -H 'kbn-xsrf: true' \
-    -F "file=@$f" "$KIBANA_URL/api/saved_objects/_import?overwrite=true")"
+    -F "file=@$tmp;filename=$(basename "$f")" "$KIBANA_URL/api/saved_objects/_import?overwrite=true")"
   if grep -q '"success":true' <<<"$result"; then
     echo "  ok   $(basename "$f")"
   else

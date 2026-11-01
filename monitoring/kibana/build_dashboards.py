@@ -7,7 +7,9 @@ Generate the Kibana dashboards (NDJSON) for the modules of the web UI.
 
 Every dashboard is called "RadioMoni · <module>" after the module in the web UI.
 Charts are aggregation-based visualizations, maps are Kibana Maps (geo_point
-field "position"), lists are saved searches. IDs are stable, so a re-import
+field "position"), lists are saved searches. The column audio_url is shown as an
+audio player (field format in index-patterns.ndjson, signed links, see
+radiomoni/recording_links.py). IDs are stable, so a re-import
 overwrites the previous version.
 """
 
@@ -254,7 +256,8 @@ def voice() -> list[Obj]:
          (bars('rm-voice-top-freq', 'Häufigste Frequenzen (MHz)', CAPTURES, 'frequency_mhz', 'MHz', 15, VOICE), 12, 12),
          (pie('rm-voice-lang', 'Erkannte Sprache', CAPTURES, 'detected_language', 'Sprache', 10, VOICE), 12, 12)],
         [(search('rm-voice-list', 'Sprache – Aufnahmen', CAPTURES,
-                 ['frequency_mhz', 'modulation', 'duration_seconds', 'detected_language', 'transcription'], VOICE),
+                 ['frequency_mhz', 'modulation', 'duration_seconds', 'detected_language', 'transcription',
+                  'audio_url'], VOICE),
           48, 16)],
     ])
 
@@ -273,7 +276,7 @@ def vox() -> list[Obj]:
          (pie('rm-vox-lang', 'Erkannte Sprache', CAPTURES, 'detected_language', 'Sprache', 10, VOX), 12, 12)],
         [(search('rm-vox-list', 'VOX – Durchgänge', CAPTURES,
                  ['frequency_mhz', 'duration_seconds', 'peak_power_db', 'detected_language', 'transcription',
-                  'audio_file'], VOX), 48, 16)],
+                  'audio_url'], VOX), 48, 16)],
     ])
 
 

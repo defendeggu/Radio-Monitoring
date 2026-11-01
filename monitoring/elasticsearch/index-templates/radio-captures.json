@@ -87,6 +87,10 @@
         "audio_file": {
           "type": "keyword"
         },
+        "audio_url": {
+          "type": "keyword",
+          "index": false
+        },
         "status": {
           "type": "keyword"
         },

@@ -16,7 +16,7 @@ import requests
 from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 
-from radiomoni import config
+from radiomoni import config, recording_links
 from radiomoni.storage.base import EVENT_KINDS, StorageBackend, enrich_aprs
 
 logger = logging.getLogger(__name__)
@@ -96,6 +96,9 @@ class ElasticsearchService(StorageBackend):
         capture.setdefault('@timestamp', capture.get('created_at') or _now())
         if 'frequency' in capture:
             capture['frequency_mhz'] = capture['frequency'] / 1_000_000.0
+        url = recording_links.audio_url(capture.get('audio_file'))
+        if url:
+            capture.setdefault('audio_url', url)
         self._post_logstash(self.logstash_host, capture, 'capture')
         logger.info(f"Indexed capture {capture.get('uuid')}")
         return cast(Optional[str], capture.get('uuid'))

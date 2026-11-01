@@ -11,6 +11,7 @@
 | `COMPOSE_PROFILES` | `elk` | `elk` = Vollausbau, leer = Light-Profil |
 | `STORAGE_BACKEND` | `elasticsearch` | `elasticsearch` oder `sqlite` |
 | `WEB_PORT` / `WEB_BIND` | `8080` / `0.0.0.0` | Port und Interface der Weboberfläche |
+| `WEB_PUBLIC_URL` | `http://localhost:${WEB_PORT}` | Adresse der Weboberfläche aus Sicht des Browsers; Ziel der Play-Buttons in Kibana |
 | `KIBANA_BIND` / `KIBANA_PORT` | `127.0.0.1` / `5601` | Kibana nur lokal; `0.0.0.0` macht es im LAN sichtbar |
 | `TZ` | `Europe/Zurich` | Zeitzone der Zeitpläne |
 | `ELK_VERSION` | `9.5.5` | Version des Elastic-Stacks |
@@ -25,7 +26,7 @@
 | `TRUSTED_IPS` | Netze ohne Key-Pflicht, z. B. `192.168.1.0/24`. Standard: keine (nur `localhost` im Container). |
 | `ALLOW_INSECURE` | Nur für Entwicklung ausserhalb von Docker: API ohne Keys starten. |
 
-Generierte Secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWORD`, `LOGSTASH_SYSTEM_PASSWORD`, `LOGSTASH_WRITER_PASSWORD`, `LOGSTASH_HTTP_PASSWORD`, `BEATS_SYSTEM_PASSWORD`, `BEATS_WRITER_PASSWORD`, `RADIO_API_PASSWORD`, `KIBANA_ENCRYPTION_KEY`.
+Generierte Secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWORD`, `LOGSTASH_SYSTEM_PASSWORD`, `LOGSTASH_WRITER_PASSWORD`, `LOGSTASH_HTTP_PASSWORD`, `BEATS_SYSTEM_PASSWORD`, `BEATS_WRITER_PASSWORD`, `RADIO_API_PASSWORD`, `KIBANA_ENCRYPTION_KEY`, `RECORDING_LINK_SECRET`.
 
 ## Whisper
 
@@ -44,6 +45,7 @@ Pro Aufnahme lassen sich Sprache, `beam_size`, `initial_prompt` und `task` (`tra
 |---|---|---|
 | `RECORDING_RETENTION_DAYS` | `30` | Ältere Dateien in `recordings/` werden täglich um 03:30 gelöscht (`0` = nie) |
 | `MIN_FREE_DISK_MB` | `500` | Unter diesem freien Speicher werden neue Aufnahmen abgelehnt |
+| `RECORDING_LINK_SECRET` | generiert | Schlüssel für die signierten Links auf WAV-Dateien (Play-Button in Kibana). Leer = keine Links. Ein neuer Wert macht alle bisherigen Links ungültig. |
 
 Elasticsearch-Daten werden nach 90 Tagen gelöscht (ILM-Policy `radio-retention-policy`), Container-Logs und Metriken nach 7 Tagen.
 
@@ -82,6 +84,7 @@ python3 scripts/validate_env.py --strict # Warnungen zählen als Fehler
 | `COMPOSE_PROFILES` | `elk` | `elk` = full stack, empty = light profile |
 | `STORAGE_BACKEND` | `elasticsearch` | `elasticsearch` or `sqlite` |
 | `WEB_PORT` / `WEB_BIND` | `8080` / `0.0.0.0` | port and interface of the web interface |
+| `WEB_PUBLIC_URL` | `http://localhost:${WEB_PORT}` | address of the web interface as seen by the browser; target of the play buttons in Kibana |
 | `KIBANA_BIND` / `KIBANA_PORT` | `127.0.0.1` / `5601` | Kibana only locally; `0.0.0.0` makes it visible on the LAN |
 | `TZ` | `Europe/Zurich` | time zone of the schedules |
 | `ELK_VERSION` | `9.5.5` | version of the Elastic stack |
@@ -96,7 +99,7 @@ python3 scripts/validate_env.py --strict # Warnungen zählen als Fehler
 | `TRUSTED_IPS` | Networks that need no key, e.g. `192.168.1.0/24`. Default: none (only `localhost` inside the container). |
 | `ALLOW_INSECURE` | Only for development outside Docker: start the API without keys. |
 
-Generated secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWORD`, `LOGSTASH_SYSTEM_PASSWORD`, `LOGSTASH_WRITER_PASSWORD`, `LOGSTASH_HTTP_PASSWORD`, `BEATS_SYSTEM_PASSWORD`, `BEATS_WRITER_PASSWORD`, `RADIO_API_PASSWORD`, `KIBANA_ENCRYPTION_KEY`.
+Generated secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWORD`, `LOGSTASH_SYSTEM_PASSWORD`, `LOGSTASH_WRITER_PASSWORD`, `LOGSTASH_HTTP_PASSWORD`, `BEATS_SYSTEM_PASSWORD`, `BEATS_WRITER_PASSWORD`, `RADIO_API_PASSWORD`, `KIBANA_ENCRYPTION_KEY`, `RECORDING_LINK_SECRET`.
 
 ### Whisper
 
@@ -115,6 +118,7 @@ Language, `beam_size`, `initial_prompt` and `task` (`transcribe`/`translate`) ca
 |---|---|---|
 | `RECORDING_RETENTION_DAYS` | `30` | older files in `recordings/` are deleted daily at 03:30 (`0` = never) |
 | `MIN_FREE_DISK_MB` | `500` | below this free space, new recordings are rejected |
+| `RECORDING_LINK_SECRET` | generated | key for the signed links to WAV files (play button in Kibana). Empty = no links. A new value invalidates all existing links. |
 
 Elasticsearch data is deleted after 90 days (ILM policy `radio-retention-policy`), container logs and metrics after 7 days.
 

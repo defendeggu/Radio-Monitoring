@@ -21,6 +21,7 @@ Für den Zugriff aus dem Internet gehört ein Reverse-Proxy mit TLS davor (Caddy
 - Ohne Key vertraut die API nur `localhost` im Container (Healthcheck). Das Docker-Netz gilt **nicht** als vertrauenswürdig. Zusätzliche Netze trägst du explizit in `TRUSTED_IPS` ein.
 - nginx überschreibt `X-Forwarded-For` mit der echten Client-Adresse. Die API wertet genau einen Proxy aus (`PROXY_COUNT=1`).
 - Die Weboberfläche speichert den Key im `localStorage` des Browsers und schickt ihn als Header mit, auch für Live-Events und Audio-Downloads.
+- Einzige Ausnahme sind signierte Links für den Play-Button in Kibana (`/api/recordings/<datei>.wav?sig=…`): Die Signatur ist ein HMAC über den Dateinamen mit `RECORDING_LINK_SECRET` und öffnet nur `GET`/`HEAD` genau dieser WAV-Datei, keine andere Route. Die Links laufen nicht ab; wer Lesezugriff auf `radio-captures-*` hat, kann die zugehörigen Aufnahmen abspielen. Mit einem neuen `RECORDING_LINK_SECRET` werden alle Links ungültig.
 
 ## Eingaben
 
@@ -87,6 +88,7 @@ For access from the internet, put a reverse proxy with TLS in front (Caddy, Trae
 - Without a key, the API only trusts `localhost` inside the container (health check). The Docker network is **not** considered trusted. Additional networks have to be listed explicitly in `TRUSTED_IPS`.
 - nginx overwrites `X-Forwarded-For` with the real client address. The API evaluates exactly one proxy (`PROXY_COUNT=1`).
 - The web interface stores the key in the browser's `localStorage` and sends it as a header, also for live events and audio downloads.
+- The only exception are signed links for the play button in Kibana (`/api/recordings/<file>.wav?sig=…`): the signature is an HMAC of the file name with `RECORDING_LINK_SECRET` and only opens `GET`/`HEAD` of exactly this WAV file, no other route. The links do not expire; anyone with read access to `radio-captures-*` can play the corresponding recordings. A new `RECORDING_LINK_SECRET` invalidates all links.
 
 ### Input
 

@@ -2,7 +2,8 @@
 API authentication, CORS and HTTP hardening.
 
 Rules:
-- Every route except PUBLIC_PATHS needs a valid X-API-Key header.
+- Every route except PUBLIC_PATHS needs a valid X-API-Key header. Exception: a
+  WAV recording with a valid signed link (?sig=, see recording_links).
 - Without configured API keys the API refuses to start, unless ALLOW_INSECURE=true
   is set explicitly (local development / tests).
 - Only loopback is trusted by default. Additional networks must be listed in
@@ -21,7 +22,7 @@ from flask import Flask, Response, jsonify, request
 from flask_cors import CORS
 from werkzeug.middleware.proxy_fix import ProxyFix
 
-from radiomoni import config
+from radiomoni import config, recording_links
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,10 @@ def init_security(app: Flask) -> None:
         if not auth_enabled():
             return None
         if is_trusted_ip(request.remote_addr):
+            return None
+        # signed link to one WAV file (audio player in Kibana, see recording_links)
+        if request.method in ('GET', 'HEAD') and recording_links.is_signed_request(request.path,
+                                                                                   request.args.get('sig')):
             return None
         api_key = request.headers.get('X-API-Key')
         if not api_key:
