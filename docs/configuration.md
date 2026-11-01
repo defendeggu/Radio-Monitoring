@@ -34,7 +34,7 @@ Generierte Secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWOR
 | Variable | Standard | Bedeutung |
 |---|---|---|
 | `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`, `distil-large-v3` |
-| `WHISPER_DEVICE` | `cpu` | `cpu` oder `cuda` |
+| `WHISPER_DEVICE` | `cpu` | `cpu` oder `cuda`. Kann die Karte das Modell nicht rechnen, weicht die API mit einer Warnung auf die CPU aus (siehe [installation.md](installation.md#whisper-auf-der-gpu)). |
 | `WHISPER_COMPUTE_TYPE` | `int8` | CPU: `int8`; GPU: `float16` |
 | `WHISPER_INITIAL_PROMPT` | – | Vokabular-Hinweis für alle Transkriptionen (Rufzeichen, Ortsnamen) |
 
@@ -108,7 +108,7 @@ Generated secrets: `REDIS_PASSWORD`, `ELASTIC_PASSWORD`, `KIBANA_SYSTEM_PASSWORD
 | Variable | Default | Meaning |
 |---|---|---|
 | `WHISPER_MODEL` | `small` | `tiny`, `base`, `small`, `medium`, `large-v3`, `large-v3-turbo`, `distil-large-v3` |
-| `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda` |
+| `WHISPER_DEVICE` | `cpu` | `cpu` or `cuda`. If the card cannot run the model, the API falls back to the CPU with a warning (see [installation.md](installation.md#whisper-on-the-gpu)). |
 | `WHISPER_COMPUTE_TYPE` | `int8` | CPU: `int8`; GPU: `float16` |
 | `WHISPER_INITIAL_PROMPT` | – | vocabulary hint for all transcriptions (callsigns, place names) |
 

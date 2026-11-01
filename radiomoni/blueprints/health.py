@@ -47,6 +47,8 @@ def ready() -> tuple[Response, int]:
     storage_ok = storage.get('status') in ('green', 'yellow')
     holder = sdr_lock.current_holder() if redis_ok else None
     ok = redis_ok and storage_ok
+    from radiomoni import services
+    whisper = services.whisper_status()
     return jsonify({
         'status': 'ready' if ok else 'degraded',
         'version': __version__,
@@ -54,6 +56,7 @@ def ready() -> tuple[Response, int]:
             'redis': 'ok' if redis_ok else 'down',
             'storage': {'backend': config.STORAGE_BACKEND, **storage},
             'sdr': {'busy': holder is not None, 'holder': holder},
+            'whisper': whisper,
         },
     }), 200 if ok else 503
 

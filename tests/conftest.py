@@ -104,6 +104,7 @@ def mock_transcription_service(monkeypatch):
         self.compute_type = compute_type
         self.model = None
         self.simulation_mode = True
+        self.fallback_reason = None
 
     monkeypatch.setattr(TranscriptionService, '__init__', mock_init)
     from radiomoni import services

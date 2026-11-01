@@ -36,6 +36,8 @@ Dashboard, Suche, Export, Alarme und Zeitpläne der Weboberfläche funktionieren
 
 faster-whisper (CTranslate2) nutzt NVIDIA-GPUs über CUDA 12 und cuDNN 9.
 
+**Welche Karte?** Nötig ist eine Karte ab der Pascal-Generation (GTX 10xx, Quadro P…, Compute Capability 6.0 oder höher). Ältere Karten (Maxwell wie GTX 9xx oder Quadro M…, Compute Capability 5.x) unterstützt CTranslate2 4.x nicht: Das Modell lädt, die erste Berechnung scheitert mit `cudaErrorInvalidDevice` (geprüft mit einer Quadro M1000M). Die Compute Capability zeigt `nvidia-smi --query-gpu=name,compute_cap --format=csv`. Für `large-v3-turbo` mit `float16` sollte die Karte 4 GB Speicher haben, `small` braucht etwa 1 GB.
+
 1. Auf dem Host den NVIDIA-Treiber und das [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) installieren. `docker run --rm --gpus all ubuntu nvidia-smi` muss funktionieren.
 2. Starten mit dem Override:
    ```bash
@@ -45,7 +47,21 @@ faster-whisper (CTranslate2) nutzt NVIDIA-GPUs über CUDA 12 und cuDNN 9.
 
 Grobe Richtwerte: `small` auf der CPU braucht etwa die halbe Echtzeit, `large-v3-turbo` auf einer Mittelklasse-GPU ist mehr als 20-mal schneller als Echtzeit. Die Modelle werden beim ersten Gebrauch in das Volume `whisper-models` geladen (100 MB bis 1.6 GB).
 
-> Der GPU-Pfad ist vorbereitet, aber nicht auf jeder Kombination aus Treiber und Karte getestet.
+**Automatische Rückfallebene:** Nach dem Laden rechnet Whisper einmal eine Sekunde Stille auf der GPU. Schlägt das Laden oder diese Probe fehl (Karte nicht unterstützt, zu wenig Speicher), lädt die API das Modell mit `int8` auf der CPU und schreibt eine Warnung ins Log (`Whisper cannot run on cuda (…) — falling back to the CPU`). Die Probe läuft bei der ersten Transkription nach dem Start. Welches Gerät Whisper tatsächlich nutzt, zeigt `GET /api/health/ready` unter `checks.whisper` (`device`, `fallback_reason`).
+
+Funktioniert die Karte nicht, stellst du Whisper fest auf die CPU und behältst trotzdem die GPU-Anzeige in Kibana, mit einer lokalen Datei `docker-compose.local.yml`, die du in `COMPOSE_FILE` hinter die beiden anderen setzt (`COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml:docker-compose.local.yml` in `.env`):
+
+```yaml
+services:
+  radio-api:
+    environment:
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE_TYPE=int8
+```
+
+Ohne GPU-Anzeige reicht es, ohne `docker-compose.gpu.yml` zu starten.
+
+> Der GPU-Pfad ist nicht auf jeder Kombination aus Treiber und Karte getestet.
 
 ## USRP N200
 
@@ -123,6 +139,8 @@ Dashboard, search, export, alerts and schedules of the web interface work in bot
 
 faster-whisper (CTranslate2) uses NVIDIA GPUs via CUDA 12 and cuDNN 9.
 
+**Which card?** You need a card from the Pascal generation onwards (GTX 10xx, Quadro P…, compute capability 6.0 or higher). Older cards (Maxwell such as GTX 9xx or Quadro M…, compute capability 5.x) are not supported by CTranslate2 4.x: the model loads, the first computation fails with `cudaErrorInvalidDevice` (checked with a Quadro M1000M). `nvidia-smi --query-gpu=name,compute_cap --format=csv` shows the compute capability. For `large-v3-turbo` with `float16` the card should have 4 GB of memory; `small` needs about 1 GB.
+
 1. Install the NVIDIA driver and the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html) on the host. `docker run --rm --gpus all ubuntu nvidia-smi` must work.
 2. Start with the override:
    ```bash
@@ -132,7 +150,21 @@ faster-whisper (CTranslate2) uses NVIDIA GPUs via CUDA 12 and cuDNN 9.
 
 Rough figures: `small` on the CPU takes about half of real time, `large-v3-turbo` on a mid-range GPU is more than 20 times faster than real time. The models are downloaded into the `whisper-models` volume on first use (100 MB to 1.6 GB).
 
-> The GPU path is prepared, but not tested with every combination of driver and card.
+**Automatic fallback:** after loading, Whisper computes one second of silence on the GPU. If loading or this check fails (card not supported, too little memory), the API loads the model with `int8` on the CPU and logs a warning (`Whisper cannot run on cuda (…) — falling back to the CPU`). The check runs on the first transcription after the start. Which device Whisper actually uses is shown by `GET /api/health/ready` under `checks.whisper` (`device`, `fallback_reason`).
+
+If the card does not work, you can pin Whisper to the CPU and still keep the GPU view in Kibana with a local file `docker-compose.local.yml` that you put after the other two in `COMPOSE_FILE` (`COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml:docker-compose.local.yml` in `.env`):
+
+```yaml
+services:
+  radio-api:
+    environment:
+      - WHISPER_DEVICE=cpu
+      - WHISPER_COMPUTE_TYPE=int8
+```
+
+Without the GPU view, simply start without `docker-compose.gpu.yml`.
+
+> The GPU path is not tested with every combination of driver and card.
 
 ### USRP N200
 

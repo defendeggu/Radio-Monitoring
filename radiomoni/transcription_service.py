@@ -7,9 +7,15 @@ Models: tiny, base, small, medium, large-v3, large-v3-turbo, distil-large-v3, ..
 
 Simulated (fake) transcriptions are only returned when SIMULATION_MODE=true.
 Real errors are raised instead of being hidden behind fake text.
+
+On a GPU the model is checked with one second of silence right after loading.
+If loading or that check fails (unsupported card, e.g. Maxwell with
+CTranslate2 4.x: "cudaErrorInvalidDevice"; too little memory), the model is
+loaded on the CPU (int8) instead and a warning is logged.
 """
 
 import argparse
+import gc
 import json
 import logging
 import os
@@ -58,6 +64,8 @@ class TranscriptionService:
         self.compute_type: str = compute_type
         self.model: Any = None
         self.simulation_mode: bool = False
+        # why the GPU could not be used (None = running on the requested device)
+        self.fallback_reason: Optional[str] = None
         logger.info(f"Initializing Whisper model: {model} on {device} ({compute_type})")
         self._load_model()
 
@@ -70,8 +78,30 @@ class TranscriptionService:
             logger.warning("SIMULATION MODE: faster-whisper not installed — transcriptions are FAKE")
             self.simulation_mode = True
             return
-        self.model = WhisperModel(self.model_name, device=self.device, compute_type=self.compute_type)
-        logger.info("Whisper model loaded")
+        if self.device != 'cpu':
+            try:
+                self.model = WhisperModel(self.model_name, device=self.device, compute_type=self.compute_type)
+                self._self_test()
+            except Exception as e:
+                self._fall_back_to_cpu(e)
+        if self.model is None:
+            self.model = WhisperModel(self.model_name, device=self.device, compute_type=self.compute_type)
+        logger.info(f"Whisper model loaded on {self.device} ({self.compute_type})")
+
+    def _self_test(self) -> None:
+        """Run the encoder once: a GPU the CUDA kernels do not support fails here, not at load time."""
+        import numpy as np
+        segments, _ = self.model.transcribe(np.zeros(16000, dtype=np.float32), language='en', beam_size=1,
+                                            vad_filter=False, without_timestamps=True)
+        list(segments)
+
+    def _fall_back_to_cpu(self, error: Exception) -> None:
+        self.fallback_reason = f"{type(error).__name__}: {error}"[:300]
+        logger.warning(f"Whisper cannot run on {self.device} ({self.fallback_reason}) — "
+                       f"falling back to the CPU (int8). Set WHISPER_DEVICE=cpu to skip this check.")
+        self.model = None
+        gc.collect()  # release the GPU memory of the failed model
+        self.device, self.compute_type = 'cpu', 'int8'
 
     def transcribe(self, audio_file: str, language: Optional[str] = None, task: str = 'transcribe',
                    beam_size: int = 5, vad_filter: bool = True,

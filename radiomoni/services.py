@@ -40,6 +40,15 @@ def get_transcription_service() -> TranscriptionService:
     return _transcription
 
 
+def whisper_status() -> dict[str, object]:
+    """Device actually used by Whisper (the model is loaded on first use)."""
+    if _transcription is None:
+        return {'loaded': False, 'requested_device': config.WHISPER_DEVICE, 'model': config.WHISPER_MODEL}
+    return {'loaded': True, 'model': _transcription.model_name, 'device': _transcription.device,
+            'compute_type': _transcription.compute_type, 'requested_device': config.WHISPER_DEVICE,
+            'fallback_reason': _transcription.fallback_reason}
+
+
 def get_aprs_decoder() -> APRSDecoder:
     global _aprs
     if _aprs is None:

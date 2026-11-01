@@ -15,6 +15,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Weboberfläche auf Deutsch und Englisch umschaltbar; README und Dokumentation zusätzlich auf Englisch.
 
 ### Behoben
+- Whisper auf einer nicht unterstützten oder zu kleinen GPU: Jede Transkription scheiterte (z. B. `cudaErrorInvalidDevice` auf Maxwell-Karten). Nach dem Laden prüft die API die GPU jetzt mit einer kurzen Probe und weicht sonst mit Warnung auf die CPU aus; `/health/ready` zeigt das genutzte Gerät. Die Installationsanleitung nennt die nötige Kartengeneration (ab Pascal).
 - Aufnahmen schlugen fehl, wenn Docker `./recordings` und `./captures` beim ersten Start als root anlegte; `setup-env.sh` legt die Ordner jetzt selbst an und warnt bei falschem Besitzer.
 - SSB (USB/LSB) hörte beide Seitenbänder und Nachbarn bis ±8 kHz; jetzt nur noch 300–2700 Hz des gewählten Seitenbands (#7, danke HB9FLD).
 - SDR nach einem Reboot des Hosts oder erneutem Einstecken im API-Container nicht mehr sichtbar: `/dev/bus/usb` wird jetzt als Bind-Mount eingebunden.
