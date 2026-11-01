@@ -19,6 +19,16 @@ command -v openssl >/dev/null || { echo "openssl is required" >&2; exit 1; }
 
 secret() { openssl rand -base64 48 | tr -dc 'A-Za-z0-9' | head -c "${1:-32}"; }
 
+# Bind-mounted data directories: create them now, otherwise Docker creates them
+# as root on the first start and the API (UID 1000) cannot write recordings.
+mkdir -p recordings captures
+for dir in recordings captures; do
+  if [[ "$(stat -c %u "$dir")" != 1000 ]]; then
+    echo "WARNING: ./$dir is not owned by UID 1000 (the API user) — recordings will fail."
+    echo "         Fix: sudo chown 1000:1000 $dir"
+  fi
+done
+
 touch "$ENV_FILE"
 chmod 600 "$ENV_FILE"
 
