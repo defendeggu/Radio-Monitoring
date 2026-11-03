@@ -7,7 +7,8 @@ pydantic models — and returns a small dict describing what was started.
 
 from typing import Any
 
-from radiomoni.schemas import CaptureRequest, ExternalDecoderRequest, SpectrumRequest, StreamRequest, VoxRequest
+from radiomoni.schemas import (CaptureRequest, CwRequest, ExternalDecoderRequest, SpectrumRequest, StreamRequest,
+                               VoxRequest)
 
 
 def start_stream(req: StreamRequest) -> dict[str, Any]:
@@ -64,6 +65,22 @@ def start_spectrum(req: SpectrumRequest) -> dict[str, Any]:
     return {'session_id': session_id, 'mode': 'spectrum', 'frequency': req.frequency, **session.state()}
 
 
+def start_cw(req: CwRequest) -> dict[str, Any]:
+    from radiomoni.decoders.cw import CwSession
+    from radiomoni.jobs import start_stream_session
+    from radiomoni.services import ensure_disk_space, recording_dir
+
+    if req.record:
+        ensure_disk_space()
+    session = CwSession(frequency=req.frequency, gain=req.gain, duration=req.duration, sample_rate=req.sample_rate,
+                        wpm=req.wpm, cw_bandwidth=req.cw_bandwidth, tone_hz=req.tone_hz, record=req.record,
+                        device_type=req.device_type,
+                        device_address=str(req.device_address) if req.device_address else None,
+                        output_dir=recording_dir())
+    session_id = start_stream_session(session, 'cw', req.frequency, session.sample_rate, req.gain)
+    return {'session_id': session_id, 'mode': 'cw', 'frequency': req.frequency, **session.state()}
+
+
 def run_action(action: str, params: dict[str, Any]) -> dict[str, Any]:
     """Dispatch by action name (used by the scheduler)."""
     if action == 'stream':
@@ -74,5 +91,7 @@ def run_action(action: str, params: dict[str, Any]) -> dict[str, Any]:
         return start_vox(VoxRequest.model_validate(params))
     if action == 'decoder':
         return start_external_decoder(ExternalDecoderRequest.model_validate(params))
+    if action == 'cw':
+        return start_cw(CwRequest.model_validate(params))
     raise ValueError(f"Unknown action: {action}")
 

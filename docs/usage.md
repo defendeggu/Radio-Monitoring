@@ -27,6 +27,18 @@ Wasserfall eines Frequenzbereichs mit Mithören. Der Wasserfall belegt das SDR n
 
 Ist niemand mehr verbunden, endet der Wasserfall nach einer Minute und gibt das SDR frei. Läuft eine VOX- oder CW-Session, kannst du ihr Spektrum ansehen (*Laufende Session ansehen*), ohne sie zu stören.
 
+## CW
+
+Morse live dekodieren, gedacht für Kurzwelle (passendes SDR und Antenne siehe [hardware.md](hardware.md#kurzwelle-cw-ssb)).
+
+1. Band antippen (CW-Segmente nach IARU Region 1) oder Frequenz eingeben, dazu Verstärkung, erwartetes Tempo (der Decoder passt sich an), Decoder-Filter (100–500 Hz) und Tonhöhe beim Mithören. *Durchgänge als WAV speichern* legt jeden Durchgang als Aufnahme ab.
+2. *CW-Decoder starten.* Der Text erscheint live, darüber Tempo (WPM), Signal-Rausch-Abstand und die automatische Nachführung (AFC, ±300 Hz). *Mithören* spielt den Ton im Browser.
+3. Ein Durchgang endet nach 3 s Funkstille. Er landet mit Text, Rufzeichen, Tempo und Frequenz in der Liste, in `radio-cw-*` (Kibana: *RadioMoni · CW*) und bei den Alarmregeln (Quelle *CW*).
+4. **RBN-Spots:** Rechts zeigt das Fenster die CW-Stationen, die das [Reverse Beacon Network](https://www.reversebeacon.net/) in den letzten 15 Minuten auf dem Band gehört hat (Rufzeichen, SNR, Tempo, Anzahl Skimmer). **Ein Klick auf einen Spot stellt den Empfänger sofort auf dessen Frequenz** – läuft noch keine CW-Session, startet sie. Belegt ein anderer Job das SDR, fragt die Seite, ob er gestoppt werden soll. Spots auf der aktuellen Frequenz sind grün hervorgehoben. Einrichten: [configuration.md](configuration.md#reverse-beacon-network-cw-spots).
+5. Im kleinen Wasserfall stimmt ein Klick ebenfalls um; die NCDXF-Baken sind als Testsignale markiert.
+
+Zuverlässig dekodiert wird ab etwa 10 dB Signal-Rausch-Abstand im Decoder-Filter und bis etwa 30 WPM. Schwächere Signale ergeben einzelne falsche Zeichen, im reinen Rauschen erscheinen gelegentlich `E` und `T`.
+
 ## Sprache
 
 Einzelaufnahme mit anschliessender Whisper-Transkription.
@@ -144,6 +156,18 @@ Waterfall of a frequency range with live listening. The waterfall only uses the 
 5. *Record*, *Start VOX* and *Decode CW* open the respective page with the channel frequency.
 
 When nobody is connected anymore, the waterfall stops after one minute and frees the SDR. While a VOX or CW session runs you can watch its spectrum (*Watch a running session*) without disturbing it.
+
+### CW
+
+Decode Morse live, meant for shortwave (suitable SDR and antenna see [hardware.md](hardware.md#shortwave-cw-ssb)).
+
+1. Tap a band (CW segments of the IARU Region 1 band plan) or enter a frequency, plus gain, expected speed (the decoder adapts), decoder filter (100–500 Hz) and the pitch for listening. *Save transmissions as WAV* stores every transmission as a recording.
+2. *Start CW decoder.* The text appears live, above it the speed (WPM), signal-to-noise ratio and the automatic frequency control (AFC, ±300 Hz). *Listen* plays the tone in the browser.
+3. A transmission ends after 3 s of silence. It goes into the list with text, callsigns, speed and frequency, into `radio-cw-*` (Kibana: *RadioMoni · CW*) and to the alert rules (source *CW*).
+4. **RBN spots:** the window on the right shows the CW stations the [Reverse Beacon Network](https://www.reversebeacon.net/) heard on the band in the last 15 minutes (callsign, SNR, speed, number of skimmers). **A click on a spot tunes the receiver to its frequency right away** – if no CW session runs yet, it starts one. If another job holds the SDR, the page asks whether to stop it. Spots on the current frequency are highlighted in green. Setup: [configuration.md](configuration.md#reverse-beacon-network-cw-spots-1).
+5. A click in the small waterfall also retunes; the NCDXF beacons are marked as test signals.
+
+Decoding is reliable from about 10 dB signal-to-noise ratio in the decoder filter and up to about 30 WPM. Weaker signals give single wrong characters; pure noise occasionally shows `E` and `T`.
 
 ### Voice
 

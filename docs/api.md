@@ -41,6 +41,9 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/spectrum` | Wasserfall starten (`sample_rate` = Bandbreite, `fft_size`, `fps`); weicht jedem anderen Job |
 | GET | `/spectrum/{id}`, `/spectrum/{id}/stream` | Zustand / binärer Live-Strom (Spektrumzeilen, mit `?audio=1` auch Ton) |
 | POST | `/spectrum/{id}/tune` | Mittenfrequenz, Mithör-Kanal, Modulation, Squelch ändern |
+| POST | `/cw/start` | CW-Decoder starten (`frequency`, `wpm`, `cw_bandwidth`, `tone_hz`, `record`) |
+| POST | `/cw/{id}/tune` | CW-Decoder umstimmen (`channel`), z. B. auf einen RBN-Spot; innerhalb der Bandbreite ohne Neustart |
+| GET | `/cw/transmissions` | Gespeicherte CW-Durchgänge (`hours`, `limit`, `call`) |
 | GET | `/rbn/spots`, `/rbn/status` | CW-Spots des Reverse Beacon Network der letzten 30 min (`band`, `freq_min`/`freq_max`, `call`, `cq_only`, `max_age`) / Verbindungsstatus |
 | POST | `/decoders/start` | ADS-B/AIS/ISM starten (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | Multi-Channel (USRP) |
@@ -90,7 +93,7 @@ event: aprs
 data: {"type": "aprs", "time": "2026-10-16T10:00:00+00:00", "data": {"source_callsign": "HB9XYZ-7", ...}}
 ```
 
-Ereignistypen: `aprs`, `pocsag`, `adsb`, `adsb_snapshot`, `ais`, `ism`, `vox`, `alert`, `capture`, `session`, `scan`, `schedule`, `sdr`.
+Ereignistypen: `aprs`, `pocsag`, `adsb`, `adsb_snapshot`, `ais`, `ism`, `vox`, `cw`, `alert`, `capture`, `session`, `scan`, `schedule`, `sdr`.
 
 ```bash
 curl -N -H "X-API-Key: $API_KEY" "$API/events?types=aprs,alert"
@@ -149,6 +152,9 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/spectrum` | start the waterfall (`sample_rate` = bandwidth, `fft_size`, `fps`); gives way to every other job |
 | GET | `/spectrum/{id}`, `/spectrum/{id}/stream` | state / binary live stream (spectrum rows, with `?audio=1` also audio) |
 | POST | `/spectrum/{id}/tune` | change centre frequency, listening channel, modulation, squelch |
+| POST | `/cw/start` | start the CW decoder (`frequency`, `wpm`, `cw_bandwidth`, `tone_hz`, `record`) |
+| POST | `/cw/{id}/tune` | retune the CW decoder (`channel`), e.g. to an RBN spot; no restart inside the bandwidth |
+| GET | `/cw/transmissions` | stored CW transmissions (`hours`, `limit`, `call`) |
 | GET | `/rbn/spots`, `/rbn/status` | Reverse Beacon Network CW spots of the last 30 min (`band`, `freq_min`/`freq_max`, `call`, `cq_only`, `max_age`) / connection state |
 | POST | `/decoders/start` | start ADS-B/AIS/ISM (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | multi-channel (USRP) |
@@ -198,7 +204,7 @@ event: aprs
 data: {"type": "aprs", "time": "2026-10-16T10:00:00+00:00", "data": {"source_callsign": "HB9XYZ-7", ...}}
 ```
 
-Event types: `aprs`, `pocsag`, `adsb`, `adsb_snapshot`, `ais`, `ism`, `vox`, `alert`, `capture`, `session`, `scan`, `schedule`, `sdr`.
+Event types: `aprs`, `pocsag`, `adsb`, `adsb_snapshot`, `ais`, `ism`, `vox`, `cw`, `alert`, `capture`, `session`, `scan`, `schedule`, `sdr`.
 
 ```bash
 curl -N -H "X-API-Key: $API_KEY" "$API/events?types=aprs,alert"

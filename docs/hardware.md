@@ -6,9 +6,9 @@
 
 | Gerät | Bereich | Sample-Rate | Betriebsarten |
 |---|---|---|---|
-| RTL-SDR v3/v4 | 24 – 1766 MHz | 0.25 – 3.2 MS/s | alle, inkl. ADS-B/AIS/ISM |
+| RTL-SDR v3/v4 | 24 – 1766 MHz, KW 0.5 – 24 MHz per Direct Sampling | 0.25 – 3.2 MS/s | alle, inkl. ADS-B/AIS/ISM |
 | HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | Sprache, VOX, APRS, POCSAG, Repeater, ADS-B |
-| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | bis 912 kS/s | Sprache, VOX |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | 768 kS/s | Sprache, VOX, Spektrum, CW |
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | bis 25 MS/s | zusätzlich Multi-Channel DDC |
 
 Erkennung: Ist *Automatisch* gewählt, wird in der Reihenfolge HackRF, Airspy HF+, RTL-SDR gesucht. Den USRP wählst du explizit über seine IP-Adresse.
@@ -49,6 +49,22 @@ Den Wert trägst du beim Start von ADS-B, AIS oder ISM im Feld *Frequenzkorrektu
 - **Lange Aufnahmen brechen ab:** 2 MS/s bedeuten etwa 4 MB/s über USB. Hilfreich sind ein kurzes, gutes Kabel, ein aktiver USB-Hub, Aufnahmen unter 60 s oder für den Dauerbetrieb ein RTL-SDR.
 - POCSAG-Einzelaufnahmen mit HackRF sind aus Speichergründen auf 60 s begrenzt.
 - **ADS-B:** readsb steuert den HackRF selbst. Ohne Angabe der Verstärkung gelten LNA 40 dB und VGA 48 dB (der HackRF hat keine automatische Regelung). Ein Wert im Feld *Verstärkung* setzt LNA (in 8-dB-Schritten, max. 40) und VGA wie bei den übrigen HackRF-Betriebsarten. Die Frequenzkorrektur (ppm) wird beim HackRF nicht angewendet.
+
+## Kurzwelle (CW, SSB)
+
+Für die CW-Seite und den Wasserfall auf 3–30 MHz eignen sich die Geräte unterschiedlich:
+
+| Gerät | Kurzwelle | Hinweis |
+|---|---|---|
+| Airspy HF+ | **empfohlen** | für KW gebaut, hoher Dynamikbereich, kein DC-Spike |
+| RTL-SDR v3 | brauchbar | unter 24 MHz schaltet RadioMoni automatisch auf Direct Sampling (`rtl_sdr -D`). Schlechtere Selektion als ein KW-Empfänger, starke Rundfunksender können übersteuern. |
+| RTL-SDR v4 | prüfen | hat einen eingebauten KW-Konverter, den der Debian-Treiber `rtl-sdr` 2.0 noch nicht kennt. Erst `rtl_test` und eine Testaufnahme machen. |
+| HackRF One | nur starke Signale | technisch ab 1 MHz, unterhalb 30 MHz aber unempfindlich und leicht zu übersteuern |
+
+- **Antenne:** Die VHF/UHF-Antenne taugt auf Kurzwelle nicht. Ein Langdraht mit Unun (9:1), eine Endfed- oder eine aktive Magnetic-Loop-Antenne genügen für den Empfang. Ein Mantelwellen-Filter am Speisekabel hält Störungen aus dem Haus fern.
+- **Übersteuerung:** Zeigt der Wasserfall viele Phantomsignale, die Verstärkung senken. Bei HackRF und RTL-SDR hilft ein KW-Hochpass, der Mittelwellen-Rundfunk unter 1.7 MHz abschneidet.
+- **Abstimmen:** HackRF und RTL-SDR haben in der Mitte ihres Empfangsbereichs eine DC-Spitze. Die CW-Session stimmt die Hardware deshalb um ein Viertel der Bandbreite neben die gewünschte Frequenz und mischt das Signal digital zurück.
+- **Testsignale:** Die Baken des [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) senden auf 14.100, 18.110, 21.150, 24.930 und 28.200 MHz reihum ihr Rufzeichen in CW (alle 3 Minuten jede Bake 10 s lang).
 
 ## USRP N200
 
@@ -96,9 +112,9 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 
 | Device | Range | Sample rate | Modes |
 |---|---|---|---|
-| RTL-SDR v3/v4 | 24 – 1766 MHz | 0.25 – 3.2 MS/s | all, incl. ADS-B/AIS/ISM |
+| RTL-SDR v3/v4 | 24 – 1766 MHz, HF 0.5 – 24 MHz via direct sampling | 0.25 – 3.2 MS/s | all, incl. ADS-B/AIS/ISM |
 | HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | voice, VOX, APRS, POCSAG, repeaters, ADS-B |
-| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | up to 912 kS/s | voice, VOX |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | 768 kS/s | voice, VOX, spectrum, CW |
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | up to 25 MS/s | additionally multi-channel DDC |
 
 Detection: with *Detect automatically* selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR. The USRP is selected explicitly by its IP address.
@@ -139,6 +155,22 @@ Enter the value in the *Frequency correction (ppm)* field when starting ADS-B, A
 - **Long recordings abort:** 2 MS/s means about 4 MB/s over USB. A short, good cable, a powered USB hub, recordings under 60 s or an RTL-SDR for continuous operation help.
 - POCSAG single captures with the HackRF are limited to 60 s for memory reasons.
 - **ADS-B:** readsb controls the HackRF itself. Without a gain setting, LNA 40 dB and VGA 48 dB apply (the HackRF has no automatic gain control). A value in the *Gain (dB)* field sets LNA (in 8 dB steps, max. 40) and VGA as in the other HackRF modes. The frequency correction (ppm) is not applied to the HackRF.
+
+### Shortwave (CW, SSB)
+
+For the CW page and the waterfall on 3–30 MHz the devices differ:
+
+| Device | Shortwave | Note |
+|---|---|---|
+| Airspy HF+ | **recommended** | built for HF, high dynamic range, no DC spike |
+| RTL-SDR v3 | usable | below 24 MHz RadioMoni switches to direct sampling automatically (`rtl_sdr -D`). Poorer selectivity than an HF receiver, strong broadcast stations can overload it. |
+| RTL-SDR v4 | check first | has a built-in HF converter that the Debian driver `rtl-sdr` 2.0 does not know yet. Run `rtl_test` and a test recording first. |
+| HackRF One | strong signals only | technically from 1 MHz, but insensitive below 30 MHz and easily overloaded |
+
+- **Antenna:** the VHF/UHF antenna is no good on shortwave. A long wire with a 9:1 unun, an end-fed or an active magnetic loop is enough for receiving. A common-mode choke on the feed line keeps household noise out.
+- **Overload:** if the waterfall shows many phantom signals, lower the gain. With the HackRF and the RTL-SDR an HF high-pass that cuts medium-wave broadcasting below 1.7 MHz helps.
+- **Tuning:** the HackRF and the RTL-SDR have a DC spike in the middle of their receive range. The CW session therefore tunes the hardware a quarter of the bandwidth beside the wanted frequency and mixes the signal back digitally.
+- **Test signals:** the beacons of the [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) send their callsign in CW in turn on 14.100, 18.110, 21.150, 24.930 and 28.200 MHz (every 3 minutes each beacon for 10 s).
 
 ### USRP N200
 

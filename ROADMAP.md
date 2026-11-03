@@ -6,7 +6,6 @@ Stand: 2026-11-03 (Version 4.1.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 
 | Thema | Beschreibung | Aufwand |
 |---|---|---|
-| CW-Decoder | | |
 | Benutzer und Rollen | Lesende und steuernde Rollen, Login statt API-Key im Browser | mittel |
 | APRS-IS-iGate | empfangene Pakete mit Rufzeichen und Passcode an APRS-IS weiterleiten | mittel |
 | PPM-Kalibrierung | automatisch an einem bekannten Träger messen und pro Gerät speichern | klein |
@@ -21,3 +20,5 @@ Stand: 2026-11-03 (Version 4.1.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 - Export nach InfluxDB/Grafana für Sensorwerte aus rtl_433
 - Breitband-Überblick im Wasserfall mit `hackrf_sweep` (1 MHz – 6 GHz in einem Bild)
 - WebGL-Renderer für den Wasserfall, falls Canvas 2D bei grossen FFTs nicht reicht
+- CW-Skimmer: alle Signale eines CW-Segments gleichzeitig dekodieren (ein Decoder pro Spitze im Spektrum)
+- RTTY- und FT8-Spots des RBN (Port 7001) anzeigen

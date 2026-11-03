@@ -10,6 +10,7 @@
   import SessionCard from '../lib/components/SessionCard.svelte';
   import { time } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
+  import { router } from '../lib/router.svelte';
   import { live, sdr, settings, toasts } from '../lib/stores.svelte';
 
   interface Segment {
@@ -20,7 +21,7 @@
     at: string;
   }
 
-  let frequency = $state(446_006_250);
+  let frequency = $state(Number(router.params.get('f')) || 446_006_250);
   let modulation = $state<'FM' | 'AM'>('FM');
   let gain = $state(30);
   let squelch = $state(10);

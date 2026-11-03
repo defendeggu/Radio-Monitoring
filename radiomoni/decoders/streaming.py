@@ -34,7 +34,8 @@ from radiomoni import alerts
 from radiomoni import events
 from radiomoni.dsp import DecimationStage
 from radiomoni.redis_client import get_redis
-from radiomoni.sdr_hardware import detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction
+from radiomoni.sdr_hardware import (detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction,
+                                    rtlsdr_direct_sampling)
 from radiomoni.sdr_lock import SdrLease, current_holder
 
 logger = logging.getLogger(__name__)
@@ -404,6 +405,7 @@ class BaseStreamingDecoder(ABC):
             cmd = [
                 'nice', '-n', '10',
                 'rtl_sdr',
+                *rtlsdr_direct_sampling(self.frequency),
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
                 '-g', str(self.gain),

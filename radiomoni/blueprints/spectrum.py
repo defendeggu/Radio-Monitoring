@@ -62,8 +62,12 @@ def stream_spectrum(session_id: str) -> Response:
     return response
 
 
-def tune_session(session_id: str, req: TuneRequest) -> dict[str, Any]:
-    """Validate a retune against the session state and hand it to the decoder (local or remote)."""
+def tune_session(session_id: str, req: TuneRequest, allow_outside: bool = False) -> dict[str, Any]:
+    """
+    Validate a retune against the session state and hand it to the decoder (local or remote).
+    With allow_outside, a channel outside the bandwidth is passed on and the session moves
+    its centre itself (CW: keeps its offset from the DC spike).
+    """
     state = spectrum.load_state(session_id)
     if state is None or not _running(session_id):
         raise ApiError('Session is not running', 409)
@@ -74,7 +78,10 @@ def tune_session(session_id: str, req: TuneRequest) -> dict[str, Any]:
     if req.centre is not None and req.channel is None and abs(channel - centre) > state['span'] * 0.45:
         channel = centre
     if abs(channel - centre) > state['span'] * 0.45:
-        raise ApiError('Frequency is outside the visible bandwidth — move the centre first', 400)
+        if not allow_outside:
+            raise ApiError('Frequency is outside the visible bandwidth — move the centre first', 400)
+        offset = state.get('dc_offset')
+        centre = channel + (int(offset) if offset is not None else int(state['centre']) - int(state.get('channel') or state['centre']))
     changes: dict[str, Any] = {k: v for k, v in req.model_dump().items()
                                if v is not None and k not in ('squelch_off',)}
     changes['channel'] = channel
@@ -85,7 +92,7 @@ def tune_session(session_id: str, req: TuneRequest) -> dict[str, Any]:
         decoder.tune(**changes)
     else:
         events.send_control('tune', session_id=session_id, changes=changes)
-    return {**state, **{k: v for k, v in changes.items() if k != 'squelch_db'},
+    return {**state, **{k: v for k, v in changes.items() if k != 'squelch_db'}, 'centre': centre,
             'squelch_db': changes.get('squelch_db', state.get('squelch_db'))}
 
 

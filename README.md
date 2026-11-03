@@ -13,6 +13,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **Sprache:** FM/AM/SSB aufnehmen und mit [faster-whisper](https://github.com/SYSTRAN/faster-whisper) transkribieren, auf CPU oder NVIDIA-GPU
 - **VOX-Aufnahme:** einen Kanal dauerhaft überwachen. Aufgenommen und transkribiert wird nur, wenn jemand sendet.
 - **Spektrum / Wasserfall:** Frequenzbereich live ansehen und im Browser mithören (FM, AM, SSB, CW). Gibt das SDR automatisch frei, sobald ein anderer Job startet.
+- **CW-Decoder:** Morse auf Kurzwelle live dekodieren, mit automatischer Tempo- und Frequenzanpassung. Daneben die aktuellen Spots des Reverse Beacon Network; ein Klick stellt den Empfänger auf die Station.
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
@@ -25,9 +26,9 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 
 | Gerät | Frequenzbereich | Hinweise |
 |---|---|---|
-| RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz | einziges Gerät für AIS und ISM-Sensoren |
+| RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz, Kurzwelle per Direct Sampling | einziges Gerät für AIS und ISM-Sensoren |
 | HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; auch ADS-B; lange Aufnahmen besser mit RTL-SDR |
-| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | Kurzwelle |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | Kurzwelle, empfohlen für CW |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | über Gigabit-Ethernet; Image mit `WITH_USRP=1` bauen |
 
 Details, udev-Regeln, PPM-Korrektur und Fehlerbehebung: [docs/hardware.md](docs/hardware.md).
@@ -96,8 +97,9 @@ flowchart LR
 | Quelle | Wofür |
 |---|---|
 | [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Schweizer Relais für den Repeater-Scan (`scripts/repeaters_ch.csv`) |
-| [IARU Region 1 HF-Bandplan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW-Segmente der KW-Bänder (Band-Schnellwahl im Wasserfall) |
+| [IARU Region 1 HF-Bandplan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW-Segmente der KW-Bänder (Band-Schnellwahl im Wasserfall und auf der CW-Seite) |
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | Baken-Frequenzen als Testsignale auf Kurzwelle |
+| [ITU-R M.1677-1 International Morse code](https://www.itu.int/rec/R-REC-M.1677-1-200910-I/) | Morse-Tabelle und Zeitverhältnisse des CW-Decoders (Punkt : Strich = 1 : 3, Pausen 1 / 3 / 7) |
 | [Reverse Beacon Network](https://www.reversebeacon.net/) | Live-CW-Spots über Telnet (`telnet.reversebeacon.net:7000`, Login mit Rufzeichen). RBN wünscht, dass Endnutzer einen DX-Cluster mit RBN-Spots nutzen; Server einstellbar mit `RBN_HOST`/`RBN_PORT`. |
 
 ## Rechtlicher Hinweis
@@ -121,6 +123,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **Voice:** record FM/AM/SSB and transcribe it with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), on CPU or NVIDIA GPU
 - **VOX recording:** monitor a channel continuously. Recording and transcription only happen while someone is transmitting.
 - **Spectrum / waterfall:** watch a frequency range live and listen in the browser (FM, AM, SSB, CW). Frees the SDR automatically as soon as another job starts.
+- **CW decoder:** decode Morse on shortwave live, with automatic speed and frequency tracking. Next to it the current spots of the Reverse Beacon Network; a click tunes the receiver to the station.
 - **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters
@@ -133,9 +136,9 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 
 | Device | Frequency range | Notes |
 |---|---|---|
-| RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz | the only device for AIS and ISM sensors |
+| RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz, shortwave via direct sampling | the only device for AIS and ISM sensors |
 | HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; also ADS-B; long recordings work better with an RTL-SDR |
-| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | shortwave |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | shortwave, recommended for CW |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | via Gigabit Ethernet; build the image with `WITH_USRP=1` |
 
 Details, udev rules, PPM correction and troubleshooting: [docs/hardware.md](docs/hardware.md#english-version).
@@ -206,8 +209,9 @@ Each file is written in German first, followed by an English version.
 | Source | Used for |
 |---|---|
 | [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Swiss repeaters for the repeater scan (`scripts/repeaters_ch.csv`) |
-| [IARU Region 1 HF band plan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW segments of the HF bands (band shortcuts in the waterfall) |
+| [IARU Region 1 HF band plan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW segments of the HF bands (band shortcuts in the waterfall and on the CW page) |
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | beacon frequencies as test signals on shortwave |
+| [ITU-R M.1677-1 International Morse code](https://www.itu.int/rec/R-REC-M.1677-1-200910-I/) | Morse table and timing ratios of the CW decoder (dit : dah = 1 : 3, gaps 1 / 3 / 7) |
 | [Reverse Beacon Network](https://www.reversebeacon.net/) | live CW spots via telnet (`telnet.reversebeacon.net:7000`, login with a callsign). RBN asks end users to use a DX cluster that carries RBN spots; the server is configurable with `RBN_HOST`/`RBN_PORT`. |
 
 ### Legal notice

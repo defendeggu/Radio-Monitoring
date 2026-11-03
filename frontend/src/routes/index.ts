@@ -11,6 +11,7 @@ import {
   Mic,
   Plane,
   Radio,
+  RadioTower,
   Search,
   Smartphone,
   SquareCode,
@@ -19,6 +20,7 @@ import Alerts from './Alerts.svelte';
 import ApiDocs from './ApiDocs.svelte';
 import Aprs from './Aprs.svelte';
 import Bookmarks from './Bookmarks.svelte';
+import Cw from './Cw.svelte';
 import Dashboard from './Dashboard.svelte';
 import Decoders from './Decoders.svelte';
 import Multi from './Multi.svelte';
@@ -66,6 +68,7 @@ export const routes: RouteDef[] = [
   },
   { path: 'voice', label: () => t('Sprache'), group: 'receive', icon: Mic, component: Voice },
   { path: 'vox', label: () => t('VOX-Aufnahme'), group: 'receive', icon: Radio, component: Vox },
+  { path: 'cw', label: () => 'CW', group: 'receive', icon: RadioTower, component: Cw },
   { path: 'aprs', label: () => 'APRS', group: 'receive', icon: MapPin, component: Aprs },
   { path: 'pocsag', label: () => 'POCSAG', group: 'receive', icon: Smartphone, component: Pocsag },
   { path: 'decoders', label: () => 'ADS-B · AIS · ISM', group: 'receive', icon: Plane, component: Decoders },

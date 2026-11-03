@@ -141,7 +141,7 @@ def _blocks(n: int, pos: int) -> list[tuple[int, int]]:
     return edges
 
 
-class _ComplexFilter:
+class ComplexFilter:
     """Real-coefficient FIR applied to complex samples, with state."""
 
     def __init__(self, taps: NDArray[np.float64]):
@@ -175,11 +175,11 @@ class Demodulator:
         self._dc: Optional[float] = None
         self._block_sum = 0.0      # AM: running sum/count of the current level block
         self._block_count = 0
-        self._filter: Optional[_ComplexFilter] = None
+        self._filter: Optional[ComplexFilter] = None
         if self.modulation in ('USB', 'LSB'):
-            self._filter = _ComplexFilter(signal.firwin(127, 1200.0, fs=self.rate))
+            self._filter = ComplexFilter(signal.firwin(127, 1200.0, fs=self.rate))
         elif self.modulation == 'CW':
-            self._filter = _ComplexFilter(signal.firwin(255, cw_bandwidth_hz / 2.0, fs=self.rate))
+            self._filter = ComplexFilter(signal.firwin(255, cw_bandwidth_hz / 2.0, fs=self.rate))
 
     def _oscillator(self, freq: float, n: int) -> ComplexArray:
         t = (self._n + np.arange(n)) / self.rate

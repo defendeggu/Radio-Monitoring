@@ -1,0 +1,86 @@
+{
+  "index_patterns": [
+    "radio-cw-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-cw daily indices (decoded CW transmissions)"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "ended": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        },
+        "text": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 2048
+            }
+          }
+        },
+        "callsigns": {
+          "type": "keyword"
+        },
+        "wpm": {
+          "type": "float"
+        },
+        "snr_db": {
+          "type": "float"
+        },
+        "duration_seconds": {
+          "type": "float"
+        },
+        "sdr_type": {
+          "type": "keyword"
+        },
+        "audio_file": {
+          "type": "keyword"
+        },
+        "audio_url": {
+          "type": "keyword",
+          "index": false
+        }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
+    }
+  }
+}

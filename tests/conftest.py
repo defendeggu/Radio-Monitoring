@@ -117,11 +117,12 @@ def mock_sdr_hardware(monkeypatch):
     from radiomoni import jobs
     from radiomoni import sdr_hardware
     from radiomoni.decoders import streaming
+    from radiomoni.decoders import cw
     from radiomoni.decoders import spectrum
     from radiomoni.decoders import vox
 
     detect = lambda *args, **kwargs: SDRType.HACKRF  # noqa: E731
-    for module in (sdr_hardware, jobs, streaming, vox, spectrum):
+    for module in (sdr_hardware, jobs, streaming, vox, spectrum, cw):
         monkeypatch.setattr(module, 'detect_sdr', detect)
     import radiomoni.blueprints.sdr
     monkeypatch.setattr(radiomoni.blueprints.sdr, 'detect_sdr', detect)

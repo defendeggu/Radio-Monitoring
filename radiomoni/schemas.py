@@ -16,7 +16,7 @@ DeviceType = Literal['auto', 'hackrf', 'rtlsdr', 'airspyhf', 'usrp']
 Modulation = Literal['FM', 'AM', 'USB', 'LSB']
 CaptureMode = Literal['voice', 'aprs', 'pocsag', 'raw']
 StreamMode = Literal['aprs', 'pocsag']
-DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'rbn', 'any']
+DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'any']
 
 # Widest range across supported hardware; get_sdr_instance() narrows it per device.
 MIN_FREQ = 500
@@ -184,6 +184,27 @@ class SpectrumRequest(SdrParams):
     duration: int = Field(3600, ge=30, le=config.MAX_STREAM_DURATION)
 
 
+class CwRequest(StrictModel):
+    """Live CW (Morse) decoder on one frequency."""
+    frequency: int = Field(..., ge=MIN_FREQ, le=MAX_FREQ, description='Carrier frequency of the CW signal in Hz')
+    gain: int = Field(30, ge=0, le=76, description='RF gain in dB')
+    sample_rate: Optional[int] = Field(None, ge=200_000, le=10_000_000,
+                                       description='IQ rate; empty = device default (HackRF 2 MHz)')
+    device_type: DeviceType = 'auto'
+    device_address: Optional[Union[IPv4Address, IPv6Address]] = None
+    wpm: int = Field(20, ge=5, le=60, description='Expected speed; the decoder adapts')
+    cw_bandwidth: Literal[100, 200, 300, 500] = Field(200, description='Decoder filter width in Hz')
+    tone_hz: int = Field(700, ge=300, le=1200, description='Pitch of the CW tone when listening')
+    record: bool = Field(False, description='Save every transmission as WAV (play button in Kibana)')
+    duration: int = Field(3600, ge=30, le=config.MAX_STREAM_DURATION)
+
+    @model_validator(mode='after')
+    def _usrp_needs_address(self) -> 'CwRequest':
+        if self.device_type == 'usrp' and self.device_address is None:
+            raise ValueError('USRP N200 requires device_address (IP address)')
+        return self
+
+
 class TuneRequest(StrictModel):
     """Retune a running spectrum or CW session; omitted fields stay as they are."""
     centre: Optional[int] = Field(None, ge=MIN_FREQ, le=MAX_FREQ, description='New SDR centre frequency in Hz')
@@ -293,6 +314,10 @@ class RbnSpotsQuery(QueryModel):
     max_age: int = Field(30, ge=1, le=30, description='Minutes')
     cq_only: bool = False
     limit: int = Field(200, ge=1, le=1000)
+
+
+class CwSearchQuery(HoursLimitQuery):
+    call: Optional[str] = Field(None, max_length=12, pattern=r'^[A-Za-z0-9/]+$')
 
 
 class AprsSearchQuery(HoursLimitQuery):

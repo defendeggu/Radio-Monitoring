@@ -18,7 +18,7 @@ from typing import Any, Optional
 from radiomoni import config
 
 # Kinds of "event" documents that are stored generically (one index/table each)
-EVENT_KINDS = ('adsb', 'ais', 'ism', 'alerts')
+EVENT_KINDS = ('adsb', 'ais', 'ism', 'alerts', 'cw')
 
 
 def enrich_aprs(doc: dict[str, Any]) -> dict[str, Any]:

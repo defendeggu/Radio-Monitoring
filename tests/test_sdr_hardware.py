@@ -207,7 +207,7 @@ class TestRTLSDRCapture(unittest.TestCase):
         rtlsdr = RTLSDRCapture(frequency=100_000_000)
         min_freq, max_freq = rtlsdr.get_frequency_range()
 
-        self.assertEqual(min_freq, 24_000_000)  # 24 MHz
+        self.assertEqual(min_freq, 500_000)  # 0.5 MHz (below 24 MHz in direct sampling mode)
         self.assertEqual(max_freq, 1_766_000_000)  # 1.766 GHz
 
     def test_max_sample_rate(self):
@@ -290,12 +290,12 @@ class TestFactoryFunction(unittest.TestCase):
         """Test frequency validation rejects frequency below RTL-SDR minimum"""
         with self.assertRaises(ValueError) as context:
             get_sdr_instance(
-                frequency=10_000_000,  # 10 MHz, below RTL-SDR min of 24 MHz
+                frequency=100_000,  # 100 kHz, below the RTL-SDR minimum (0.5 MHz, direct sampling)
                 sdr_type=SDRType.RTLSDR
             )
 
-        self.assertIn("does not support 10.000 MHz", str(context.exception))
-        self.assertIn("24.000 - 1766.000 MHz", str(context.exception))
+        self.assertIn("does not support 0.100 MHz", str(context.exception))
+        self.assertIn("0.500 - 1766.000 MHz", str(context.exception))
 
     def test_factory_frequency_validation_rtlsdr_too_high(self):
         """Test frequency validation rejects frequency above RTL-SDR maximum"""
@@ -523,3 +523,27 @@ class TestDemodulation(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class TestRtlDirectSampling(unittest.TestCase):
+    """Shortwave on the RTL-SDR: rtl_sdr -D below 24 MHz."""
+
+    def test_switch(self):
+        from radiomoni.sdr_hardware import rtlsdr_direct_sampling
+        self.assertEqual(rtlsdr_direct_sampling(7_020_000), ['-D'])
+        self.assertEqual(rtlsdr_direct_sampling(144_800_000), [])
+
+    def test_range_includes_shortwave(self):
+        from radiomoni.sdr_hardware import RTLSDRCapture
+        low, high = RTLSDRCapture(frequency=7_020_000).get_frequency_range()
+        self.assertLessEqual(low, 1_800_000)
+        self.assertEqual(high, 1_766_000_000)
+
+    def test_capture_command(self):
+        from radiomoni.sdr_hardware import RTLSDRCapture
+        cap = RTLSDRCapture(frequency=7_020_000, sample_rate=1_024_000)
+        with patch('radiomoni.sdr_hardware.subprocess.run') as run:
+            run.return_value = Mock(returncode=1, stderr='no device')
+            with self.assertRaises(RuntimeError):
+                cap.capture_iq(1, '/tmp/out.iq')
+            self.assertIn('-D', run.call_args[0][0])

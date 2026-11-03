@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 // Minimal mocked API so the UI can be exercised without backend or SDR.
+const cwStarts: Record<string, unknown>[] = [];
 async function mockApi(page: Page) {
   const json = (body: unknown, status = 200) => ({
     status,
@@ -48,6 +49,38 @@ async function mockApi(page: Page) {
     if (path === '/stream-decode')
       return route.fulfill(json({ error: 'SDR device is busy — in use by capture' }, 409));
     if (path === '/stats') return route.fulfill(json({ statistics: {} }));
+    if (path === '/rbn/status')
+      return route.fulfill(
+        json({ enabled: true, configured: true, connected: true, host: 'x', spots_per_minute: 12 }),
+      );
+    if (path === '/rbn/spots')
+      return route.fulfill(
+        json({
+          spots: [
+            {
+              callsign: 'OH6BG',
+              frequency: 14025500,
+              khz: 14025.5,
+              band: '20m',
+              mode: 'CW',
+              snr_db: 22,
+              wpm: 27,
+              type: 'CQ',
+              skimmers: ['DK9IP'],
+              skimmer_count: 3,
+              best_skimmer: 'DK9IP',
+              first_seen: 0,
+              last_seen: 0,
+              age_seconds: 42,
+            },
+          ],
+        }),
+      );
+    if (path === '/cw/transmissions') return route.fulfill(json({ transmissions: [] }));
+    if (path === '/cw/start') {
+      cwStarts.push(route.request().postDataJSON());
+      return route.fulfill(json({ error: 'SDR device is busy — in use by capture' }, 409));
+    }
     if (path === '/spectrum')
       return route.fulfill(json({ error: 'SDR device is busy — in use by vox' }, 409));
     return route.fulfill(json({}));
@@ -119,4 +152,15 @@ test('spectrum page: band shortcut and start error', async ({ page }) => {
   await expect(page.getByLabel('Mittenfrequenz (MHz)')).toHaveValue('145');
   await page.getByRole('button', { name: 'Wasserfall starten' }).click();
   await expect(page.getByText('SDR device is busy')).toBeVisible();
+});
+
+test('CW page: a click on an RBN spot starts the decoder on its frequency', async ({ page }) => {
+  cwStarts.length = 0;
+  await page.goto('/#/cw');
+  await expect(page.getByRole('heading', { name: 'CW', exact: true })).toBeVisible();
+  await expect(page.getByText('OH6BG')).toBeVisible();
+  await page.getByText('OH6BG').click();
+  await expect(page.getByText('SDR device is busy')).toBeVisible();
+  expect(cwStarts.at(-1)?.frequency).toBe(14025500);
+  await expect(page.getByLabel('Frequenz (MHz)')).toHaveValue('14.0255');
 });

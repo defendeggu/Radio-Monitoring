@@ -25,6 +25,7 @@ CORE_VERSION = '8.8.0'
 CAPTURES, APRS, POCSAG, REPEATER = 'radio-captures-pattern', 'radio-aprs-pattern', 'radio-pocsag-pattern', \
     'radio-repeater-pattern'
 ADSB, AIS, ISM, ALERTS = 'radio-adsb-pattern', 'radio-ais-pattern', 'radio-ism-pattern', 'radio-alerts-pattern'
+CW = 'radio-cw-pattern'
 
 Obj = dict[str, Any]
 
@@ -388,9 +389,23 @@ def alerts() -> list[Obj]:
     ])
 
 
+def cw() -> list[Obj]:
+    return dashboard('rm-dash-cw', 'CW', 'Dekodierte CW-Durchgänge (Seite „CW“)', [
+        [(metric('rm-cw-count', 'Durchgänge', CW, count('Durchgänge')), 12, 7),
+         (metric('rm-cw-calls', 'Rufzeichen', CW, unique('callsigns', 'Rufzeichen')), 12, 7),
+         (metric('rm-cw-wpm', 'Ø Tempo (WPM)', CW, avg('wpm', 'WPM')), 12, 7),
+         (metric('rm-cw-snr', 'Ø Signal-Rausch-Abstand (dB)', CW, avg('snr_db', 'dB')), 12, 7)],
+        [(timeline('rm-cw-tl', 'Durchgänge über die Zeit', CW, split='band'), 24, 12),
+         (bars('rm-cw-top', 'Häufigste Rufzeichen', CW, 'callsigns', 'Rufzeichen', 15), 12, 12),
+         (histogram('rm-cw-speed', 'Tempo (WPM)', CW, 'wpm', 2, 'WPM'), 12, 12)],
+        [(search('rm-cw-list', 'CW – Durchgänge', CW,
+                 ['frequency_mhz', 'band', 'callsigns', 'text', 'wpm', 'snr_db', 'audio_url']), 48, 16)],
+    ])
+
+
 DASHBOARDS = {
     'overview': overview, 'voice': voice, 'vox': vox, 'aprs': aprs, 'pocsag': pocsag, 'adsb': adsb,
-    'ais': ais, 'ism': ism, 'repeater': repeater, 'alerts': alerts,
+    'ais': ais, 'ism': ism, 'repeater': repeater, 'cw': cw, 'alerts': alerts,
 }
 
 

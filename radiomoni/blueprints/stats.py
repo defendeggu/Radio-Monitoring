@@ -11,7 +11,7 @@ from radiomoni.storage.base import get_storage
 
 stats_bp = Blueprint('stats', __name__)
 
-EVENT_TYPES = {'aprs', 'pocsag', 'adsb', 'adsb_snapshot', 'ais', 'ism', 'vox', 'alert', 'capture',
+EVENT_TYPES = {'aprs', 'pocsag', 'adsb', 'adsb_snapshot', 'ais', 'ism', 'vox', 'cw', 'alert', 'capture',
                'session', 'scan', 'schedule', 'sdr'}
 
 

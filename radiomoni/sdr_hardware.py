@@ -295,6 +295,16 @@ class HackRFCapture(SDRCapture):
                 os.unlink(iq_file)
 
 
+# Below this, the RTL-SDR receives in direct sampling mode (rtl_sdr -D): shortwave
+# without an upconverter on the RTL-SDR Blog V3 and similar sticks (0.5–28.8 MHz).
+RTLSDR_DIRECT_SAMPLING_BELOW = 24_000_000
+
+
+def rtlsdr_direct_sampling(frequency: float) -> list[str]:
+    """Extra rtl_sdr arguments for `frequency` (the -D switch on shortwave)."""
+    return ['-D'] if frequency < RTLSDR_DIRECT_SAMPLING_BELOW else []
+
+
 class RTLSDRCapture(SDRCapture):
     """RTL-SDR implementation"""
 
@@ -313,8 +323,8 @@ class RTLSDRCapture(SDRCapture):
             return False
 
     def get_frequency_range(self) -> Tuple[int, int]:
-        """RTL-SDR covers 24 MHz to 1766 MHz"""
-        return (24_000_000, 1_766_000_000)
+        """RTL-SDR: 24 MHz to 1766 MHz, below 24 MHz (from 500 kHz) in direct sampling mode"""
+        return (500_000, 1_766_000_000)
 
     def get_max_sample_rate(self) -> int:
         """RTL-SDR max sample rate is 3.2 MHz"""
@@ -334,6 +344,7 @@ class RTLSDRCapture(SDRCapture):
             # RTL-SDR capture command
             cmd = [
                 'rtl_sdr',
+                *rtlsdr_direct_sampling(self.frequency),
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
                 '-g', str(self.gain),
@@ -380,8 +391,9 @@ class RTLSDRCapture(SDRCapture):
 
         modulation = modulation.upper()
 
-        if modulation == 'FM':
-            # Use rtl_fm for direct FM demodulation (more efficient)
+        if modulation == 'FM' and self.frequency >= RTLSDR_DIRECT_SAMPLING_BELOW:
+            # Use rtl_fm for direct FM demodulation (more efficient; on shortwave the IQ path below,
+            # which uses direct sampling)
             self._capture_fm_direct(duration, output_file)
         else:
             # For AM/SSB, capture IQ then demodulate manually

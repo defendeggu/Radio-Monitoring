@@ -21,6 +21,7 @@ python3 monitoring/kibana/build_dashboards.py
 | `ais-dashboard.ndjson` | RadioMoni · AIS | `radio-ais-*`, mit Schiffskarte |
 | `ism-dashboard.ndjson` | RadioMoni · ISM-Sensoren | `radio-ism-*`, Temperatur und Luftfeuchte je Sensor |
 | `repeater-dashboard.ndjson` | RadioMoni · Repeater-Scan | `radio-repeater-activity-*` |
+| `cw-dashboard.ndjson` | RadioMoni · CW | `radio-cw-*`, dekodierte Durchgänge mit Play-Button |
 | `alerts-dashboard.ndjson` | RadioMoni · Alarme | `radio-alerts-*` |
 | `logs-dashboard.ndjson` | RadioMoni · System – Logs | Container-Logs (`radio-logs-*`) |
 | `health-dashboard.ndjson` | RadioMoni · System – Zustand | Host, Container, Elasticsearch und GPU (Metricbeat; GPU nur mit `docker-compose.gpu.yml`). Von Hand gepflegt, nicht von `build_dashboards.py` erzeugt |
