@@ -66,7 +66,10 @@ def sdr_status() -> Response:
     session_manager.reap_orphaned_sessions()
     holder = sdr_lock.current_holder()
     active = [s.to_dict() for s in session_manager.list_sessions() if s.status in ('starting', 'running')]
-    return jsonify({'busy': holder is not None, 'holder': holder, 'active_sessions': active})
+    # a preemptible holder (waterfall) gives way: for starting jobs the SDR counts as free
+    preemptible = holder is not None and sdr_lock.is_preemptible(holder.get('kind'))
+    return jsonify({'busy': holder is not None, 'preemptible': preemptible, 'holder': holder,
+                    'active_sessions': active})
 
 
 @sdr_bp.post('/sdr/force-stop')

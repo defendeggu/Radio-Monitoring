@@ -25,7 +25,7 @@ export interface StreamSession {
   duration: number;
   gain: number;
   sample_rate: number;
-  status: 'starting' | 'running' | 'stopping' | 'completed' | 'failed';
+  status: 'starting' | 'running' | 'stopping' | 'completed' | 'failed' | 'preempted';
   start_time: string;
   end_time: string | null;
   packet_count: number;
@@ -36,6 +36,8 @@ export interface StreamSession {
 
 export interface SdrStatus {
   busy: boolean;
+  /** the holder (waterfall) gives way to any job that is started */
+  preemptible?: boolean;
   holder: LockHolder | null;
   active_sessions: StreamSession[];
 }

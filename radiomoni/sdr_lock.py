@@ -5,6 +5,10 @@ Only one job (capture, stream, scan, VOX, external decoder) may use the SDR at a
 time. The lock lives in Redis so it holds across Gunicorn workers, the scheduler
 and container restarts. Holders keep a short TTL alive with a heartbeat thread,
 so a crashed holder frees the SDR within LOCK_TTL seconds.
+
+Some holders only use the SDR while nothing else needs it (the spectrum /
+waterfall view). They register a preempt handler; a job that finds such a
+holder stops it and takes the SDR instead of failing with "busy".
 """
 
 import json
@@ -13,7 +17,7 @@ import threading
 import time
 from datetime import datetime, timezone
 from types import TracebackType
-from typing import Any, Optional
+from typing import Any, Callable, Optional
 
 from radiomoni.redis_client import get_redis
 
@@ -22,6 +26,10 @@ logger = logging.getLogger(__name__)
 LOCK_KEY = 'sdr:lock'
 LOCK_TTL = 60          # seconds
 HEARTBEAT_EVERY = 20   # seconds
+PREEMPT_WAIT = 20      # seconds a job waits for a preempted holder to free the SDR
+
+# kind → handler(holder, by_kind) that stops the holder (see register_preemptible)
+_preempt_handlers: dict[str, Callable[[dict[str, Any], str], None]] = {}
 
 # Lua: delete only if the stored owner matches (avoid releasing someone else's lock)
 _RELEASE_SCRIPT = """
@@ -110,6 +118,31 @@ def _eval(script: str, owner: str, *args: str) -> Any:
         return r.expire(LOCK_KEY, int(args[0]))
 
 
+def register_preemptible(kind: str, handler: Callable[[dict[str, Any], str], None]) -> None:
+    """Holders of `kind` give way to other jobs: handler(holder, by_kind) must stop them."""
+    _preempt_handlers[kind] = handler
+
+
+def is_preemptible(kind: Optional[str]) -> bool:
+    return kind in _preempt_handlers
+
+
+def preempt(kind: str) -> bool:
+    """
+    If the current holder is preemptible (and not of the same kind), stop it and
+    wait until the SDR is free. Returns True when the SDR became free.
+    """
+    holder = current_holder()
+    if not holder or not is_preemptible(holder.get('kind')) or holder.get('kind') == kind:
+        return False
+    logger.info(f"Preempting SDR holder {holder.get('owner')} ({holder.get('kind')}) for {kind}")
+    try:
+        _preempt_handlers[str(holder['kind'])](holder, kind)
+    except Exception as e:
+        logger.error(f"Preempt handler for {holder.get('kind')} failed: {e}", exc_info=True)
+    return _wait_free(PREEMPT_WAIT, poll=0.25)
+
+
 class SdrLease:
     """
     Context manager / handle for holding the SDR lock with a heartbeat.
@@ -129,7 +162,8 @@ class SdrLease:
 
     def acquire(self) -> 'SdrLease':
         if not acquire(self.owner, self.kind, self.details):
-            raise SdrBusyError(current_holder())
+            if not (preempt(self.kind) and acquire(self.owner, self.kind, self.details)):
+                raise SdrBusyError(current_holder())
         self._thread = threading.Thread(target=self._heartbeat, name=f"sdr-lease-{self.kind}", daemon=True)
         self._thread.start()
         return self
@@ -152,11 +186,19 @@ class SdrLease:
         self.release()
 
 
-def wait_until_free(timeout: float) -> bool:
-    """Block until no lock is held or the timeout expires (used by the scheduler)."""
+def _wait_free(timeout: float, poll: float = 1.0) -> bool:
     deadline = time.time() + timeout
     while time.time() < deadline:
         if current_holder() is None:
             return True
-        time.sleep(1)
+        time.sleep(poll)
     return current_holder() is None
+
+
+def wait_until_free(timeout: float) -> bool:
+    """Block until no lock is held or the timeout expires (used by the scheduler).
+    A preemptible holder (waterfall) is stopped right away instead of waited for."""
+    holder = current_holder()
+    if holder is not None and is_preemptible(holder.get('kind')):
+        return preempt('scheduler')
+    return _wait_free(timeout)

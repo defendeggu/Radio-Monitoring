@@ -34,6 +34,14 @@ def _handle_control(message: dict[str, Any]) -> None:
         stop_session(str(message['session_id']))
     elif command == 'stop_all':
         stop_all_local_decoders()
+    elif command == 'preempt':
+        from radiomoni.decoders.spectrum import preempt_local
+        preempt_local(str(message.get('by') or 'another job'))
+    elif command == 'tune' and message.get('session_id'):
+        from radiomoni.session_store import session_manager
+        decoder = session_manager.get_decoder(str(message['session_id']))
+        if decoder is not None and hasattr(decoder, 'tune'):
+            decoder.tune(**(message.get('changes') or {}))
 
 
 def start_background_services() -> None:

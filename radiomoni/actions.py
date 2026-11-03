@@ -7,7 +7,7 @@ pydantic models — and returns a small dict describing what was started.
 
 from typing import Any
 
-from radiomoni.schemas import CaptureRequest, ExternalDecoderRequest, StreamRequest, VoxRequest
+from radiomoni.schemas import CaptureRequest, ExternalDecoderRequest, SpectrumRequest, StreamRequest, VoxRequest
 
 
 def start_stream(req: StreamRequest) -> dict[str, Any]:
@@ -51,6 +51,17 @@ def start_external_decoder(req: ExternalDecoderRequest) -> dict[str, Any]:
     session_id = start_stream_session(session, req.decoder, int(session.frequency), session.sample_rate,
                                       req.gain if req.gain is not None else -1)
     return {'session_id': session_id, 'mode': req.decoder, 'frequency': int(session.frequency)}
+
+
+def start_spectrum(req: SpectrumRequest) -> dict[str, Any]:
+    from radiomoni.decoders.spectrum import SpectrumSession
+    from radiomoni.jobs import start_stream_session
+
+    session = SpectrumSession(frequency=req.frequency, sample_rate=req.sample_rate, gain=req.gain,
+                              duration=req.duration, fft_size=req.fft_size, fps=req.fps,
+                              device_type=req.device_type, device_address=req.device_address_str)
+    session_id = start_stream_session(session, 'spectrum', req.frequency, session.sample_rate, req.gain)
+    return {'session_id': session_id, 'mode': 'spectrum', 'frequency': req.frequency, **session.state()}
 
 
 def run_action(action: str, params: dict[str, Any]) -> dict[str, Any]:

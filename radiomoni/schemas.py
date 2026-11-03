@@ -172,6 +172,30 @@ class VoxRequest(SdrParams):
         return None if v in ('', 'auto') else v
 
 
+ListenModulation = Literal['FM', 'AM', 'USB', 'LSB', 'CW']
+
+
+class SpectrumRequest(SdrParams):
+    """Waterfall: the IQ sample rate is the visible bandwidth (span)."""
+    sample_rate: int = Field(2_000_000, ge=200_000, le=10_000_000,
+                             description='Visible bandwidth = IQ sample rate in Hz (HackRF at least 2 MHz)')
+    fft_size: Literal[1024, 2048, 4096] = 2048
+    fps: int = Field(10, ge=2, le=25, description='Waterfall rows per second')
+    duration: int = Field(3600, ge=30, le=config.MAX_STREAM_DURATION)
+
+
+class TuneRequest(StrictModel):
+    """Retune a running spectrum or CW session; omitted fields stay as they are."""
+    centre: Optional[int] = Field(None, ge=MIN_FREQ, le=MAX_FREQ, description='New SDR centre frequency in Hz')
+    channel: Optional[int] = Field(None, ge=MIN_FREQ, le=MAX_FREQ,
+                                   description='Listening / decoding frequency in Hz (inside the bandwidth)')
+    modulation: Optional[ListenModulation] = None
+    cw_bandwidth: Optional[int] = Field(None, ge=100, le=2000, description='CW filter width in Hz')
+    squelch_db: Optional[float] = Field(None, ge=3.0, le=40.0,
+                                        description='Listening squelch; omit to keep, 0 is not allowed')
+    squelch_off: bool = Field(False, description='Turn the listening squelch off')
+
+
 class ExternalDecoderRequest(StrictModel):
     """ADS-B (readsb, RTL-SDR or HackRF), AIS (rtl_ais) or ISM sensors (rtl_433); AIS and ISM need an RTL-SDR."""
     decoder: Literal['adsb', 'ais', 'ism']

@@ -9,8 +9,14 @@
   let {
     sessionId,
     countLabel = t('Pakete'),
+    showCount = true,
     onended,
-  }: { sessionId: string; countLabel?: string; onended?: (s: StreamSession) => void } = $props();
+  }: {
+    sessionId: string;
+    countLabel?: string;
+    showCount?: boolean;
+    onended?: (s: StreamSession) => void;
+  } = $props();
 
   let session = $state<StreamSession | null>(null);
   let elapsed = $state(0);
@@ -23,7 +29,7 @@
       );
       session = r.session;
       elapsed = r.stats.elapsed_seconds;
-      if (session.status === 'completed' || session.status === 'failed') onended?.(session);
+      if (['completed', 'failed', 'preempted'].includes(session.status)) onended?.(session);
     } catch (e) {
       if ((e as { status?: number }).status === 404) onended?.(session as StreamSession);
     }
@@ -72,10 +78,12 @@
     <span class="text-slate-500">{t('Frequenz')}</span>
     <span class="font-mono">{mhz(session?.frequency)}</span>
   </div>
-  <div class="text-sm">
-    <span class="text-slate-500">{countLabel}</span>
-    <span class="font-mono text-accent-600 dark:text-accent-400">{session?.packet_count ?? 0}</span>
-  </div>
+  {#if showCount}
+    <div class="text-sm">
+      <span class="text-slate-500">{countLabel}</span>
+      <span class="font-mono text-accent-600 dark:text-accent-400">{session?.packet_count ?? 0}</span>
+    </div>
+  {/if}
   <div class="text-sm">
     <span class="text-slate-500">{t('Laufzeit')}</span> <span class="font-mono">{duration(elapsed)}</span>
   </div>

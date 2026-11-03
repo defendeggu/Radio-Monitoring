@@ -118,6 +118,7 @@ class VoxRecorder(BaseStreamingDecoder):
         self._segment: list[NDArray[np.int16]] = []
         self._segment_started: Optional[datetime] = None
         self._segment_peak_db = -200.0
+        self.tap: Any = None   # SpectrumTap: waterfall of this session for the spectrum page
 
     # abstract members (VOX has no external decoder process)
     def _start_decoder(self) -> Any:  # pragma: no cover - not used
@@ -157,6 +158,14 @@ class VoxRecorder(BaseStreamingDecoder):
         chunk_bytes = int(self.sample_rate * CHUNK_SECONDS) * 2 * bytes_per_value
         started = time.time()
         last_save = started
+        from radiomoni.decoders import spectrum   # late import: spectrum imports this module
+        sid = self.session.session_id
+        self.tap = spectrum.SpectrumTap(sid, int(self.frequency), int(self.sample_rate),
+                                        dc_spike=self.sdr_type == SDRType.HACKRF)
+        spectrum.save_state(sid, {'session_id': sid, 'mode': 'vox', 'centre': int(self.frequency),
+                                  'span': int(self.sample_rate), 'channel': int(self.frequency),
+                                  'modulation': self.modulation, 'sdr_type': self.sdr_type.value,
+                                  'tunable': False})
         while not self.stop_event.is_set():
             if self.duration and time.time() - started >= self.duration:
                 break
@@ -164,7 +173,9 @@ class VoxRecorder(BaseStreamingDecoder):
             if not raw:
                 logger.info("VOX: SDR stream ended")
                 break
-            self.process_chunk(self._bytes_to_iq(raw), session_manager)
+            iq = self._bytes_to_iq(raw)
+            self.tap.feed(iq)
+            self.process_chunk(iq, session_manager)
             if time.time() - last_save > 5:
                 session_manager.save_session(self.session)
                 last_save = time.time()

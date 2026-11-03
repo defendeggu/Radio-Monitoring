@@ -14,6 +14,7 @@
   const sdrText = $derived.by(() => {
     if (!sdr.apiReachable) return t('API nicht erreichbar');
     if (sdr.authRequired) return t('API-Key erforderlich');
+    if (sdr.status?.busy && sdr.status.preemptible) return t('Wasserfall — frei für Jobs');
     if (sdr.status?.busy) return t('Belegt: {kind}', { kind: sdr.status.holder?.kind });
     if (sdr.detect && !sdr.detect.detected) return t('Kein SDR erkannt');
     return sdr.detect?.detected ? t('{type} frei', { type: sdr.detect.type.toUpperCase() }) : t('Prüfe SDR…');
@@ -21,11 +22,13 @@
   const sdrColor = $derived(
     !sdr.apiReachable || sdr.authRequired
       ? 'bg-red-500'
-      : sdr.status?.busy
-        ? 'bg-amber-500 animate-pulse'
-        : sdr.detect?.detected
-          ? 'bg-emerald-500'
-          : 'bg-slate-400',
+      : sdr.status?.busy && sdr.status.preemptible
+        ? 'bg-cyan-500'
+        : sdr.status?.busy
+          ? 'bg-amber-500 animate-pulse'
+          : sdr.detect?.detected
+            ? 'bg-emerald-500'
+            : 'bg-slate-400',
   );
 </script>
 

@@ -1,5 +1,6 @@
 import type { Component } from 'svelte';
 import {
+  AudioWaveform,
   BellRing,
   Bookmark,
   CalendarClock,
@@ -25,6 +26,7 @@ import Pocsag from './Pocsag.svelte';
 import Recordings from './Recordings.svelte';
 import Repeater from './Repeater.svelte';
 import Schedules from './Schedules.svelte';
+import Spectrum from './Spectrum.svelte';
 import Voice from './Voice.svelte';
 import Vox from './Vox.svelte';
 import { t } from '../lib/i18n.svelte';
@@ -54,6 +56,13 @@ export const routes: RouteDef[] = [
     group: 'overview',
     icon: LayoutDashboard,
     component: Dashboard,
+  },
+  {
+    path: 'spectrum',
+    label: () => t('Spektrum'),
+    group: 'receive',
+    icon: AudioWaveform,
+    component: Spectrum,
   },
   { path: 'voice', label: () => t('Sprache'), group: 'receive', icon: Mic, component: Voice },
   { path: 'vox', label: () => t('VOX-Aufnahme'), group: 'receive', icon: Radio, component: Vox },

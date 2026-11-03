@@ -12,6 +12,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 
 - **Sprache:** FM/AM/SSB aufnehmen und mit [faster-whisper](https://github.com/SYSTRAN/faster-whisper) transkribieren, auf CPU oder NVIDIA-GPU
 - **VOX-Aufnahme:** einen Kanal dauerhaft überwachen. Aufgenommen und transkribiert wird nur, wenn jemand sendet.
+- **Spektrum / Wasserfall:** Frequenzbereich live ansehen und im Browser mithören (FM, AM, SSB, CW). Gibt das SDR automatisch frei, sobald ein anderer Job startet.
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
@@ -90,6 +91,14 @@ flowchart LR
 | Upgrade von 3.x auf 4.0 | [docs/upgrade-4.0.md](docs/upgrade-4.0.md) |
 | Änderungen | [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md) |
 
+## Quellen und Daten Dritter
+
+| Quelle | Wofür |
+|---|---|
+| [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Schweizer Relais für den Repeater-Scan (`scripts/repeaters_ch.csv`) |
+| [IARU Region 1 HF-Bandplan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW-Segmente der KW-Bänder (Band-Schnellwahl im Wasserfall) |
+| [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | Baken-Frequenzen als Testsignale auf Kurzwelle |
+
 ## Rechtlicher Hinweis
 
 Die Software empfängt nur, sie sendet nicht. Beachte die Gesetze deines Landes. In der Schweiz gilt das Fernmeldegesetz: Nicht für dich bestimmte Inhalte (z. B. Pager-Meldungen von Blaulicht-Organisationen) darfst du nicht weitergeben oder verwerten. Verschlüsselte Kommunikation darfst du nicht entschlüsseln. Für Aufbewahrung und Export der Daten bist du selbst verantwortlich.
@@ -110,6 +119,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 
 - **Voice:** record FM/AM/SSB and transcribe it with [faster-whisper](https://github.com/SYSTRAN/faster-whisper), on CPU or NVIDIA GPU
 - **VOX recording:** monitor a channel continuously. Recording and transcription only happen while someone is transmitting.
+- **Spectrum / waterfall:** watch a frequency range live and listen in the browser (FM, AM, SSB, CW). Frees the SDR automatically as soon as another job starts.
 - **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters
@@ -189,6 +199,14 @@ Each file is written in German first, followed by an English version.
 | Development and tests | [docs/development.md](docs/development.md#english-version) |
 | Upgrading from 3.x to 4.0 | [docs/upgrade-4.0.md](docs/upgrade-4.0.md#english-version) |
 | Changes | [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md) |
+
+### Third-party sources and data
+
+| Source | Used for |
+|---|---|
+| [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Swiss repeaters for the repeater scan (`scripts/repeaters_ch.csv`) |
+| [IARU Region 1 HF band plan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW segments of the HF bands (band shortcuts in the waterfall) |
+| [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | beacon frequencies as test signals on shortwave |
 
 ### Legal notice
 

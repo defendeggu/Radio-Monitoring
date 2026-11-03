@@ -38,6 +38,9 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/stream-decode` | APRS/POCSAG-Streaming starten |
 | GET / DELETE | `/stream-decode/{id}` | Status / Stopp einer Session |
 | POST | `/vox/start` | VOX-Aufnahme starten |
+| POST | `/spectrum` | Wasserfall starten (`sample_rate` = Bandbreite, `fft_size`, `fps`); weicht jedem anderen Job |
+| GET | `/spectrum/{id}`, `/spectrum/{id}/stream` | Zustand / binärer Live-Strom (Spektrumzeilen, mit `?audio=1` auch Ton) |
+| POST | `/spectrum/{id}/tune` | Mittenfrequenz, Mithör-Kanal, Modulation, Squelch ändern |
 | POST | `/decoders/start` | ADS-B/AIS/ISM starten (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | Multi-Channel (USRP) |
 | POST | `/scan-repeaters` | Repeater-Scan (`repeater_ids` oder `band`/`canton`; `total_duration` in s oder `until_stopped`, sonst ein Durchgang) |
@@ -142,6 +145,9 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/stream-decode` | start APRS/POCSAG streaming |
 | GET / DELETE | `/stream-decode/{id}` | status / stop of a session |
 | POST | `/vox/start` | start VOX recording |
+| POST | `/spectrum` | start the waterfall (`sample_rate` = bandwidth, `fft_size`, `fps`); gives way to every other job |
+| GET | `/spectrum/{id}`, `/spectrum/{id}/stream` | state / binary live stream (spectrum rows, with `?audio=1` also audio) |
+| POST | `/spectrum/{id}/tune` | change centre frequency, listening channel, modulation, squelch |
 | POST | `/decoders/start` | start ADS-B/AIS/ISM (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | multi-channel (USRP) |
 | POST | `/scan-repeaters` | repeater scan (`repeater_ids` or `band`/`canton`; `total_duration` in s or `until_stopped`, otherwise one round) |

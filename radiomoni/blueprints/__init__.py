@@ -9,6 +9,7 @@ Flask blueprints of the RadioMoni API.
 - pocsag      POCSAG search / stats / decode
 - repeater    repeater activity scans
 - streaming   streaming sessions, multi-channel, VOX, external decoders
+- spectrum    waterfall with live listening
 - decoders    ADS-B / AIS / ISM data
 - stats       statistics, dashboard, live events (SSE)
 - library     bookmarks, alert rules, schedules
@@ -25,10 +26,11 @@ from radiomoni.blueprints.pocsag import pocsag_bp
 from radiomoni.blueprints.recordings import recordings_bp
 from radiomoni.blueprints.repeater import repeater_bp
 from radiomoni.blueprints.sdr import sdr_bp
+from radiomoni.blueprints.spectrum import spectrum_bp
 from radiomoni.blueprints.stats import stats_bp
 from radiomoni.blueprints.streaming import streaming_bp
 
 ALL_BLUEPRINTS = [health_bp, sdr_bp, capture_bp, recordings_bp, aprs_bp, pocsag_bp, repeater_bp,
-                  streaming_bp, decoders_bp, stats_bp, library_bp, export_bp]
+                  streaming_bp, spectrum_bp, decoders_bp, stats_bp, library_bp, export_bp]
 
 __all__ = ['ALL_BLUEPRINTS']

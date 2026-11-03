@@ -121,8 +121,9 @@ class Sdr {
   authRequired = $state(false);
   private timer: ReturnType<typeof setInterval> | null = null;
 
+  /** Busy for starting a job: a waterfall holding the SDR gives way, so it does not count */
   get busy(): boolean {
-    return !!this.status?.busy;
+    return !!this.status?.busy && !this.status?.preemptible;
   }
 
   async refresh() {

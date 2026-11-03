@@ -32,6 +32,7 @@ import json
 
 from radiomoni import alerts
 from radiomoni import events
+from radiomoni.dsp import DecimationStage
 from radiomoni.redis_client import get_redis
 from radiomoni.sdr_hardware import detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction
 from radiomoni.sdr_lock import SdrLease, current_holder
@@ -222,21 +223,8 @@ class SessionManager:
         return session.session_id
 
 
-class _DecimationStage:
-    """IIR low-pass followed by decimation; filter state and decimation phase
-    carry over between chunks."""
-
-    def __init__(self, input_rate: float, cutoff_hz: float, factor: int, order: int):
-        self.factor = factor
-        self.sos = signal.butter(order, cutoff_hz, fs=input_rate, output='sos')
-        self.zi = np.zeros((self.sos.shape[0], 2), dtype=np.complex128)
-        self.offset = 0  # index in the next chunk of the next sample to keep
-
-    def process(self, x: NDArray[np.complex128]) -> NDArray[np.complex128]:
-        y, self.zi = signal.sosfilt(self.sos, x, zi=self.zi)
-        out: NDArray[np.complex128] = y[self.offset::self.factor]
-        self.offset = (self.offset - len(y)) % self.factor
-        return out
+# Old name, still used by NarrowbandFMDemodulator and the tests
+_DecimationStage = DecimationStage
 
 
 class NarrowbandFMDemodulator:
@@ -378,7 +366,7 @@ class BaseStreamingDecoder(ABC):
     def _finish_session(self, session_manager: 'SessionManager') -> None:
         """Mark the session finished (keeping 'failed'), free the SDR and notify listeners."""
         if self.session is not None:
-            if self.session.status not in ('failed', 'completed'):
+            if self.session.status not in ('failed', 'completed', 'preempted'):
                 self.session.status = 'completed'
             self.session.end_time = self.session.end_time or datetime.now(timezone.utc)
             session_manager.save_session(self.session)

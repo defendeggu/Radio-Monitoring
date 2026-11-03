@@ -15,6 +15,18 @@ Daneben steht der Zustand der Live-Verbindung (● live).
 
 Kennzahlen pro Betriebsart, Aktivität pro Stunde, SDR-Status, die letzten Alarme und APRS-Pakete sowie ein Live-Feed aller Ereignisse. Den Zeitraum stellst du oben rechts ein (6 h bis 7 Tage).
 
+## Spektrum
+
+Wasserfall eines Frequenzbereichs mit Mithören. Der Wasserfall belegt das SDR nur, solange es niemand anders braucht: Startest du einen Job (Aufnahme, VOX, APRS, Zeitplan …), wird er automatisch beendet. In der Seitenleiste steht dann „Wasserfall — frei für Jobs“.
+
+1. Mittenfrequenz, Bandbreite (HackRF 2–10 MHz, RTL-SDR bis 2,4 MHz, Airspy HF+ 768 kHz), Verstärkung und FFT-Grösse wählen oder ein Band antippen, dann *Wasserfall starten*.
+2. Oben das Spektrum (gemittelt, grau die Spitzenwerte), darunter der Wasserfall. *Auto-Pegel* passt den Farbbereich laufend an.
+3. **Bedienung:** Klick stimmt den Mithör-Kanal ab, Ziehen verschiebt die Mittenfrequenz, das Mausrad zoomt. Mit der Tastatur: Pfeiltasten stimmen ab (Umschalt = 10×), `+`/`-` zoomen. Lesezeichen erscheinen als violette Marken.
+4. **Mithören:** *Hören* startet den Ton im Browser (FM, AM, USB, LSB oder CW mit 250/500/1000 Hz Filter, optional Squelch). Die Verzögerung liegt bei etwa einer halben Sekunde.
+5. *Aufnehmen*, *VOX starten* und *CW dekodieren* öffnen die jeweilige Seite mit der Frequenz des Kanals.
+
+Ist niemand mehr verbunden, endet der Wasserfall nach einer Minute und gibt das SDR frei. Läuft eine VOX- oder CW-Session, kannst du ihr Spektrum ansehen (*Laufende Session ansehen*), ohne sie zu stören.
+
 ## Sprache
 
 Einzelaufnahme mit anschliessender Whisper-Transkription.
@@ -120,6 +132,18 @@ Next to it is the state of the live connection (● live).
 ### Dashboard
 
 Figures per mode, activity per hour, SDR status, the latest alerts and APRS packets, and a live feed of all events. Set the time range at the top right (6 h to 7 days).
+
+### Spectrum
+
+Waterfall of a frequency range with live listening. The waterfall only uses the SDR while nobody else needs it: when you start a job (recording, VOX, APRS, schedule …) it is stopped automatically. The sidebar then shows "Waterfall — free for jobs".
+
+1. Choose the centre frequency, bandwidth (HackRF 2–10 MHz, RTL-SDR up to 2.4 MHz, Airspy HF+ 768 kHz), gain and FFT size or tap a band, then *Start waterfall*.
+2. The spectrum (averaged, peaks in grey) is on top, the waterfall below. *Auto level* keeps adjusting the colour range.
+3. **Controls:** click tunes the listening channel, drag moves the centre frequency, the mouse wheel zooms. Keyboard: arrow keys tune (Shift = 10×), `+`/`-` zoom. Bookmarks appear as purple markers.
+4. **Listening:** *Listen* plays the audio in the browser (FM, AM, USB, LSB or CW with a 250/500/1000 Hz filter, optional squelch). The delay is about half a second.
+5. *Record*, *Start VOX* and *Decode CW* open the respective page with the channel frequency.
+
+When nobody is connected anymore, the waterfall stops after one minute and frees the SDR. While a VOX or CW session runs you can watch its spectrum (*Watch a running session*) without disturbing it.
 
 ### Voice
 

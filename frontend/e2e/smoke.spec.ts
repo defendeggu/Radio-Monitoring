@@ -48,6 +48,8 @@ async function mockApi(page: Page) {
     if (path === '/stream-decode')
       return route.fulfill(json({ error: 'SDR device is busy — in use by capture' }, 409));
     if (path === '/stats') return route.fulfill(json({ statistics: {} }));
+    if (path === '/spectrum')
+      return route.fulfill(json({ error: 'SDR device is busy — in use by vox' }, 409));
     return route.fulfill(json({}));
   });
   await page.route('https://tile.openstreetmap.org/**', (route) => route.fulfill({ status: 204 }));
@@ -108,4 +110,13 @@ test('uses English for an English browser', async ({ browser }) => {
   await page.goto('/');
   await expect(page.getByRole('button', { name: 'Settings' })).toBeVisible();
   await context.close();
+});
+
+test('spectrum page: band shortcut and start error', async ({ page }) => {
+  await page.goto('/#/spectrum');
+  await expect(page.getByRole('heading', { name: 'Spektrum' })).toBeVisible();
+  await page.getByRole('button', { name: '2 m', exact: true }).click();
+  await expect(page.getByLabel('Mittenfrequenz (MHz)')).toHaveValue('145');
+  await page.getByRole('button', { name: 'Wasserfall starten' }).click();
+  await expect(page.getByText('SDR device is busy')).toBeVisible();
 });
