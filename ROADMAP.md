@@ -7,6 +7,7 @@ Stand: 2026-10-16 (Version 4.0.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 | Thema | Beschreibung | Aufwand |
 |---|---|---|
 | Spektrum / Wasserfall | Live-FFT des SDR in der Oberfläche (WebGL), solange kein Job läuft | gross |
+| CW-Decoder | | |
 | Benutzer und Rollen | Lesende und steuernde Rollen, Login statt API-Key im Browser | mittel |
 | APRS-IS-iGate | empfangene Pakete mit Rufzeichen und Passcode an APRS-IS weiterleiten | mittel |
 | PPM-Kalibrierung | automatisch an einem bekannten Träger messen und pro Gerät speichern | klein |
