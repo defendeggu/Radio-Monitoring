@@ -50,6 +50,19 @@ Pro Aufnahme lassen sich Sprache, `beam_size`, `initial_prompt` und `task` (`tra
 
 Elasticsearch-Daten werden nach 90 Tagen gelöscht (ILM-Policy `radio-retention-policy`), Container-Logs und Metriken nach 7 Tagen.
 
+## Reverse Beacon Network (CW-Spots)
+
+Das Fenster *RBN-Spots* auf der CW-Seite und die Spot-Marken im Wasserfall zeigen, wer gerade auf Kurzwelle in CW aktiv ist ([reversebeacon.net](https://www.reversebeacon.net/)). Die API hält dafür eine einzige Telnet-Verbindung, bei mehreren Gunicorn-Workern nur einer davon.
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `RBN_ENABLED` | `false` | Verbindung zu RBN aufbauen |
+| `RBN_CALLSIGN` | – | Rufzeichen für den Login (Pflicht, sonst bleibt RBN aus) |
+| `RBN_HOST`, `RBN_PORT` | `telnet.reversebeacon.net`, `7000` | Server. RBN wünscht, dass Endnutzer einen DX-Cluster nutzen, der die RBN-Spots weitergibt; dessen Adresse hier eintragen. |
+| `RBN_SPOTTER_PREFIXES` | europäische Präfixe | Nur Spots von Skimmern mit diesen Rufzeichen-Präfixen (Komma-getrennt), `*` = alle |
+
+Gespeichert werden nur CW-Spots auf Kurzwelle der letzten 30 Minuten, in Redis, nicht in Elasticsearch.
+
 ## Alarm-Benachrichtigungen
 
 Alle Ziele sind optional. In den Alarmregeln wählst du nur den Kanal, die Ziele selbst stehen ausschliesslich hier. So kann eine Regel den Server nicht zu beliebigen URLs schicken.
@@ -123,6 +136,19 @@ Language, `beam_size`, `initial_prompt` and `task` (`transcribe`/`translate`) ca
 | `RECORDING_LINK_SECRET` | generated | key for the signed links to WAV files (play button in Kibana). Empty = no links. A new value invalidates all existing links. |
 
 Elasticsearch data is deleted after 90 days (ILM policy `radio-retention-policy`), container logs and metrics after 7 days.
+
+### Reverse Beacon Network (CW spots)
+
+The *RBN spots* window on the CW page and the spot markers in the waterfall show who is active in CW on shortwave right now ([reversebeacon.net](https://www.reversebeacon.net/)). The API keeps a single telnet connection for this, only one of several Gunicorn workers.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `RBN_ENABLED` | `false` | connect to RBN |
+| `RBN_CALLSIGN` | – | callsign for the login (required, otherwise RBN stays off) |
+| `RBN_HOST`, `RBN_PORT` | `telnet.reversebeacon.net`, `7000` | server. RBN asks end users to use a DX cluster that relays the RBN spots; enter its address here. |
+| `RBN_SPOTTER_PREFIXES` | European prefixes | only spots from skimmers with these callsign prefixes (comma-separated), `*` = all |
+
+Only CW spots on shortwave of the last 30 minutes are kept, in Redis, not in Elasticsearch.
 
 ### Alert notifications
 

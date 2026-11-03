@@ -16,7 +16,7 @@ DeviceType = Literal['auto', 'hackrf', 'rtlsdr', 'airspyhf', 'usrp']
 Modulation = Literal['FM', 'AM', 'USB', 'LSB']
 CaptureMode = Literal['voice', 'aprs', 'pocsag', 'raw']
 StreamMode = Literal['aprs', 'pocsag']
-DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'any']
+DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'rbn', 'any']
 
 # Widest range across supported hardware; get_sdr_instance() narrows it per device.
 MIN_FREQ = 500
@@ -283,6 +283,16 @@ class QueryModel(BaseModel):
 class HoursLimitQuery(QueryModel):
     hours: int = Field(24, ge=1, le=24 * 365)
     limit: int = Field(100, ge=1, le=1000)
+
+
+class RbnSpotsQuery(QueryModel):
+    band: Optional[Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m']] = None
+    freq_min: Optional[int] = Field(None, ge=1_800_000, le=30_000_000, description='Hz')
+    freq_max: Optional[int] = Field(None, ge=1_800_000, le=30_000_000, description='Hz')
+    call: Optional[str] = Field(None, max_length=12, pattern=r'^[A-Za-z0-9/]+$')
+    max_age: int = Field(30, ge=1, le=30, description='Minutes')
+    cq_only: bool = False
+    limit: int = Field(200, ge=1, le=1000)
 
 
 class AprsSearchQuery(HoursLimitQuery):

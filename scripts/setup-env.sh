@@ -63,6 +63,8 @@ ensure API_KEYS "$(secret 43)" secret
 ensure REDIS_PASSWORD "$(secret 32)" secret
 ensure RECORDING_LINK_SECRET "$(secret 43)" secret
 ensure METRICS_API_KEY "$(secret 43)" secret
+ensure RBN_ENABLED false
+ensure RBN_CALLSIGN ""
 
 # --- ELK ----------------------------------------------------------------------
 ensure ELASTIC_PASSWORD "$(secret 32)" secret

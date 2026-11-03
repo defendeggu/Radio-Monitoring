@@ -90,6 +90,19 @@ SMTP_PASSWORD: str | None = os.getenv('SMTP_PASSWORD') or None
 SMTP_FROM: str | None = os.getenv('SMTP_FROM') or None
 ALERT_EMAIL_TO: str | None = os.getenv('ALERT_EMAIL_TO') or None
 
+# --- Reverse Beacon Network (CW spots) -------------------------------------
+# One telnet connection per installation; off unless enabled and a callsign is set.
+RBN_ENABLED: bool = _bool('RBN_ENABLED', False)
+RBN_CALLSIGN: str = os.getenv('RBN_CALLSIGN', '').strip().upper()
+RBN_HOST: str = os.getenv('RBN_HOST', 'telnet.reversebeacon.net').strip()
+RBN_PORT: int = _int('RBN_PORT', 7000)
+# Only keep spots of skimmers whose callsign starts with one of these prefixes.
+# Empty = European skimmers (what is audible in central Europe), "*" = every skimmer.
+RBN_DEFAULT_PREFIXES = 'HB,DL,DK,DJ,DF,DM,DO,DA,DB,DC,DD,DG,DH,F,OE,I,ON,OO,PA,PD,G,M,OK,OM,SP,S5,9A,HA,LX,EA,CT,OZ,SM,LA,OH'
+RBN_SPOTTER_PREFIXES: list[str] = [] if os.getenv('RBN_SPOTTER_PREFIXES', '').strip() == '*' else [
+    p.strip().upper() for p in (os.getenv('RBN_SPOTTER_PREFIXES', '').strip() or RBN_DEFAULT_PREFIXES).split(',')
+    if p.strip()]
+
 # --- Logstash ingestion -----------------------------------------------------
 LOGSTASH_HTTP_USER: str = os.getenv('LOGSTASH_HTTP_USER', 'radio')
 LOGSTASH_HTTP_PASSWORD: str | None = os.getenv('LOGSTASH_HTTP_PASSWORD') or None

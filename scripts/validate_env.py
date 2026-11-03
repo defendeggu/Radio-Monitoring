@@ -69,6 +69,8 @@ def main() -> int:
         warnings.append('ALLOW_INSECURE=true disables the startup check — development only')
     if elk and not env.get('RECORDING_LINK_SECRET'):
         warnings.append('RECORDING_LINK_SECRET is empty — no play buttons for recordings in Kibana')
+    if env.get('RBN_ENABLED', '').lower() in ('1', 'true', 'yes', 'on') and not env.get('RBN_CALLSIGN'):
+        warnings.append('RBN_ENABLED is set but RBN_CALLSIGN is empty — no RBN spots')
     if env.get('KIBANA_BIND', '127.0.0.1') not in ('127.0.0.1', 'localhost', '::1'):
         warnings.append('Kibana is published on all interfaces (KIBANA_BIND)')
 

@@ -58,6 +58,11 @@ def start_background_services() -> None:
         scheduler.start()
     except Exception as e:
         logger.error(f"Scheduler could not start: {e}", exc_info=True)
+    try:
+        from radiomoni import rbn
+        rbn.start_if_enabled()
+    except Exception as e:
+        logger.error(f"RBN client could not start: {e}", exc_info=True)
 
 
 def create_app(start_background: bool = True) -> Flask:

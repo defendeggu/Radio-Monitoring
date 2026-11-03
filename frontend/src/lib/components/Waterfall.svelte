@@ -264,7 +264,7 @@
       const hzPerPx = (latest.span * (zoom.end - zoom.start)) / width;
       onretune(Math.round(drag.centre - dx * hzPerPx));
     } else {
-      onpick?.(freqAt(pos(e)), e.shiftKey);
+      onpick?.(snap(pos(e)), e.shiftKey);
     }
     drag = null;
   }
@@ -275,6 +275,20 @@
     let start = f - (f - zoom.start) * (span / (zoom.end - zoom.start));
     start = Math.min(Math.max(0, start), 1 - span);
     zoom = { start, end: start + span };
+  }
+
+  /** Frequency at x, or the frequency of a marker within 6 px (click on a spot = its frequency) */
+  function snap(x: number): number {
+    if (latest) {
+      let best: Marker | null = null;
+      let distance = 7;
+      for (const m of markers) {
+        const d = Math.abs(xOf(m.frequency, latest) - x);
+        if (d < distance) [best, distance] = [m, d];
+      }
+      if (best) return best.frequency;
+    }
+    return freqAt(x);
   }
 
   function wheel(e: WheelEvent) {

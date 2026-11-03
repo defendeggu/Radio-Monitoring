@@ -41,6 +41,7 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/spectrum` | Wasserfall starten (`sample_rate` = Bandbreite, `fft_size`, `fps`); weicht jedem anderen Job |
 | GET | `/spectrum/{id}`, `/spectrum/{id}/stream` | Zustand / binärer Live-Strom (Spektrumzeilen, mit `?audio=1` auch Ton) |
 | POST | `/spectrum/{id}/tune` | Mittenfrequenz, Mithör-Kanal, Modulation, Squelch ändern |
+| GET | `/rbn/spots`, `/rbn/status` | CW-Spots des Reverse Beacon Network der letzten 30 min (`band`, `freq_min`/`freq_max`, `call`, `cq_only`, `max_age`) / Verbindungsstatus |
 | POST | `/decoders/start` | ADS-B/AIS/ISM starten (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | Multi-Channel (USRP) |
 | POST | `/scan-repeaters` | Repeater-Scan (`repeater_ids` oder `band`/`canton`; `total_duration` in s oder `until_stopped`, sonst ein Durchgang) |
@@ -148,6 +149,7 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/spectrum` | start the waterfall (`sample_rate` = bandwidth, `fft_size`, `fps`); gives way to every other job |
 | GET | `/spectrum/{id}`, `/spectrum/{id}/stream` | state / binary live stream (spectrum rows, with `?audio=1` also audio) |
 | POST | `/spectrum/{id}/tune` | change centre frequency, listening channel, modulation, squelch |
+| GET | `/rbn/spots`, `/rbn/status` | Reverse Beacon Network CW spots of the last 30 min (`band`, `freq_min`/`freq_max`, `call`, `cq_only`, `max_age`) / connection state |
 | POST | `/decoders/start` | start ADS-B/AIS/ISM (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | multi-channel (USRP) |
 | POST | `/scan-repeaters` | repeater scan (`repeater_ids` or `band`/`canton`; `total_duration` in s or `until_stopped`, otherwise one round) |

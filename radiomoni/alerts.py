@@ -146,7 +146,7 @@ def evaluate(source: str, doc: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _summary(source: str, doc: dict[str, Any]) -> str:
-    who = doc.get('source_callsign') or doc.get('address') or doc.get('flight') or doc.get('icao') \
+    who = doc.get('source_callsign') or doc.get('callsign') or doc.get('address') or doc.get('flight') or doc.get('icao') \
         or doc.get('mmsi') or doc.get('model') or ''
     text = doc.get('message_text') or doc.get('transcription') or doc.get('text') or ''
     freq = doc.get('frequency')

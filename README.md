@@ -98,6 +98,7 @@ flowchart LR
 | [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Schweizer Relais für den Repeater-Scan (`scripts/repeaters_ch.csv`) |
 | [IARU Region 1 HF-Bandplan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW-Segmente der KW-Bänder (Band-Schnellwahl im Wasserfall) |
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | Baken-Frequenzen als Testsignale auf Kurzwelle |
+| [Reverse Beacon Network](https://www.reversebeacon.net/) | Live-CW-Spots über Telnet (`telnet.reversebeacon.net:7000`, Login mit Rufzeichen). RBN wünscht, dass Endnutzer einen DX-Cluster mit RBN-Spots nutzen; Server einstellbar mit `RBN_HOST`/`RBN_PORT`. |
 
 ## Rechtlicher Hinweis
 
@@ -207,6 +208,7 @@ Each file is written in German first, followed by an English version.
 | [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Swiss repeaters for the repeater scan (`scripts/repeaters_ch.csv`) |
 | [IARU Region 1 HF band plan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW segments of the HF bands (band shortcuts in the waterfall) |
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | beacon frequencies as test signals on shortwave |
+| [Reverse Beacon Network](https://www.reversebeacon.net/) | live CW spots via telnet (`telnet.reversebeacon.net:7000`, login with a callsign). RBN asks end users to use a DX cluster that carries RBN spots; the server is configurable with `RBN_HOST`/`RBN_PORT`. |
 
 ### Legal notice
 

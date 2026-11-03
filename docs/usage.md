@@ -21,7 +21,7 @@ Wasserfall eines Frequenzbereichs mit Mithören. Der Wasserfall belegt das SDR n
 
 1. Mittenfrequenz, Bandbreite (HackRF 2–10 MHz, RTL-SDR bis 2,4 MHz, Airspy HF+ 768 kHz), Verstärkung und FFT-Grösse wählen oder ein Band antippen, dann *Wasserfall starten*.
 2. Oben das Spektrum (gemittelt, grau die Spitzenwerte), darunter der Wasserfall. *Auto-Pegel* passt den Farbbereich laufend an.
-3. **Bedienung:** Klick stimmt den Mithör-Kanal ab, Ziehen verschiebt die Mittenfrequenz, das Mausrad zoomt. Mit der Tastatur: Pfeiltasten stimmen ab (Umschalt = 10×), `+`/`-` zoomen. Lesezeichen erscheinen als violette Marken.
+3. **Bedienung:** Klick stimmt den Mithör-Kanal ab, Ziehen verschiebt die Mittenfrequenz, das Mausrad zoomt. Mit der Tastatur: Pfeiltasten stimmen ab (Umschalt = 10×), `+`/`-` zoomen. Lesezeichen erscheinen als violette Marken, auf Kurzwelle die CW-Spots des Reverse Beacon Network als orange Marken mit Rufzeichen (siehe [configuration.md](configuration.md#reverse-beacon-network-cw-spots)). Ein Klick auf eine Marke stimmt genau auf deren Frequenz ab.
 4. **Mithören:** *Hören* startet den Ton im Browser (FM, AM, USB, LSB oder CW mit 250/500/1000 Hz Filter, optional Squelch). Die Verzögerung liegt bei etwa einer halben Sekunde.
 5. *Aufnehmen*, *VOX starten* und *CW dekodieren* öffnen die jeweilige Seite mit der Frequenz des Kanals.
 
@@ -139,7 +139,7 @@ Waterfall of a frequency range with live listening. The waterfall only uses the 
 
 1. Choose the centre frequency, bandwidth (HackRF 2–10 MHz, RTL-SDR up to 2.4 MHz, Airspy HF+ 768 kHz), gain and FFT size or tap a band, then *Start waterfall*.
 2. The spectrum (averaged, peaks in grey) is on top, the waterfall below. *Auto level* keeps adjusting the colour range.
-3. **Controls:** click tunes the listening channel, drag moves the centre frequency, the mouse wheel zooms. Keyboard: arrow keys tune (Shift = 10×), `+`/`-` zoom. Bookmarks appear as purple markers.
+3. **Controls:** click tunes the listening channel, drag moves the centre frequency, the mouse wheel zooms. Keyboard: arrow keys tune (Shift = 10×), `+`/`-` zoom. Bookmarks appear as purple markers; on shortwave the CW spots of the Reverse Beacon Network appear as orange markers with callsign (see [configuration.md](configuration.md#reverse-beacon-network-cw-spots-1)). A click on a marker tunes exactly to its frequency.
 4. **Listening:** *Listen* plays the audio in the browser (FM, AM, USB, LSB or CW with a 250/500/1000 Hz filter, optional squelch). The delay is about half a second.
 5. *Record*, *Start VOX* and *Decode CW* open the respective page with the channel frequency.
 

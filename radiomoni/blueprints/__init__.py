@@ -13,6 +13,7 @@ Flask blueprints of the RadioMoni API.
 - decoders    ADS-B / AIS / ISM data
 - stats       statistics, dashboard, live events (SSE)
 - library     bookmarks, alert rules, schedules
+- rbn         Reverse Beacon Network CW spots
 - export      CSV / GeoJSON / KML / ZIP export
 """
 
@@ -23,6 +24,7 @@ from radiomoni.blueprints.export import export_bp
 from radiomoni.blueprints.health import health_bp
 from radiomoni.blueprints.library import library_bp
 from radiomoni.blueprints.pocsag import pocsag_bp
+from radiomoni.blueprints.rbn import rbn_bp
 from radiomoni.blueprints.recordings import recordings_bp
 from radiomoni.blueprints.repeater import repeater_bp
 from radiomoni.blueprints.sdr import sdr_bp
@@ -31,6 +33,6 @@ from radiomoni.blueprints.stats import stats_bp
 from radiomoni.blueprints.streaming import streaming_bp
 
 ALL_BLUEPRINTS = [health_bp, sdr_bp, capture_bp, recordings_bp, aprs_bp, pocsag_bp, repeater_bp,
-                  streaming_bp, spectrum_bp, decoders_bp, stats_bp, library_bp, export_bp]
+                  streaming_bp, spectrum_bp, decoders_bp, stats_bp, library_bp, export_bp, rbn_bp]
 
 __all__ = ['ALL_BLUEPRINTS']

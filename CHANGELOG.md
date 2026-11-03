@@ -7,6 +7,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 ### Neu
 - Seite *Spektrum*: Wasserfall mit gemitteltem Spektrum, Zoom, Band-Schnellwahl und Lesezeichen-Marken; Mithören im Browser (FM, AM, USB, LSB, CW, Squelch). API: `POST /spectrum`, `GET /spectrum/{id}/stream` (binärer Live-Strom), `POST /spectrum/{id}/tune`.
 - Laufende VOX-Sessions liefern ihr Spektrum mit; es lässt sich auf der Seite *Spektrum* ansehen.
+- Reverse Beacon Network: CW-Spots auf Kurzwelle der letzten 30 Minuten (`GET /rbn/spots`, `/rbn/status`), als Marken im Wasserfall und als Alarmquelle `rbn`. Optional, mit eigenem Rufzeichen (`RBN_ENABLED`, `RBN_CALLSIGN`).
 
 ### Geändert
 - Der Wasserfall belegt das SDR nur, solange es niemand anders braucht: Jeder Job (auch per Zeitplan) beendet ihn und übernimmt das SDR. `/sdr/status` meldet dafür `preemptible`.

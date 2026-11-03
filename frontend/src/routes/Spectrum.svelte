@@ -20,7 +20,7 @@
   } from '../lib/spectrum/frames';
   import { LivePlayer } from '../lib/spectrum/player';
   import { sdr, settings, toasts } from '../lib/stores.svelte';
-  import type { Bookmark } from '../lib/types';
+  import type { Bookmark, RbnSpot } from '../lib/types';
 
   type Listen = 'FM' | 'AM' | 'USB' | 'LSB' | 'CW';
 
@@ -53,6 +53,7 @@
   let squelchOn = $state(false);
   let squelch = $state(10);
   let bookmarks = $state<Bookmark[]>([]);
+  let spots = $state<RbnSpot[]>([]);
 
   let waterfall: Waterfall | undefined = $state();
   let stream: SpectrumConnection | null = null;
@@ -68,11 +69,36 @@
   );
   const markers = $derived<Marker[]>(
     info
-      ? bookmarks
-          .filter((b) => Math.abs(b.frequency - info!.centre) < info!.span / 2)
-          .map((b) => ({ frequency: b.frequency, label: b.name, kind: 'bookmark' }))
+      ? [
+          ...bookmarks
+            .filter((b) => Math.abs(b.frequency - info!.centre) < info!.span / 2)
+            .map((b) => ({ frequency: b.frequency, label: b.name, kind: 'bookmark' as const })),
+          ...spots.map((s) => ({ frequency: s.frequency, label: s.callsign, kind: 'spot' as const })),
+        ]
       : [],
   );
+
+  // RBN spots as markers while the waterfall shows shortwave
+  $effect(() => {
+    const i = info;
+    if (!i || i.centre > 30_000_000 || ended) {
+      spots = [];
+      return;
+    }
+    const load = () =>
+      api
+        .get<{ spots: RbnSpot[] }>('/rbn/spots', {
+          freq_min: Math.max(1_800_000, Math.round(i.centre - i.span / 2)),
+          freq_max: Math.min(30_000_000, Math.round(i.centre + i.span / 2)),
+          max_age: 10,
+          limit: 300,
+        })
+        .then((r) => (spots = r.spots))
+        .catch(() => (spots = []));
+    void load();
+    const timer = setInterval(load, 10_000);
+    return () => clearInterval(timer);
+  });
 
   $effect(() => {
     if (!spans.includes(span)) span = spans[0];

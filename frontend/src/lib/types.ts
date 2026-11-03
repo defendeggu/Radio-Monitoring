@@ -128,6 +128,23 @@ export interface Bookmark {
   tags: string[];
 }
 
+export interface RbnSpot {
+  callsign: string;
+  frequency: number;
+  khz: number;
+  band: string | null;
+  mode: string;
+  snr_db: number;
+  wpm: number | null;
+  type: string;
+  skimmers: string[];
+  skimmer_count: number;
+  best_skimmer: string;
+  first_seen: number;
+  last_seen: number;
+  age_seconds: number;
+}
+
 export interface AlertRule {
   id: string;
   name: string;
