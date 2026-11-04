@@ -14,6 +14,7 @@ from radiomoni.redis_client import get_redis
 LINES = {
     'cq': 'DX de EA5WU-#:   14014.0  OH6BG          CW    22 dB  27 WPM  CQ      1234Z',
     'ssid': 'DX de KM3T-2-#:  7023.40  DL1ABC         CW    15 dB  24 WPM  CQ      0938Z',
+    'suffix': 'DX de DF4UE-RP-#: 14069.40  CT1EXR         CW    14 dB  15 WPM  CQ      0709Z',
     'ncdxf': 'DX de DK9IP-#:   14100.0  4X6TU          CW    12 dB  22 WPM  NCDXF B 1234Z',
     'beacon': 'DX de HB9DCO-#:  28263.9  DK0TEN         CW     8 dB  12 WPM  BEACON  1801Z',
     'rtty': 'DX de DL8LAS-#:  14085.0  RA3XYZ         RTTY  18 dB  45 BPS  CQ      1300Z',
@@ -29,6 +30,8 @@ class TestParser:
     def test_variants(self):
         assert rbn.parse_spot(LINES['ssid'])['spotter'] == 'KM3T-2'
         assert rbn.parse_spot(LINES['ssid'])['frequency'] == 7_023_400
+        assert rbn.parse_spot(LINES['suffix'])['spotter'] == 'DF4UE-RP'  # letter suffix, seen live
+        assert rbn.parse_spot(LINES['suffix'])['callsign'] == 'CT1EXR'
         assert rbn.parse_spot(LINES['ncdxf'])['type'] == 'NCDXF B'
         assert rbn.parse_spot(LINES['beacon'])['band'] == '10m'
         rtty = rbn.parse_spot(LINES['rtty'])

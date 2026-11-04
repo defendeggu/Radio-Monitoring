@@ -43,8 +43,9 @@ MERGE_KHZ = 0.5
 SILENCE_TIMEOUT = 300      # s without a line → reconnect
 
 # Example: "DX de EA5WU-#:   14014.0  OH6BG          CW    22 dB  27 WPM  CQ      1234Z"
+# Skimmer suffixes may be digits or letters: KM3T-2-#, DF4UE-RP-#
 SPOT_RE = re.compile(
-    r'^DX de (?P<spotter>[A-Z0-9/]+(?:-\d+)?)(?:-#)?:\s+(?P<khz>\d+(?:\.\d+)?)\s+(?P<dx>[A-Z0-9/]+)\s+'
+    r'^DX de (?P<spotter>[A-Z0-9/]+(?:-[A-Z0-9]+)?)(?:-#)?:\s+(?P<khz>\d+(?:\.\d+)?)\s+(?P<dx>[A-Z0-9/]+)\s+'
     r'(?P<mode>[A-Z0-9]+)\s+(?P<snr>-?\d+)\s*dB\s+(?P<speed>\d+)\s*(?P<unit>WPM|BPS)\s+'
     r'(?P<type>NCDXF B|BEACON|CQ|DX)\s+(?P<time>\d{4})Z')
 
