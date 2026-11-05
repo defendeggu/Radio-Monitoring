@@ -29,7 +29,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 |---|---|---|
 | RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz, Kurzwelle per Direct Sampling | einziges Gerät für AIS und ISM-Sensoren |
 | HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; auch ADS-B; lange Aufnahmen besser mit RTL-SDR |
-| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | Kurzwelle, empfohlen für CW |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | Kurzwelle, empfohlen für CW und den Contest-Skimmer |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | über Gigabit-Ethernet; Image mit `WITH_USRP=1` bauen |
 
 Details, udev-Regeln, PPM-Korrektur und Fehlerbehebung: [docs/hardware.md](docs/hardware.md).
@@ -72,10 +72,13 @@ flowchart LR
   API -. "Light-Profil" .-> SQLite[(SQLite)]
   Kibana["Kibana<br/>127.0.0.1:5601"] --> ES
   Beats["Filebeat / Metricbeat"] --> ES
+  API -- "Telnet (optional)" --> RBN["Reverse Beacon<br/>Network"]
+  N1MM["N1MM+"] -- "UDP :12060 (optional)" --> API
+  API -- "DX-Cluster TCP :7300 (optional)" --> N1MM
 ```
 
-- Veröffentlicht ist nur die Weboberfläche. API, Redis, Elasticsearch und Logstash sind ausschliesslich im Docker-Netz erreichbar, Kibana nur auf `localhost`.
-- Eine SDR-Sperre in Redis verhindert, dass zwei Jobs gleichzeitig auf das Gerät zugreifen. Ein zweiter Job bekommt sofort *HTTP 409*.
+- Veröffentlicht ist die Weboberfläche. Für den Contest-Skimmer kommen DX-Cluster (TCP 7300) und N1MM+-Empfang (UDP 12060) dazu, standardmässig nur auf `127.0.0.1` und nur aktiv, wenn eingeschaltet. API, Redis, Elasticsearch und Logstash sind ausschliesslich im Docker-Netz erreichbar, Kibana nur auf `localhost`.
+- Eine SDR-Sperre in Redis verhindert, dass zwei Jobs gleichzeitig auf das Gerät zugreifen. Ein zweiter Job bekommt sofort *HTTP 409*. Ausnahme ist der Wasserfall: Er gibt das SDR frei, sobald ein anderer Job startet.
 - Jedes dekodierte Paket wird gespeichert, live an die Oberfläche geschickt und gegen die Alarmregeln geprüft.
 
 ## Dokumentation
@@ -92,6 +95,7 @@ flowchart LR
 | Elasticsearch, Kibana, Backup | [docs/elk.md](docs/elk.md) |
 | Entwicklung und Tests | [docs/development.md](docs/development.md) |
 | Upgrade von 3.x auf 4.0 | [docs/upgrade-4.0.md](docs/upgrade-4.0.md) |
+| Update von 4.x auf 5.0 | [CHANGELOG.md](CHANGELOG.md) (Abschnitt 5.0.0, *Update von 4.x*) |
 | Änderungen | [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md) |
 
 ## Quellen und Daten Dritter
@@ -99,7 +103,7 @@ flowchart LR
 | Quelle | Wofür |
 |---|---|
 | [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Schweizer Relais für den Repeater-Scan (`scripts/repeaters_ch.csv`) |
-| [IARU Region 1 HF-Bandplan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW-Segmente der KW-Bänder (Band-Schnellwahl im Wasserfall und auf der CW-Seite) |
+| [IARU-Region-1-Bandpläne](https://www.iaru-r1.org/on-the-air/band-plans/) (KW und UKW) | CW-Segmente der KW-Bänder (Band-Schnellwahl im Wasserfall und auf der CW-Seite) und von 6 m bis 23 cm (Contest-Skimmer) |
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | Baken-Frequenzen als Testsignale auf Kurzwelle |
 | [ITU-R M.1677-1 International Morse code](https://www.itu.int/rec/R-REC-M.1677-1-200910-I/) | Morse-Tabelle und Zeitverhältnisse des CW-Decoders (Punkt : Strich = 1 : 3, Pausen 1 / 3 / 7) |
 | [Reverse Beacon Network](https://www.reversebeacon.net/) | Live-CW-Spots über Telnet (`telnet.reversebeacon.net:7000`, Login mit Rufzeichen). RBN wünscht, dass Endnutzer einen DX-Cluster mit RBN-Spots nutzen; Server einstellbar mit `RBN_HOST`/`RBN_PORT`. |
@@ -107,7 +111,7 @@ flowchart LR
 | [Super Check Partial](https://www.supercheckpartial.com/) | `MASTER.SCP`: Rufzeichen, die in Contests aktiv sind; Plausibilitätsprüfung der Skimmer-Spots |
 | [Club Log DXCC Most Wanted](https://clublog.org/mostwanted.php) | Rangliste der gesuchtesten DXCC-Gebiete (Hinweis *RARE*) |
 | [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | Format der Pakete `RadioInfo`, `contactinfo`, `contactdelete` |
-| Ausschreibungen: [IARU-R1-Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), [USKA-Contests](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | Bänder, Multiplikatoren und Doppelte der Contest-Regeln (`radiomoni/contest/rules/`) |
+| Ausschreibungen: [IARU-R1-Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), USKA-Contests [KW](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [UKW](https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/) und [Spezial](https://uska.ch/de/funkamateure/wettbewerbe/special-contests/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | Termine, Bänder, Multiplikatoren und Doppelte der Contest-Regeln (`radiomoni/contest/rules/`) |
 
 ## Rechtlicher Hinweis
 
@@ -146,7 +150,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 |---|---|---|
 | RTL-SDR (v3/v4) | 24 MHz – 1.766 GHz, shortwave via direct sampling | the only device for AIS and ISM sensors |
 | HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; also ADS-B; long recordings work better with an RTL-SDR |
-| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | shortwave, recommended for CW |
+| Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | shortwave, recommended for CW and the contest skimmer |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | via Gigabit Ethernet; build the image with `WITH_USRP=1` |
 
 Details, udev rules, PPM correction and troubleshooting: [docs/hardware.md](docs/hardware.md#english-version).
@@ -189,10 +193,13 @@ flowchart LR
   API -. "light profile" .-> SQLite[(SQLite)]
   Kibana["Kibana<br/>127.0.0.1:5601"] --> ES
   Beats["Filebeat / Metricbeat"] --> ES
+  API -- "telnet (optional)" --> RBN["Reverse Beacon<br/>Network"]
+  N1MM["N1MM+"] -- "UDP :12060 (optional)" --> API
+  API -- "DX cluster TCP :7300 (optional)" --> N1MM
 ```
 
-- Only the web interface is published. API, Redis, Elasticsearch and Logstash are reachable only inside the Docker network, Kibana only on `localhost`.
-- An SDR lock in Redis prevents two jobs from accessing the device at the same time. A second job immediately gets *HTTP 409*.
+- The web interface is published. For the contest skimmer, the DX cluster (TCP 7300) and the N1MM+ receiver (UDP 12060) are added, by default only on `127.0.0.1` and only active when enabled. API, Redis, Elasticsearch and Logstash are reachable only inside the Docker network, Kibana only on `localhost`.
+- An SDR lock in Redis prevents two jobs from accessing the device at the same time. A second job immediately gets *HTTP 409*. The waterfall is the exception: it frees the SDR as soon as another job starts.
 - Every decoded packet is stored, sent live to the interface and checked against the alert rules.
 
 ### Documentation
@@ -211,6 +218,7 @@ Each file is written in German first, followed by an English version.
 | Elasticsearch, Kibana, backup | [docs/elk.md](docs/elk.md#english-version) |
 | Development and tests | [docs/development.md](docs/development.md#english-version) |
 | Upgrading from 3.x to 4.0 | [docs/upgrade-4.0.md](docs/upgrade-4.0.md#english-version) |
+| Updating from 4.x to 5.0 | [CHANGELOG.md](CHANGELOG.md) (section 5.0.0, *Update von 4.x*, German) |
 | Changes | [CHANGELOG.md](CHANGELOG.md) · [ROADMAP.md](ROADMAP.md) |
 
 ### Third-party sources and data
@@ -218,7 +226,7 @@ Each file is written in German first, followed by an English version.
 | Source | Used for |
 |---|---|
 | [USKA HB Voice Repeater List](https://uska.ch/de/funkamateure/repeater-liste-und-bandplaene/hb-voice-repeater-list/) | Swiss repeaters for the repeater scan (`scripts/repeaters_ch.csv`) |
-| [IARU Region 1 HF band plan](https://www.iaru-r1.org/on-the-air/band-plans/) | CW segments of the HF bands (band shortcuts in the waterfall and on the CW page) |
+| [IARU Region 1 band plans](https://www.iaru-r1.org/on-the-air/band-plans/) (HF and VHF) | CW segments of the HF bands (band shortcuts in the waterfall and on the CW page) and from 6 m to 23 cm (contest skimmer) |
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | beacon frequencies as test signals on shortwave |
 | [ITU-R M.1677-1 International Morse code](https://www.itu.int/rec/R-REC-M.1677-1-200910-I/) | Morse table and timing ratios of the CW decoder (dit : dah = 1 : 3, gaps 1 / 3 / 7) |
 | [Reverse Beacon Network](https://www.reversebeacon.net/) | live CW spots via telnet (`telnet.reversebeacon.net:7000`, login with a callsign). RBN asks end users to use a DX cluster that carries RBN spots; the server is configurable with `RBN_HOST`/`RBN_PORT`. |
@@ -226,7 +234,7 @@ Each file is written in German first, followed by an English version.
 | [Super Check Partial](https://www.supercheckpartial.com/) | `MASTER.SCP`: callsigns active in contests; plausibility check of the skimmer spots |
 | [Club Log DXCC Most Wanted](https://clublog.org/mostwanted.php) | ranking of the most wanted DXCC entities (note *RARE*) |
 | [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | format of the `RadioInfo`, `contactinfo`, `contactdelete` packets |
-| Contest rules: [IARU R1 Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), [USKA contests](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | bands, multipliers and dupes of the contest rules (`radiomoni/contest/rules/`) |
+| Contest rules: [IARU R1 Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), USKA contests [HF](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [VHF](https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/) and [special](https://uska.ch/de/funkamateure/wettbewerbe/special-contests/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | dates, bands, multipliers and dupes of the contest rules (`radiomoni/contest/rules/`) |
 
 ### Legal notice
 

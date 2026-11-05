@@ -8,7 +8,10 @@
 |---|---|
 | Weboberfläche (nginx) | Host-Port `WEB_PORT` (Standard alle Interfaces) |
 | Kibana | `127.0.0.1:5601` (Host), per `KIBANA_BIND` änderbar |
-| API, Redis, Elasticsearch, Logstash | nur im Docker-Netz, kein Host-Port |
+| API (REST), Redis, Elasticsearch, Logstash | nur im Docker-Netz, kein Host-Port |
+| Contest-Skimmer: DX-Cluster (TCP 7300), N1MM+-Empfang (UDP 12060) | `127.0.0.1` (Host), per `CONTEST_BIND` änderbar; es hört nur etwas zu, wenn `CLUSTER_ENABLED` bzw. `N1MM_ENABLED` gesetzt ist |
+
+Der DX-Cluster gibt nur Spots aus und fragt beim Login nichts ab. Ins LAN geöffnet sieht ihn also jeder dort. Über den N1MM+-Port kann jeder, der Pakete schicken kann, QSOs ins Log schreiben und die Auswertung ausblenden. Ist er im LAN offen, `N1MM_ALLOWED` auf die Logplätze beschränken. XML-Pakete mit DTD oder Entities werden verworfen.
 
 Die Netze sind getrennt. `web` verbindet nur nginx und die API, `backend` verbindet die API mit Redis und ELK. Kibana, Logstash und die Beats können die API nicht ansprechen.
 
@@ -76,7 +79,10 @@ APRS-Nachrichten, Pager-Texte, Schiffsnamen und Transkripte kann jeder senden.
 |---|---|
 | Web interface (nginx) | host port `WEB_PORT` (all interfaces by default) |
 | Kibana | `127.0.0.1:5601` (host), changeable with `KIBANA_BIND` |
-| API, Redis, Elasticsearch, Logstash | only inside the Docker network, no host port |
+| API (REST), Redis, Elasticsearch, Logstash | only inside the Docker network, no host port |
+| Contest skimmer: DX cluster (TCP 7300), N1MM+ receiver (UDP 12060) | `127.0.0.1` (host), changeable with `CONTEST_BIND`; something listens only when `CLUSTER_ENABLED` or `N1MM_ENABLED` is set |
+
+The DX cluster only sends spots and checks nothing at login, so once opened to the LAN everyone there can see it. Through the N1MM+ port, anyone who can send packets can add QSOs to the log and blank the evaluation. If it is open to the LAN, limit `N1MM_ALLOWED` to the logging positions. XML packets with a DTD or entities are dropped.
 
 The networks are separated. `web` only connects nginx and the API, `backend` connects the API with Redis and ELK. Kibana, Logstash and the Beats cannot reach the API.
 
