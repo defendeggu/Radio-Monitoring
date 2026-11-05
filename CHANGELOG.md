@@ -4,9 +4,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.1.0] – 2026-11-05
+
 ### Neu
 - Contest-Skimmer: Regeln für die KW-, UKW- und Spezial-Contests der USKA (Weihnachtswettbewerb SSB und CW, NMD, Swiss Emergency Contest, SwAC, VHF/UHF März und Mai, H26 VHF, Mini Contest August) und die IARU-Region-1-UKW-Contests (50 MHz, VHF September, UHF/Microwaves Oktober, Marconi Memorial). Jede Regel nennt den üblichen Termin (`when`).
 - Contest-Skimmer auf 6 m, 2 m, 70 cm und 23 cm (CW-Segmente nach IARU Region 1); das Log erkennt diese Bänder auch in ADIF, Cabrillo und N1MM+.
+
+### Geändert
+- README und `docs/security.md`: veröffentlichte Ports des Contest-Skimmers (DX-Cluster TCP 7300, N1MM+ UDP 12060), Architektur mit RBN, N1MM+ und Cluster, der Wasserfall als Ausnahme der SDR-Sperre, Bandpläne für KW und UKW, alle Contest-Seiten der USKA als Quelle.
 
 ## [5.0.0] – 2026-11-05
 
