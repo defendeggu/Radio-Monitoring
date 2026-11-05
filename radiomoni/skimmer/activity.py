@@ -45,7 +45,7 @@ class Track:
 class ActivityDetector:
     def __init__(self, rate: float, resolution_hz: float = 12.0, threshold_db: float = 13.0,
                  min_spacing_hz: float = 60.0, edge: float = 0.45, match_hz: float = 30.0, lifetime_s: float = 20.0,
-                 block_hz: float = 1000.0, mask_hz: float = 400.0, mask_db: float = 15.0):
+                 block_hz: float = 1000.0, mask_hz: float = 400.0, mask_db: float = 15.0, smooth_hz: float = 0.0):
         self.rate = float(rate)
         self.fft_size = int(2 ** np.ceil(np.log2(self.rate / resolution_hz)))
         self.bin_hz = self.rate / self.fft_size
@@ -58,6 +58,9 @@ class ActivityDetector:
         # key clicks of a strong signal: weaker peaks this close and this much lower are ignored
         self.mask_bins = int(round(mask_hz / self.bin_hz))
         self.mask_db = mask_db
+        # SSB: average the power over the width of a voice signal, so one signal is one peak
+        self.smooth_bins = max(1, int(round(smooth_hz / self.bin_hz)))
+        self.raw_db: Optional[NDArray[np.float64]] = None      # last averaged spectrum, unsmoothed
         self.window = np.hanning(self.fft_size).astype(np.float64)
         self.freqs = np.fft.fftshift(np.fft.fftfreq(self.fft_size, 1.0 / self.rate))
         self._carry = np.zeros(0, dtype=np.complex128)
@@ -88,7 +91,11 @@ class ActivityDetector:
         """(offset Hz, SNR dB) of the peaks since the last call, strongest first."""
         if not self._frames:
             return []
-        db = 10 * np.log10(np.fft.fftshift(self._power / self._frames) + 1e-20)
+        power = np.fft.fftshift(self._power / self._frames)
+        self.raw_db = 10 * np.log10(power + 1e-20)
+        if self.smooth_bins > 1:
+            power = np.convolve(power, np.ones(self.smooth_bins) / self.smooth_bins, mode='same')
+        db = 10 * np.log10(power + 1e-20)
         self._power[:] = 0.0
         self._frames = 0
         floor = self._floor(db)

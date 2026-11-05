@@ -31,7 +31,7 @@ RBN_POLL_S = 30.0
 
 class IqRecorder:
     def __init__(self, directory: str, centre_hz: int, rate: float, freq_low: int, freq_high: int,
-                 session_id: Optional[str] = None):
+                 session_id: Optional[str] = None, mode: str = 'CW'):
         os.makedirs(directory, exist_ok=True)
         started = datetime.now(timezone.utc)
         self.name = f'skimmer_{started:%Y%m%d_%H%M%S}_{centre_hz // 1000}kHz'
@@ -50,7 +50,7 @@ class IqRecorder:
         self._last_rbn = 0.0
         self._rbn_seen: set[tuple[str, int]] = set()
         with open(os.path.join(directory, self.name + '.json'), 'w') as f:
-            json.dump({'centre_hz': self.centre_hz, 'rate': self.rate, 'freq_low': self.freq_low,
+            json.dump({'mode': mode, 'centre_hz': self.centre_hz, 'rate': self.rate, 'freq_low': self.freq_low,
                        'freq_high': self.freq_high, 'started': started.isoformat(), 'session_id': session_id,
                        'format': 'WAV stereo int16, I left, Q right, full scale = 1.0'}, f, indent=2)
 

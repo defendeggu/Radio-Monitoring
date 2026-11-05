@@ -12,7 +12,7 @@ Stand: 2026-11-05 (Version 5.1.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 | DMR / P25 | Digitalfunk mit dsd-fme (nicht in Debian, eigener Build nötig) | mittel |
 | Mehrere SDRs | eine Sperre pro Gerät (Seriennummer), parallele Jobs | mittel |
 | Wetterbilder | NOAA-/Meteor-APT- und LRPT-Dekodierung | mittel |
-| Contest-Skimmer SSB | SSB-Kanäle mit VAD, gemeinsamer Whisper-Warteschlange und Phonetik-Parser; erst wenn die Messung (Phase 0, [contest.md](docs/contest.md)) Präzision ≥ 90 % und Ausbeute ≥ 30 % zeigt | gross |
+| Contest-Skimmer SSB messen | SSB ist experimentell eingebaut; an echten Contest-Aufnahmen Präzision (Ziel ≥ 90 %) und Ausbeute (≥ 30 %) messen und Prompt, Modell und Schwellen einstellen ([contest.md](docs/contest.md)) | mittel |
 | Contest-Messung CW | IQ am CQ WW CW (28.–29. November 2026) aufnehmen und gegen RBN auswerten; Ziel: Einsatz am IARU-R1-Fieldday CW (Juni 2027) | klein |
 | Contest-Regeln prüfen | Bänder und Details der USKA-Contests (Helvetia, Weihnachtswettbewerb, NMD, SEC) gegen die Reglement-PDFs prüfen | klein |
 

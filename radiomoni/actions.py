@@ -84,16 +84,22 @@ def start_cw(req: CwRequest) -> dict[str, Any]:
 def start_skimmer(req: SkimmerRequest) -> dict[str, Any]:
     from radiomoni.jobs import start_stream_session
     from radiomoni.services import ensure_disk_space, recording_dir
-    from radiomoni.skimmer.session import CW_SEGMENTS, SkimmerSession
+    from radiomoni.skimmer.session import CW_SEGMENTS, SSB_SEGMENTS, SkimmerSession
 
     if req.record_iq:
         ensure_disk_space()
-    low, high = (req.freq_low, req.freq_high) if req.freq_low and req.freq_high else CW_SEGMENTS[req.band or '20m']
+    segments = SSB_SEGMENTS if req.mode == 'SSB' else CW_SEGMENTS
+    if req.freq_low and req.freq_high:
+        low, high = req.freq_low, req.freq_high
+    elif (req.band or '20m') in segments:
+        low, high = segments[req.band or '20m']
+    else:
+        raise ValueError(f'No {req.mode} segment on {req.band}')
     session = SkimmerSession(freq_low=low, freq_high=high, gain=req.gain, duration=req.duration, mode=req.mode,
                              contest=req.contest, max_decoders=req.max_decoders, sample_rate=req.sample_rate,
                              record_iq=req.record_iq, include_rbn=req.include_rbn, device_type=req.device_type,
                              device_address=str(req.device_address) if req.device_address else None,
-                             output_dir=recording_dir())
+                             output_dir=recording_dir(), language=req.language)
     session_id = start_stream_session(session, 'skimmer', session.seg_centre, session.sample_rate, req.gain)
     return {'session_id': session_id, 'mode': 'skimmer', 'frequency': session.seg_centre, **session.state()}
 

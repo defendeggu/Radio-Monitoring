@@ -280,10 +280,12 @@ class TestSession:
         assert [a['source'] for a in alerts.recent_alerts()] == ['skimmer']
         assert session_manager.get_session(sid).packet_count == 2
 
-    def test_validation(self, client: FlaskClient):
+    def test_validation(self, client: FlaskClient, mock_sdr_hardware):
         assert client.post('/skimmer/start', json={}).status_code == 400
         assert client.post('/skimmer/start', json={'freq_low': 14_000_000, 'freq_high': 14_001_000}).status_code == 400
-        assert client.post('/skimmer/start', json={'band': '20m', 'mode': 'SSB'}).status_code == 400
+        assert client.post('/skimmer/start', json={'band': '20m', 'mode': 'AM'}).status_code == 400
+        r = client.post('/skimmer/start', json={'band': '30m', 'mode': 'SSB'})          # no phone segment on 30 m
+        assert r.status_code == 400 and 'No SSB segment' in r.get_json()['error']
 
     @pytest.mark.parametrize('band', ['6m', '2m', '70cm', '23cm', '160m'])
     def test_every_cw_segment_fits(self, mock_sdr_hardware, band):

@@ -19,6 +19,12 @@ heard at least twice.
 
     python -m radiomoni.skimmer.evaluate ssb --reference calls.txt --model turbo clips/*.wav
 
+SSB on the skimmer's own IQ recording (mode SSB): the full SSB core (signal
+detection, channels, Whisper, confirmation) runs offline, the reference is a
+callsign list:
+
+    python -m radiomoni.skimmer.evaluate ssb-iq recordings/skimmer/skimmer_…_14237kHz.wav --reference calls.txt
+
 Results as a table, with --json as JSON.
 """
 
@@ -84,9 +90,7 @@ def score(spots: Iterable[dict[str, Any]], reference: list[dict[str, Any]]) -> d
     }
 
 
-# ------------------------------------------------------------------ CW
-def run_cw(wav_path: str, centre_hz: Optional[int] = None, rate: Optional[float] = None,
-           max_decoders: int = 32, validate: Any = None) -> list[dict[str, Any]]:
+def _read_iq(wav_path: str, centre_hz: Optional[int], rate: Optional[float]) -> tuple[int, float, Any]:
     sidecar = os.path.splitext(wav_path)[0] + '.json'
     if os.path.isfile(sidecar):
         with open(sidecar) as f:
@@ -95,20 +99,48 @@ def run_cw(wav_path: str, centre_hz: Optional[int] = None, rate: Optional[float]
         rate = rate or float(meta['rate'])
     if centre_hz is None:
         raise ValueError('centre frequency unknown: no sidecar JSON, pass --centre')
+    w = wave.open(wav_path, 'rb')
+    return centre_hz, rate or float(w.getframerate()), w
+
+
+def _chunks(w: Any, rate: float) -> Iterable[tuple[np.ndarray, float]]:
+    chunk = int(rate * CHUNK_SECONDS)
+    position = 0
+    while True:
+        frames = w.readframes(chunk)
+        if not frames:
+            return
+        pcm = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32767.0
+        iq = (pcm[0::2] + 1j * pcm[1::2]).astype(np.complex64)
+        yield iq, position / rate
+        position += len(iq)
+
+
+def run_ssb_iq(wav_path: str, transcribe: Any, centre_hz: Optional[int] = None, rate: Optional[float] = None,
+               max_channels: int = 8, validate: Any = None) -> list[dict[str, Any]]:
+    """The SSB core on an IQ recording; transcription runs inline (no real-time limit)."""
+    from radiomoni.skimmer.ssb import SsbCore
+    centre_hz, rate, w = _read_iq(wav_path, centre_hz, rate)
     spots: list[dict[str, Any]] = []
-    with wave.open(wav_path, 'rb') as w:
-        rate = rate or float(w.getframerate())
+    with w:
+        core = SsbCore(rate, centre_hz, max_channels, on_spot=spots.append, validate=validate,
+                       transcribe=transcribe, sync=True)
+        for iq, now in _chunks(w, rate):
+            core.feed(iq, now=now)
+    for s in spots:
+        s.pop('clip', None)
+    return spots
+
+
+# ------------------------------------------------------------------ CW
+def run_cw(wav_path: str, centre_hz: Optional[int] = None, rate: Optional[float] = None,
+           max_decoders: int = 32, validate: Any = None) -> list[dict[str, Any]]:
+    centre_hz, rate, w = _read_iq(wav_path, centre_hz, rate)
+    spots: list[dict[str, Any]] = []
+    with w:
         core = SkimmerCore(rate, centre_hz, max_decoders, on_spot=spots.append, validate=validate)
-        chunk = int(rate * CHUNK_SECONDS)
-        position = 0
-        while True:
-            frames = w.readframes(chunk)
-            if not frames:
-                break
-            pcm = np.frombuffer(frames, dtype=np.int16).astype(np.float32) / 32767.0
-            iq = (pcm[0::2] + 1j * pcm[1::2]).astype(np.complex64)
-            core.feed(iq, now=position / rate)
-            position += len(iq)
+        for iq, now in _chunks(w, rate):
+            core.feed(iq, now=now)
     return spots
 
 
@@ -141,6 +173,11 @@ def main(argv: Optional[list[str]] = None) -> int:  # pragma: no cover - CLI
     cw.add_argument('--centre', type=int)
     cw.add_argument('--rate', type=float)
     cw.add_argument('--decoders', type=int, default=32)
+    ssb_iq = sub.add_parser('ssb-iq', help='SSB skimmer on an IQ recording (mode SSB)')
+    ssb_iq.add_argument('wav')
+    ssb_iq.add_argument('--reference', required=True, help='callsign list')
+    ssb_iq.add_argument('--language', default='en')
+    ssb_iq.add_argument('--channels', type=int, default=8)
     ssb = sub.add_parser('ssb', help='Whisper + phonetic parser on SSB clips')
     ssb.add_argument('files', nargs='+')
     ssb.add_argument('--reference', required=True)
@@ -149,17 +186,26 @@ def main(argv: Optional[list[str]] = None) -> int:  # pragma: no cover - CLI
     ssb.add_argument('--hotwords', default=None, help='e.g. the phonetic alphabet')
     ssb.add_argument('--language', default=None)
     ssb.add_argument('--device', default='cpu')
-    for p in (cw, ssb):
+    for p in (cw, ssb_iq, ssb):
         p.add_argument('--json', action='store_true')
     args = parser.parse_args(argv)
 
-    if args.kind == 'cw':
+    result: dict[str, Any]
+    if args.kind == 'ssb-iq':
+        from radiomoni.contest import refdata
+        from radiomoni.skimmer.session import SkimmerSession
+        from radiomoni.skimmer.ssb import whisper_transcriber
+        spots = run_ssb_iq(args.wav, whisper_transcriber(args.language), max_channels=args.channels,
+                           validate=SkimmerSession._validator(refdata.get()))
+        result = {'kind': 'ssb-iq', 'file': args.wav, **score(spots, load_reference(args.reference)),
+                  'spots': [{k: s.get(k) for k in ('callsign', 'khz', 'snr_db', 'text')} for s in spots]}
+    elif args.kind == 'cw':
         from radiomoni.contest import refdata
         from radiomoni.skimmer.session import SkimmerSession
         reference = args.reference or os.path.splitext(args.wav)[0] + '.rbn.jsonl'
         spots = run_cw(args.wav, args.centre, args.rate, args.decoders,
                        validate=SkimmerSession._validator(refdata.get()))
-        result: dict[str, Any] = {'kind': 'cw', 'file': args.wav, **score(spots, load_reference(reference))}
+        result = {'kind': 'cw', 'file': args.wav, **score(spots, load_reference(reference))}
         result['spots'] = [{k: s[k] for k in ('callsign', 'khz', 'wpm', 'snr_db', 'type')} for s in spots]
     else:
         transcripts = run_ssb(args.files, args.model, args.prompt, args.hotwords, args.language, args.device)
@@ -173,7 +219,7 @@ def main(argv: Optional[list[str]] = None) -> int:  # pragma: no cover - CLI
     if args.json:
         print(json.dumps(result, indent=2, ensure_ascii=False))
         return 0
-    blocks = [('', result)] if args.kind == 'cw' else [('raw', result['raw']), ('confirmed', result['confirmed'])]
+    blocks = [('', result)] if args.kind in ('cw', 'ssb-iq') else [('raw', result['raw']), ('confirmed', result['confirmed'])]
     for label, r in blocks:
         prefix = f'[{label}] ' if label else ''
         print(f"{prefix}precision {r['precision']}  ({r['correct']}/{r['spotted']} spotted calls right)")

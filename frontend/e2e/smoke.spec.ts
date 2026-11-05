@@ -86,7 +86,7 @@ async function mockApi(page: Page) {
             {
               id: 'cq-ww-cw',
               name: 'CQ WW DX CW',
-              modes: ['CW'],
+              modes: ['CW', 'SSB'],
               bands: ['40m', '20m'],
               dupe: 'band',
               multipliers: [{ type: 'cq_zone', per: 'band' }],
@@ -265,5 +265,21 @@ test('contest page: classified spots and skimmer start', async ({ page }) => {
   await page.getByRole('button', { name: '40 m', exact: true }).click();
   await page.getByRole('button', { name: 'Skimmer starten' }).click();
   await expect(page.getByText('SDR device is busy')).toBeVisible();
-  expect(skimmerStarts.at(-1)).toMatchObject({ band: '40m', contest: 'cq-ww-cw', max_decoders: 24 });
+  expect(skimmerStarts.at(-1)).toMatchObject({
+    band: '40m',
+    mode: 'CW',
+    contest: 'cq-ww-cw',
+    max_decoders: 24,
+  });
+});
+
+test('contest page: SSB start sends mode and language', async ({ page }) => {
+  skimmerStarts.length = 0;
+  await page.goto('/#/contest');
+  await page.getByRole('button', { name: 'SSB', exact: true }).click();
+  await expect(page.getByText('SSB ist experimentell')).toBeVisible();
+  await page.getByLabel('Sprache (Whisper)').selectOption('de');
+  await page.getByRole('button', { name: 'Skimmer starten' }).click();
+  await expect(page.getByText('SDR device is busy')).toBeVisible();
+  expect(skimmerStarts.at(-1)).toMatchObject({ mode: 'SSB', language: 'de', band: '20m', max_decoders: 16 });
 });

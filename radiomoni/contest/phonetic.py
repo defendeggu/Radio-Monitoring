@@ -7,7 +7,8 @@ The parser turns phonetic words (NATO plus common contest variants such as
 "Kilowatt", "Japan", "Portugal") and spoken digits (English, German, French,
 Italian) into characters, collects runs of characters and finds callsigns in
 them. A callsign is "self-identified" when it follows CQ, contest, test,
-field day, this is, de or QRZ — that is the station on the frequency.
+field day, this is, de or QRZ, or is followed by contest, test or QRZ —
+that is the station on the frequency.
 """
 
 import re
@@ -46,6 +47,8 @@ for _digit, _words in {
 
 STROKE = {'stroke': '/', 'slash': '/', 'strich': '/', 'portable': '/P', 'mobile': '/M'}
 SELF_ID = re.compile(r'\b(cq|contest|test|field ?day|fieldday|this is|de|qrz)\s*$')
+# a run station ends a QSO with "thank you, HB9XYZ contest" / "HB9XYZ QRZ"
+SELF_ID_AFTER = re.compile(r'^\s*\|?\s*(contest|test|qrz|field ?day)\b')
 CALL_IN_RUN = re.compile(r'[A-Z0-9]{1,3}[0-9][A-Z0-9]{0,3}[A-Z](?:/[A-Z0-9]{1,4})?')
 
 
@@ -84,10 +87,11 @@ def extract(text: str) -> list[Heard]:
     run: list[str] = []
     start = 0
 
-    def flush() -> None:
+    def flush(end: int) -> None:
         joined = ''.join(run).replace('//', '/')
         before = ' '.join(tokens[max(0, start - 3):start])
-        self_id = bool(SELF_ID.search(before))
+        after = ' '.join(tokens[end:end + 3])
+        self_id = bool(SELF_ID.search(before)) or bool(SELF_ID_AFTER.search(after))
         for m in CALL_IN_RUN.finditer(joined):
             call = m.group(0)
             if is_valid(call):
@@ -98,12 +102,12 @@ def extract(text: str) -> list[Heard]:
         chars = _convert(token)
         if chars is None:
             if run:
-                flush()
+                flush(i)
             run = []
             continue
         if not run:
             start = i
         run.append(chars)
     if run:
-        flush()
+        flush(len(tokens))
     return found

@@ -237,9 +237,11 @@ class SkimmerRequest(StrictModel):
     band: Optional[ContestBand] = Field(None, description='CW segment of this band (IARU Region 1 band plan)')
     freq_low: Optional[int] = Field(None, ge=1_000_000, le=1_300_000_000, description='Segment start in Hz')
     freq_high: Optional[int] = Field(None, ge=1_000_000, le=1_300_000_000, description='Segment end in Hz')
-    mode: Literal['CW'] = Field('CW', description='CW only for now; SSB follows after the phase 0 evaluation')
+    mode: Literal['CW', 'SSB'] = Field('CW', description='CW, or SSB (experimental: Whisper + phonetic parser)')
+    language: Optional[str] = Field('en', pattern=r'^[a-z]{2,3}$',
+                                    description='SSB: Whisper language (empty = detect per segment)')
     contest: Optional[ContestId] = Field(None, description='Contest rules; empty = the active contest')
-    max_decoders: int = Field(24, ge=1, le=64, description='Signals decoded at the same time')
+    max_decoders: int = Field(24, ge=1, le=64, description='Signals decoded at the same time (SSB: at most 16)')
     gain: int = Field(30, ge=0, le=76, description='RF gain in dB')
     sample_rate: Optional[int] = Field(None, ge=200_000, le=10_000_000)
     device_type: DeviceType = 'auto'

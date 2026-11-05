@@ -30,7 +30,25 @@ export interface SkimmerSpot {
   rare: boolean;
   priority: 'high' | 'normal' | 'dupe';
   in_contest: boolean;
+  text?: string; // SSB: what Whisper heard
+  audio_file?: string; // SSB: the segment that gave the spot
 }
+
+/** Bands with an SSB (phone) segment for the skimmer (radiomoni/skimmer/session.py SSB_SEGMENTS). */
+export const SSB_BAND_IDS = [
+  '160m',
+  '80m',
+  '40m',
+  '20m',
+  '17m',
+  '15m',
+  '12m',
+  '10m',
+  '6m',
+  '2m',
+  '70cm',
+  '23cm',
+];
 
 export interface ContestRules {
   id: string;

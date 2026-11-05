@@ -3,7 +3,8 @@
   import { BookOpen, Play, RefreshCw, Trash2, Upload } from '@lucide/svelte';
   import { api } from '../lib/api';
   import { CW_BANDS, VHF_CW_BANDS } from '../lib/bands';
-  import { TONES, markerKind, tags, type ContestRules, type SkimmerSpot } from '../lib/contest';
+  import { SSB_BAND_IDS, TONES, markerKind, tags, type ContestRules, type SkimmerSpot } from '../lib/contest';
+  import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import SessionCard from '../lib/components/SessionCard.svelte';
@@ -22,10 +23,11 @@
 
   interface Decoder {
     frequency: number;
-    wpm: number;
-    snr_db: number;
+    wpm: number | null;
+    snr_db: number | null;
     callsign: string | null;
     text: string;
+    sideband?: string;
   }
 
   interface SkimmerState extends SpectrumState {
@@ -37,6 +39,16 @@
     blanked_seconds?: number;
     spots?: number;
     recording?: { file: string; seconds: number; active: boolean; stopped: string | null } | null;
+    skimmer_mode?: 'CW' | 'SSB';
+    transcriber?: {
+      pending: number;
+      done: number;
+      dropped: number;
+      failed: number;
+      busy: boolean;
+      mean_seconds: number | null;
+    } | null;
+    transcripts?: { frequency: number; text: string; time: number }[] | null;
   }
 
   interface FileInfo {
@@ -72,6 +84,9 @@
   let bandFilter = $state('');
 
   let band = $state('20m');
+  let mode = $state<'CW' | 'SSB'>('CW');
+  let language = $state('en');
+  let selected = $state<string | null>(null);
   let decoders = $state(24);
   let gain = $state(30);
   let hours = $state(0);
@@ -91,8 +106,14 @@
   const ALL_BANDS = [...CW_BANDS, ...VHF_CW_BANDS];
   // only the bands of the selected contest (all HF and VHF CW segments when it names none)
   const contestBands = $derived(
-    rules?.bands.length ? ALL_BANDS.filter((b) => rules!.bands.includes(b.id)) : ALL_BANDS,
+    (rules?.bands.length ? ALL_BANDS.filter((b) => rules!.bands.includes(b.id)) : ALL_BANDS).filter(
+      (b) => mode === 'CW' || SSB_BAND_IDS.includes(b.id),
+    ),
   );
+  const modes = $derived((rules?.modes.length ? rules.modes : ['CW', 'SSB']) as ('CW' | 'SSB')[]);
+  $effect(() => {
+    if (modes.length && !modes.includes(mode)) mode = modes[0];
+  });
   $effect(() => {
     if (contestBands.length && !contestBands.some((b) => b.id === band)) band = contestBands[0].id;
   });
@@ -188,8 +209,10 @@
     try {
       const r = await api.post<{ session_id: string }>('/skimmer/start', {
         band,
+        mode,
+        ...(mode === 'SSB' ? { language: language || null } : {}),
         contest: active,
-        max_decoders: decoders,
+        max_decoders: mode === 'SSB' ? Math.min(decoders, 16) : decoders,
         gain,
         record_iq: recordIq,
         include_rbn: includeRbn,
@@ -253,6 +276,12 @@
 
   function age(seconds: number): string {
     return seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m`;
+  }
+
+  const key = (s: SkimmerSpot) => s.callsign + s.khz;
+
+  function toggle(spot: SkimmerSpot) {
+    selected = selected === key(spot) ? null : key(spot);
   }
 
   function open(spot: SkimmerSpot) {
@@ -323,7 +352,29 @@
         }}
       >
         <div>
-          <span class="label">{t('Band (CW-Segment)')}</span>
+          <span class="label">{t('Betriebsart')}</span>
+          <div class="flex flex-wrap gap-2">
+            {#each modes as m (m)}
+              <button
+                class="chip {mode === m ? 'ring-2 ring-cyan-500' : ''}"
+                type="button"
+                aria-pressed={mode === m}
+                onclick={() => (mode = m)}>{m}</button
+              >
+            {/each}
+          </div>
+          {#if mode === 'SSB'}
+            <p
+              class="mt-2 rounded-lg bg-amber-50 p-2 text-sm text-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+            >
+              {t(
+                'SSB ist experimentell: Whisper hört die Sprachkanäle ab, der Phonetik-Parser liest die Rufzeichen. Auf der CPU reicht das für wenige Kanäle; jeder Spot hat einen Ausschnitt zum Nachhören.',
+              )}
+            </p>
+          {/if}
+        </div>
+        <div>
+          <span class="label">{mode === 'SSB' ? t('Band (SSB-Segment)') : t('Band (CW-Segment)')}</span>
           <div class="flex flex-wrap gap-2">
             {#each contestBands as b (b.id)}
               <button
@@ -340,6 +391,18 @@
             <label class="label" for="sdec">{t('Decoder gleichzeitig')}</label>
             <input id="sdec" class="input" type="number" min="1" max="64" bind:value={decoders} />
           </div>
+          {#if mode === 'SSB'}
+            <div>
+              <label class="label" for="slang">{t('Sprache (Whisper)')}</label>
+              <select id="slang" class="input" bind:value={language}>
+                <option value="en">{t('Englisch')}</option>
+                <option value="de">{t('Deutsch')}</option>
+                <option value="fr">{t('Französisch')}</option>
+                <option value="it">{t('Italienisch')}</option>
+                <option value="">{t('automatisch')}</option>
+              </select>
+            </div>
+          {/if}
           <div>
             <label class="label" for="sgain">{t('Verstärkung (dB)')}</label>
             <input id="sgain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -383,6 +446,20 @@
             >{info?.blanked ? t('jetzt') : `${info?.blanked_seconds ?? 0} s`}</span
           >
         </div>
+        {#if info?.transcriber}
+          <div>
+            <span class="text-slate-500">Whisper</span>
+            <span class="font-mono"
+              >{t('{d} fertig, {p} wartend, {x} verworfen', {
+                d: info.transcriber.done,
+                p: info.transcriber.pending,
+                x: info.transcriber.dropped,
+              })}{info.transcriber.mean_seconds !== null
+                ? ` · Ø ${info.transcriber.mean_seconds} s`
+                : ''}</span
+            >
+          </div>
+        {/if}
         {#if info?.recording}
           <div>
             <span class="text-slate-500">{t('IQ-Aufnahme')}</span>
@@ -401,9 +478,24 @@
             {#each info.decoders as d (d.frequency)}
               <li class="flex gap-2">
                 <span class="w-20 text-right">{(d.frequency / 1000).toFixed(1)}</span>
-                <span class="w-14 text-slate-500">{d.wpm} WPM</span>
+                <span class="w-14 text-slate-500">{d.sideband ?? `${d.wpm} WPM`}</span>
                 <span class="w-20 font-semibold">{d.callsign ?? ''}</span>
                 <span class="truncate text-emerald-600 dark:text-emerald-400">{d.text}</span>
+              </li>
+            {/each}
+          </ul>
+        </section>
+      {/if}
+      {#if info?.transcripts?.length}
+        <section class="card">
+          <h2 class="mb-2 text-sm font-semibold">{t('Zuletzt gehört (Whisper)')}</h2>
+          <ul class="space-y-1 text-sm">
+            {#each info.transcripts as tr (tr.time + tr.frequency)}
+              <li class="flex gap-3">
+                <span class="w-20 shrink-0 text-right font-mono text-xs"
+                  >{(tr.frequency / 1000).toFixed(1)}</span
+                >
+                <span class="text-slate-700 dark:text-slate-300">{tr.text}</span>
               </li>
             {/each}
           </ul>
@@ -440,7 +532,7 @@
                 <th class="pr-2">kHz</th>
                 <th class="pr-2">{t('Rufzeichen')}</th>
                 <th class="pr-2">{t('Land')}</th>
-                <th class="pr-2">WPM</th>
+                <th class="pr-2">WPM / Mode</th>
                 <th class="pr-2">SNR</th>
                 <th class="pr-2">{t('Hinweise')}</th>
                 <th>{t('Quelle')}</th>
@@ -454,14 +546,18 @@
                     : s.priority === 'dupe'
                       ? 'text-slate-400'
                       : ''} {hasCw ? 'cursor-pointer hover:bg-cyan-50 dark:hover:bg-cyan-950/40' : ''}"
-                  onclick={() => open(s)}
-                  title={hasCw ? t('Klick: auf der CW-Seite abhören') : undefined}
+                  onclick={() => (s.mode === 'SSB' ? toggle(s) : open(s))}
+                  title={s.mode === 'SSB'
+                    ? t('Klick: gehörten Text und Ausschnitt zeigen')
+                    : hasCw
+                      ? t('Klick: auf der CW-Seite abhören')
+                      : undefined}
                 >
                   <td class="py-1 pr-2 font-mono text-xs text-slate-500">{age(s.age_seconds)}</td>
                   <td class="pr-2 font-mono">{s.khz.toFixed(1)}</td>
                   <td class="pr-2 font-mono">{s.callsign}</td>
                   <td class="pr-2 text-xs">{s.country ?? '–'}</td>
-                  <td class="pr-2 font-mono">{s.wpm ?? '–'}</td>
+                  <td class="pr-2 font-mono">{s.wpm ?? s.mode}</td>
                   <td class="pr-2 font-mono">{s.snr_db}</td>
                   <td class="pr-2">
                     <span class="flex flex-wrap gap-1">
@@ -474,6 +570,20 @@
                   </td>
                   <td class="text-xs">{s.source === 'rbn' ? 'RBN' : t('eigener')}</td>
                 </tr>
+                {#if selected === key(s)}
+                  <tr>
+                    <td colspan="8" class="space-y-2 pb-3">
+                      {#if s.text}<p class="text-sm italic">«{s.text}»</p>{/if}
+                      {#if s.audio_file}<AudioPlayer filename={s.audio_file} />{/if}
+                      <button
+                        class="btn-secondary"
+                        type="button"
+                        onclick={() => router.go('spectrum', { f: s.frequency })}
+                        >{t('Im Wasserfall mithören')}</button
+                      >
+                    </td>
+                  </tr>
+                {/if}
               {/each}
             </tbody>
           </table>

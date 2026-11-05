@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- Contest-Skimmer in SSB (experimentell): Signalerkennung für Sprachsignale (2,4 kHz geglättet), ein USB/LSB-Empfänger pro Station mit geschätztem Träger, Sprachabschnitte in einer gemeinsamen Whisper-Warteschlange (Contest-Prompt, Buchstabieralphabet als `hotwords`, Sprache wählbar), Rufzeichen über den Phonetik-Parser und dieselbe Bestätigung wie bei CW. Jeder neue SSB-Spot speichert seinen Ausschnitt zum Nachhören; die Seite zeigt den gehörten Text und die Whisper-Auslastung. API: `mode: SSB`, `language`. Auswertung einer SSB-IQ-Aufnahme: `python -m radiomoni.skimmer.evaluate ssb-iq`.
+- Phonetik-Parser: „HB9XYZ contest“ und „… QRZ“ gelten als Eigenidentifikation.
+
 ## [5.1.0] – 2026-11-05
 
 ### Neu

@@ -4,7 +4,7 @@
 
 Der Contest-Skimmer läuft am Contest neben der eigenen Station mit einem eigenen SDR und einer eigenen Empfangsantenne:
 
-- **Dekodieren:** Er dekodiert alle CW-Signale eines Bandsegments gleichzeitig.
+- **Dekodieren:** Er dekodiert alle CW-Signale eines Bandsegments gleichzeitig. In SSB (experimentell) hört Whisper die Sprachkanäle ab.
 - **Spot erzeugen:** Er liest die Rufzeichen und bestätigt sie mehrfach, bevor sie als Spot gelten.
 - **Einstufen:** Jeden Spot prüft er gegen das Contest-Reglement und das eigene Log.
 - **Melden:**
@@ -12,7 +12,7 @@ Der Contest-Skimmer läuft am Contest neben der eigenen Station mit einem eigene
   - auf der Seite *Contest-Skimmer*,
   - per Alarm (ntfy, Telegram, E-Mail, Webhook).
 
-SSB folgt erst, wenn die Messung (Phase 0, siehe unten) zeigt, dass Whisper auf Contest-SSB genug Rufzeichen richtig erkennt.
+SSB ist experimentell. Ob Whisper auf Contest-SSB genug Rufzeichen richtig liest, zeigt erst die Messung (Phase 0, siehe unten). Bis dahin jeden SSB-Spot am Ausschnitt nachhören.
 
 ## Vor dem Einsatz
 
@@ -95,6 +95,26 @@ Ein CW-Segment (zum Beispiel 14,000–14,070 MHz) braucht etwa einen halben CPU-
    Im Wasserfall sind neue Multiplikatoren und seltene Stationen rot markiert, Doppelte grau, alle anderen orange. Ein Klick auf einen Spot öffnet die CW-Seite auf dessen Frequenz zum Mithören.
 4. **Alarme:** Nur Spots mit hoher Priorität (Multiplikator oder selten) erreichen die Alarmregeln, Quelle `skimmer`. Eine Regel wie *Feld Text enthält MULT* mit einer Pause von einigen Minuten verhindert, dass der Operator mit Meldungen überflutet wird.
 
+### SSB (experimentell)
+
+*Betriebsart SSB* wählen, dann das Band. Der Skimmer nimmt das Phone-Segment des Bandes nach IARU-Region-1-Bandplan, auf 20 m zum Beispiel 14,125–14,350 MHz. Unter 10 MHz gilt LSB, darüber USB.
+
+1. **Signale finden:** Die Signalerkennung glättet das Spektrum über 2,4 kHz, so ergibt jede Station eine Spur. Dauerträger werden übergangen.
+2. **Abstimmen:** Pro Spur entsteht ein Empfänger. Den unterdrückten Träger schätzt der Skimmer aus der unteren Kante der Sprache (bei LSB aus der oberen), etwa 300 Hz daneben. Im Test liegt die Schätzung auf etwa 50 Hz genau.
+3. **Abschnitte:** Solange die Spur aktiv ist, wird mitgeschnitten. Ein Abschnitt endet nach 1 s Pause oder spätestens nach 8 s, kürzer als 1,5 s zählt nicht.
+4. **Whisper:**
+   - Eine einzige Warteschlange für alle Kanäle. Unbekannte Stationen kommen vor schon gespotteten.
+   - Ist die Warteschlange voll, wird der Abschnitt mit der tiefsten Priorität verworfen.
+   - Whisper bekommt einen Contest-Prompt und das Buchstabieralphabet als `hotwords`.
+   - Die Sprache ist wählbar, Englisch ist voreingestellt.
+5. **Rufzeichen:**
+   - Der Phonetik-Parser liest Buchstabieralphabet, Ziffern und `/P`.
+   - Zählt wie bei CW nur, wenn die Station sich selbst nennt: nach CQ, „contest“, „this is“, „QRZ“, oder vor „contest“/„QRZ“ wie in „thank you, HB9XYZ contest“.
+   - Danach gilt dieselbe Bestätigung wie bei CW, hier mit 1 kHz Toleranz.
+6. **Nachhören:** Jeder neue SSB-Spot speichert den Abschnitt, aus dem er stammt, als WAV im Aufnahme-Ordner (Aufbewahrung wie alle Aufnahmen). Ein Klick auf den Spot zeigt den gehörten Text und den Player, *Im Wasserfall mithören* öffnet die Frequenz zum Live-Hören.
+
+**Rechenleistung:** Whisper ist der Engpass. Auf einer CPU mit dem Modell `small` reicht es für wenige Kanäle gleichzeitig, mit NVIDIA-GPU (`docker-compose.gpu.yml`) für deutlich mehr. Die Statuszeile zeigt, wie viele Abschnitte fertig, wartend und verworfen sind, und die mittlere Dauer pro Abschnitt. Steigt *verworfen* stetig, weniger Kanäle wählen (höchstens 16) oder eine GPU nehmen.
+
 ### Wann wird aus einem Rufzeichen ein Spot?
 
 Ein falscher Spot kostet den Operator mehr als ein verpasster. Darum zählt eine einzelne Dekodierung nie:
@@ -135,9 +155,15 @@ docker compose exec radio-api python -m radiomoni.skimmer.evaluate ssb --referen
 ```
 Ausgegeben werden die Werte für alle erkannten Rufzeichen (`raw`) und für die bestätigten (`confirmed`). Bestätigt heisst: Das Rufzeichen kam nach CQ, „contest“, „this is“ und Ähnlichem, oder es ist mindestens zweimal gefallen. Am besten mehrere Modelle (`small`, `turbo`, `large-v3`) mit und ohne `--prompt`/`--hotwords` vergleichen.
 
+Den ganzen SSB-Skimmer (Signalerkennung, Kanäle, Whisper, Bestätigung) auf einer eigenen IQ-Aufnahme messen: Den Skimmer in SSB mit *IQ des Segments aufnehmen* laufen lassen, die gehörten Rufzeichen von Hand in `calls.txt` schreiben, dann:
+```bash
+docker compose exec radio-api python -m radiomoni.skimmer.evaluate ssb-iq --reference calls.txt \
+  recordings/skimmer/skimmer_20260905_130000_14237kHz.wav
+```
+
 ## Grenzen
 
-- **Nur CW:** Live gibt es nur CW. SSB folgt nach der Messung.
+- **SSB experimentell:** Wie gut Whisper Contest-SSB liest, ist noch nicht gemessen. Ein Kanal mit zwei Stationen im Wechsel ergibt Abschnitte mit beiden Stimmen; gespottet wird nur, wer sich selbst nennt.
 - **Multiplikatoren aus dem Austausch:** Kantone, Seriennummern und HQ-Stationen sind am Rufzeichen nicht erkennbar.
 - **Ein SDR, ein Segment:** Mehrere Bänder brauchen mehrere SDRs, das steht in der Roadmap unter „Mehrere SDRs“.
 - **Ein Logprogramm:** Den Cluster versteht jedes Logprogramm. „Schon gearbeitet“ und das Ausblenden beim Senden gibt es nur mit N1MM+.
@@ -148,7 +174,7 @@ Ausgegeben werden die Werte für alle erkannten Rufzeichen (`raw`) und für die 
 
 The contest skimmer runs next to the contest station with its own SDR and its own receive antenna:
 
-- **Decoding:** It decodes every CW signal of a band segment at once.
+- **Decoding:** It decodes every CW signal of a band segment at once. In SSB (experimental) Whisper listens to the voice channels.
 - **Spotting:** It reads the callsigns and confirms each one several times before it counts as a spot.
 - **Classifying:** It checks every spot against the contest rules and your log.
 - **Reporting:**
@@ -156,7 +182,7 @@ The contest skimmer runs next to the contest station with its own SDR and its ow
   - on the *Contest skimmer* page,
   - as an alert (ntfy, Telegram, e-mail, webhook).
 
-SSB follows once the evaluation (phase 0, see below) shows that Whisper reads enough callsigns correctly on contest SSB.
+SSB is experimental. Whether Whisper reads enough callsigns correctly on contest SSB is only shown by the evaluation (phase 0, see below). Until then, listen to the clip of every SSB spot.
 
 ### Before you use it
 
@@ -235,6 +261,24 @@ A CW segment (for example 14.000–14.070 MHz) needs about half a CPU core for 2
    In the waterfall, new multipliers and rare stations are marked red, dupes grey and all others orange. A click on a spot opens the CW page on its frequency so you can listen.
 4. **Alerts:** Only high-priority spots (multiplier or rare) reach the alert rules, source `skimmer`. A rule such as *field text contains MULT* with a cooldown of a few minutes keeps the operator from being flooded.
 
+**SSB (experimental).** Choose *mode SSB*, then the band. The skimmer takes the phone segment of the band from the IARU Region 1 band plan, on 20 m for example 14.125–14.350 MHz. LSB below 10 MHz, USB above.
+
+1. **Finding signals:** Signal detection smooths the spectrum over 2.4 kHz, so every station gives one track. Steady carriers are skipped.
+2. **Tuning:** Every track gets a receiver. The skimmer estimates the suppressed carrier from the lower edge of the voice (the upper edge for LSB), about 300 Hz beside it. In the tests the estimate is within about 50 Hz.
+3. **Segments:** Audio is recorded while the track is active. A segment ends after a 1 s pause or after 8 s at the latest; anything shorter than 1.5 s is dropped.
+4. **Whisper:**
+   - One queue for all channels. Unknown stations come before ones already spotted.
+   - When the queue is full, the segment with the lowest priority is dropped.
+   - Whisper gets a contest prompt and the phonetic alphabet as `hotwords`.
+   - The language can be chosen, English is the default.
+5. **Callsigns:**
+   - The phonetic parser reads the phonetic alphabet, digits and `/P`.
+   - As with CW, a call counts only when the station names itself: after CQ, "contest", "this is", "QRZ", or before "contest"/"QRZ" as in "thank you, HB9XYZ contest".
+   - The same confirmation as for CW then applies, here with a 1 kHz tolerance.
+6. **Listening back:** Every new SSB spot saves the segment it came from as a WAV in the recordings folder (same retention as all recordings). A click on the spot shows the heard text and the player; *Listen in the waterfall* opens the frequency to listen live.
+
+**Computing power:** Whisper is the bottleneck. On a CPU with the `small` model it keeps up with a few channels at once, with an NVIDIA GPU (`docker-compose.gpu.yml`) with many more. The status line shows how many segments are done, waiting and dropped, and the mean time per segment. If *dropped* keeps rising, choose fewer channels (at most 16) or use a GPU.
+
 **When does a callsign become a spot?** A wrong spot costs the operator more than a missed one, so a single decode never counts:
 
 - **The station itself:** Only a callsign the station sends itself counts, that is after `CQ`, `TEST`, `DE`, `TU`, `QRZ`, or twice in a row. A call that the run station sends to its partner together with the report does not count.
@@ -273,9 +317,15 @@ docker compose exec radio-api python -m radiomoni.skimmer.evaluate ssb --referen
 ```
 The output gives the values for all recognised calls (`raw`) and for confirmed ones (`confirmed`). Confirmed means the call came after CQ, "contest", "this is" and similar, or was heard at least twice. Compare several models (`small`, `turbo`, `large-v3`) with and without `--prompt`/`--hotwords`.
 
+To measure the whole SSB skimmer (signal detection, channels, Whisper, confirmation) on your own IQ recording, run the skimmer in SSB with *Record the segment IQ*, write the callsigns you heard into `calls.txt`, then:
+```bash
+docker compose exec radio-api python -m radiomoni.skimmer.evaluate ssb-iq --reference calls.txt \
+  recordings/skimmer/skimmer_20260905_130000_14237kHz.wav
+```
+
 ### Limits
 
-- **CW only:** Live operation is CW only. SSB follows after the evaluation.
+- **SSB experimental:** How well Whisper reads contest SSB has not been measured yet. A channel with two stations taking turns gives segments with both voices; only the station that names itself is spotted.
 - **Multipliers from the exchange:** Cantons, serial numbers and HQ stations cannot be told from the callsign.
 - **One SDR, one segment:** Several bands need several SDRs; see "Several SDRs" in the roadmap.
 - **One logger:** Any logger understands the cluster. "Already worked" and TX blanking are available with N1MM+ only.

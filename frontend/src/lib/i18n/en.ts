@@ -61,6 +61,7 @@ export const en: Record<string, string> = {
   'automatisch gelöscht nach {n} Tagen': 'deleted automatically after {n} days',
   Band: 'Band',
   'Band (CW-Segment)': 'Band (CW segment)',
+  'Band (SSB-Segment)': 'Band (SSB segment)',
   Bandbreite: 'Bandwidth',
   'Bandbreite (MS/s)': 'Bandwidth (MS/s)',
   Bänder: 'Bands',
@@ -116,6 +117,7 @@ export const en: Record<string, string> = {
   'Durchgänge (24 h)': 'Transmissions (24 h)',
   'Durchgänge als WAV speichern': 'Save transmissions as WAV',
   'DX-Cluster für die Bandmap': 'DX cluster for the bandmap',
+  '{d} fertig, {p} wartend, {x} verworfen': '{d} done, {p} waiting, {x} dropped',
   'Eigene Frequenzen und Presets für alle Betriebsarten': 'Your own frequencies and presets for all modes',
   eigener: 'own',
   'Ein Breitband-IQ-Strom, bis zu 8 Kanäle gleichzeitig dekodiert (DDC)':
@@ -169,6 +171,7 @@ export const en: Record<string, string> = {
   'Höhe (ft)': 'Altitude (ft)',
   'Höher = genauer, langsamer': 'Higher = more accurate, slower',
   Hören: 'Listen',
+  'Im Wasserfall mithören': 'Listen in the waterfall',
   'In den letzten 7 Tagen wurde noch keine Aktivität gemessen.': 'No activity measured in the last 7 days.',
   'in {duration}': 'in {duration}',
   'IQ des Segments aufnehmen (für die Auswertung, ca. 1,4 GB pro Stunde)':
@@ -209,6 +212,7 @@ export const en: Record<string, string> = {
     'Click in the waterfall to tune the channel, drag to move the centre, Shift-click opens the CW decoder.',
   'Klick: auf der CW-Seite abhören': 'Click: listen on the CW page',
   'Klick: Empfänger auf {khz} kHz stellen': 'Click: tune the receiver to {khz} kHz',
+  'Klick: gehörten Text und Ausschnitt zeigen': 'Click: show the heard text and the clip',
   Kopieren: 'Copy',
   Kurs: 'Course',
   'Kurzwelle braucht ein KW-taugliches SDR und eine KW-Antenne (siehe Hardware-Doku). NCDXF-Baken (violett) eignen sich als Testsignal.':
@@ -354,9 +358,12 @@ export const en: Record<string, string> = {
   Spots: 'Spots',
   'Spots (30 min)': 'Spots (30 min)',
   Sprache: 'Voice',
+  'Sprache (Whisper)': 'Language (Whisper)',
   'Sprache wechseln': 'Switch language',
   'Sprache||language': 'Language',
   'Squelch: {n} dB über Rauschen': 'Squelch: {n} dB above noise',
+  'SSB ist experimentell: Whisper hört die Sprachkanäle ab, der Phonetik-Parser liest die Rufzeichen. Auf der CPU reicht das für wenige Kanäle; jeder Spot hat einen Ausschnitt zum Nachhören.':
+    'SSB is experimental: Whisper listens to the voice channels, the phonetic parser reads the callsigns. On a CPU this is enough for a few channels; every spot has a clip to listen to.',
   Standard: 'Default',
   Standort: 'Location',
   Starten: 'Start',
@@ -438,6 +445,7 @@ export const en: Record<string, string> = {
   '{type} frei': '{type} free',
   '{type} ist frei.': '{type} is free.',
   'Zoom zurücksetzen': 'Reset zoom',
+  'Zuletzt gehört (Whisper)': 'Recently heard (Whisper)',
   'Ø Aktivität': 'Avg. activity',
   Übersicht: 'Overview',
 };

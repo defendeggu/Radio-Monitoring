@@ -41,7 +41,7 @@ Zuverlässig dekodiert wird ab etwa 10 dB Signal-Rausch-Abstand im Decoder-Filte
 
 ## Contest-Skimmer
 
-Alle CW-Signale eines Bandsegments gleichzeitig dekodieren. Die Rufzeichen werden gegen das Contest-Reglement und das eigene Log eingestuft und als Spots gemeldet: in der Liste, im Wasserfall, als Alarm und über einen DX-Cluster in die Bandmap von N1MM+. Contest wählen, Band antippen, *Skimmer starten*. Rote Spots sind neue Multiplikatoren oder seltene Stationen, graue Doppelte. Ein Klick öffnet die CW-Seite auf der Frequenz. Einrichtung, Reglement und Schutz des SDR vor dem eigenen Sender: [contest.md](contest.md).
+Alle CW-Signale eines Bandsegments gleichzeitig dekodieren. Die Rufzeichen werden gegen das Contest-Reglement und das eigene Log eingestuft und als Spots gemeldet: in der Liste, im Wasserfall, als Alarm und über einen DX-Cluster in die Bandmap von N1MM+. Contest wählen, Band antippen, *Skimmer starten*. Rote Spots sind neue Multiplikatoren oder seltene Stationen, graue Doppelte. Ein Klick öffnet die CW-Seite auf der Frequenz. In der Betriebsart *SSB* (experimentell) hört Whisper die Sprachkanäle ab; ein Klick auf einen SSB-Spot zeigt den gehörten Text und den Ausschnitt zum Nachhören. Einrichtung, Reglement und Schutz des SDR vor dem eigenen Sender: [contest.md](contest.md).
 
 ## Sprache
 
@@ -175,7 +175,7 @@ Decoding is reliable from about 10 dB signal-to-noise ratio in the decoder filte
 
 ### Contest skimmer
 
-Decode every CW signal of a band segment at once. The callsigns are classified against the contest rules and your log and reported as spots: in the list, in the waterfall, as an alert and through a DX cluster to the N1MM+ bandmap. Select the contest, pick the band, *Start skimmer*. Red spots are new multipliers or rare stations, grey ones dupes. A click opens the CW page on the frequency. Setup, contest rules and protecting the SDR from your own transmitter: [contest.md](contest.md#english-version).
+Decode every CW signal of a band segment at once. The callsigns are classified against the contest rules and your log and reported as spots: in the list, in the waterfall, as an alert and through a DX cluster to the N1MM+ bandmap. Select the contest, pick the band, *Start skimmer*. Red spots are new multipliers or rare stations, grey ones dupes. A click opens the CW page on the frequency. In *SSB* mode (experimental) Whisper listens to the voice channels; a click on an SSB spot shows the heard text and the clip to listen back. Setup, contest rules and protecting the SDR from your own transmitter: [contest.md](contest.md#english-version).
 
 ### Voice
 

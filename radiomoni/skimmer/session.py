@@ -16,6 +16,7 @@ cluster as well (only where the contest category allows assistance).
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -39,6 +40,7 @@ from radiomoni.redis_client import get_redis
 from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
 from radiomoni.skimmer.core import SkimmerCore
 from radiomoni.skimmer.recorder import IqRecorder
+from radiomoni.skimmer.ssb import SsbCore, whisper_transcriber
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +63,15 @@ CW_SEGMENTS: dict[str, tuple[int, int]] = {
     '23cm': (1_296_000_000, 1_296_150_000),
 }
 
+# SSB (phone) segments of the IARU Region 1 band plans where contest stations operate, Hz
+SSB_SEGMENTS: dict[str, tuple[int, int]] = {
+    '160m': (1_843_000, 2_000_000), '80m': (3_600_000, 3_800_000), '40m': (7_050_000, 7_200_000),
+    '20m': (14_125_000, 14_350_000), '17m': (18_111_000, 18_168_000), '15m': (21_151_000, 21_450_000),
+    '12m': (24_931_000, 24_990_000), '10m': (28_300_000, 28_700_000),
+    '6m': (50_100_000, 50_400_000), '2m': (144_150_000, 144_400_000), '70cm': (432_100_000, 432_400_000),
+    '23cm': (1_296_150_000, 1_296_400_000),
+}
+
 
 def segment_rate(width_hz: int) -> int:
     """IQ rate for a segment of `width_hz`: some headroom for the filter edges."""
@@ -76,9 +87,10 @@ class SkimmerSession(BaseStreamingDecoder):
     def __init__(self, freq_low: int, freq_high: int, gain: int, duration: int = 0, mode: str = 'CW',
                  contest: Optional[str] = None, max_decoders: int = 24, sample_rate: Optional[int] = None,
                  record_iq: bool = False, include_rbn: bool = False, device_type: Optional[str] = None,
-                 device_address: Optional[str] = None, output_dir: str = './recordings'):
-        if mode != 'CW':
-            raise ValueError('Only CW is supported so far (SSB follows after the phase 0 evaluation)')
+                 device_address: Optional[str] = None, output_dir: str = './recordings',
+                 language: Optional[str] = 'en', transcriber: Optional[Any] = None):
+        if mode not in ('CW', 'SSB'):
+            raise ValueError(f'Unknown skimmer mode: {mode}')
         sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
         if sdr_type == SDRType.UNKNOWN:
             raise ValueError("No SDR hardware detected")
@@ -106,9 +118,17 @@ class SkimmerSession(BaseStreamingDecoder):
         self.decimator = Decimator(rate, segment_rate(width), bandwidth_hz=width * 1.1)
         self.seg_rate = self.decimator.output_rate
         refdata = refdata_module.get()
-        self.core = SkimmerCore(self.seg_rate, self.seg_centre, max_decoders, on_spot=self._on_spot,
-                                validate=self._validator(refdata))
+        self.language = language
+        self.core: SkimmerCore | SsbCore
+        if mode == 'SSB':
+            self.core = SsbCore(self.seg_rate, self.seg_centre, min(max_decoders, 16), on_spot=self._on_spot,
+                                validate=self._validator(refdata),
+                                transcribe=transcriber or whisper_transcriber(language))
+        else:
+            self.core = SkimmerCore(self.seg_rate, self.seg_centre, max_decoders, on_spot=self._on_spot,
+                                    validate=self._validator(refdata))
         self.book = SpotBook()
+        self._book_lock = threading.Lock()    # SSB spots arrive from the Whisper thread
         self.tap: Optional[spectrum.SpectrumTap] = None
         self.recorder: Optional[IqRecorder] = None
         self.blanked = False
@@ -150,6 +170,9 @@ class SkimmerSession(BaseStreamingDecoder):
             'decoders': self.core.state(), 'blanked': self.blanked, 'blanked_seconds': round(self.blanked_seconds),
             'spots': self.spot_count, 'include_rbn': self.include_rbn,
             'recording': self.recorder.info() if self.recorder else None,
+            'transcriber': self.core.queue.stats() if isinstance(self.core, SsbCore) else None,
+            'transcripts': self.core.recent[:8] if isinstance(self.core, SsbCore) else None,
+            'language': self.language if self.mode == 'SSB' else None,
         }
 
     def _publish_state(self) -> None:
@@ -168,12 +191,12 @@ class SkimmerSession(BaseStreamingDecoder):
         if self.record_iq:
             from radiomoni.services import recording_dir
             self.recorder = IqRecorder(os.path.join(recording_dir(), 'skimmer'), self.seg_centre, self.seg_rate,
-                                       self.freq_low, self.freq_high, sid)
+                                       self.freq_low, self.freq_high, sid, mode=self.mode)
         try:
-            self.session.status = 'running'
             self.session.frequency = self.seg_centre
+            self._publish_state()          # state first: the page reads it as soon as it sees "running"
+            self.session.status = 'running'
             session_manager.save_session(self.session)
-            self._publish_state()
             self.sdr_proc = self._start_sdr_capture()
             self._run(session_manager)
         except Exception as e:
@@ -182,6 +205,8 @@ class SkimmerSession(BaseStreamingDecoder):
             self.session.error = str(e)
             session_manager.save_session(self.session)
         finally:
+            if isinstance(self.core, SsbCore):
+                self.core.close()
             if self.recorder:
                 self.recorder.close()
             self._flush(force=True)
@@ -250,20 +275,27 @@ class SkimmerSession(BaseStreamingDecoder):
 
     # ------------------------------------------------------------------ spots
     def _on_spot(self, spot: dict[str, Any], source: str = 'skimmer', spotter: Optional[str] = None) -> None:
+        clip, clip_rate = spot.pop('clip', None), spot.pop('clip_rate', None)
         info = engine.classify(spot['callsign'], spot['frequency'], self.mode, rules_module.get(self.contest))
         if info['priority'] == 'invalid':
             return
+        if clip is not None and clip_rate and not spot.get('respot'):
+            spot['audio_file'] = self._save_clip(spot['callsign'], clip, clip_rate)
         now = time.time()
         full = {**spot, **info, 'source': source, 'spotter': spotter or f'{config.SKIMMER_CALLSIGN}-#'}
-        entry = self.book.add({'callsign': full['callsign'], 'khz': full['frequency'] / 1000.0,
-                               'frequency': full['frequency'], 'band': info['band'], 'mode': self.mode,
-                               'snr_db': int(round(full.get('snr_db') or 0)), 'wpm': full.get('wpm'),
-                               'type': full.get('type', 'CQ'), 'spotter': full['spotter']}, now)
-        entry.update({k: info[k] for k in ('country', 'adif', 'continent', 'cq_zone', 'itu_zone', 'wpx', 'in_scp',
-                                           'portable', 'swiss', 'dupe', 'new_mults', 'rank', 'rare', 'priority',
-                                           'in_contest')})
-        entry['sources'] = sorted(set(entry.get('sources', [])) | {source})
-        entry['source'] = 'skimmer' if 'skimmer' in entry['sources'] else 'rbn'
+        with self._book_lock:
+            entry = self.book.add({'callsign': full['callsign'], 'khz': full['frequency'] / 1000.0,
+                                   'frequency': full['frequency'], 'band': info['band'], 'mode': self.mode,
+                                   'snr_db': int(round(full.get('snr_db') or 0)), 'wpm': full.get('wpm'),
+                                   'type': full.get('type', 'CQ'), 'spotter': full['spotter']}, now)
+            entry.update({k: info[k] for k in ('country', 'adif', 'continent', 'cq_zone', 'itu_zone', 'wpx',
+                                               'in_scp', 'portable', 'swiss', 'dupe', 'new_mults', 'rank', 'rare',
+                                               'priority', 'in_contest')})
+            for key in ('text', 'audio_file'):          # SSB: what Whisper heard, and the clip to check it
+                if full.get(key):
+                    entry[key] = full[key]
+            entry['sources'] = sorted(set(entry.get('sources', [])) | {source})
+            entry['source'] = 'skimmer' if 'skimmer' in entry['sources'] else 'rbn'
         if source == 'skimmer':
             self.spot_count += 1
         try:
@@ -279,7 +311,8 @@ class SkimmerSession(BaseStreamingDecoder):
                'contest': self.contest, 'country': info['country'], 'continent': info['continent'],
                'cq_zone': info['cq_zone'], 'itu_zone': info['itu_zone'], 'priority': info['priority'],
                'new_mults': [m['label'] for m in info['new_mults']], 'rare': info['rare'], 'rank': info['rank'],
-               'dupe': info['dupe'], 'in_scp': info['in_scp']}
+               'dupe': info['dupe'], 'in_scp': info['in_scp'], 'text': full.get('text'),
+               'audio_file': full.get('audio_file')}
         events.publish('skimmer', doc)
         if source == 'skimmer':
             try:
@@ -292,6 +325,19 @@ class SkimmerSession(BaseStreamingDecoder):
                                         'text': engine.describe(info) or full.get('type', ''),
                                         'priority': info['priority'], 'band': info['band']})
         self._flush(force=True)
+
+    def _save_clip(self, callsign: str, clip: NDArray[np.float32], rate: int) -> Optional[str]:
+        """WAV of the SSB segment that gave the spot (play button on the page, recording retention applies)."""
+        from scipy.io import wavfile
+        try:
+            os.makedirs(self.output_dir, exist_ok=True)
+            name = f"skimmer_ssb_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}_{callsign.replace('/', '-')}.wav"
+            wavfile.write(os.path.join(self.output_dir, name), int(rate),
+                          (np.clip(clip, -1, 1) * 32767).astype(np.int16))
+            return name
+        except OSError as e:
+            logger.warning(f"Skimmer clip not saved: {e}")
+            return None
 
     def _forward_rbn(self, now: float) -> None:
         """New RBN spots on the bands of the contest → classified, into the list and the cluster."""
@@ -313,9 +359,11 @@ class SkimmerSession(BaseStreamingDecoder):
         if not force and now - self._last_flush < 2.0:
             return
         self._last_flush = now
-        self.book.prune(now)
+        with self._book_lock:
+            self.book.prune(now)
+            snapshot = json.dumps(self.book.snapshot())
         try:
-            get_redis().set(SPOTS_KEY, json.dumps(self.book.snapshot()), ex=SPOTS_TTL)
+            get_redis().set(SPOTS_KEY, snapshot, ex=SPOTS_TTL)
         except Exception as e:
             logger.debug(f"Skimmer spots not saved: {e}")
 
