@@ -27,6 +27,8 @@ os.environ.update({
     'SCHEDULER_ENABLED': 'false',
     'MIN_FREE_DISK_MB': '1',
     'PROXY_COUNT': '0',
+    'RBN_ENABLED': 'false',           # a local .env must not connect the tests to RBN
+    'RBN_CALLSIGN': '',
 })
 
 from radiomoni.api_service import app  # noqa: E402

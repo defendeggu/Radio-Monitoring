@@ -137,7 +137,7 @@ class TestSession:
         assert collector.kinds(FRAME_SPECTRUM) == []
 
     def test_listening_sends_audio(self, client: FlaskClient, fake_sdr):
-        fake_sdr(hackrf_bytes(100_000 + 700, 3.0))
+        fake_sdr(hackrf_bytes(100_000 + 700, 6.0))     # enough time for the tune to land under load
         sid = start(client)
         collector = Collector(sid)
         try:
@@ -162,6 +162,8 @@ class TestSession:
             assert response.status_code == 400
             ok = client.post(f'/spectrum/{sid}/tune', json={'centre': CENTRE + 5_000_000})
             assert ok.status_code == 200 and ok.get_json()['state']['channel'] == CENTRE + 5_000_000
+            # the session card (GET /stream-decode/<id>) follows the new centre
+            wait_for(lambda: session_manager.get_session(sid).frequency == CENTRE + 5_000_000)
         finally:
             client.delete(f'/stream-decode/{sid}')
             wait_finished(sid)

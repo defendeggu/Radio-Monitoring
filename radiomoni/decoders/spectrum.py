@@ -301,6 +301,10 @@ class SpectrumSession(BaseStreamingDecoder):
         state = self.state()
         save_state(self.session.session_id, state)
         publish(self.session.session_id, pack_json({'state': state}))
+        if self.session.frequency != self.frequency:     # keep the session card on the new centre
+            from radiomoni.session_store import session_manager
+            self.session.frequency = int(self.frequency)
+            session_manager.save_session(self.session)
 
     # ------------------------------------------------------------------ pipeline
     def _stream_worker_simple(self, session_manager: SessionManager) -> None:

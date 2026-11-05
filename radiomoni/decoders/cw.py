@@ -153,6 +153,10 @@ class CwSession(BaseStreamingDecoder):
         state = self.state()
         spectrum.save_state(self.session.session_id, state)
         spectrum.publish(self.session.session_id, spectrum.pack_json({'state': state}))
+        if self.session.frequency != self.target:        # keep the session card on the new station
+            from radiomoni.session_store import session_manager
+            self.session.frequency = self.target
+            session_manager.save_session(self.session)
 
     # ------------------------------------------------------------------ pipeline
     def _stream_worker_simple(self, session_manager: SessionManager) -> None:
