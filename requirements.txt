@@ -16,6 +16,9 @@ faster-whisper==1.2.1
 # faster-whisper 1.2.1 calls av.open(..., metadata_errors=...), which PyAV 19 removed
 av==18.1.0
 
+# Contest rules (radiomoni/contest/rules/*.yaml)
+pyyaml==6.0.3
+
 # Storage, sessions, scheduling
 elasticsearch==9.5.1
 redis==8.1.0

@@ -1,0 +1,109 @@
+{
+  "index_patterns": [
+    "radio-skimmer-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-skimmer daily indices (contest skimmer spots)"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "callsign": {
+          "type": "keyword"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "frequency_mhz": {
+          "type": "float"
+        },
+        "band": {
+          "type": "keyword"
+        },
+        "mode": {
+          "type": "keyword"
+        },
+        "source": {
+          "type": "keyword"
+        },
+        "spotter": {
+          "type": "keyword"
+        },
+        "snr_db": {
+          "type": "float"
+        },
+        "wpm": {
+          "type": "float"
+        },
+        "type": {
+          "type": "keyword"
+        },
+        "contest": {
+          "type": "keyword"
+        },
+        "country": {
+          "type": "keyword"
+        },
+        "continent": {
+          "type": "keyword"
+        },
+        "cq_zone": {
+          "type": "integer"
+        },
+        "itu_zone": {
+          "type": "integer"
+        },
+        "priority": {
+          "type": "keyword"
+        },
+        "new_mults": {
+          "type": "keyword"
+        },
+        "rare": {
+          "type": "boolean"
+        },
+        "rank": {
+          "type": "integer"
+        },
+        "dupe": {
+          "type": "boolean"
+        },
+        "in_scp": {
+          "type": "boolean"
+        }
+      },
+      "dynamic_templates": [
+        {
+          "strings_as_keyword": {
+            "match_mapping_type": "string",
+            "mapping": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        }
+      ]
+    }
+  }
+}

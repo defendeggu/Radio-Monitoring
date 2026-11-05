@@ -2,6 +2,7 @@ import { expect, test, type Page } from '@playwright/test';
 
 // Minimal mocked API so the UI can be exercised without backend or SDR.
 const cwStarts: Record<string, unknown>[] = [];
+const skimmerStarts: Record<string, unknown>[] = [];
 async function mockApi(page: Page) {
   const json = (body: unknown, status = 200) => ({
     status,
@@ -77,6 +78,93 @@ async function mockApi(page: Page) {
         }),
       );
     if (path === '/cw/transmissions') return route.fulfill(json({ transmissions: [] }));
+    if (path === '/contest/contests')
+      return route.fulfill(
+        json({
+          active: 'cq-ww-cw',
+          contests: [
+            {
+              id: 'cq-ww-cw',
+              name: 'CQ WW DX CW',
+              modes: ['CW'],
+              bands: ['40m', '20m'],
+              dupe: 'band',
+              multipliers: [{ type: 'cq_zone', per: 'band' }],
+              highlight: [],
+              url: '',
+              notes: '',
+              assistance: 'A local skimmer counts as assistance.',
+            },
+          ],
+        }),
+      );
+    if (path === '/contest/status')
+      return route.fulfill(
+        json({
+          contest: {
+            id: 'cq-ww-cw',
+            name: 'CQ WW DX CW',
+            modes: ['CW'],
+            bands: [],
+            dupe: 'band',
+            multipliers: [],
+            highlight: [],
+            url: '',
+            notes: '',
+            assistance: '',
+          },
+          refdata: { entities: 346, scp_calls: 40000, most_wanted: 340, files: {} },
+          worked: { qsos: 2, by_band: { '20m': 2 }, sources: ['import'] },
+          n1mm: { enabled: false, listening: false, port: 12060, radios: [] },
+          cluster: {
+            enabled: true,
+            listening: true,
+            port: 7300,
+            clients: [{ call: 'HB9XX', address: '192.168.1.5' }],
+          },
+        }),
+      );
+    if (path === '/skimmer/spots')
+      return route.fulfill(
+        json({
+          spots: [
+            {
+              callsign: 'P5ABC',
+              frequency: 14012300,
+              khz: 14012.3,
+              band: '20m',
+              mode: 'CW',
+              snr_db: 21,
+              wpm: 28,
+              type: 'CQ',
+              skimmers: ['HB9XYZ-#'],
+              skimmer_count: 1,
+              first_seen: 0,
+              last_seen: 0,
+              age_seconds: 12,
+              source: 'skimmer',
+              country: 'DPR of Korea',
+              continent: 'AS',
+              cq_zone: 25,
+              itu_zone: 44,
+              wpx: 'P5',
+              in_scp: true,
+              portable: false,
+              swiss: false,
+              dupe: false,
+              new_mults: [{ type: 'cq_zone', value: '25', label: 'CQ zone 25' }],
+              rank: 1,
+              rare: true,
+              priority: 'high',
+              in_contest: true,
+            },
+          ],
+        }),
+      );
+    if (path === '/skimmer/start') {
+      skimmerStarts.push(route.request().postDataJSON());
+      return route.fulfill(json({ error: 'SDR device is busy — in use by cw' }, 409));
+    }
     if (path === '/cw/start') {
       cwStarts.push(route.request().postDataJSON());
       return route.fulfill(json({ error: 'SDR device is busy — in use by capture' }, 409));
@@ -163,4 +251,19 @@ test('CW page: a click on an RBN spot starts the decoder on its frequency', asyn
   await expect(page.getByText('SDR device is busy')).toBeVisible();
   expect(cwStarts.at(-1)?.frequency).toBe(14025500);
   await expect(page.getByLabel('Frequenz (MHz)')).toHaveValue('14.0255');
+});
+
+test('contest page: classified spots and skimmer start', async ({ page }) => {
+  skimmerStarts.length = 0;
+  await page.goto('/#/contest');
+  await expect(page.getByRole('heading', { name: 'Contest-Skimmer' })).toBeVisible();
+  await expect(page.getByText('P5ABC')).toBeVisible();
+  await expect(page.getByText('MULT', { exact: true })).toBeVisible();
+  await expect(page.getByText('RARE #1')).toBeVisible();
+  await expect(page.getByText('A local skimmer counts as assistance.')).toBeVisible();
+  await expect(page.getByText('HB9XX (192.168.1.5)')).toBeVisible();
+  await page.getByRole('button', { name: '40 m', exact: true }).click();
+  await page.getByRole('button', { name: 'Skimmer starten' }).click();
+  await expect(page.getByText('SDR device is busy')).toBeVisible();
+  expect(skimmerStarts.at(-1)).toMatchObject({ band: '40m', contest: 'cq-ww-cw', max_decoders: 24 });
 });

@@ -1,0 +1,13 @@
+# CQ World Wide DX Contest SSB — last full weekend of October
+id: cq-ww-ssb
+name: CQ WW DX SSB
+modes: [SSB]
+bands: [160m, 80m, 40m, 20m, 15m, 10m]
+dupe: band
+multipliers:
+  - {type: cq_zone, per: band}
+  - {type: dxcc, per: band}
+url: https://cqww.com/rules.htm
+assistance: >-
+  A local skimmer counts as assistance: allowed in assisted and multi-operator
+  categories, not in single-operator unassisted.

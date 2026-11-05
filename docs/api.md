@@ -45,6 +45,12 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/cw/{id}/tune` | CW-Decoder umstimmen (`channel`), z. B. auf einen RBN-Spot; innerhalb der Bandbreite ohne Neustart |
 | GET | `/cw/transmissions` | Gespeicherte CW-Durchgänge (`hours`, `limit`, `call`) |
 | GET | `/rbn/spots`, `/rbn/status` | CW-Spots des Reverse Beacon Network der letzten 30 min (`band`, `freq_min`/`freq_max`, `call`, `cq_only`, `max_age`) / Verbindungsstatus |
+| POST | `/skimmer/start` | Contest-Skimmer auf einem Bandsegment (`band` oder `freq_low`/`freq_high`, `contest`, `max_decoders`, `record_iq`, `include_rbn`, `duration` 0 = bis Stopp) |
+| GET | `/skimmer/spots` | Spots des Skimmers, eingestuft (`band`, `priority`, `source`, `max_age`) |
+| GET / PUT | `/contest/contests`, `/contest/active` | Contest-Regeln / aktiven Contest wählen |
+| GET | `/contest/status`, `/contest/lookup` | Referenzdaten, Log, N1MM+, Cluster / ein Rufzeichen einstufen (`call`, `frequency`, `mode`) |
+| POST | `/contest/refdata/update` | cty.csv, MASTER.SCP und Most Wanted herunterladen |
+| GET / POST / DELETE | `/contest/worked`, `/contest/worked/import` | Log der gearbeiteten Stationen: Übersicht / ADIF- oder Cabrillo-Import (`text`, `replace`) / löschen |
 | POST | `/decoders/start` | ADS-B/AIS/ISM starten (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | Multi-Channel (USRP) |
 | POST | `/scan-repeaters` | Repeater-Scan (`repeater_ids` oder `band`/`canton`; `total_duration` in s oder `until_stopped`, sonst ein Durchgang) |
@@ -156,6 +162,12 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | POST | `/cw/{id}/tune` | retune the CW decoder (`channel`), e.g. to an RBN spot; no restart inside the bandwidth |
 | GET | `/cw/transmissions` | stored CW transmissions (`hours`, `limit`, `call`) |
 | GET | `/rbn/spots`, `/rbn/status` | Reverse Beacon Network CW spots of the last 30 min (`band`, `freq_min`/`freq_max`, `call`, `cq_only`, `max_age`) / connection state |
+| POST | `/skimmer/start` | contest skimmer on a band segment (`band` or `freq_low`/`freq_high`, `contest`, `max_decoders`, `record_iq`, `include_rbn`, `duration` 0 = until stopped) |
+| GET | `/skimmer/spots` | skimmer spots, classified (`band`, `priority`, `source`, `max_age`) |
+| GET / PUT | `/contest/contests`, `/contest/active` | contest rules / select the active contest |
+| GET | `/contest/status`, `/contest/lookup` | reference data, log, N1MM+, cluster / classify one callsign (`call`, `frequency`, `mode`) |
+| POST | `/contest/refdata/update` | download cty.csv, MASTER.SCP and Most Wanted |
+| GET / POST / DELETE | `/contest/worked`, `/contest/worked/import` | log of worked stations: summary / ADIF or Cabrillo import (`text`, `replace`) / clear |
 | POST | `/decoders/start` | start ADS-B/AIS/ISM (`decoder`: adsb/ais/ism) |
 | POST | `/stream/multi/start` | multi-channel (USRP) |
 | POST | `/scan-repeaters` | repeater scan (`repeater_ids` or `band`/`canton`; `total_duration` in s or `until_stopped`, otherwise one round) |

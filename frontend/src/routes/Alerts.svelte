@@ -113,8 +113,8 @@
   <div>
     <label class="label" for="asrc">{t('Quelle')}</label>
     <select id="asrc" class="input" bind:value={draft.source}>
-      {#each ['any', 'aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn'] as s (s)}<option value={s}
-          >{s === 'any' ? t('alle') : s.toUpperCase()}</option
+      {#each ['any', 'aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'skimmer'] as s (s)}<option
+          value={s}>{s === 'any' ? t('alle') : s.toUpperCase()}</option
         >{/each}
     </select>
   </div>

@@ -172,7 +172,7 @@ export interface Schedule {
   name: string;
   enabled: boolean;
   cron: string;
-  action: 'stream' | 'capture' | 'vox' | 'decoder';
+  action: 'stream' | 'capture' | 'vox' | 'decoder' | 'cw' | 'skimmer';
   params: Record<string, unknown>;
   next_run: string | null;
   last_run?: string;

@@ -103,6 +103,23 @@ RBN_SPOTTER_PREFIXES: list[str] = [] if os.getenv('RBN_SPOTTER_PREFIXES', '').st
     p.strip().upper() for p in (os.getenv('RBN_SPOTTER_PREFIXES', '').strip() or RBN_DEFAULT_PREFIXES).split(',')
     if p.strip()]
 
+# --- Contest skimmer ----------------------------------------------------------
+# cty.csv, MASTER.SCP and the Most Wanted list are cached here (works without internet).
+CONTEST_DATA_DIR: str = os.getenv('CONTEST_DATA_DIR', './data/contest')
+# Callsign the skimmer uses as spotter in its DX cluster lines ("HB9XYZ-#"); default RBN_CALLSIGN.
+SKIMMER_CALLSIGN: str = (os.getenv('SKIMMER_CALLSIGN', '').strip().upper() or RBN_CALLSIGN or 'RADIOMONI')
+# DXCC entities up to this Club Log Most Wanted rank count as rare (priority high).
+SKIMMER_RARE_RANK: int = _int('SKIMMER_RARE_RANK', 100)
+# N1MM+ UDP broadcasts (RadioInfo, contactinfo): worked log and TX blanking.
+N1MM_ENABLED: bool = _bool('N1MM_ENABLED', False)
+N1MM_PORT: int = _int('N1MM_PORT', 12060)
+# Senders allowed to feed QSOs (IP addresses or networks, comma-separated); empty = any.
+N1MM_ALLOWED: list[str] = [p.strip() for p in os.getenv('N1MM_ALLOWED', '').split(',') if p.strip()]
+# DX cluster telnet server: spots for the N1MM+ bandmap (read-only, no login check).
+CLUSTER_ENABLED: bool = _bool('CLUSTER_ENABLED', False)
+CLUSTER_PORT: int = _int('CLUSTER_PORT', 7300)
+CLUSTER_MAX_CLIENTS: int = _int('CLUSTER_MAX_CLIENTS', 20)
+
 # --- Logstash ingestion -----------------------------------------------------
 LOGSTASH_HTTP_USER: str = os.getenv('LOGSTASH_HTTP_USER', 'radio')
 LOGSTASH_HTTP_PASSWORD: str | None = os.getenv('LOGSTASH_HTTP_PASSWORD') or None

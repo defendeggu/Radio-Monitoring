@@ -1,0 +1,16 @@
+# IARU Region 1 Fieldday SSB — first full weekend of September
+id: iaru-r1-fieldday-ssb
+name: IARU Region 1 Fieldday SSB
+modes: [SSB]
+bands: [160m, 80m, 40m, 20m, 15m, 10m]
+dupe: band
+multipliers:
+  - {type: dxcc, per: band}
+highlight: [portable]
+url: https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules
+notes: >-
+  In Switzerland organised by the USKA as Field Day:
+  https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/
+assistance: >-
+  A skimmer is assistance. Check the current rules of your society and the
+  category you enter before using it.

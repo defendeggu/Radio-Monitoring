@@ -10,6 +10,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 - Seite *CW*: Morse live dekodieren (automatische Tempo- und Frequenzanpassung, Filter 100–500 Hz, Mithören), Durchgänge mit Text, Rufzeichen, Tempo und optional WAV in `radio-cw-*`, Kibana-Dashboard *RadioMoni · CW*, Alarmquelle `cw`. API: `POST /cw/start`, `POST /cw/{id}/tune`, `GET /cw/transmissions`.
 - RBN-Fenster auf der CW-Seite: Ein Klick auf einen Spot stellt den Empfänger auf dessen Frequenz (innerhalb der Bandbreite ohne Neustart) oder startet die CW-Session.
 - RTL-SDR auf Kurzwelle: unter 24 MHz automatisch Direct Sampling (`rtl_sdr -D`).
+- Seite *Contest-Skimmer*: dekodiert alle CW-Signale eines Bandsegments gleichzeitig (Signalerkennung per FFT, ein Decoder pro Signal), bestätigt Rufzeichen mehrfach und stuft sie nach Contest-Regeln ein (neuer Multiplikator, selten nach Club Log Most Wanted, doppelt). Regeln für IARU-R1-Fieldday, IARU HF Championship, CQ WW, CQ WPX und den USKA Helvetia Contest. Spots in `radio-skimmer-*` (Kibana: *RadioMoni · Contest-Skimmer*), Alarmquelle `skimmer`, Zeitplan-Aktionen `skimmer` und `cw`. Anleitung: [docs/contest.md](docs/contest.md).
+- DX-Cluster-Server (`CLUSTER_ENABLED`, TCP 7300) für die Bandmap von N1MM+; UDP-Empfänger für N1MM+ (`N1MM_ENABLED`, UDP 12060): gearbeitete QSOs live ins Log, Auswertung ausgeblendet, solange N1MM+ sendet. Log-Import aus ADIF und Cabrillo.
+- Referenzdaten cty.csv, MASTER.SCP und Club Log Most Wanted, offline zwischengespeichert (`POST /contest/refdata/update`).
+- Phase-0-Messung: IQ-Aufnahme des Segments mit RBN-Referenzspots und `python -m radiomoni.skimmer.evaluate` (Präzision und Ausbeute für CW und für SSB mit Whisper und Phonetik-Parser). Die Transkription nimmt `hotwords` an.
 - Reverse Beacon Network: CW-Spots auf Kurzwelle der letzten 30 Minuten (`GET /rbn/spots`, `/rbn/status`), als Marken im Wasserfall und als Alarmquelle `rbn`. Optional, mit eigenem Rufzeichen (`RBN_ENABLED`, `RBN_CALLSIGN`).
 
 ### Geändert

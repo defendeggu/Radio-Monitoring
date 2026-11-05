@@ -63,6 +63,23 @@ Das Fenster *RBN-Spots* auf der CW-Seite und die Spot-Marken im Wasserfall zeige
 
 Gespeichert werden nur CW-Spots auf Kurzwelle der letzten 30 Minuten, in Redis, nicht in Elasticsearch.
 
+## Contest-Skimmer
+
+Bedienung, N1MM+ und Reglement: [contest.md](contest.md). Die Ports des Clusters und des N1MM+-Empfängers sind im Compose-File immer veröffentlicht, aber es hört nur etwas zu, wenn der Dienst eingeschaltet ist.
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `SKIMMER_CALLSIGN` | `RBN_CALLSIGN` | Spotter-Rufzeichen in den Cluster-Zeilen (`HB9XYZ-#`) |
+| `SKIMMER_RARE_RANK` | `100` | DXCC-Gebiete bis zu diesem Platz der Club-Log-Most-Wanted-Liste gelten als selten |
+| `CLUSTER_ENABLED` | `false` | DX-Cluster-Server (Telnet) für die Bandmap von N1MM+ und anderen Logprogrammen; nur lesend, ohne Login-Prüfung |
+| `CLUSTER_PORT` | `7300` | Port auf dem Host |
+| `N1MM_ENABLED` | `false` | UDP-Broadcasts von N1MM+ empfangen (gearbeitete QSOs, Ausblenden beim Senden) |
+| `N1MM_PORT` | `12060` | Port auf dem Host |
+| `N1MM_ALLOWED` | – | Absender, die QSOs melden dürfen (IP oder Netz, Komma-getrennt); leer = alle |
+| `CONTEST_BIND` | `127.0.0.1` | Interface für beide Ports; `0.0.0.0` für ein Logprogramm im LAN (dann `N1MM_ALLOWED` setzen) |
+
+Die Referenzdaten (`cty.csv`, `MASTER.SCP`, Most Wanted) liegen in `/app/data/contest` im Volume `api-data`.
+
 ## Alarm-Benachrichtigungen
 
 Alle Ziele sind optional. In den Alarmregeln wählst du nur den Kanal, die Ziele selbst stehen ausschliesslich hier. So kann eine Regel den Server nicht zu beliebigen URLs schicken.
@@ -149,6 +166,23 @@ The *RBN spots* window on the CW page and the spot markers in the waterfall show
 | `RBN_SPOTTER_PREFIXES` | European prefixes | only spots from skimmers with these callsign prefixes (comma-separated), `*` = all |
 
 Only CW spots on shortwave of the last 30 minutes are kept, in Redis, not in Elasticsearch.
+
+### Contest skimmer
+
+Operation, N1MM+ and contest rules: [contest.md](contest.md#english-version). The ports of the cluster and of the N1MM+ receiver are always published in the compose file, but something listens only when the service is enabled.
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `SKIMMER_CALLSIGN` | `RBN_CALLSIGN` | spotter callsign in the cluster lines (`HB9XYZ-#`) |
+| `SKIMMER_RARE_RANK` | `100` | DXCC entities up to this rank of the Club Log Most Wanted list count as rare |
+| `CLUSTER_ENABLED` | `false` | DX cluster server (telnet) for the bandmap of N1MM+ and other loggers; read-only, no login check |
+| `CLUSTER_PORT` | `7300` | port on the host |
+| `N1MM_ENABLED` | `false` | receive the N1MM+ UDP broadcasts (worked QSOs, blanking while transmitting) |
+| `N1MM_PORT` | `12060` | port on the host |
+| `N1MM_ALLOWED` | – | senders allowed to report QSOs (IP or network, comma-separated); empty = any |
+| `CONTEST_BIND` | `127.0.0.1` | interface for both ports; `0.0.0.0` for a logger in the LAN (then set `N1MM_ALLOWED`) |
+
+The reference data (`cty.csv`, `MASTER.SCP`, Most Wanted) is kept in `/app/data/contest` in the `api-data` volume.
 
 ### Alert notifications
 

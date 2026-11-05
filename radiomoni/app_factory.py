@@ -63,6 +63,12 @@ def start_background_services() -> None:
         rbn.start_if_enabled()
     except Exception as e:
         logger.error(f"RBN client could not start: {e}", exc_info=True)
+    try:
+        from radiomoni.integrations import cluster, n1mm
+        n1mm.start_if_enabled()
+        cluster.start_if_enabled()
+    except Exception as e:
+        logger.error(f"N1MM+ listener / DX cluster could not start: {e}", exc_info=True)
 
 
 def create_app(start_background: bool = True) -> Flask:

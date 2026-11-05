@@ -32,6 +32,7 @@ INDEX_PATTERNS = {
     'ism': 'radio-ism-*',
     'alerts': 'radio-alerts-*',
     'cw': 'radio-cw-*',
+    'skimmer': 'radio-skimmer-*',
 }
 
 

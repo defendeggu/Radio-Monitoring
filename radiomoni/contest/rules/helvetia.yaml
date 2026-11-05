@@ -1,0 +1,20 @@
+# USKA Helvetia Contest — last full weekend of April, 13:00–12:59 UTC, CW, SSB and digital.
+# Rules (PDF, five languages): https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/helvetia-contest/
+# Swiss stations send their canton; the cantons as multipliers come from the exchange and
+# cannot be told from the callsign. Here: DXCC per band, Swiss stations highlighted.
+# Not checked against the current rules PDF (download is behind a bot check) — verify before use.
+id: helvetia
+name: USKA Helvetia Contest
+modes: [CW, SSB]
+bands: [160m, 80m, 40m, 20m, 15m, 10m]
+dupe: band_mode
+multipliers:
+  - {type: dxcc, per: band}
+highlight: [swiss]
+url: https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/helvetia-contest/
+notes: >-
+  Canton multipliers come from the exchange and are not detected. Check the
+  current USKA rules (multipliers, dupes, categories) before the contest.
+assistance: >-
+  Check in the current USKA rules whether your category allows spotting
+  assistance.

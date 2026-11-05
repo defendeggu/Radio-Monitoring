@@ -8,8 +8,16 @@
   export interface Marker {
     frequency: number;
     label: string;
-    kind?: 'bookmark' | 'spot';
+    kind?: 'bookmark' | 'spot' | 'mult' | 'dupe';
   }
+
+  // bookmark violet, RBN/skimmer spot amber, new multiplier or rare red, dupe grey
+  const MARKER_COLOURS: Record<NonNullable<Marker['kind']>, string> = {
+    bookmark: '#a855f7',
+    spot: '#f59e0b',
+    mult: '#ef4444',
+    dupe: '#94a3b8',
+  };
 
   let {
     channel = null,
@@ -208,7 +216,7 @@
     for (const m of markers) {
       const x = xOf(m.frequency, row);
       if (x < 0 || x > width) continue;
-      ctx.strokeStyle = m.kind === 'spot' ? '#f59e0b' : '#a855f7';
+      ctx.strokeStyle = MARKER_COLOURS[m.kind ?? 'bookmark'];
       ctx.fillStyle = ctx.strokeStyle;
       ctx.beginPath();
       ctx.moveTo(x, h - 14);

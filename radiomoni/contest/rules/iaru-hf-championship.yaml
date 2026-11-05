@@ -1,0 +1,13 @@
+# IARU HF World Championship — second full weekend of July, CW and SSB
+id: iaru-hf-championship
+name: IARU HF World Championship
+modes: [CW, SSB]
+bands: [160m, 80m, 40m, 20m, 15m, 10m]
+dupe: band_mode
+multipliers:
+  - {type: itu_zone, per: band}
+# IARU member society HQ stations are multipliers too; they cannot be told from the callsign
+url: https://www.arrl.org/iaru-hf-championship
+assistance: >-
+  Single-operator "unassisted" categories forbid spotting help. Use the
+  skimmer only in a category that allows it.

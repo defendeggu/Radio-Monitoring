@@ -14,6 +14,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **VOX-Aufnahme:** einen Kanal dauerhaft überwachen. Aufgenommen und transkribiert wird nur, wenn jemand sendet.
 - **Spektrum / Wasserfall:** Frequenzbereich live ansehen und im Browser mithören (FM, AM, SSB, CW). Gibt das SDR automatisch frei, sobald ein anderer Job startet.
 - **CW-Decoder:** Morse auf Kurzwelle live dekodieren, mit automatischer Tempo- und Frequenzanpassung. Daneben die aktuellen Spots des Reverse Beacon Network; ein Klick stellt den Empfänger auf die Station.
+- **Contest-Skimmer:** alle CW-Signale eines Bandsegments gleichzeitig dekodieren und die Rufzeichen nach Contest-Reglement einstufen (neuer Multiplikator, selten, doppelt). Meldet in die Bandmap von N1MM+ (eingebauter DX-Cluster), liest das Log live aus N1MM+ und blendet beim eigenen Senden aus. CQ WW, CQ WPX, IARU-Fieldday, IARU HF Championship, Helvetia Contest.
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
@@ -85,6 +86,7 @@ flowchart LR
 | Alle Einstellungen (`.env`) | [docs/configuration.md](docs/configuration.md) |
 | Hardware, Treiber, Fehlerbehebung | [docs/hardware.md](docs/hardware.md) |
 | Bedienung der Weboberfläche | [docs/usage.md](docs/usage.md) |
+| Contest-Skimmer, N1MM+, Reglement | [docs/contest.md](docs/contest.md) |
 | REST-API, Beispiele, Live-Events | [docs/api.md](docs/api.md) |
 | Sicherheit | [docs/security.md](docs/security.md) |
 | Elasticsearch, Kibana, Backup | [docs/elk.md](docs/elk.md) |
@@ -101,6 +103,11 @@ flowchart LR
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | Baken-Frequenzen als Testsignale auf Kurzwelle |
 | [ITU-R M.1677-1 International Morse code](https://www.itu.int/rec/R-REC-M.1677-1-200910-I/) | Morse-Tabelle und Zeitverhältnisse des CW-Decoders (Punkt : Strich = 1 : 3, Pausen 1 / 3 / 7) |
 | [Reverse Beacon Network](https://www.reversebeacon.net/) | Live-CW-Spots über Telnet (`telnet.reversebeacon.net:7000`, Login mit Rufzeichen). RBN wünscht, dass Endnutzer einen DX-Cluster mit RBN-Spots nutzen; Server einstellbar mit `RBN_HOST`/`RBN_PORT`. |
+| [Country Files / Big CTY](https://www.country-files.com/) (AD1C) | `cty.csv`: DXCC-Gebiet, Kontinent, CQ- und ITU-Zone pro Präfix für den Contest-Skimmer |
+| [Super Check Partial](https://www.supercheckpartial.com/) | `MASTER.SCP`: Rufzeichen, die in Contests aktiv sind; Plausibilitätsprüfung der Skimmer-Spots |
+| [Club Log DXCC Most Wanted](https://clublog.org/mostwanted.php) | Rangliste der gesuchtesten DXCC-Gebiete (Hinweis *RARE*) |
+| [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | Format der Pakete `RadioInfo`, `contactinfo`, `contactdelete` |
+| Ausschreibungen: [IARU-R1-Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), [USKA-Contests](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | Bänder, Multiplikatoren und Doppelte der Contest-Regeln (`radiomoni/contest/rules/`) |
 
 ## Rechtlicher Hinweis
 
@@ -124,6 +131,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **VOX recording:** monitor a channel continuously. Recording and transcription only happen while someone is transmitting.
 - **Spectrum / waterfall:** watch a frequency range live and listen in the browser (FM, AM, SSB, CW). Frees the SDR automatically as soon as another job starts.
 - **CW decoder:** decode Morse on shortwave live, with automatic speed and frequency tracking. Next to it the current spots of the Reverse Beacon Network; a click tunes the receiver to the station.
+- **Contest skimmer:** decode every CW signal of a band segment at once and classify the callsigns by the contest rules (new multiplier, rare, dupe). Reports to the N1MM+ bandmap (built-in DX cluster), reads the log live from N1MM+ and blanks while you transmit. CQ WW, CQ WPX, IARU Fieldday, IARU HF Championship, Helvetia Contest.
 - **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters
@@ -197,6 +205,7 @@ Each file is written in German first, followed by an English version.
 | All settings (`.env`) | [docs/configuration.md](docs/configuration.md#english-version) |
 | Hardware, drivers, troubleshooting | [docs/hardware.md](docs/hardware.md#english-version) |
 | Using the web interface | [docs/usage.md](docs/usage.md#english-version) |
+| Contest skimmer, N1MM+, contest rules | [docs/contest.md](docs/contest.md#english-version) |
 | REST API, examples, live events | [docs/api.md](docs/api.md#english-version) |
 | Security | [docs/security.md](docs/security.md#english-version) |
 | Elasticsearch, Kibana, backup | [docs/elk.md](docs/elk.md#english-version) |
@@ -213,6 +222,11 @@ Each file is written in German first, followed by an English version.
 | [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) | beacon frequencies as test signals on shortwave |
 | [ITU-R M.1677-1 International Morse code](https://www.itu.int/rec/R-REC-M.1677-1-200910-I/) | Morse table and timing ratios of the CW decoder (dit : dah = 1 : 3, gaps 1 / 3 / 7) |
 | [Reverse Beacon Network](https://www.reversebeacon.net/) | live CW spots via telnet (`telnet.reversebeacon.net:7000`, login with a callsign). RBN asks end users to use a DX cluster that carries RBN spots; the server is configurable with `RBN_HOST`/`RBN_PORT`. |
+| [Country Files / Big CTY](https://www.country-files.com/) (AD1C) | `cty.csv`: DXCC entity, continent, CQ and ITU zone per prefix for the contest skimmer |
+| [Super Check Partial](https://www.supercheckpartial.com/) | `MASTER.SCP`: callsigns active in contests; plausibility check of the skimmer spots |
+| [Club Log DXCC Most Wanted](https://clublog.org/mostwanted.php) | ranking of the most wanted DXCC entities (note *RARE*) |
+| [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | format of the `RadioInfo`, `contactinfo`, `contactdelete` packets |
+| Contest rules: [IARU R1 Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), [USKA contests](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | bands, multipliers and dupes of the contest rules (`radiomoni/contest/rules/`) |
 
 ### Legal notice
 

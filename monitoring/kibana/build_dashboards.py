@@ -25,7 +25,7 @@ CORE_VERSION = '8.8.0'
 CAPTURES, APRS, POCSAG, REPEATER = 'radio-captures-pattern', 'radio-aprs-pattern', 'radio-pocsag-pattern', \
     'radio-repeater-pattern'
 ADSB, AIS, ISM, ALERTS = 'radio-adsb-pattern', 'radio-ais-pattern', 'radio-ism-pattern', 'radio-alerts-pattern'
-CW = 'radio-cw-pattern'
+CW, SKIMMER = 'radio-cw-pattern', 'radio-skimmer-pattern'
 
 Obj = dict[str, Any]
 
@@ -403,9 +403,26 @@ def cw() -> list[Obj]:
     ])
 
 
+def skimmer() -> list[Obj]:
+    return dashboard('rm-dash-skimmer', 'Contest-Skimmer', 'Spots des Contest-Skimmers (Seite „Contest-Skimmer“)', [
+        [(metric('rm-sk-count', 'Spots', SKIMMER, count('Spots')), 12, 7),
+         (metric('rm-sk-calls', 'Stationen', SKIMMER, unique('callsign', 'Stationen')), 12, 7),
+         (metric('rm-sk-countries', 'Länder', SKIMMER, unique('country', 'Länder')), 12, 7),
+         (metric('rm-sk-high', 'Multis und Seltene', SKIMMER, count('Spots'), query='priority:high'), 12, 7)],
+        [(timeline('rm-sk-tl', 'Spots pro Band über die Zeit', SKIMMER, split='band'), 24, 12),
+         (bars('rm-sk-mults', 'Neue Multiplikatoren', SKIMMER, 'new_mults', 'Multiplikator', 15), 12, 12),
+         (pie('rm-sk-cont', 'Kontinent', SKIMMER, 'continent', 'Kontinent'), 12, 12)],
+        [(bars('rm-sk-top', 'Häufigste Stationen', SKIMMER, 'callsign', 'Rufzeichen', 15), 24, 12),
+         (histogram('rm-sk-speed', 'Tempo (WPM)', SKIMMER, 'wpm', 2, 'WPM'), 24, 12)],
+        [(search('rm-sk-list', 'Contest-Skimmer – Spots', SKIMMER,
+                 ['frequency_mhz', 'band', 'callsign', 'country', 'priority', 'new_mults', 'wpm', 'snr_db', 'source']),
+          48, 16)],
+    ])
+
+
 DASHBOARDS = {
     'overview': overview, 'voice': voice, 'vox': vox, 'aprs': aprs, 'pocsag': pocsag, 'adsb': adsb,
-    'ais': ais, 'ism': ism, 'repeater': repeater, 'cw': cw, 'alerts': alerts,
+    'ais': ais, 'ism': ism, 'repeater': repeater, 'cw': cw, 'skimmer': skimmer, 'alerts': alerts,
 }
 
 

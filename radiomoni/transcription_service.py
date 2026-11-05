@@ -105,7 +105,7 @@ class TranscriptionService:
 
     def transcribe(self, audio_file: str, language: Optional[str] = None, task: str = 'transcribe',
                    beam_size: int = 5, vad_filter: bool = True,
-                   initial_prompt: Optional[str] = None) -> TranscriptionResult:
+                   initial_prompt: Optional[str] = None, hotwords: Optional[str] = None) -> TranscriptionResult:
         """
         Transcribe an audio file.
 
@@ -129,6 +129,7 @@ class TranscriptionService:
             vad_filter=vad_filter,
             vad_parameters=dict(min_silence_duration_ms=500),
             initial_prompt=initial_prompt or config.WHISPER_INITIAL_PROMPT,
+            hotwords=hotwords,
         )
 
         texts: list[str] = []

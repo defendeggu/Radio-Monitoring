@@ -14,12 +14,16 @@
     capture: { mode: 'voice', frequency: 145500000, modulation: 'FM', duration: 60, gain: 20 },
     vox: { frequency: 446006250, modulation: 'FM', duration: 3600, squelch_db: 10, transcribe: true },
     decoder: { decoder: 'adsb', duration: 3600 },
+    cw: { frequency: 14025000, wpm: 25, duration: 3600 },
+    skimmer: { band: '40m', contest: 'iaru-r1-fieldday-cw', max_decoders: 24, duration: 86400 },
   };
   const ACTION_LABELS: Record<Action, () => string> = {
     stream: () => 'Streaming (APRS/POCSAG)',
     capture: () => t('Einzelaufnahme'),
     vox: () => t('VOX-Aufnahme'),
     decoder: () => 'ADS-B/AIS/ISM',
+    cw: () => 'CW',
+    skimmer: () => t('Contest-Skimmer'),
   };
 
   let schedules = $state<Schedule[]>([]);

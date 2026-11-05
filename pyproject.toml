@@ -94,5 +94,5 @@ strict_equality = true
 
 # Third-party libraries without type stubs
 [[tool.mypy.overrides]]
-module = ["faster_whisper.*", "scipy.*", "flask.*", "fakeredis.*", "pyais.*", "apscheduler.*"]
+module = ["faster_whisper.*", "scipy.*", "flask.*", "fakeredis.*", "pyais.*", "apscheduler.*", "yaml.*"]
 ignore_missing_imports = true

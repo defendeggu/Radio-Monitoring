@@ -217,6 +217,11 @@ services:
       - whisper-models:/app/models
       - api-data:/app/data
     networks: [web, backend]
+    # Contest skimmer: DX cluster for the N1MM+ bandmap (TCP) and N1MM+ broadcasts (UDP).
+    # Nothing listens unless CLUSTER_ENABLED / N1MM_ENABLED; CONTEST_BIND=0.0.0.0 for a logger in the LAN.
+    ports:
+      - "${CONTEST_BIND:-127.0.0.1}:${CLUSTER_PORT:-7300}:7300"
+      - "${CONTEST_BIND:-127.0.0.1}:${N1MM_PORT:-12060}:12060/udp"
     depends_on:
       redis:
         condition: service_healthy
@@ -255,6 +260,12 @@ services:
       - RBN_HOST=${RBN_HOST:-telnet.reversebeacon.net}
       - RBN_PORT=${RBN_PORT:-7000}
       - RBN_SPOTTER_PREFIXES=${RBN_SPOTTER_PREFIXES:-}
+      - CONTEST_DATA_DIR=/app/data/contest
+      - SKIMMER_CALLSIGN=${SKIMMER_CALLSIGN:-}
+      - SKIMMER_RARE_RANK=${SKIMMER_RARE_RANK:-100}
+      - N1MM_ENABLED=${N1MM_ENABLED:-false}
+      - N1MM_ALLOWED=${N1MM_ALLOWED:-}
+      - CLUSTER_ENABLED=${CLUSTER_ENABLED:-false}
       - NTFY_URL=${NTFY_URL:-}
       - NTFY_TOKEN=${NTFY_TOKEN:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}

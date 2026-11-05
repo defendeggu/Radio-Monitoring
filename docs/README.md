@@ -8,6 +8,7 @@
 | [configuration.md](configuration.md) | alle Einstellungen in `.env` |
 | [hardware.md](hardware.md) | SDR-Geräte, USB, PPM, Frequenzen, Fehlerbehebung |
 | [usage.md](usage.md) | Bedienung der Weboberfläche |
+| [contest.md](contest.md) | Contest-Skimmer: Einrichtung, N1MM+, Reglement, Messung (Phase 0) |
 | [api.md](api.md) | REST-API, Beispiele, Live-Events |
 | [security.md](security.md) | Sicherheitskonzept |
 | [elk.md](elk.md) | Elasticsearch, Kibana, Backup, Upgrade |
@@ -29,6 +30,7 @@ The detailed documentation is written in German first; every file has an English
 | [configuration.md](configuration.md#english-version) | all settings in `.env` |
 | [hardware.md](hardware.md#english-version) | SDR devices, USB, PPM, frequencies, troubleshooting |
 | [usage.md](usage.md#english-version) | using the web interface |
+| [contest.md](contest.md#english-version) | contest skimmer: setup, N1MM+, contest rules, evaluation (phase 0) |
 | [api.md](api.md#english-version) | REST API, examples, live events |
 | [security.md](security.md#english-version) | security concept |
 | [elk.md](elk.md#english-version) | Elasticsearch, Kibana, backup, upgrade |

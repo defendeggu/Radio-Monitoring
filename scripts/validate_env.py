@@ -71,6 +71,17 @@ def main() -> int:
         warnings.append('RECORDING_LINK_SECRET is empty — no play buttons for recordings in Kibana')
     if env.get('RBN_ENABLED', '').lower() in ('1', 'true', 'yes', 'on') and not env.get('RBN_CALLSIGN'):
         warnings.append('RBN_ENABLED is set but RBN_CALLSIGN is empty — no RBN spots')
+    on = ('1', 'true', 'yes', 'on')
+    if env.get('CLUSTER_ENABLED', '').lower() in on and not (env.get('SKIMMER_CALLSIGN') or env.get('RBN_CALLSIGN')):
+        warnings.append('CLUSTER_ENABLED without SKIMMER_CALLSIGN or RBN_CALLSIGN — spots carry "RADIOMONI-#"')
+    for entry in [e for e in env.get('N1MM_ALLOWED', '').split(',') if e.strip()]:
+        try:
+            ipaddress.ip_network(entry.strip(), strict=False)
+        except ValueError:
+            errors.append(f'N1MM_ALLOWED entry {entry!r} is not an IP address or network')
+    contest_lan = env.get('CONTEST_BIND', '127.0.0.1') not in ('127.0.0.1', 'localhost', '::1')
+    if contest_lan and env.get('N1MM_ENABLED', '').lower() in on and not env.get('N1MM_ALLOWED'):
+        warnings.append('N1MM+ port open to the LAN without N1MM_ALLOWED — anyone there can add QSOs')
     if env.get('KIBANA_BIND', '127.0.0.1') not in ('127.0.0.1', 'localhost', '::1'):
         warnings.append('Kibana is published on all interfaces (KIBANA_BIND)')
 

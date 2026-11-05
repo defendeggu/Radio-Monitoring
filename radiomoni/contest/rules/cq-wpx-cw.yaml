@@ -1,0 +1,12 @@
+# CQ WPX Contest CW — last full weekend of May
+id: cq-wpx-cw
+name: CQ WPX CW
+modes: [CW]
+bands: [160m, 80m, 40m, 20m, 15m, 10m]
+dupe: band
+multipliers:
+  - {type: wpx, per: contest}
+url: https://cqwpx.com/rules.htm
+assistance: >-
+  A local skimmer counts as assistance: allowed in assisted and multi-operator
+  categories, not in single-operator unassisted.

@@ -6,7 +6,7 @@ OpenAPI document (see api_docs.py), so validation rules and docs never drift.
 """
 
 from ipaddress import IPv4Address, IPv6Address
-from typing import Any, Literal, Optional, Union
+from typing import Annotated, Any, Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
@@ -16,7 +16,7 @@ DeviceType = Literal['auto', 'hackrf', 'rtlsdr', 'airspyhf', 'usrp']
 Modulation = Literal['FM', 'AM', 'USB', 'LSB']
 CaptureMode = Literal['voice', 'aprs', 'pocsag', 'raw']
 StreamMode = Literal['aprs', 'pocsag']
-DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'any']
+DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'skimmer', 'any']
 
 # Widest range across supported hardware; get_sdr_instance() narrows it per device.
 MIN_FREQ = 500
@@ -227,6 +227,48 @@ class ExternalDecoderRequest(StrictModel):
     duration: int = Field(3600, ge=30, le=config.MAX_STREAM_DURATION)
 
 
+HfBand = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m']
+ContestId = Annotated[str, Field(pattern=r'^[a-z0-9-]{1,40}$')]
+
+
+class SkimmerRequest(StrictModel):
+    """Contest skimmer on one band segment: decodes every CW signal and reports the callsigns."""
+    band: Optional[HfBand] = Field(None, description='CW segment of this band (IARU Region 1 band plan)')
+    freq_low: Optional[int] = Field(None, ge=1_000_000, le=30_000_000, description='Segment start in Hz')
+    freq_high: Optional[int] = Field(None, ge=1_000_000, le=30_000_000, description='Segment end in Hz')
+    mode: Literal['CW'] = Field('CW', description='CW only for now; SSB follows after the phase 0 evaluation')
+    contest: Optional[ContestId] = Field(None, description='Contest rules; empty = the active contest')
+    max_decoders: int = Field(24, ge=1, le=64, description='Signals decoded at the same time')
+    gain: int = Field(30, ge=0, le=76, description='RF gain in dB')
+    sample_rate: Optional[int] = Field(None, ge=200_000, le=10_000_000)
+    device_type: DeviceType = 'auto'
+    device_address: Optional[Union[IPv4Address, IPv6Address]] = None
+    record_iq: bool = Field(False, description='Record the segment IQ (WAV) plus RBN reference spots')
+    include_rbn: bool = Field(False, description='Forward RBN spots of the contest bands too (assistance!)')
+    duration: int = Field(0, ge=0, le=259_200, description='Seconds; 0 = until stopped')
+
+    @model_validator(mode='after')
+    def _segment(self) -> 'SkimmerRequest':
+        if self.band is None and (self.freq_low is None or self.freq_high is None):
+            raise ValueError('band or freq_low and freq_high required')
+        if self.freq_low is not None and self.freq_high is not None:
+            width = self.freq_high - self.freq_low
+            if not 5_000 <= width <= 700_000:
+                raise ValueError('segment must be 5–700 kHz wide')
+        if self.device_type == 'usrp' and self.device_address is None:
+            raise ValueError('USRP N200 requires device_address (IP address)')
+        return self
+
+
+class ContestActiveRequest(StrictModel):
+    contest: ContestId
+
+
+class WorkedImportRequest(StrictModel):
+    text: str = Field(..., min_length=1, max_length=900_000, description='ADIF or Cabrillo log')
+    replace: bool = Field(True, description='Replace the current log instead of adding to it')
+
+
 class BookmarkModel(StrictModel):
     name: str = Field(..., min_length=1, max_length=80)
     frequency: int = Field(..., ge=MIN_FREQ, le=MAX_FREQ)
@@ -268,7 +310,7 @@ class ScheduleModel(StrictModel):
     name: str = Field(..., min_length=1, max_length=80)
     enabled: bool = True
     cron: str = Field(..., max_length=100, description='Cron expression: "minute hour day month weekday"')
-    action: Literal['stream', 'capture', 'vox', 'decoder']
+    action: Literal['stream', 'capture', 'vox', 'decoder', 'cw', 'skimmer']
     params: dict[str, Any]
 
     @field_validator('cron')
@@ -293,6 +335,8 @@ ACTION_MODELS: dict[str, type[StrictModel]] = {
     'capture': CaptureRequest,
     'vox': VoxRequest,
     'decoder': ExternalDecoderRequest,
+    'cw': CwRequest,
+    'skimmer': SkimmerRequest,
 }
 
 
@@ -314,6 +358,20 @@ class RbnSpotsQuery(QueryModel):
     max_age: int = Field(30, ge=1, le=30, description='Minutes')
     cq_only: bool = False
     limit: int = Field(200, ge=1, le=1000)
+
+
+class SkimmerSpotsQuery(QueryModel):
+    band: Optional[HfBand] = None
+    priority: Optional[Literal['high', 'normal', 'dupe']] = None
+    source: Optional[Literal['skimmer', 'rbn']] = None
+    max_age: int = Field(30, ge=1, le=60, description='Minutes')
+    limit: int = Field(300, ge=1, le=1000)
+
+
+class LookupQuery(QueryModel):
+    call: str = Field(..., min_length=3, max_length=14, pattern=r'^[A-Za-z0-9/]+$')
+    frequency: int = Field(14_025_000, ge=1_000_000, le=30_000_000)
+    mode: Literal['CW', 'SSB'] = 'CW'
 
 
 class CwSearchQuery(HoursLimitQuery):

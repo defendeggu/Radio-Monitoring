@@ -39,6 +39,10 @@ Morse live dekodieren, gedacht für Kurzwelle (passendes SDR und Antenne siehe [
 
 Zuverlässig dekodiert wird ab etwa 10 dB Signal-Rausch-Abstand im Decoder-Filter und bis etwa 30 WPM. Schwächere Signale ergeben einzelne falsche Zeichen, im reinen Rauschen erscheinen gelegentlich `E` und `T`.
 
+## Contest-Skimmer
+
+Alle CW-Signale eines Bandsegments gleichzeitig dekodieren. Die Rufzeichen werden gegen das Contest-Reglement und das eigene Log eingestuft und als Spots gemeldet: in der Liste, im Wasserfall, als Alarm und über einen DX-Cluster in die Bandmap von N1MM+. Contest wählen, Band antippen, *Skimmer starten*. Rote Spots sind neue Multiplikatoren oder seltene Stationen, graue Doppelte. Ein Klick öffnet die CW-Seite auf der Frequenz. Einrichtung, Reglement und Schutz des SDR vor dem eigenen Sender: [contest.md](contest.md).
+
 ## Sprache
 
 Einzelaufnahme mit anschliessender Whisper-Transkription.
@@ -168,6 +172,10 @@ Decode Morse live, meant for shortwave (suitable SDR and antenna see [hardware.m
 5. A click in the small waterfall also retunes; the NCDXF beacons are marked as test signals.
 
 Decoding is reliable from about 10 dB signal-to-noise ratio in the decoder filter and up to about 30 WPM. Weaker signals give single wrong characters; pure noise occasionally shows `E` and `T`.
+
+### Contest skimmer
+
+Decode every CW signal of a band segment at once. The callsigns are classified against the contest rules and your log and reported as spots: in the list, in the waterfall, as an alert and through a DX cluster to the N1MM+ bandmap. Select the contest, pick the band, *Start skimmer*. Red spots are new multipliers or rare stations, grey ones dupes. A click opens the CW page on the frequency. Setup, contest rules and protecting the SDR from your own transmitter: [contest.md](contest.md#english-version).
 
 ### Voice
 

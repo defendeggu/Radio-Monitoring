@@ -29,6 +29,9 @@ os.environ.update({
     'PROXY_COUNT': '0',
     'RBN_ENABLED': 'false',           # a local .env must not connect the tests to RBN
     'RBN_CALLSIGN': '',
+    'N1MM_ENABLED': 'false',
+    'CLUSTER_ENABLED': 'false',
+    'CONTEST_DATA_DIR': os.path.join(_TEST_DIR, 'contest'),
 })
 
 from radiomoni.api_service import app  # noqa: E402
@@ -122,9 +125,10 @@ def mock_sdr_hardware(monkeypatch):
     from radiomoni.decoders import cw
     from radiomoni.decoders import spectrum
     from radiomoni.decoders import vox
+    from radiomoni.skimmer import session as skimmer_session
 
     detect = lambda *args, **kwargs: SDRType.HACKRF  # noqa: E731
-    for module in (sdr_hardware, jobs, streaming, vox, spectrum, cw):
+    for module in (sdr_hardware, jobs, streaming, vox, spectrum, cw, skimmer_session):
         monkeypatch.setattr(module, 'detect_sdr', detect)
     import radiomoni.blueprints.sdr
     monkeypatch.setattr(radiomoni.blueprints.sdr, 'detect_sdr', detect)
