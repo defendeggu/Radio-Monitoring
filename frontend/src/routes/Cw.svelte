@@ -3,6 +3,7 @@
   import { Headphones, Play, VolumeX } from '@lucide/svelte';
   import { api } from '../lib/api';
   import { CW_BANDS, NCDXF_BEACONS, cwBandOf, type Band } from '../lib/bands';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
@@ -43,6 +44,7 @@
 
   let frequency = $state(Number(router.params.get('f')) || 14_025_000);
   let gain = $state(30);
+  let deviceId = $state(''); // SDR for this start ('' = from the settings)
   let wpm = $state(20);
   let bandwidth = $state(200);
   let tone = $state(700);
@@ -142,7 +144,7 @@
         tone_hz: tone,
         record,
         duration: Math.round(hours * 3600),
-        ...settings.deviceParams(),
+        ...settings.deviceParams(deviceId),
       });
       frequency = at;
       attach(r.session_id);
@@ -171,7 +173,7 @@
   /** Stop the job holding the SDR (after asking) so the CW decoder can start. */
   async function freeSdr(): Promise<boolean> {
     await sdr.refresh();
-    if (!sdr.busy) return true;
+    if (!sdr.busyFor(deviceId)) return true;
     const kind = sdr.status?.holder?.kind ?? '?';
     const blocking = sdr.status?.active_sessions.filter((s) => s.mode !== 'spectrum') ?? [];
     if (!blocking.length) {
@@ -187,7 +189,7 @@
     for (let i = 0; i < 40; i++) {
       await new Promise((r) => setTimeout(r, 500));
       await sdr.refresh();
-      if (!sdr.busy) return true;
+      if (!sdr.busyFor(deviceId)) return true;
     }
     toasts.push(t('Das SDR wurde nicht rechtzeitig frei.'), 'error');
     return false;
@@ -254,6 +256,7 @@
       >
         <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <FrequencyField bind:value={frequency} />
+          <DeviceSelect bind:value={deviceId} />
           <div>
             <label class="label" for="cgain">{t('Verstärkung (dB)')}</label>
             <input id="cgain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -284,7 +287,7 @@
             {t('Durchgänge als WAV speichern')}
           </label>
         </div>
-        <button class="btn-primary" type="submit" disabled={busy || sdr.busy}
+        <button class="btn-primary" type="submit" disabled={busy || sdr.busyFor(deviceId)}
           ><Play size={16} /> {t('CW-Decoder starten')}</button
         >
       </form>

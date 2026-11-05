@@ -11,6 +11,8 @@ Unten links in der Seitenleiste siehst du den SDR-Status:
 
 Daneben steht der Zustand der Live-Verbindung (● live).
 
+Mit mehreren SDRs zeigt die Seitenleiste jedes Gerät mit seinem Zustand, und jede Startseite bekommt die Auswahl *SDR*. Jobs auf verschiedenen Geräten laufen gleichzeitig. Auf der Seite *Contest-Skimmer* stehen laufende Skimmer als Reiter, *Weiteren Skimmer starten* öffnet das Formular für das nächste Gerät (siehe [hardware.md](hardware.md#mehrere-sdrs-gleichzeitig)).
+
 ## Dashboard
 
 Kennzahlen pro Betriebsart, Aktivität pro Stunde, SDR-Status, die letzten Alarme und APRS-Pakete sowie ein Live-Feed aller Ereignisse. Den Zeitraum stellst du oben rechts ein (6 h bis 7 Tage).
@@ -144,6 +146,8 @@ At the bottom left of the sidebar you see the SDR status:
 - red: API not reachable or key missing
 
 Next to it is the state of the live connection (● live).
+
+With several SDRs the sidebar shows every device with its state, and every start page gets a *SDR* selection. Jobs on different devices run at the same time. On the *Contest skimmer* page running skimmers appear as tabs; *Start another skimmer* opens the form for the next device (see [hardware.md](hardware.md#several-sdrs-at-the-same-time)).
 
 ### Dashboard
 

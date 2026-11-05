@@ -9,15 +9,17 @@
 
   let dialog: HTMLDialogElement;
   let key = $state(settings.apiKey);
-  let device = $state<DeviceType>(settings.deviceType);
+  // a device type ('auto', 'hackrf' …) or one specific SDR ('dev:<id>')
+  let device = $state<string>(settings.deviceId ? `dev:${settings.deviceId}` : settings.deviceType);
   let address = $state(settings.usrpAddress);
   let testing = $state(false);
 
   $effect(() => {
     if (open && !dialog.open) {
       key = settings.apiKey;
-      device = settings.deviceType;
+      device = settings.deviceId ? `dev:${settings.deviceId}` : settings.deviceType;
       address = settings.usrpAddress;
+      void sdr.refresh();
       dialog.showModal();
     } else if (!open && dialog.open) {
       dialog.close();
@@ -30,7 +32,8 @@
 
   async function saveAndTest() {
     settings.setApiKey(key);
-    settings.setDevice(device, address.trim());
+    if (device.startsWith('dev:')) settings.setDevice('auto', address.trim(), device.slice(4));
+    else settings.setDevice(device as DeviceType, address.trim());
     testing = true;
     try {
       await api.get('/stats');
@@ -92,6 +95,11 @@
         <label class="label" for="device">{t('SDR-Gerät')}</label>
         <select id="device" class="input" bind:value={device}>
           <option value="auto">{t('Automatisch erkennen')}</option>
+          {#if sdr.devices.length > 1}
+            <optgroup label={t('Angeschlossene SDRs')}>
+              {#each sdr.devices as d (d.id)}<option value={`dev:${d.id}`}>{d.label} ({d.id})</option>{/each}
+            </optgroup>
+          {/if}
           <option value="hackrf">HackRF One</option>
           <option value="rtlsdr">RTL-SDR</option>
           <option value="airspyhf">Airspy HF+</option>

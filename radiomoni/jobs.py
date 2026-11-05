@@ -23,7 +23,8 @@ from radiomoni.redis_client import get_redis
 from radiomoni.repeater_activity_analyzer import RepeaterActivityAnalyzer
 from radiomoni.scan_session_manager import RepeaterScanSession, get_scan_session_manager
 from radiomoni.schemas import CaptureRequest, RepeaterScanRequest
-from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
+from radiomoni.devices import Device, NoSdrError, resolve as resolve_device
+from radiomoni.sdr_hardware import SDRType, get_sdr_instance
 from radiomoni import sdr_lock
 from radiomoni.sdr_lock import SdrLease
 from radiomoni.services import (ensure_disk_space, get_aprs_decoder, get_pocsag_decoder,
@@ -75,12 +76,15 @@ def build_capture_doc(req: CaptureRequest, audio_file: str, sdr_type: SDRType, t
     }
 
 
+# command line tool per SDR type (for the device selector; rtl_fm takes the same -d as rtl_sdr)
+_IQ_TOOLS = {SDRType.HACKRF: 'hackrf_transfer', SDRType.RTLSDR: 'rtl_sdr'}
+
+
 def submit_capture(req: CaptureRequest) -> str:
     """Validate hardware, take the SDR lease and queue the capture. Returns capture_id."""
     ensure_disk_space()
-    sdr_type = detect_sdr(preferred_type=req.device_type, device_address=req.device_address_str)
-    if sdr_type == SDRType.UNKNOWN:
-        raise RuntimeError('No SDR hardware detected')
+    device = resolve_device(req.device_type, req.device_address_str, req.device_id)
+    sdr_type = device.type
 
     # APRS/POCSAG only need a narrow band; RTL-SDR copes better with a low rate.
     if req.mode in ('aprs', 'pocsag') and sdr_type == SDRType.RTLSDR:
@@ -90,22 +94,23 @@ def submit_capture(req: CaptureRequest) -> str:
 
     # Validates frequency/sample rate for the detected device (raises ValueError)
     get_sdr_instance(frequency=req.frequency, sample_rate=req.sample_rate, gain=req.gain,
-                     sdr_type=sdr_type, device_address=req.device_address_str)
+                     sdr_type=sdr_type, device_address=device.address or req.device_address_str)
 
     capture_id = str(uuid.uuid4())
     lease = SdrLease(f"capture:{capture_id}", 'capture',
-                     {'mode': req.mode, 'frequency': req.frequency}).acquire()
+                     {'mode': req.mode, 'frequency': req.frequency}, device_id=device.id).acquire()
     save_capture_session(capture_id, {'capture_id': capture_id, 'status': 'queued', 'mode': req.mode,
                                       'created_at': _utcnow(), 'result': None, 'error': None})
     try:
-        capture_pool.submit(_capture_worker, capture_id, req, sdr_type, lease)
+        capture_pool.submit(_capture_worker, capture_id, req, device, lease)
     except Exception:
         lease.release()
         raise
     return capture_id
 
 
-def _capture_worker(capture_id: str, req: CaptureRequest, sdr_type: SDRType, lease: SdrLease) -> None:
+def _capture_worker(capture_id: str, req: CaptureRequest, device: Device, lease: SdrLease) -> None:
+    sdr_type = device.type
     created_at = _utcnow()
     timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
     base = os.path.join(recording_dir(), f"capture_{timestamp}_{capture_id[:8]}")
@@ -118,7 +123,8 @@ def _capture_worker(capture_id: str, req: CaptureRequest, sdr_type: SDRType, lea
     try:
         update('capturing')
         sdr = get_sdr_instance(frequency=req.frequency, sample_rate=req.sample_rate, gain=req.gain,
-                               sdr_type=sdr_type, device_address=req.device_address_str)
+                               sdr_type=sdr_type, device_address=device.address or req.device_address_str,
+                               device_args=device.args(_IQ_TOOLS.get(sdr_type, '')))
         sdr.capture_audio(req.duration, audio_file, req.modulation)
         update('processing')
         lease.release()  # the SDR is free again; decoding only needs the file
@@ -219,7 +225,13 @@ def submit_repeater_scan(req: RepeaterScanRequest) -> dict[str, Any]:
 
     manager = get_scan_session_manager()
     session_id = manager.get_next_session_id()
-    lease = SdrLease(f"scan:{session_id}", 'repeater_scan', {'repeaters': len(repeaters)}).acquire()
+    device: Optional[Device] = None
+    try:
+        device = resolve_device(req.device_type, None, req.device_id)
+    except NoSdrError:
+        pass                        # as before: the scan reports the missing SDR per repeater
+    lease = SdrLease(f"scan:{session_id}", 'repeater_scan', {'repeaters': len(repeaters)},
+                     device_id=device.id if device else None).acquire()
     session = RepeaterScanSession(session_id=session_id, repeaters_total=len(repeaters),
                                   duration_per_repeater=req.duration_per_repeater,
                                   sample_rate=req.sample_rate, gain=req.gain,
@@ -227,7 +239,7 @@ def submit_repeater_scan(req: RepeaterScanRequest) -> dict[str, Any]:
     manager.save_session(session)
     try:
         scan_pool.submit(scan_repeaters_worker, session_id, repeaters, req.duration_per_repeater,
-                         req.sample_rate, req.gain, lease, req.total_duration, req.until_stopped)
+                         req.sample_rate, req.gain, lease, req.total_duration, req.until_stopped, device)
     except Exception:
         lease.release()
         raise
@@ -244,15 +256,16 @@ def stop_repeater_scan(session_id: int) -> bool:
     if session is None or session.status != 'in_progress':
         return False
     manager.request_stop(session_id)
-    holder = sdr_lock.current_holder()
-    if holder and holder.get('owner') == f"scan:{session_id}":
+    holder = sdr_lock.find_holder(f"scan:{session_id}")
+    if holder:
         from radiomoni.blueprints.sdr import kill_sdr_processes
-        kill_sdr_processes()  # the capture of the current repeater ends now instead of after its duration
+        # the capture of the current repeater ends now instead of after its duration
+        kill_sdr_processes(holder.get('device_id'))
     return True
 
 
 def _measure_repeater(repeater: dict[str, Any], session_id: int, scan_duration: int, sample_rate: int,
-                      gain: int, sdr_type: SDRType, analyzer: RepeaterActivityAnalyzer) -> dict[str, Any]:
+                      gain: int, device: Device, analyzer: RepeaterActivityAnalyzer) -> dict[str, Any]:
     """Record one repeater, analyse the carrier activity and store capture and metrics."""
     storage = get_storage()
     frequency = int(repeater['output_frequency'])
@@ -262,7 +275,8 @@ def _measure_repeater(repeater: dict[str, Any], session_id: int, scan_duration: 
                            f"repeater_scan_{safe_call}_{datetime.now(timezone.utc):%Y%m%d_%H%M%S}.iq")
     try:
         scan_start = datetime.now(timezone.utc)
-        sdr = get_sdr_instance(frequency=frequency, sample_rate=sample_rate, gain=gain, sdr_type=sdr_type)
+        sdr = get_sdr_instance(frequency=frequency, sample_rate=sample_rate, gain=gain, sdr_type=device.type,
+                               device_address=device.address, device_args=device.args(_IQ_TOOLS.get(device.type, '')))
         sdr.capture_iq(scan_duration, iq_file)
         metrics = analyzer.analyze_iq_file(iq_file)
         m = metrics.to_dict()
@@ -270,7 +284,7 @@ def _measure_repeater(repeater: dict[str, Any], session_id: int, scan_duration: 
         _store_capture({
             'uuid': capture_uuid, 'created_at': _utcnow(), 'frequency': frequency, 'modulation': 'FM',
             'duration_seconds': scan_duration, 'rf_gain': gain, 'sample_rate': sample_rate,
-            'sdr_type': sdr_type.value, 'mode': 'repeater_scan',
+            'sdr_type': device.type.value, 'mode': 'repeater_scan',
             'metadata': {'type': 'repeater_scan', 'session_id': session_id}})
         # metrics are stored flat (summary aggregations) and nested (details)
         storage.index_repeater_activity({
@@ -318,11 +332,16 @@ def _add_to_summary(summary: dict[str, dict[str, Any]], repeater: dict[str, Any]
 
 def scan_repeaters_worker(session_id: int, repeaters: list[dict[str, Any]], scan_duration: int,
                           sample_rate: int, gain: int, lease: Optional[SdrLease] = None,
-                          total_duration: Optional[int] = None, until_stopped: bool = False) -> None:
+                          total_duration: Optional[int] = None, until_stopped: bool = False,
+                          device: Optional[Device] = None) -> None:
     """Scan the repeaters in rounds: once, until total_duration has passed, or until stopped."""
     manager = get_scan_session_manager()
     analyzer = RepeaterActivityAnalyzer(sample_rate=sample_rate)
-    sdr_type = detect_sdr()
+    if device is None:
+        try:
+            device = resolve_device('auto')
+        except NoSdrError:
+            device = Device(id='default', type=SDRType.UNKNOWN)
     started = time.monotonic()
     deadline = started + total_duration if total_duration else None
     looping = until_stopped or deadline is not None
@@ -357,7 +376,7 @@ def scan_repeaters_worker(session_id: int, repeaters: list[dict[str, Any]], scan
                                         'round': round_no, 'callsign': callsign})
                 try:
                     metrics = _measure_repeater(repeater, session_id, scan_duration, sample_rate, gain,
-                                                sdr_type, analyzer)
+                                                device, analyzer)
                     _add_to_summary(summary, repeater, metrics, None)
                 except Exception as e:
                     if manager.stop_requested(session_id):  # capture aborted by the stop request
@@ -403,7 +422,9 @@ def start_stream_session(decoder: Any, mode: str, frequency: int, sample_rate: i
     """Take the SDR lease, create the session and start the decoder thread."""
     from radiomoni.session_store import session_manager
 
-    lease = SdrLease(f"stream:{uuid.uuid4()}", mode, {'frequency': frequency}).acquire()
+    device = getattr(decoder, 'device', None)
+    lease = SdrLease(f"stream:{uuid.uuid4()}", mode, {'frequency': frequency},
+                     device_id=device.id if device is not None else None).acquire()
     try:
         session_id: str = session_manager.create_session(decoder_type=mode, decoder=decoder, frequency=frequency,
                                                          sample_rate=sample_rate, gain=gain)

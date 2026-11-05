@@ -18,6 +18,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
+- **Mehrere SDRs gleichzeitig:** jedes Gerät mit eigener Sperre, z. B. APRS am HackRF und AIS am RTL-SDR parallel
 - **Multi-Channel (USRP N200):** bis zu 8 Kanäle aus einem Breitband-Strom gleichzeitig dekodieren
 - **Alarme:** Rufzeichen, Pager-Adressen oder Stichworte melden, per ntfy, Telegram, Webhook oder E-Mail
 - **Zeitpläne, Lesezeichen, Export:** Cron-Jobs, Frequenz-Presets, CSV/GeoJSON/KML/ZIP
@@ -139,6 +140,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters
+- **Several SDRs at once:** every device has its own lock, e.g. APRS on the HackRF and AIS on the RTL-SDR in parallel
 - **Multi-channel (USRP N200):** decode up to 8 channels simultaneously from one wideband stream
 - **Alerts:** report callsigns, pager addresses or keywords via ntfy, Telegram, webhook or e-mail
 - **Schedules, bookmarks, export:** cron jobs, frequency presets, CSV/GeoJSON/KML/ZIP

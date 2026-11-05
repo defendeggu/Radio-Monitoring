@@ -33,10 +33,10 @@ def _handle_control(message: dict[str, Any]) -> None:
     if command == 'stop' and message.get('session_id'):
         stop_session(str(message['session_id']))
     elif command == 'stop_all':
-        stop_all_local_decoders()
+        stop_all_local_decoders(message.get('device_id'))
     elif command == 'preempt':
         from radiomoni.decoders.spectrum import preempt_local
-        preempt_local(str(message.get('by') or 'another job'))
+        preempt_local(str(message.get('by') or 'another job'), message.get('owner'))
     elif command == 'tune' and message.get('session_id'):
         from radiomoni.session_store import session_manager
         decoder = session_manager.get_decoder(str(message['session_id']))

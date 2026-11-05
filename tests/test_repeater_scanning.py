@@ -407,7 +407,9 @@ class TestRepeaterScanningAPI:
         from radiomoni.repeater_activity_analyzer import ActivityMetrics
         from radiomoni.sdr_hardware import SDRType
 
-        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
+        from radiomoni import devices
+        monkeypatch.setattr(devices, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
+        devices.clear_cache()
         monkeypatch.setattr(jobs.RepeaterActivityAnalyzer, 'analyze_iq_file', lambda self, path: ActivityMetrics(
             carrier_detected=True, transmission_count=2, total_active_seconds=3.0, activity_percentage=30.0,
             average_signal_strength=-40.0, peak_signal_strength=-30.0, noise_floor=-80.0))
@@ -615,7 +617,9 @@ class TestScanRounds:
         clock = {'now': 0.0}
         calls: list[str] = []
         monkeypatch.setattr(jobs, 'time', types.SimpleNamespace(monotonic=lambda: clock['now']))
-        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: jobs.SDRType.HACKRF)
+        from radiomoni import devices
+        monkeypatch.setattr(devices, 'detect_sdr', lambda *a, **k: jobs.SDRType.HACKRF)
+        devices.clear_cache()
 
         def run(duration=60, total_duration=None, until_stopped=False, on_measure=None):
             session_id = manager.get_next_session_id()
@@ -703,7 +707,7 @@ class TestScanRoundsAPI:
         assert r.status_code == 200
         assert r.get_json()['estimated_duration_seconds'] is None
         session_id = r.get_json()['session_id']
-        assert no_worker[0][-2:] == (None, True)
+        assert no_worker[0][-3:-1] == (None, True)          # total_duration, until_stopped (then the device)
 
         progress = client.get(f'/scan-repeaters/{session_id}/progress').get_json()['progress']
         assert progress['until_stopped'] is True and progress['estimated_remaining_seconds'] is None

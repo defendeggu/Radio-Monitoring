@@ -77,6 +77,17 @@ def _update_status(schedule_id: str, status: str, detail: Optional[dict[str, Any
 
 
 # ----------------------------------------------------------------- execution
+def _schedule_device(params: dict[str, Any]) -> Optional[str]:
+    """Lock id of the device a schedule runs on (None = default device)."""
+    if not (params.get('device_id') or params.get('device_type') not in (None, 'auto')):
+        return None
+    from radiomoni.devices import resolve
+    try:
+        return resolve(params.get('device_type'), params.get('device_address'), params.get('device_id')).id
+    except (ValueError, RuntimeError):
+        return None
+
+
 def run_schedule(schedule_id: str, fire_key: Optional[str] = None, wait: float = 60) -> dict[str, Any]:
     """Execute a schedule now (waiting up to `wait` s for a busy SDR). Returns {'status': ..., ...}."""
     from radiomoni.actions import run_action
@@ -87,7 +98,7 @@ def run_schedule(schedule_id: str, fire_key: Optional[str] = None, wait: float =
         return {'status': 'missing'}
     if fire_key and not get_redis().set(f"schedule_run:{schedule_id}:{fire_key}", '1', nx=True, ex=3600):
         return {'status': 'duplicate'}
-    if not wait_until_free(wait):
+    if not wait_until_free(wait, _schedule_device(item.get('params') or {})):
         _update_status(schedule_id, 'skipped', {'reason': 'SDR busy'})
         events.publish('schedule', {'id': schedule_id, 'name': item.get('name'), 'status': 'skipped'})
         return {'status': 'skipped', 'reason': 'SDR busy'}

@@ -103,6 +103,10 @@ RBN_SPOTTER_PREFIXES: list[str] = [] if os.getenv('RBN_SPOTTER_PREFIXES', '').st
     p.strip().upper() for p in (os.getenv('RBN_SPOTTER_PREFIXES', '').strip() or RBN_DEFAULT_PREFIXES).split(',')
     if p.strip()]
 
+# --- SDR devices ------------------------------------------------------------------
+# USB devices are listed from sysfs (no device is opened); overridable for tests.
+SYSFS_USB_ROOT: str = os.getenv('SYSFS_USB_ROOT', '/sys/bus/usb/devices')
+
 # --- Contest skimmer ----------------------------------------------------------
 # cty.csv, MASTER.SCP and the Most Wanted list are cached here (works without internet).
 CONTEST_DATA_DIR: str = os.getenv('CONTEST_DATA_DIR', './data/contest')

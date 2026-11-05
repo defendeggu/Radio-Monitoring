@@ -39,3 +39,6 @@ frontend/test-results/
 .claude/
 claude.md
 CLAUDE.md
+
+# Persönlicher Blogbeitrag (nicht versionieren)
+docs/radiomoni-blogbeitrag.md

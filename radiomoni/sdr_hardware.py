@@ -73,6 +73,7 @@ class SDRCapture(ABC):
         self.sample_rate = sample_rate
         self.gain = gain
         self.audio_sample_rate = 16000  # For Whisper compatibility
+        self.device_args: list[str] = []  # device selector (-d …) when several SDRs of a type are connected
         self.logger = logging.getLogger(self.__class__.__name__)
 
     @abstractmethod
@@ -227,6 +228,7 @@ class HackRFCapture(SDRCapture):
             # HackRF capture command
             cmd = [
                 'hackrf_transfer',
+                *self.device_args,
                 '-r', raw_file,
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
@@ -344,6 +346,7 @@ class RTLSDRCapture(SDRCapture):
             # RTL-SDR capture command
             cmd = [
                 'rtl_sdr',
+                *self.device_args,
                 *rtlsdr_direct_sampling(self.frequency),
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
@@ -428,6 +431,7 @@ class RTLSDRCapture(SDRCapture):
             cmd = [
                 'timeout', str(duration + 5),  # Add timeout wrapper
                 'rtl_fm',
+                *self.device_args,
                 '-f', str(int(self.frequency)),
                 '-s', str(200000),  # 200kHz for FM broadcast
                 '-g', str(self.gain),
@@ -740,7 +744,8 @@ def detect_sdr(preferred_type: Optional[str] = None,
 
 def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 20,
                      sdr_type: Optional[SDRType] = None,
-                     device_address: Optional[str] = None) -> SDRCapture:
+                     device_address: Optional[str] = None,
+                     device_args: Optional[list[str]] = None) -> SDRCapture:
     """
     Factory function to get appropriate SDR instance with validation
 
@@ -750,6 +755,7 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
         gain: RF gain in dB
         sdr_type: Force specific SDR type (optional, auto-detect if None)
         device_address: IP address for USRP N200 (required when sdr_type=USRP)
+        device_args: device selector for the tools (radiomoni.devices.Device.args)
 
     Returns:
         SDRCapture instance
@@ -812,6 +818,7 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
         )
         instance.sample_rate = max_rate
 
+    instance.device_args = list(device_args or [])
     return instance
 
 

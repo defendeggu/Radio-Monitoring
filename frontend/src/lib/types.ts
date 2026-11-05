@@ -16,6 +16,19 @@ export interface LockHolder {
   kind: string;
   since: string;
   details: Record<string, unknown>;
+  device_id?: string;
+}
+
+/** One SDR with its own lock (GET /sdr/devices, /sdr/status devices). */
+export interface SdrDevice {
+  id: string;
+  type: string;
+  label: string;
+  serial?: string | null;
+  busy: boolean;
+  preemptible: boolean;
+  holder: LockHolder | null;
+  sessions: string[];
 }
 
 export interface StreamSession {
@@ -32,6 +45,8 @@ export interface StreamSession {
   last_packet_time: string | null;
   error: string | null;
   channel_configs?: { mode: string; frequency: number; label: string }[] | null;
+  device_id?: string | null;
+  device_label?: string | null;
 }
 
 export interface SdrStatus {
@@ -40,6 +55,9 @@ export interface SdrStatus {
   preemptible?: boolean;
   holder: LockHolder | null;
   active_sessions: StreamSession[];
+  /** every connected SDR (several can run jobs at the same time) */
+  devices?: SdrDevice[];
+  default_device?: string;
 }
 
 export interface CaptureJob {

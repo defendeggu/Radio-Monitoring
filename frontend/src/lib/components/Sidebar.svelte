@@ -14,6 +14,10 @@
   const sdrText = $derived.by(() => {
     if (!sdr.apiReachable) return t('API nicht erreichbar');
     if (sdr.authRequired) return t('API-Key erforderlich');
+    if (sdr.devices.length > 1) {
+      const busy = sdr.devices.filter((d) => d.busy && !d.preemptible).length;
+      return t('{n} SDRs, {b} belegt', { n: sdr.devices.length, b: busy });
+    }
     if (sdr.status?.busy && sdr.status.preemptible) return t('Wasserfall — frei für Jobs');
     if (sdr.status?.busy) return t('Belegt: {kind}', { kind: sdr.status.holder?.kind });
     if (sdr.detect && !sdr.detect.detected) return t('Kein SDR erkannt');
@@ -42,7 +46,7 @@
     {#if !collapsed}
       <div>
         <div class="text-sm leading-tight font-semibold">RadioMoni</div>
-        <div class="text-xs text-slate-500">v4.0</div>
+        <div class="text-xs text-slate-500">v{__APP_VERSION__}</div>
       </div>
     {/if}
   </div>
@@ -91,6 +95,26 @@
         >
       {/if}
     </button>
+    {#if !collapsed && sdr.devices.length > 1}
+      <ul class="space-y-0.5 px-1 text-[11px] text-slate-500" aria-label={t('SDR-Geräte')}>
+        {#each sdr.devices as d (d.id)}
+          <li
+            class="flex items-center gap-1.5"
+            title={d.holder ? `${d.holder.kind} (${d.holder.owner})` : d.id}
+          >
+            <span
+              class="h-1.5 w-1.5 shrink-0 rounded-full {d.busy
+                ? d.preemptible
+                  ? 'bg-sky-500'
+                  : 'bg-amber-500'
+                : 'bg-emerald-500'}"
+            ></span>
+            <span class="truncate">{d.label}</span>
+            <span class="ml-auto">{d.busy ? (d.holder?.kind ?? t('belegt')) : t('frei')}</span>
+          </li>
+        {/each}
+      </ul>
+    {/if}
     <div class="flex gap-2 {collapsed ? 'flex-col' : ''}">
       <button
         class="btn-secondary flex-1 !px-2 !py-1.5 text-xs"

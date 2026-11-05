@@ -3,6 +3,7 @@
   import { AudioWaveform, Headphones, Mic, Play, Radio, VolumeX } from '@lucide/svelte';
   import { api } from '../lib/api';
   import { CW_BANDS, VHF_BANDS, centreOf, type Band } from '../lib/bands';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import SessionCard from '../lib/components/SessionCard.svelte';
@@ -35,6 +36,7 @@
   let centre = $state(Number(router.params.get('f')) || 145_500_000);
   let span = $state(2_000_000);
   let gain = $state(30);
+  let deviceId = $state(''); // SDR for this start ('' = from the settings)
   let fftSize = $state(2048);
   let colours = $state<ColormapName>('classic');
   let auto = $state(true);
@@ -155,7 +157,7 @@
         sample_rate: span,
         gain,
         fft_size: fftSize,
-        ...settings.deviceParams(),
+        ...settings.deviceParams(deviceId),
       });
       attach(r.session_id);
       void sdr.refresh();
@@ -245,6 +247,7 @@
           {#each spans as s (s)}<option value={s}>{(s / 1e6).toFixed(3)} MHz</option>{/each}
         </select>
       </div>
+      <DeviceSelect bind:value={deviceId} />
       <div>
         <label class="label" for="sgain">{t('Verstärkung (dB)')}</label>
         <input id="sgain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -258,7 +261,7 @@
         </select>
       </div>
     </div>
-    <button class="btn-primary" type="submit" disabled={busy || sdr.busy}>
+    <button class="btn-primary" type="submit" disabled={busy || sdr.busyFor(deviceId)}>
       <Play size={16} />
       {t('Wasserfall starten')}
     </button>

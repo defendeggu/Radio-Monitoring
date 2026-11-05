@@ -29,8 +29,9 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 |---|---|---|
 | GET | `/health`, `/health/ready` | Liveness / Readiness (Redis, Storage, SDR) |
 | GET | `/metrics/gpu` | GPU-Auslastung, Speicher, Temperatur im Prometheus-Format (für Metricbeat; auch mit `METRICS_API_KEY`) |
-| GET | `/sdr/detect`, `/sdr/status` | Hardware, aktueller Belegungsstatus |
-| POST | `/sdr/force-stop` | Notstopp aller SDR-Jobs |
+| GET | `/sdr/detect`, `/sdr/status` | Hardware, aktueller Belegungsstatus (`busy`/`holder` für das Standardgerät, `devices` für alle) |
+| GET | `/sdr/devices` | Angeschlossene SDRs mit Belegung (`?refresh=1` liest die Geräte neu ein) |
+| POST | `/sdr/force-stop` | Notstopp aller SDR-Jobs, mit `?device_id=…` nur dieses Geräts |
 | POST | `/capture-and-transcribe` | Aufnahme + Dekodierung (`mode`: voice/aprs/pocsag), HTTP 202 |
 | POST | `/capture` | Nur Audio aufnehmen, HTTP 202 |
 | GET | `/capture-status/{id}` | Fortschritt und Ergebnis eines Jobs |
@@ -62,6 +63,8 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | GET | `/export/{kind}.csv`, `/export/{kind}.geojson`, `/export/aprs.kml`, `/export/capture/{id}.zip` | Export |
 | CRUD | `/bookmarks`, `/alerts/rules`, `/schedules` | Lesezeichen, Alarmregeln, Zeitpläne |
 | GET | `/events` | Live-Ereignisse (Server-Sent Events) |
+
+Alle Starts (Aufnahme, Streaming, VOX, Wasserfall, CW, Skimmer, Repeater-Scan, ADS-B/AIS/ISM) nehmen `device_id` aus `GET /sdr/devices`. Ohne Angabe gilt `device_type` (Standard `auto`); jedes Gerät hat seine eigene Sperre, ein belegtes Gerät gibt HTTP 409.
 
 ## Beispiele
 
@@ -146,8 +149,9 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 |---|---|---|
 | GET | `/health`, `/health/ready` | liveness / readiness (Redis, storage, SDR) |
 | GET | `/metrics/gpu` | GPU utilization, memory, temperature in Prometheus format (for Metricbeat; also with `METRICS_API_KEY`) |
-| GET | `/sdr/detect`, `/sdr/status` | hardware, current busy state |
-| POST | `/sdr/force-stop` | emergency stop of all SDR jobs |
+| GET | `/sdr/detect`, `/sdr/status` | hardware, current busy state (`busy`/`holder` for the default device, `devices` for all) |
+| GET | `/sdr/devices` | connected SDRs with their state (`?refresh=1` reads the devices again) |
+| POST | `/sdr/force-stop` | emergency stop of all SDR jobs, with `?device_id=…` only that device |
 | POST | `/capture-and-transcribe` | recording + decoding (`mode`: voice/aprs/pocsag), HTTP 202 |
 | POST | `/capture` | record audio only, HTTP 202 |
 | GET | `/capture-status/{id}` | progress and result of a job |
@@ -179,6 +183,8 @@ curl -H "X-API-Key: $API_KEY" $API/sdr/status
 | GET | `/export/{kind}.csv`, `/export/{kind}.geojson`, `/export/aprs.kml`, `/export/capture/{id}.zip` | export |
 | CRUD | `/bookmarks`, `/alerts/rules`, `/schedules` | bookmarks, alert rules, schedules |
 | GET | `/events` | live events (server-sent events) |
+
+Every start (capture, streaming, VOX, waterfall, CW, skimmer, repeater scan, ADS-B/AIS/ISM) takes a `device_id` from `GET /sdr/devices`. Without it `device_type` applies (default `auto`); every device has its own lock, a busy device gives HTTP 409.
 
 ### Examples
 

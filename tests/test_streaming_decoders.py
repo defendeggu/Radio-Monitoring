@@ -73,6 +73,13 @@ def sample_stream_session():
 # StreamSession Tests
 # ============================================================================
 
+
+def _patch_detect(monkeypatch, detect):
+    """Pretend an SDR (or none) is connected: devices.resolve() falls back to detect_sdr."""
+    from radiomoni import devices
+    monkeypatch.setattr(devices, 'detect_sdr', detect)
+    devices.clear_cache()
+
 class TestStreamSession:
     """Tests for StreamSession class"""
 
@@ -246,7 +253,7 @@ class TestStreamingAPRSDecoder:
     @pytest.fixture(autouse=True)
     def mock_detect_sdr(self, monkeypatch):
         """Mock detect_sdr so decoder can be instantiated without SDR hardware"""
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        _patch_detect(monkeypatch, lambda *a, **kw: SDRType.HACKRF)
 
     def test_aprs_decoder_initialization(self):
         """Test APRS decoder initialization"""
@@ -321,7 +328,7 @@ class TestRecordSdrFailure:
 
     @pytest.fixture
     def decoder(self, monkeypatch):
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        _patch_detect(monkeypatch, lambda *a, **kw: SDRType.HACKRF)
         decoder = StreamingAPRSDecoder(144800000, 300, 20, 2000000)
         decoder.session = StreamSession('aprs', 144800000, 300, 20, 2000000)
         decoder.session.status = 'running'
@@ -440,7 +447,7 @@ class TestNarrowbandFMDemodulator:
         np.testing.assert_allclose(chunked, whole, atol=1e-9)
 
     def test_aprs_decoder_passes_audio_rate_to_direwolf(self, monkeypatch):
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        _patch_detect(monkeypatch, lambda *a, **kw: SDRType.HACKRF)
         decoder = StreamingAPRSDecoder(144800000, 300, 20, 2000000)
 
         with patch.object(streaming.subprocess, "Popen") as popen:
@@ -460,7 +467,7 @@ class TestStreamingPOCSAGDecoder:
     @pytest.fixture(autouse=True)
     def mock_detect_sdr(self, monkeypatch):
         """Mock detect_sdr so decoder can be instantiated without SDR hardware"""
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        _patch_detect(monkeypatch, lambda *a, **kw: SDRType.HACKRF)
 
     def test_pocsag_decoder_initialization(self):
         """Test POCSAG decoder initialization"""
@@ -545,9 +552,9 @@ class TestStreamingAPI:
         assert response.status_code == 400
 
     def test_stream_decode_without_sdr_is_503(self, client: FlaskClient, monkeypatch):
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.UNKNOWN)
+        _patch_detect(monkeypatch, lambda *a, **kw: SDRType.UNKNOWN)
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000})
-        assert response.status_code == 400  # "No SDR hardware detected" is a ValueError
+        assert response.status_code == 503  # no SDR at all: service unavailable (like captures)
 
     def test_unknown_session_is_404(self, client: FlaskClient):
         assert client.get('/stream-decode/nope').status_code == 404
@@ -555,7 +562,7 @@ class TestStreamingAPI:
 
     def test_stream_decode_conflict_when_sdr_busy(self, client: FlaskClient, monkeypatch):
         from radiomoni import sdr_lock
-        monkeypatch.setattr(streaming, "detect_sdr", lambda *a, **kw: SDRType.HACKRF)
+        _patch_detect(monkeypatch, lambda *a, **kw: SDRType.HACKRF)
         assert sdr_lock.acquire('other-job', 'capture')
         response = client.post('/stream-decode', json={'mode': 'aprs', 'frequency': 144800000, 'duration': 10})
         assert response.status_code == 409

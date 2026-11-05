@@ -1,6 +1,7 @@
 <script lang="ts">
   import { FileArchive, Play, Square } from '@lucide/svelte';
   import { api, download } from '../lib/api';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
   import LanguageField from '../lib/components/LanguageField.svelte';
@@ -18,6 +19,7 @@
   let modulation = $state<Modulation>((router.params.get('m') as Modulation) || 'FM');
   let duration = $state(30);
   let gain = $state(20);
+  let deviceId = $state(''); // SDR for this start ('' = from the settings)
   let language = $state('');
   let beamSize = $state(5);
   let prompt = $state('');
@@ -57,7 +59,7 @@
         language: language || null,
         beam_size: beamSize,
         initial_prompt: prompt || null,
-        ...settings.deviceParams(),
+        ...settings.deviceParams(deviceId),
       };
       const { capture_id } = await api.post<{ capture_id: string }>('/capture-and-transcribe', body);
       job = { capture_id, status: 'queued', mode: 'voice', created_at: '', result: null, error: null };
@@ -124,6 +126,7 @@
       <input id="dur" class="input" type="number" min="1" max="600" bind:value={duration} />
       <p class="hint">1–600 s</p>
     </div>
+    <DeviceSelect bind:value={deviceId} />
     <div>
       <label class="label" for="gain">{t('Verstärkung (dB)')}</label>
       <input id="gain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -169,13 +172,13 @@
     />{/if}
 
   <div class="flex flex-wrap gap-3">
-    <button class="btn-primary" type="submit" disabled={running || sdr.busy}
+    <button class="btn-primary" type="submit" disabled={running || sdr.busyFor(deviceId)}
       ><Play size={16} /> {t('Aufnahme starten')}</button
     >
-    <button class="btn-danger" type="button" onclick={stop} disabled={!running && !sdr.busy}
+    <button class="btn-danger" type="button" onclick={stop} disabled={!running && !sdr.busyFor(deviceId)}
       ><Square size={16} /> {t('Stopp')}</button
     >
-    {#if sdr.busy && !running}<span class="self-center text-sm text-amber-600"
+    {#if sdr.busyFor(deviceId) && !running}<span class="self-center text-sm text-amber-600"
         >{t('SDR ist belegt ({kind})', { kind: sdr.status?.holder?.kind })}</span
       >{/if}
   </div>

@@ -27,7 +27,7 @@ from scipy.io import wavfile
 
 from radiomoni import alerts
 from radiomoni import events
-from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
+from radiomoni.sdr_hardware import SDRType, get_sdr_instance
 from radiomoni.decoders.streaming import BaseStreamingDecoder, SessionManager
 
 logger = logging.getLogger(__name__)
@@ -97,10 +97,11 @@ class VoxRecorder(BaseStreamingDecoder):
                  modulation: str = 'FM', squelch_db: float = 10.0, hang_time_ms: int = 1500,
                  min_segment_ms: int = 800, max_segment_s: int = 60, transcribe: bool = True,
                  language: Optional[str] = None, device_type: Optional[str] = None,
-                 device_address: Optional[str] = None, output_dir: str = './recordings'):
+                 device_address: Optional[str] = None, output_dir: str = './recordings',
+                 device_id: Optional[str] = None):
         super().__init__(frequency, duration, gain, sample_rate)
         self.device_address = device_address
-        self.sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
+        self._use_device(device_type, device_address, device_id)
         if self.sdr_type == SDRType.UNKNOWN:
             raise ValueError("No SDR hardware detected")
         if self.sdr_type == SDRType.HACKRF:

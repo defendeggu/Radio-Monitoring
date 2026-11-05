@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Download, Play } from '@lucide/svelte';
   import { api, download } from '../lib/api';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
   import MapView, { type MapPoint } from '../lib/components/MapView.svelte';
@@ -28,6 +29,7 @@
   let kind = $state<Kind>('adsb');
   let info = $state<DecoderInfo[]>([]);
   let gain = $state<number | null>(null);
+  let deviceId = $state(''); // '' = a suitable free SDR
   let ppm = $state(0);
   let hours = $state(1);
   let ismFrequency = $state(433_920_000);
@@ -79,6 +81,7 @@
         ppm,
         duration: Math.round(hours * 3600),
         frequency: kind === 'ism' ? ismFrequency : null,
+        ...(deviceId ? { device_id: deviceId } : {}),
       });
       sessionId = r.session_id;
       toasts.push(t('{name} gestartet', { name: labels[kind]() }), 'success');
@@ -166,6 +169,7 @@
   </p>
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-4">
     {#if kind === 'ism'}<FrequencyField bind:value={ismFrequency} />{/if}
+    <DeviceSelect bind:value={deviceId} />
     <div>
       <label class="label" for="dgain">{t('Verstärkung (dB)')}</label>
       <input
@@ -187,7 +191,10 @@
       <input id="dh" class="input" type="number" min="0.5" max="24" step="0.5" bind:value={hours} />
     </div>
   </div>
-  <button class="btn-primary" type="submit" disabled={busy || sdr.busy || current?.installed === false}
+  <button
+    class="btn-primary"
+    type="submit"
+    disabled={busy || sdr.busyFor(deviceId) || current?.installed === false}
     ><Play size={16} /> {t('Starten')}</button
   >
 </form>

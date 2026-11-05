@@ -4,6 +4,23 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- Mehrere SDRs gleichzeitig: Jedes Gerät hat seine eigene Sperre (`sdr:lock:<device_id>`), Jobs auf verschiedenen Geräten laufen parallel.
+  - Die Geräteliste kommt aus sysfs, ohne ein Gerät zu öffnen.
+  - `GET /sdr/devices` liefert die Liste; `/sdr/status` enthält jetzt `devices`.
+  - Alle Starts nehmen `device_id`. ADS-B, AIS und ISM nehmen ohne Angabe ein freies passendes Gerät.
+  - Notstopp pro Gerät mit `?device_id=`. Zeitpläne warten auf ihr eigenes Gerät.
+  - Mehrere Skimmer laufen nebeneinander, ihre Spots werden zusammengeführt.
+  - Oberfläche: Geräteauswahl auf den Startseiten und in den Einstellungen, Status pro Gerät in der Seitenleiste, Skimmer-Reiter auf der Contest-Seite.
+  - Ohne Geräteangabe gilt das Standardgerät; mit einem SDR ändert sich nichts.
+
+### Geändert
+- Streaming ohne angeschlossenes SDR antwortet mit HTTP 503 wie die Einzelaufnahme (bisher 400).
+
+### Behoben
+- Ein Job verdrängte jeden Wasserfall des API-Prozesses, jetzt nur den Wasserfall auf seinem Gerät.
+- Die Seitenleiste zeigte fest „v4.0“ statt der aktuellen Version.
+
 ## [5.2.0] – 2026-11-05
 
 ### Neu

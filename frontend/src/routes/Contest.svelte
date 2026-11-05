@@ -4,6 +4,7 @@
   import { api } from '../lib/api';
   import { CW_BANDS, VHF_CW_BANDS } from '../lib/bands';
   import { SSB_BAND_IDS, TONES, markerKind, tags, type ContestRules, type SkimmerSpot } from '../lib/contest';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
@@ -89,6 +90,7 @@
   let selected = $state<string | null>(null);
   let decoders = $state(24);
   let gain = $state(30);
+  let deviceId = $state(''); // SDR for this start ('' = from the settings)
   let hours = $state(0);
   let recordIq = $state(false);
   let includeRbn = $state(false);
@@ -168,10 +170,11 @@
     }),
   );
 
-  // resume a running skimmer (reload)
+  // running skimmers (several can run on several SDRs); resume one after a reload
+  let starting = $state(false); // form for another skimmer while one is shown
+  const skimmers = $derived((sdr.status?.active_sessions ?? []).filter((s) => s.mode === 'skimmer'));
   $effect(() => {
-    const running = sdr.status?.active_sessions.find((s) => s.mode === 'skimmer');
-    if (running && !sessionId) attach(running.session_id);
+    if (skimmers.length && !sessionId && !starting) attach(skimmers[0].session_id);
   });
 
   onDestroy(() => stream?.close());
@@ -217,8 +220,9 @@
         record_iq: recordIq,
         include_rbn: includeRbn,
         duration: Math.round(hours * 3600),
-        ...settings.deviceParams(),
+        ...settings.deviceParams(deviceId),
       });
+      starting = false;
       attach(r.session_id);
       toasts.push(t('Skimmer gestartet'), 'success');
       void sdr.refresh();
@@ -343,7 +347,26 @@
       {/if}
     </section>
 
-    {#if !sessionId}
+    {#if skimmers.length > 1 || (sessionId && sdr.devices.length > 1)}
+      <div class="flex flex-wrap items-center gap-2" role="tablist" aria-label={t('Laufende Skimmer')}>
+        {#each skimmers as s (s.session_id)}
+          <button
+            class="chip {s.session_id === sessionId && !starting ? 'ring-2 ring-cyan-500' : ''}"
+            type="button"
+            role="tab"
+            aria-selected={s.session_id === sessionId && !starting}
+            onclick={() => ((starting = false), attach(s.session_id))}
+            >{(s.frequency / 1e6).toFixed(3)} MHz{s.device_label ? ` · ${s.device_label}` : ''}</button
+          >
+        {/each}
+        {#if sdr.devices.length > 1}
+          <button class="chip" type="button" aria-pressed={starting} onclick={() => (starting = true)}
+            >+ {t('Weiteren Skimmer starten')}</button
+          >
+        {/if}
+      </div>
+    {/if}
+    {#if !sessionId || starting}
       <form
         class="card space-y-4"
         onsubmit={(e) => {
@@ -403,6 +426,7 @@
               </select>
             </div>
           {/if}
+          <DeviceSelect bind:value={deviceId} />
           <div>
             <label class="label" for="sgain">{t('Verstärkung (dB)')}</label>
             <input id="sgain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -423,7 +447,7 @@
             {t('RBN-Spots der Contest-Bänder dazunehmen (nur wenn die Kategorie Hilfe erlaubt)')}
           </label>
         </div>
-        <button class="btn-primary" type="submit" disabled={busy || sdr.busy}
+        <button class="btn-primary" type="submit" disabled={busy || sdr.busyFor(deviceId)}
           ><Play size={16} /> {t('Skimmer starten')}</button
         >
       </form>

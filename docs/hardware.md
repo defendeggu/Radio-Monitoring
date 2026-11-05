@@ -13,6 +13,19 @@
 
 Erkennung: Ist *Automatisch* gewählt, wird in der Reihenfolge HackRF, Airspy HF+, RTL-SDR gesucht. Den USRP wählst du explizit über seine IP-Adresse.
 
+### Mehrere SDRs gleichzeitig
+
+Jedes angeschlossene SDR hat seine eigene Sperre. Jobs auf verschiedenen Geräten laufen also parallel, zum Beispiel APRS am HackRF und AIS am RTL-SDR.
+
+- **Gerät wählen:** Die Liste kommt aus `/sys/bus/usb/devices`. Dabei wird kein Gerät geöffnet, ein laufender Job wird also nicht gestört.
+  - In den *Einstellungen* wählst du ein bestimmtes Gerät als Standard.
+  - Auf jeder Startseite erscheint die Auswahl *SDR*, sobald mehr als ein Gerät angeschlossen ist.
+  - ADS-B, AIS und ISM nehmen ohne Auswahl das erste passende Gerät, das frei ist.
+- **Geräte-IDs:** `hackrf:<Seriennummer>`, `rtlsdr:<Seriennummer>`, `airspyhf:<Seriennummer>`, `usrp:<IP>`. Ist die Seriennummer nicht eindeutig, steht der Index (`rtlsdr:0`, `rtlsdr:1`). Das ist bei vielen RTL-SDR-Sticks so, alle melden `00000001`. Eindeutige Nummern vergibst du mit `rtl_eeprom -d 1 -s RTL-2`, danach Stick neu einstecken.
+- **Werkzeuge:** Nur wenn mehrere Geräte desselben Typs angeschlossen sind, bekommen sie die Geräteangabe (`-d …`). Mit einem Gerät pro Typ läuft alles wie bisher.
+- **Grenze Airspy HF+:** Den Airspy HF+ unterstützt RadioMoni bisher nur einmal pro Rechner.
+- **Notstopp:** `POST /sdr/force-stop?device_id=…` stoppt nur dieses Gerät, ohne Angabe alle.
+
 ## USB-Zugriff (Linux-Host)
 
 Der API-Container bekommt `/dev/bus/usb` als Bind-Mount und läuft als UID 1000 in den Gruppen `plugdev` und `dialout`. Auf dem Host:
@@ -118,6 +131,19 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | up to 25 MS/s | additionally multi-channel DDC |
 
 Detection: with *Detect automatically* selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR. The USRP is selected explicitly by its IP address.
+
+#### Several SDRs at the same time
+
+Every connected SDR has its own lock, so jobs on different devices run in parallel, for example APRS on the HackRF and AIS on the RTL-SDR.
+
+- **Choosing a device:** The list comes from `/sys/bus/usb/devices`. No device is opened for this, so a running job is not disturbed.
+  - In the *Settings* you choose a specific device as the default.
+  - Every start page shows a *SDR* selection as soon as more than one device is connected.
+  - Without a choice, ADS-B, AIS and ISM take the first suitable device that is free.
+- **Device ids:** `hackrf:<serial>`, `rtlsdr:<serial>`, `airspyhf:<serial>`, `usrp:<ip>`. If the serial is not unique, the index is used (`rtlsdr:0`, `rtlsdr:1`). That is the case with many RTL-SDR sticks, which all report `00000001`. Give them unique serials with `rtl_eeprom -d 1 -s RTL-2`, then replug the stick.
+- **Tools:** Only when several devices of the same type are connected do the tools get a device selector (`-d …`). With one device per type everything works as before.
+- **Airspy HF+ limit:** RadioMoni supports only one Airspy HF+ per machine so far.
+- **Emergency stop:** `POST /sdr/force-stop?device_id=…` stops only that device, without an id all of them.
 
 ### USB access (Linux host)
 

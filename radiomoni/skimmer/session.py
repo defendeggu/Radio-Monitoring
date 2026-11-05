@@ -37,7 +37,8 @@ from radiomoni.decoders.streaming import BaseStreamingDecoder, SessionManager
 from radiomoni.dsp import Decimator, Mixer
 from radiomoni.rbn import SpotBook
 from radiomoni.redis_client import get_redis
-from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
+from radiomoni.devices import resolve as resolve_device
+from radiomoni.sdr_hardware import SDRType, get_sdr_instance
 from radiomoni.skimmer.core import SkimmerCore
 from radiomoni.skimmer.recorder import IqRecorder
 from radiomoni.skimmer.ssb import SsbCore, whisper_transcriber
@@ -48,7 +49,7 @@ CHUNK_SECONDS = 0.05
 EDGE = 0.45
 CLIP_LEVEL = 0.98            # |I| or |Q| of the normalised samples
 CLIP_FRACTION = 0.005        # share of clipped samples that blanks a chunk
-SPOTS_KEY = 'skimmer:spots'
+SPOTS_KEY = 'skimmer:spots:'      # + session id: one list per skimmer, merged by load_spots()
 SPOTS_TTL = 3600
 RBN_FORWARD_S = 10.0
 
@@ -79,8 +80,15 @@ def segment_rate(width_hz: int) -> int:
 
 
 def load_spots() -> list[dict[str, Any]]:
-    raw = get_redis().get(SPOTS_KEY)
-    return json.loads(raw) if raw else []
+    """The spots of every skimmer session (several can run on several SDRs), newest first."""
+    r = get_redis()
+    spots: list[dict[str, Any]] = []
+    for key in r.scan_iter(match=f'{SPOTS_KEY}*', count=100):
+        raw = r.get(key)
+        if raw:
+            session_id = str(key)[len(SPOTS_KEY):]
+            spots.extend({**s, 'session_id': s.get('session_id') or session_id} for s in json.loads(raw))
+    return sorted(spots, key=lambda s: s.get('last_seen', 0), reverse=True)
 
 
 class SkimmerSession(BaseStreamingDecoder):
@@ -88,12 +96,12 @@ class SkimmerSession(BaseStreamingDecoder):
                  contest: Optional[str] = None, max_decoders: int = 24, sample_rate: Optional[int] = None,
                  record_iq: bool = False, include_rbn: bool = False, device_type: Optional[str] = None,
                  device_address: Optional[str] = None, output_dir: str = './recordings',
-                 language: Optional[str] = 'en', transcriber: Optional[Any] = None):
+                 language: Optional[str] = 'en', transcriber: Optional[Any] = None,
+                 device_id: Optional[str] = None):
         if mode not in ('CW', 'SSB'):
             raise ValueError(f'Unknown skimmer mode: {mode}')
-        sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
-        if sdr_type == SDRType.UNKNOWN:
-            raise ValueError("No SDR hardware detected")
+        device = resolve_device(device_type, device_address, device_id)
+        sdr_type = device.type
         rate = int(sample_rate or SAMPLE_RATES.get(sdr_type, 1_000_000))
         if sdr_type == SDRType.HACKRF:
             rate = max(rate, 2_000_000)
@@ -104,8 +112,9 @@ class SkimmerSession(BaseStreamingDecoder):
         if width / 2 + self.dc_offset > EDGE * rate:
             raise ValueError(f'Segment of {width / 1000:.0f} kHz is too wide for {rate / 1000:.0f} kS/s')
         super().__init__(self.seg_centre + self.dc_offset, duration, gain, rate)
+        self.device = device
         self.sdr_type = sdr_type
-        self.device_address = device_address
+        self.device_address = device.address or device_address
         get_sdr_instance(frequency=int(self.frequency), sample_rate=rate, gain=gain, sdr_type=sdr_type,
                          device_address=device_address)
         self.mode = mode
@@ -363,7 +372,8 @@ class SkimmerSession(BaseStreamingDecoder):
             self.book.prune(now)
             snapshot = json.dumps(self.book.snapshot())
         try:
-            get_redis().set(SPOTS_KEY, snapshot, ex=SPOTS_TTL)
+            sid = self.session.session_id if self.session else 'local'
+            get_redis().set(SPOTS_KEY + sid, snapshot, ex=SPOTS_TTL)
         except Exception as e:
             logger.debug(f"Skimmer spots not saved: {e}")
 

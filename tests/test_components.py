@@ -35,7 +35,7 @@ class TestSdrLock:
     def test_refresh_and_ttl(self):
         from radiomoni.redis_client import get_redis
         sdr_lock.acquire('a', 'capture')
-        assert 0 < get_redis().ttl(sdr_lock.LOCK_KEY) <= sdr_lock.LOCK_TTL
+        assert 0 < get_redis().ttl(sdr_lock.LOCK_PREFIX + sdr_lock._device(None)) <= sdr_lock.LOCK_TTL
         assert sdr_lock.refresh('a')
         assert not sdr_lock.refresh('b')
 
@@ -284,7 +284,9 @@ class TestExternalDecoderParsers:
         from radiomoni.decoders import external
         from radiomoni.sdr_hardware import SDRType
         monkeypatch.setattr(external, 'tool_available', lambda d: True)
-        monkeypatch.setattr(external, 'detect_sdr', lambda *a, **k: SDRType.RTLSDR)
+        from radiomoni import devices
+        monkeypatch.setattr(devices, 'detect_sdr', lambda *a, **k: SDRType.RTLSDR)
+        devices.clear_cache()
         ism = external.ExternalDecoderSession('ism', 60, gain=30, frequency=868_300_000, ppm=5)
         cmd = ism.build_command()
         assert cmd[:3] == ['rtl_433', '-f', '868300000'] and '-g' in cmd and '5' in cmd
@@ -299,7 +301,9 @@ class TestExternalDecoderParsers:
         from radiomoni.decoders import external
         from radiomoni.sdr_hardware import SDRType
         monkeypatch.setattr(external, 'tool_available', lambda d: True)
-        monkeypatch.setattr(external, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
+        from radiomoni import devices
+        monkeypatch.setattr(devices, 'detect_sdr', lambda *a, **k: SDRType.HACKRF)
+        devices.clear_cache()
         monkeypatch.setattr(external.RTLSDRCapture, 'is_available', lambda self: rtlsdr_present)
         return external
 

@@ -33,7 +33,8 @@ from radiomoni.decoders.streaming import BaseStreamingDecoder, SessionManager
 from radiomoni.dsp import ChannelReceiver, Decimator, Mixer
 from radiomoni.morse import CwDecoder, callsigns
 from radiomoni.rbn import band_of
-from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
+from radiomoni.devices import resolve as resolve_device
+from radiomoni.sdr_hardware import SDRType, get_sdr_instance
 
 logger = logging.getLogger(__name__)
 
@@ -53,16 +54,16 @@ class CwSession(BaseStreamingDecoder):
     def __init__(self, frequency: int, gain: int, duration: int, sample_rate: Optional[int] = None,
                  wpm: float = 20.0, cw_bandwidth: int = 200, tone_hz: int = 700, record: bool = False,
                  device_type: Optional[str] = None, device_address: Optional[str] = None,
-                 output_dir: str = './recordings'):
-        sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
-        if sdr_type == SDRType.UNKNOWN:
-            raise ValueError("No SDR hardware detected")
+                 output_dir: str = './recordings', device_id: Optional[str] = None):
+        device = resolve_device(device_type, device_address, device_id)
+        sdr_type = device.type
         rate = int(sample_rate or SAMPLE_RATES.get(sdr_type, 1_000_000))
         if sdr_type == SDRType.HACKRF:
             rate = max(rate, 2_000_000)
         super().__init__(frequency, duration, gain, rate)
+        self.device = device
         self.sdr_type = sdr_type
-        self.device_address = device_address
+        self.device_address = device.address or device_address
         self.target = int(frequency)
         # keep the wanted signal away from the DC spike of zero-IF receivers
         self.dc_offset = int(rate / 4) if sdr_type in (SDRType.HACKRF, SDRType.RTLSDR) else 0

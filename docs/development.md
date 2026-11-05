@@ -92,7 +92,7 @@ python3 scripts/version.py set 5.0.0     # alle Stellen setzen
 python3 scripts/version.py check         # prüfen (läuft in der CI)
 ```
 
-Release: Abschnitt `## [Unreleased]` im CHANGELOG in `## [5.0.0] – JJJJ-MM-TT` umbenennen und einen leeren `[Unreleased]`-Abschnitt darüber anlegen, Version setzen, committen, `git tag v5.0.0` und `git push --tags`.
+Release: Abschnitt `## [Unreleased]` im CHANGELOG in `## [5.0.0] – JJJJ-MM-TT` umbenennen und einen leeren `[Unreleased]`-Abschnitt darüber anlegen, Version setzen, committen, `git tag v5.0.0` und `git push --tags`. Danach das GitHub-Release anlegen, sonst zeigt GitHub unter *Releases* weiter die alte Version: `gh release create v5.0.0 --title "RadioMoni 5.0.0" --notes-file <Abschnitt aus dem CHANGELOG> --latest`.
 
 ---
 
@@ -190,4 +190,4 @@ python3 scripts/version.py set 5.0.0     # set all places
 python3 scripts/version.py check         # check (runs in CI)
 ```
 
-Release: rename the `## [Unreleased]` section in the CHANGELOG to `## [5.0.0] – YYYY-MM-DD` and add an empty `[Unreleased]` section above it, set the version, commit, `git tag v5.0.0` and `git push --tags`.
+Release: rename the `## [Unreleased]` section in the CHANGELOG to `## [5.0.0] – YYYY-MM-DD` and add an empty `[Unreleased]` section above it, set the version, commit, `git tag v5.0.0` and `git push --tags`. Then create the GitHub release, otherwise GitHub keeps showing the old version under *Releases*: `gh release create v5.0.0 --title "RadioMoni 5.0.0" --notes-file <section from the CHANGELOG> --latest`.

@@ -10,7 +10,8 @@ Stand: 2026-11-05 (Version 5.2.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 | APRS-IS-iGate | empfangene Pakete mit Rufzeichen und Passcode an APRS-IS weiterleiten | mittel |
 | PPM-Kalibrierung | automatisch an einem bekannten Träger messen und pro Gerät speichern | klein |
 | DMR / P25 | Digitalfunk mit dsd-fme (nicht in Debian, eigener Build nötig) | mittel |
-| Mehrere SDRs | eine Sperre pro Gerät (Seriennummer), parallele Jobs | mittel |
+| SDRplay RSPduo, ein Tuner (Stufe 2; Stufe 1 „Mehrere SDRs“ ist erledigt) | SDRplay-API 3.x (selbst geladener Installer, `WITH_SDRPLAY=1`), SoapySDR und SoapySDRPlay3, eigener Streamer nach stdout; Antennenwahl (Hi-Z für Kurzwelle), Notch-Filter, Verstärkung; Live-Test sobald das Gerät da ist | mittel |
+| SDRplay RSPduo, Dual-Tuner (Stufe 3) | Tuner A und B als zwei Geräte im Master/Slave-Betrieb (vermutlich je 2 MS/s), Regeln für den Stopp des Masters; z. B. Skimmer CW 40 m und SSB 20 m gleichzeitig | mittel |
 | Wetterbilder | NOAA-/Meteor-APT- und LRPT-Dekodierung | mittel |
 | Contest-Skimmer SSB messen | SSB ist experimentell eingebaut; an echten Contest-Aufnahmen Präzision (Ziel ≥ 90 %) und Ausbeute (≥ 30 %) messen und Prompt, Modell und Schwellen einstellen ([contest.md](docs/contest.md)) | mittel |
 | Contest-Messung CW | IQ am CQ WW CW (28.–29. November 2026) aufnehmen und gegen RBN auswerten; Ziel: Einsatz am IARU-R1-Fieldday CW (Juni 2027) | klein |

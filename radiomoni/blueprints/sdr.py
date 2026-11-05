@@ -6,13 +6,15 @@ import logging
 import os
 import signal
 import time
-from typing import Any
+from typing import Any, Optional
 
-from flask import Blueprint, Response, jsonify
+from flask import Blueprint, Response, jsonify, request
 
+from radiomoni import devices
 from radiomoni import events
 from radiomoni import sdr_lock
 from radiomoni.api_docs import api
+from radiomoni.errors import ApiError
 from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
 from radiomoni.session_store import session_manager
 
@@ -22,6 +24,13 @@ sdr_bp = Blueprint('sdr', __name__)
 # Processes that hold the SDR (killed by force-stop)
 SDR_PROCESSES = {'hackrf_transfer', 'rtl_sdr', 'rtl_fm', 'airspyhf_rx', 'uhd_rx_cfile', 'multimon-ng',
                  'direwolf', 'rtl_433', 'readsb', 'rtl_ais'}
+# the tools that open a device of each type (force-stop of one device)
+DEVICE_PROCESSES: dict[SDRType, set[str]] = {
+    SDRType.HACKRF: {'hackrf_transfer', 'readsb'},
+    SDRType.RTLSDR: {'rtl_sdr', 'rtl_fm', 'rtl_433', 'readsb', 'rtl_ais'},
+    SDRType.AIRSPYHF: {'airspyhf_rx'},
+    SDRType.USRP: {'uhd_rx_cfile'},
+}
 
 _detect_cache: tuple[float, dict[str, Any]] = (0.0, {})
 DETECT_CACHE_SECONDS = 10
@@ -60,8 +69,39 @@ def detect_sdr_hardware() -> Response:
     return jsonify(_detect())
 
 
+def _device_states(active: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Every connected device with its lock holder and sessions (plus held locks of devices not listed)."""
+    held = sdr_lock.holders()
+    listed = devices.list_devices()
+    if not listed:
+        try:
+            listed = [devices.resolve('auto')]
+        except (ValueError, devices.NoSdrError):
+            listed = []
+    states = []
+    for d in listed:
+        holder = held.pop(d.id, None)
+        states.append({**d.to_dict(), 'busy': holder is not None, 'holder': holder,
+                       'preemptible': holder is not None and sdr_lock.is_preemptible(holder.get('kind')),
+                       'sessions': [s['session_id'] for s in active if s.get('device_id') == d.id]})
+    for device_id, holder in held.items():          # e.g. a USRP (not on USB)
+        states.append({'id': device_id, 'type': device_id.split(':', 1)[0], 'label': device_id, 'busy': True,
+                       'holder': holder, 'preemptible': sdr_lock.is_preemptible(holder.get('kind')),
+                       'sessions': [s['session_id'] for s in active if s.get('device_id') == device_id]})
+    return states
+
+
+@sdr_bp.get('/sdr/devices')
+@api('Connected SDR devices, each with its own lock (who uses it)', tags=['SDR'])
+def sdr_devices() -> Response:
+    if request.args.get('refresh') in ('1', 'true'):
+        devices.clear_cache()
+    active = [s.to_dict() for s in session_manager.list_sessions() if s.status in ('starting', 'running')]
+    return jsonify({'status': 'success', 'default': devices.default_id(), 'devices': _device_states(active)})
+
+
 @sdr_bp.get('/sdr/status')
-@api('Who is using the SDR right now', tags=['SDR'])
+@api('Who is using the SDR right now (busy/holder: default device; devices: all)', tags=['SDR'])
 def sdr_status() -> Response:
     session_manager.reap_orphaned_sessions()
     holder = sdr_lock.current_holder()
@@ -69,28 +109,37 @@ def sdr_status() -> Response:
     # a preemptible holder (waterfall) gives way: for starting jobs the SDR counts as free
     preemptible = holder is not None and sdr_lock.is_preemptible(holder.get('kind'))
     return jsonify({'busy': holder is not None, 'preemptible': preemptible, 'holder': holder,
-                    'active_sessions': active})
+                    'active_sessions': active, 'default_device': devices.default_id(),
+                    'devices': _device_states(active)})
 
 
 @sdr_bp.post('/sdr/force-stop')
-@api('Emergency stop: end all sessions and kill SDR processes', tags=['SDR'])
+@api('Emergency stop: end all sessions and kill SDR processes (?device_id= only that device)', tags=['SDR'])
 def sdr_force_stop() -> Response:
-    stopped = stop_all_local_decoders()
-    events.send_control('stop_all')
-    killed = kill_sdr_processes()
-    sdr_lock.force_release()
+    device_id = request.args.get('device_id') or None
+    if device_id and len(device_id) > 80:
+        raise ApiError('Invalid device_id', 400)
+    stopped = stop_all_local_decoders(device_id)
+    events.send_control('stop_all', device_id=device_id)
+    killed = kill_sdr_processes(device_id)
+    sdr_lock.force_release(device_id)
     for session in session_manager.list_sessions():
+        if device_id and session.device_id != device_id:
+            continue
         if session.status in ('starting', 'running'):
             session.status = 'completed'
             session.error = 'Stopped by force-stop'
             session_manager.save_session(session)
-    events.publish('sdr', {'busy': False, 'reason': 'force-stop'})
-    return jsonify({'status': 'success', 'message': 'All SDR processes stopped',
+    events.publish('sdr', {'busy': False, 'reason': 'force-stop', 'device_id': device_id})
+    return jsonify({'status': 'success',
+                    'message': f'SDR {device_id} stopped' if device_id else 'All SDR processes stopped',
                     'sessions_stopped': stopped, 'processes_killed': killed})
 
 
-def stop_all_local_decoders() -> int:
-    decoders = session_manager.get_all_active_decoders()
+def stop_all_local_decoders(device_id: Optional[str] = None) -> int:
+    """Stop this process's decoders (only those on `device_id` when given)."""
+    decoders = {sid: d for sid, d in session_manager.get_all_active_decoders().items()
+                if device_id is None or (getattr(d, 'device', None) is not None and d.device.id == device_id)}
     for sid, decoder in decoders.items():
         try:
             logger.info(f"Force-stopping decoder for session {sid}")
@@ -101,8 +150,28 @@ def stop_all_local_decoders() -> int:
     return len(decoders)
 
 
-def kill_sdr_processes() -> list[str]:
-    """SIGKILL SDR-related processes owned by this container (scans /proc)."""
+def _matches_device(exe: str, args: list[str], device: Optional[devices.Device]) -> bool:
+    if device is None:
+        return exe in SDR_PROCESSES
+    if exe not in DEVICE_PROCESSES.get(device.type, set()):
+        return False
+    selector = device.args(exe)
+    if device.address:                       # USRP: addr=<ip> in the arguments
+        return any(device.address in a for a in args)
+    if not selector:
+        return True                          # the only device of its type
+    return any(args[i:i + len(selector)] == selector for i in range(len(args)))
+
+
+def kill_sdr_processes(device_id: Optional[str] = None) -> list[str]:
+    """SIGKILL SDR-related processes owned by this container (scans /proc); only those that
+    open `device_id` when given."""
+    device: Optional[devices.Device] = None
+    if device_id:
+        try:
+            device = devices.resolve(device_id=device_id)
+        except ValueError:
+            return []
     killed: list[str] = []
     for pid_str in os.listdir('/proc'):
         if not pid_str.isdigit():
@@ -113,7 +182,8 @@ def kill_sdr_processes() -> list[str]:
             if not cmdline or not cmdline[0]:
                 continue
             exe = os.path.basename(cmdline[0].decode('utf-8', errors='ignore'))
-            if exe in SDR_PROCESSES:
+            args = [a.decode('utf-8', errors='ignore') for a in cmdline[1:] if a]
+            if _matches_device(exe, args, device):
                 os.kill(int(pid_str), signal.SIGKILL)
                 killed.append(exe)
                 logger.info(f"Killed SDR process {exe} (PID {pid_str})")

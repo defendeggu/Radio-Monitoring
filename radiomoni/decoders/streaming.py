@@ -32,9 +32,10 @@ import json
 
 from radiomoni import alerts
 from radiomoni import events
+from radiomoni.devices import Device
 from radiomoni.dsp import DecimationStage
 from radiomoni.redis_client import get_redis
-from radiomoni.sdr_hardware import (detect_sdr, SDRType, get_sdr_instance, apply_hackrf_iq_correction,
+from radiomoni.sdr_hardware import (SDRType, get_sdr_instance, apply_hackrf_iq_correction,
                                     rtlsdr_direct_sampling)
 from radiomoni.sdr_lock import SdrLease, current_holder
 
@@ -83,6 +84,8 @@ class StreamSession:
         self.last_packet_time: Optional[datetime] = None
         self.error: Optional[str] = None
         self.channel_configs: Optional[List[Dict[str, Any]]] = None
+        self.device_id: Optional[str] = None
+        self.device_label: Optional[str] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Serialize session to dict for Redis storage"""
@@ -99,7 +102,9 @@ class StreamSession:
             'packet_count': self.packet_count,
             'last_packet_time': self.last_packet_time.isoformat() if self.last_packet_time is not None else None,
             'error': self.error,
-            'channel_configs': self.channel_configs
+            'channel_configs': self.channel_configs,
+            'device_id': self.device_id,
+            'device_label': self.device_label,
         }
 
     @classmethod
@@ -120,6 +125,8 @@ class StreamSession:
         session.last_packet_time = datetime.fromisoformat(data['last_packet_time']) if data.get('last_packet_time') else None
         session.error = data.get('error')
         session.channel_configs = data.get('channel_configs')
+        session.device_id = data.get('device_id')
+        session.device_label = data.get('device_label')
         return session
 
 
@@ -181,16 +188,16 @@ class SessionManager:
     def reap_orphaned_sessions(self) -> int:
         """Mark sessions left 'starting'/'running' by a restarted or crashed API as failed.
 
-        Every stream takes the SDR lock before its session is created and saves
-        its final state before releasing it. So while the lock is free, a
-        session without a decoder in this process cannot be alive anymore.
+        Every stream takes the lock of its device before its session is created
+        and saves its final state before releasing it. So while that lock is
+        free, a session without a decoder in this process cannot be alive anymore.
         Returns the number of sessions marked.
         """
-        if current_holder() is not None:
-            return 0
         reaped = 0
         for session in self.list_sessions():
-            if session.status in ('starting', 'running') and self.get_decoder(session.session_id) is None:
+            if session.status not in ('starting', 'running') or self.get_decoder(session.session_id) is not None:
+                continue
+            if current_holder(session.device_id) is None:
                 session.status = 'failed'
                 session.error = 'Interrupted — the API was restarted'
                 session.end_time = session.end_time or datetime.now(timezone.utc)
@@ -216,6 +223,10 @@ class SessionManager:
         self.save_session(session)
 
         # Store session in decoder
+        device = getattr(decoder, 'device', None)
+        if device is not None:
+            session.device_id, session.device_label = device.id, device.label
+            self.save_session(session)
         decoder.session = session
 
         # Register live instance so stop_streaming_session can find it
@@ -285,7 +296,21 @@ class BaseStreamingDecoder(ABC):
         self.decoder_proc: Optional[subprocess.Popen[bytes]] = None
         self.sdr_type: SDRType = SDRType.UNKNOWN  # Set by subclass __init__
         self.device_address: Optional[str] = None  # IP address for USRP N200
+        self.device: Optional[Device] = None    # the SDR this session runs on (its own lock)
         self.lease: Optional[SdrLease] = None  # SDR lock held while streaming
+
+    def _use_device(self, device_type: Optional[str], device_address: Optional[str],
+                    device_id: Optional[str]) -> SDRType:
+        """Pick the SDR (explicit id, type or auto) and remember it for the lock and the commands."""
+        from radiomoni.devices import resolve
+        self.device = resolve(device_type, device_address, device_id)
+        self.sdr_type = self.device.type
+        if self.device.address:
+            self.device_address = self.device.address
+        return self.sdr_type
+
+    def _device_args(self, tool: str) -> list[str]:
+        return self.device.args(tool) if self.device is not None else []
 
     @property
     def _decoder_audio_rate(self) -> int:
@@ -388,6 +413,7 @@ class BaseStreamingDecoder(ABC):
             # HackRF command (no nice: priority reduction causes USB stalls via pipe backpressure)
             cmd = [
                 'hackrf_transfer',
+                *self._device_args('hackrf_transfer'),
                 '-r', '-',  # Write to stdout
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
@@ -405,6 +431,7 @@ class BaseStreamingDecoder(ABC):
             cmd = [
                 'nice', '-n', '10',
                 'rtl_sdr',
+                *self._device_args('rtl_sdr'),
                 *rtlsdr_direct_sampling(self.frequency),
                 '-f', str(int(self.frequency)),
                 '-s', str(self.sample_rate),
@@ -880,12 +907,13 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
     """Streaming APRS decoder using direwolf"""
 
     def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int,
-                 device_type: Optional[str] = None, device_address: Optional[str] = None):
+                 device_type: Optional[str] = None, device_address: Optional[str] = None,
+                 device_id: Optional[str] = None):
         super().__init__(frequency, duration, gain, sample_rate)
         self.device_address = device_address
 
-        # Detect SDR hardware (respects explicit device selection)
-        self.sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
+        # Pick the SDR (explicit device, type or auto)
+        self._use_device(device_type, device_address, device_id)
         if self.sdr_type == SDRType.UNKNOWN:
             raise ValueError(
                 "No SDR hardware detected (HackRF, RTL-SDR, Airspy HF+, or USRP N200 required)"
@@ -1058,12 +1086,13 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
     """Streaming POCSAG decoder using multimon-ng"""
 
     def __init__(self, frequency: int, duration: int, gain: int, sample_rate: int,
-                 device_type: Optional[str] = None, device_address: Optional[str] = None):
+                 device_type: Optional[str] = None, device_address: Optional[str] = None,
+                 device_id: Optional[str] = None):
         super().__init__(frequency, duration, gain, sample_rate)
         self.device_address = device_address
 
-        # Detect SDR hardware (respects explicit device selection)
-        self.sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
+        # Pick the SDR (explicit device, type or auto)
+        self._use_device(device_type, device_address, device_id)
         if self.sdr_type == SDRType.UNKNOWN:
             raise ValueError(
                 "No SDR hardware detected (HackRF, RTL-SDR, Airspy HF+, or USRP N200 required)"

@@ -3,7 +3,7 @@
 import { api, getApiKey, setApiKey } from './api';
 import { t } from './i18n.svelte';
 import { connectEvents, type LiveConnection } from './sse';
-import type { DeviceType, LiveEvent, SdrDetect, SdrStatus } from './types';
+import type { DeviceType, LiveEvent, SdrDetect, SdrDevice, SdrStatus } from './types';
 
 function load<T>(key: string, fallback: T): T {
   try {
@@ -30,6 +30,8 @@ class Settings {
   apiKey = $state(getApiKey());
   deviceType = $state<DeviceType>(load('deviceType', 'auto'));
   usrpAddress = $state<string>(load('usrpAddress', ''));
+  /** a specific SDR (id from /sdr/devices); empty = by device type */
+  deviceId = $state<string>(load('deviceId', ''));
   sidebarCollapsed = $state<boolean>(load('sidebarCollapsed', false));
 
   setTheme(theme: Theme) {
@@ -49,11 +51,13 @@ class Settings {
     sdr.refresh();
   }
 
-  setDevice(type: DeviceType, address = this.usrpAddress) {
+  setDevice(type: DeviceType, address = this.usrpAddress, deviceId = '') {
     this.deviceType = type;
     this.usrpAddress = address;
+    this.deviceId = deviceId;
     save('deviceType', type);
     save('usrpAddress', address);
+    save('deviceId', deviceId);
   }
 
   toggleSidebar() {
@@ -61,8 +65,10 @@ class Settings {
     save('sidebarCollapsed', this.sidebarCollapsed);
   }
 
-  /** Device parameters for request bodies */
-  deviceParams(): { device_type: DeviceType; device_address?: string } {
+  /** Device parameters for request bodies; `deviceId` picks a specific SDR for this start */
+  deviceParams(deviceId?: string): { device_type: DeviceType; device_address?: string; device_id?: string } {
+    const id = deviceId || this.deviceId;
+    if (id) return { device_type: 'auto', device_id: id };
     return this.deviceType === 'usrp'
       ? { device_type: 'usrp', device_address: this.usrpAddress }
       : { device_type: this.deviceType };
@@ -123,6 +129,23 @@ class Sdr {
 
   /** Busy for starting a job: a waterfall holding the SDR gives way, so it does not count */
   get busy(): boolean {
+    return this.busyFor('');
+  }
+
+  get devices(): SdrDevice[] {
+    return this.status?.devices ?? [];
+  }
+
+  /** The device a start uses: the given id, else the one from the settings, else the default. */
+  deviceFor(deviceId = ''): SdrDevice | undefined {
+    const id = deviceId || settings.deviceId || this.status?.default_device;
+    return this.devices.find((d) => d.id === id);
+  }
+
+  /** Busy for starting a job on that device (each SDR has its own lock). */
+  busyFor(deviceId = ''): boolean {
+    const device = this.deviceFor(deviceId);
+    if (device) return device.busy && !device.preemptible;
     return !!this.status?.busy && !this.status?.preemptible;
   }
 

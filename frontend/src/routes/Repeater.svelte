@@ -2,12 +2,13 @@
   import { Play, Square } from '@lucide/svelte';
   import { SvelteSet } from 'svelte/reactivity';
   import { api } from '../lib/api';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
   import Progress from '../lib/components/Progress.svelte';
   import { duration as fmt, mhz } from '../lib/format';
   import { i18n, t } from '../lib/i18n.svelte';
-  import { sdr, toasts } from '../lib/stores.svelte';
+  import { sdr, settings, toasts } from '../lib/stores.svelte';
 
   interface RepeaterInfo {
     uuid: string;
@@ -128,6 +129,7 @@
   let canton = $state(DEFAULT_CANTON);
   const selected = new SvelteSet<string>();
   let total = $state(1800);
+  let deviceId = $state(''); // SDR for this scan ('' = from the settings)
   let perRepeater = $state(60);
   let sessionId = $state<number | null>(null);
   let progress = $state<ProgressResponse | null>(null);
@@ -226,6 +228,9 @@
         duration_per_repeater: perRepeater,
         repeater_ids: chosen.map((r) => r.uuid),
       };
+      const device = settings.deviceParams(deviceId);
+      if (device.device_id) body.device_id = device.device_id;
+      else if (device.device_type !== 'usrp') body.device_type = device.device_type;
       if (total === -1) body.until_stopped = true;
       else if (total > 0) body.total_duration = total;
       const r = await api.post<{ session_id: number; repeaters_count: number }>('/scan-repeaters', body);
@@ -304,6 +309,7 @@
         <option value={ALL}>{t('Alle Kantone ({n})', { n: repeaters.length })}</option>
       </select>
     </div>
+    <DeviceSelect bind:value={deviceId} />
     <div>
       <label class="label" for="total">{t('Dauer des Scans')}</label>
       <select id="total" class="input" bind:value={total} disabled={running}>
@@ -386,13 +392,16 @@
   {/if}
 
   <div class="flex flex-wrap gap-3">
-    <button class="btn-primary" type="submit" disabled={running || starting || sdr.busy || !chosen.length}
+    <button
+      class="btn-primary"
+      type="submit"
+      disabled={running || starting || sdr.busyFor(deviceId) || !chosen.length}
       ><Play size={16} /> {t('Scan starten')}</button
     >
     <button class="btn-danger" type="button" onclick={stop} disabled={!running || stopping}
       ><Square size={16} /> {stopping ? t('Stoppe…') : t('Stopp')}</button
     >
-    {#if sdr.busy && !running}<span class="self-center text-sm text-amber-600"
+    {#if sdr.busyFor(deviceId) && !running}<span class="self-center text-sm text-amber-600"
         >{t('SDR ist belegt ({kind})', { kind: sdr.status?.holder?.kind })}</span
       >{/if}
   </div>

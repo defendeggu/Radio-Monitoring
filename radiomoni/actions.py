@@ -17,7 +17,7 @@ def start_stream(req: StreamRequest) -> dict[str, Any]:
 
     cls = StreamingAPRSDecoder if req.mode == 'aprs' else StreamingPOCSAGDecoder
     decoder = cls(frequency=req.frequency, duration=req.duration, sample_rate=req.sample_rate, gain=req.gain,
-                  device_type=req.device_type, device_address=req.device_address_str)
+                  device_type=req.device_type, device_address=req.device_address_str, device_id=req.device_id)
     session_id = start_stream_session(decoder, req.mode, req.frequency, req.sample_rate, req.gain)
     return {'session_id': session_id, 'mode': req.mode, 'frequency': req.frequency}
 
@@ -38,7 +38,7 @@ def start_vox(req: VoxRequest) -> dict[str, Any]:
         modulation=req.modulation, squelch_db=req.squelch_db, hang_time_ms=req.hang_time_ms,
         min_segment_ms=req.min_segment_ms, max_segment_s=req.max_segment_s, transcribe=req.transcribe,
         language=req.language, device_type=req.device_type, device_address=req.device_address_str,
-        output_dir=recording_dir())
+        output_dir=recording_dir(), device_id=req.device_id)
     session_id = start_stream_session(recorder, 'vox', req.frequency, recorder.sample_rate, req.gain)
     return {'session_id': session_id, 'mode': 'vox', 'frequency': req.frequency}
 
@@ -48,7 +48,7 @@ def start_external_decoder(req: ExternalDecoderRequest) -> dict[str, Any]:
     from radiomoni.jobs import start_stream_session
 
     session = ExternalDecoderSession(decoder=req.decoder, duration=req.duration, gain=req.gain,
-                                     frequency=req.frequency, ppm=req.ppm)
+                                     frequency=req.frequency, ppm=req.ppm, device_id=req.device_id)
     session_id = start_stream_session(session, req.decoder, int(session.frequency), session.sample_rate,
                                       req.gain if req.gain is not None else -1)
     return {'session_id': session_id, 'mode': req.decoder, 'frequency': int(session.frequency)}
@@ -60,7 +60,8 @@ def start_spectrum(req: SpectrumRequest) -> dict[str, Any]:
 
     session = SpectrumSession(frequency=req.frequency, sample_rate=req.sample_rate, gain=req.gain,
                               duration=req.duration, fft_size=req.fft_size, fps=req.fps,
-                              device_type=req.device_type, device_address=req.device_address_str)
+                              device_type=req.device_type, device_address=req.device_address_str,
+                              device_id=req.device_id)
     session_id = start_stream_session(session, 'spectrum', req.frequency, session.sample_rate, req.gain)
     return {'session_id': session_id, 'mode': 'spectrum', 'frequency': req.frequency, **session.state()}
 
@@ -76,7 +77,7 @@ def start_cw(req: CwRequest) -> dict[str, Any]:
                         wpm=req.wpm, cw_bandwidth=req.cw_bandwidth, tone_hz=req.tone_hz, record=req.record,
                         device_type=req.device_type,
                         device_address=str(req.device_address) if req.device_address else None,
-                        output_dir=recording_dir())
+                        output_dir=recording_dir(), device_id=req.device_id)
     session_id = start_stream_session(session, 'cw', req.frequency, session.sample_rate, req.gain)
     return {'session_id': session_id, 'mode': 'cw', 'frequency': req.frequency, **session.state()}
 
@@ -99,7 +100,7 @@ def start_skimmer(req: SkimmerRequest) -> dict[str, Any]:
                              contest=req.contest, max_decoders=req.max_decoders, sample_rate=req.sample_rate,
                              record_iq=req.record_iq, include_rbn=req.include_rbn, device_type=req.device_type,
                              device_address=str(req.device_address) if req.device_address else None,
-                             output_dir=recording_dir(), language=req.language)
+                             output_dir=recording_dir(), language=req.language, device_id=req.device_id)
     session_id = start_stream_session(session, 'skimmer', session.seg_centre, session.sample_rate, req.gain)
     return {'session_id': session_id, 'mode': 'skimmer', 'frequency': session.seg_centre, **session.state()}
 

@@ -36,7 +36,7 @@ from radiomoni.decoders.streaming import BaseStreamingDecoder, SessionManager
 from radiomoni.decoders.vox import SquelchGate, chunk_power_db
 from radiomoni.dsp import ChannelReceiver, SpectrumAnalyzer, mask_dc, to_uint8
 from radiomoni.redis_client import get_redis, get_redis_raw
-from radiomoni.sdr_hardware import SDRType, detect_sdr, get_sdr_instance
+from radiomoni.sdr_hardware import SDRType, get_sdr_instance
 
 logger = logging.getLogger(__name__)
 
@@ -204,10 +204,11 @@ class SpectrumSession(BaseStreamingDecoder):
     """Waterfall plus one listening channel; gives way to every other SDR job."""
 
     def __init__(self, frequency: int, sample_rate: int, gain: int, duration: int, fft_size: int = 2048,
-                 fps: float = 10.0, device_type: Optional[str] = None, device_address: Optional[str] = None):
+                 fps: float = 10.0, device_type: Optional[str] = None, device_address: Optional[str] = None,
+                 device_id: Optional[str] = None):
         super().__init__(frequency, duration, gain, sample_rate)
         self.device_address = device_address
-        self.sdr_type = detect_sdr(preferred_type=device_type, device_address=device_address)
+        self._use_device(device_type, device_address, device_id)
         if self.sdr_type == SDRType.UNKNOWN:
             raise ValueError("No SDR hardware detected")
         low, high = SPAN_LIMITS.get(self.sdr_type, (200_000, 10_000_000))
@@ -398,20 +399,26 @@ class SpectrumSession(BaseStreamingDecoder):
 
 
 # ------------------------------------------------------------------ preemption
-def preempt_local(by_kind: str) -> int:
-    """Stop the spectrum sessions of this process. Returns how many were stopped."""
+def preempt_local(by_kind: str, owner: Optional[str] = None) -> int:
+    """Stop the spectrum session of this process that holds `owner`'s lock (all of them without an
+    owner). Returns how many were stopped. Only that device's waterfall gives way."""
     from radiomoni.session_store import session_manager
     stopped = 0
     for decoder in list(session_manager.get_all_active_decoders().values()):
-        if isinstance(decoder, SpectrumSession) and not decoder.stop_event.is_set():
-            decoder.preempt(by_kind)
-            stopped += 1
+        if not isinstance(decoder, SpectrumSession) or decoder.stop_event.is_set():
+            continue
+        if owner is not None and (decoder.lease is None or decoder.lease.owner != owner):
+            continue
+        decoder.preempt(by_kind)
+        stopped += 1
     return stopped
 
 
 def _preempt(holder: dict[str, Any], by_kind: str) -> None:
-    if not preempt_local(by_kind):
-        events.send_control('preempt', kind='spectrum', by=by_kind)   # held by another API process
+    owner = holder.get('owner')
+    if not preempt_local(by_kind, owner):
+        # held by another API process
+        events.send_control('preempt', kind='spectrum', by=by_kind, owner=owner)
 
 
 sdr_lock.register_preemptible('spectrum', _preempt)

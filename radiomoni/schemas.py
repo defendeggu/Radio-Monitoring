@@ -13,6 +13,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from radiomoni import config
 
 DeviceType = Literal['auto', 'hackrf', 'rtlsdr', 'airspyhf', 'usrp']
+# radiomoni.devices: hackrf:<serial>, rtlsdr:<serial|index>, airspyhf:<serial>, usrp:<ip>
+DeviceId = Annotated[str, Field(pattern=r'^[a-z]+:[A-Za-z0-9._:-]{1,64}$', description='SDR device from GET /sdr/devices')]
 Modulation = Literal['FM', 'AM', 'USB', 'LSB']
 CaptureMode = Literal['voice', 'aprs', 'pocsag', 'raw']
 StreamMode = Literal['aprs', 'pocsag']
@@ -35,6 +37,7 @@ class SdrParams(StrictModel):
     device_type: DeviceType = 'auto'
     device_address: Optional[Union[IPv4Address, IPv6Address]] = Field(
         None, description='IP address of a USRP N200 (required when device_type=usrp)')
+    device_id: Optional[DeviceId] = Field(None, description='Run on this SDR (overrides device_type)')
 
     @field_validator('frequency', mode='before')
     @classmethod
@@ -126,6 +129,8 @@ class RepeaterScanRequest(StrictModel):
         description='Total scan time in seconds: the repeaters are scanned in rounds until it is over. '
                     'Empty = one round')
     until_stopped: bool = Field(False, description='Scan in rounds until POST /scan-repeaters/<id>/stop')
+    device_type: DeviceType = 'auto'
+    device_id: Optional[DeviceId] = None
 
     @model_validator(mode='after')
     def _one_end_condition(self) -> 'RepeaterScanRequest':
@@ -192,6 +197,7 @@ class CwRequest(StrictModel):
                                        description='IQ rate; empty = device default (HackRF 2 MHz)')
     device_type: DeviceType = 'auto'
     device_address: Optional[Union[IPv4Address, IPv6Address]] = None
+    device_id: Optional[DeviceId] = Field(None, description='Run on this SDR (overrides device_type)')
     wpm: int = Field(20, ge=5, le=60, description='Expected speed; the decoder adapts')
     cw_bandwidth: Literal[100, 200, 300, 500] = Field(200, description='Decoder filter width in Hz')
     tone_hz: int = Field(700, ge=300, le=1200, description='Pitch of the CW tone when listening')
@@ -225,6 +231,7 @@ class ExternalDecoderRequest(StrictModel):
     gain: Optional[int] = Field(None, ge=0, le=50, description='Empty = automatic gain')
     ppm: int = Field(0, ge=-200, le=200, description='Frequency correction in ppm')
     duration: int = Field(3600, ge=30, le=config.MAX_STREAM_DURATION)
+    device_id: Optional[DeviceId] = Field(None, description='Run on this SDR (default: a suitable one)')
 
 
 HfBand = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m']
@@ -246,6 +253,7 @@ class SkimmerRequest(StrictModel):
     sample_rate: Optional[int] = Field(None, ge=200_000, le=10_000_000)
     device_type: DeviceType = 'auto'
     device_address: Optional[Union[IPv4Address, IPv6Address]] = None
+    device_id: Optional[DeviceId] = Field(None, description='Run on this SDR (overrides device_type)')
     record_iq: bool = Field(False, description='Record the segment IQ (WAV) plus RBN reference spots')
     include_rbn: bool = Field(False, description='Forward RBN spots of the contest bands too (assistance!)')
     duration: int = Field(0, ge=0, le=259_200, description='Seconds; 0 = until stopped')

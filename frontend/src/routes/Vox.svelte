@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Radio } from '@lucide/svelte';
   import { api } from '../lib/api';
+  import DeviceSelect from '../lib/components/DeviceSelect.svelte';
   import AudioPlayer from '../lib/components/AudioPlayer.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import FrequencyField from '../lib/components/FrequencyField.svelte';
@@ -24,6 +25,7 @@
   let frequency = $state(Number(router.params.get('f')) || 446_006_250);
   let modulation = $state<'FM' | 'AM'>('FM');
   let gain = $state(30);
+  let deviceId = $state(''); // SDR for this start ('' = from the settings)
   let squelch = $state(10);
   let hang = $state(1500);
   let hours = $state(1);
@@ -82,7 +84,7 @@
         duration: Math.round(hours * 3600),
         transcribe,
         language: language || null,
-        ...settings.deviceParams(),
+        ...settings.deviceParams(deviceId),
       });
       sessionId = r.session_id;
       segments = [];
@@ -122,6 +124,7 @@
       <label class="label" for="vmod">Modulation</label>
       <select id="vmod" class="input" bind:value={modulation}><option>FM</option><option>AM</option></select>
     </div>
+    <DeviceSelect bind:value={deviceId} />
     <div>
       <label class="label" for="vgain">{t('Verstärkung (dB)')}</label>
       <input id="vgain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -145,7 +148,7 @@
       {t('Transkribieren')}
     </label>
   </div>
-  <button class="btn-primary" type="submit" disabled={busy || sdr.busy}
+  <button class="btn-primary" type="submit" disabled={busy || sdr.busyFor(deviceId)}
     ><Radio size={16} /> {t('VOX starten')}</button
   >
 </form>

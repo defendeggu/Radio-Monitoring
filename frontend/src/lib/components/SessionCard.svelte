@@ -3,7 +3,7 @@
   import { api } from '../api';
   import { t } from '../i18n.svelte';
   import { dateTime, duration, mhz } from '../format';
-  import { live, toasts } from '../stores.svelte';
+  import { live, sdr, toasts } from '../stores.svelte';
   import type { StreamSession } from '../types';
 
   let {
@@ -78,6 +78,11 @@
     <span class="text-slate-500">{t('Frequenz')}</span>
     <span class="font-mono">{mhz(session?.frequency)}</span>
   </div>
+  {#if session?.device_label && sdr.devices.length > 1}
+    <div class="text-sm">
+      <span class="text-slate-500">SDR</span> <span>{session.device_label}</span>
+    </div>
+  {/if}
   {#if showCount}
     <div class="text-sm">
       <span class="text-slate-500">{countLabel}</span>

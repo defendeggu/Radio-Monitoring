@@ -32,6 +32,7 @@ os.environ.update({
     'N1MM_ENABLED': 'false',
     'CLUSTER_ENABLED': 'false',
     'CONTEST_DATA_DIR': os.path.join(_TEST_DIR, 'contest'),
+    'SYSFS_USB_ROOT': os.path.join(_TEST_DIR, 'no-usb'),   # never see the SDRs of the machine running the tests
 })
 
 from radiomoni.api_service import app  # noqa: E402
@@ -62,7 +63,10 @@ def isolated_state(tmp_path, mock_transcription_service):
     set_storage(SQLiteStorage(str(tmp_path / 'storage.sqlite3')))
     alerts._invalidate()
     radiomoni.blueprints.sdr._detect_cache = (0.0, {})
+    from radiomoni import devices
+    devices.clear_cache()
     yield
+    devices.clear_cache()
     _drain_job_pools()
     get_redis().flushall()
     from radiomoni.storage import base as storage
@@ -119,17 +123,13 @@ def mock_transcription_service(monkeypatch):
 @pytest.fixture
 def mock_sdr_hardware(monkeypatch):
     """Pretend a HackRF is connected; captures produce synthetic files."""
-    from radiomoni import jobs
+    from radiomoni import devices
     from radiomoni import sdr_hardware
-    from radiomoni.decoders import streaming
-    from radiomoni.decoders import cw
-    from radiomoni.decoders import spectrum
-    from radiomoni.decoders import vox
-    from radiomoni.skimmer import session as skimmer_session
 
     detect = lambda *args, **kwargs: SDRType.HACKRF  # noqa: E731
-    for module in (sdr_hardware, jobs, streaming, vox, spectrum, cw, skimmer_session):
+    for module in (sdr_hardware, devices):
         monkeypatch.setattr(module, 'detect_sdr', detect)
+    devices.clear_cache()
     import radiomoni.blueprints.sdr
     monkeypatch.setattr(radiomoni.blueprints.sdr, 'detect_sdr', detect)
     monkeypatch.setattr(HackRFCapture, 'is_available', lambda self: True)

@@ -283,3 +283,39 @@ test('contest page: SSB start sends mode and language', async ({ page }) => {
   await expect(page.getByText('SDR device is busy')).toBeVisible();
   expect(skimmerStarts.at(-1)).toMatchObject({ mode: 'SSB', language: 'de', band: '20m', max_decoders: 16 });
 });
+
+test('two SDRs: the CW start runs on the chosen device', async ({ page }) => {
+  cwStarts.length = 0;
+  const device = (id: string, label: string, busy = false) => ({
+    id,
+    type: id.split(':')[0],
+    label,
+    busy,
+    preemptible: false,
+    holder: busy ? { owner: 'stream:x', kind: 'aprs', since: '', details: {} } : null,
+    sessions: [],
+  });
+  await page.route('**/api/sdr/status', (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        busy: true,
+        preemptible: false,
+        holder: { owner: 'stream:x', kind: 'aprs', since: '', details: {} },
+        active_sessions: [],
+        default_device: 'hackrf:abc',
+        devices: [device('hackrf:abc', 'HackRF One', true), device('rtlsdr:0', 'RTL-SDR')],
+      }),
+    }),
+  );
+  await page.goto('/#/cw');
+  await expect(page.getByText('2 SDRs, 1 belegt')).toBeVisible();
+  const start = page.getByRole('button', { name: 'CW-Decoder starten' });
+  await expect(start).toBeDisabled(); // the default SDR (HackRF) is busy
+  await page.getByLabel('SDR', { exact: true }).selectOption('rtlsdr:0');
+  await expect(start).toBeEnabled();
+  await start.click();
+  await expect(page.getByText('SDR device is busy')).toBeVisible();
+  expect(cwStarts.at(-1)).toMatchObject({ device_id: 'rtlsdr:0', device_type: 'auto' });
+});

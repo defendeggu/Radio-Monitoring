@@ -24,7 +24,9 @@ from typing import IO, Any, Optional
 
 from radiomoni import alerts
 from radiomoni import events
-from radiomoni.sdr_hardware import RTLSDRCapture, SDRType, detect_sdr
+from radiomoni import devices, sdr_lock
+from radiomoni.devices import Device
+from radiomoni.sdr_hardware import RTLSDRCapture, SDRType
 from radiomoni.decoders.streaming import BaseStreamingDecoder, SessionManager
 
 logger = logging.getLogger(__name__)
@@ -158,7 +160,7 @@ class ExternalDecoderSession(BaseStreamingDecoder):
     """Runs one external decoder tool for the session duration."""
 
     def __init__(self, decoder: str, duration: int, gain: Optional[int] = None,
-                 frequency: Optional[int] = None, ppm: int = 0):
+                 frequency: Optional[int] = None, ppm: int = 0, device_id: Optional[str] = None):
         if decoder not in TOOLS:
             raise ValueError(f"Unknown decoder: {decoder}")
         freq = frequency if (decoder == 'ism' and frequency) else DEFAULT_FREQUENCIES[decoder]
@@ -169,22 +171,37 @@ class ExternalDecoderSession(BaseStreamingDecoder):
         self.auto_gain = gain is None
         if not tool_available(decoder):
             raise RuntimeError(f"{TOOLS[decoder]} is not installed")
-        self.sdr_type = self._pick_sdr(decoder)
+        self.device = self._pick_device(decoder, device_id)
+        self.sdr_type = self.device.type
         self._workdir: Optional[str] = None
         self._last_stored: dict[str, float] = {}
 
     @staticmethod
-    def _pick_sdr(decoder: str) -> SDRType:
-        """Use the detected SDR if the tool supports it. Auto-detection prefers a
-        HackRF, so for RTL-SDR-only tools also look for a dongle next to it."""
+    def _pick_device(decoder: str, device_id: Optional[str] = None) -> Device:
+        """The requested device, else the first supported device that is free (so AIS can run on
+        the RTL-SDR while the HackRF is busy), else the first supported one."""
         supported = SUPPORTED_SDRS[decoder]
-        detected = detect_sdr()
-        if detected in supported:
-            return detected
-        if SDRType.RTLSDR in supported and RTLSDRCapture(frequency=100_000_000).is_available():
-            return SDRType.RTLSDR
         names = ' or '.join(SDR_NAMES[t] for t in supported)
-        raise ValueError(f"{decoder.upper()} decoding requires {names} (detected: {detected.value})")
+        if device_id:
+            device = devices.resolve(device_id=device_id)
+            if device.type not in supported:
+                raise ValueError(f"{decoder.upper()} decoding requires {names}, not {device.label}")
+            return device
+        candidates = [d for d in devices.list_devices() if d.type in supported]
+        if not candidates:
+            try:
+                detected = devices.resolve('auto')
+            except (ValueError, devices.NoSdrError):
+                detected = None
+            if detected is not None and detected.type in supported:
+                candidates = [detected]
+            elif SDRType.RTLSDR in supported and RTLSDRCapture(frequency=100_000_000).is_available():
+                candidates = [devices.fallback_device(SDRType.RTLSDR)]
+            else:
+                found = detected.type.value if detected else 'none'
+                raise ValueError(f"{decoder.upper()} decoding requires {names} (detected: {found})")
+        free = next((d for d in candidates if sdr_lock.current_holder(d.id) is None), None)
+        return free or candidates[0]
 
     def _get_mode(self) -> str:
         return self.decoder
@@ -206,13 +223,13 @@ class ExternalDecoderSession(BaseStreamingDecoder):
 
     def build_command(self) -> list[str]:
         if self.decoder == 'ism':
-            cmd = ['rtl_433', '-f', str(self.frequency), '-F', 'json', '-M', 'time:iso:utc', '-M', 'level',
+            cmd = ['rtl_433', *self._device_args('rtl_433'), '-f', str(self.frequency), '-F', 'json', '-M', 'time:iso:utc', '-M', 'level',
                    '-p', str(self.ppm)]
             if not self.auto_gain:
                 cmd += ['-g', str(self.gain)]
             return cmd
         if self.decoder == 'ais':
-            cmd = ['rtl_ais', '-n', '-p', str(self.ppm)]
+            cmd = ['rtl_ais', *self._device_args('rtl_ais'), '-n', '-p', str(self.ppm)]
             if not self.auto_gain:
                 cmd += ['-g', str(self.gain)]
             return cmd
@@ -227,7 +244,7 @@ class ExternalDecoderSession(BaseStreamingDecoder):
                 cmd += ['--gain', str(min(40, round(self.gain / 8) * 8)),
                         '--hackrf-vgagain', str(min(62, self.gain // 2 * 2))]
             return cmd
-        return cmd + ['--device-type', 'rtlsdr', '--ppm', str(self.ppm),
+        return cmd + ['--device-type', 'rtlsdr', *self._device_args('readsb'), '--ppm', str(self.ppm),
                       '--gain', 'auto' if self.auto_gain else str(self.gain)]
 
     def _stream_worker_simple(self, session_manager: SessionManager) -> None:

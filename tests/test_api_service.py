@@ -69,9 +69,10 @@ class TestCaptureValidation:
         assert 'does not support' in response.get_json()['error']
 
     def test_no_sdr_is_503(self, client: FlaskClient, monkeypatch):
-        from radiomoni import jobs
+        from radiomoni import devices
         from radiomoni.sdr_hardware import SDRType
-        monkeypatch.setattr(jobs, 'detect_sdr', lambda *a, **k: SDRType.UNKNOWN)
+        monkeypatch.setattr(devices, 'detect_sdr', lambda *a, **k: SDRType.UNKNOWN)
+        devices.clear_cache()
         response = client.post('/capture-and-transcribe', json={'frequency': 100e6, 'duration': 1})
         assert response.status_code == 503
 

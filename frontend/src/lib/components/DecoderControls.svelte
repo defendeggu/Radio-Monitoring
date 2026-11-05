@@ -6,6 +6,7 @@
   import { router } from '../router.svelte';
   import { sdr, settings, toasts } from '../stores.svelte';
   import type { Bookmark, CaptureResult } from '../types';
+  import DeviceSelect from './DeviceSelect.svelte';
   import FrequencyField from './FrequencyField.svelte';
   import Presets from './Presets.svelte';
   import Progress from './Progress.svelte';
@@ -26,6 +27,7 @@
   // svelte-ignore state_referenced_locally
   let frequency = $state(Number(router.params.get('f')) || defaultFrequency);
   let gain = $state(32);
+  let deviceId = $state(''); // SDR for this start ('' = from the settings)
   let streaming = $state(true);
   let streamHours = $state(1);
   // svelte-ignore state_referenced_locally
@@ -49,7 +51,7 @@
           frequency,
           gain,
           duration: Math.round(streamHours * 3600),
-          ...settings.deviceParams(),
+          ...settings.deviceParams(deviceId),
         });
         sessionId = r.session_id;
         toasts.push(t('{mode}-Streaming gestartet', { mode: mode.toUpperCase() }), 'success');
@@ -60,7 +62,7 @@
           frequency,
           gain,
           duration: captureSeconds,
-          ...settings.deviceParams(),
+          ...settings.deviceParams(deviceId),
         });
         const job = await waitForCapture(r.capture_id, (j) => (captureStatus = j.status));
         if (job.status === 'completed' && job.result) oncapture(job.result);
@@ -97,6 +99,7 @@
   </div>
   <div class="grid grid-cols-1 gap-4 sm:grid-cols-3">
     <FrequencyField bind:value={frequency} />
+    <DeviceSelect bind:value={deviceId} id="dc-device" />
     <div>
       <label class="label" for="{mode}-gain">{t('Verstärkung (dB)')}</label>
       <input id="{mode}-gain" class="input" type="number" min="0" max="76" bind:value={gain} />
@@ -130,11 +133,11 @@
     {/if}
   </div>
   {#if captureStatus}<Progress value={captureStatus === 'processing' ? 85 : 40} label={captureStatus} />{/if}
-  <button class="btn-primary" type="submit" disabled={busy || sdr.busy}>
+  <button class="btn-primary" type="submit" disabled={busy || sdr.busyFor(deviceId)}>
     {#if streaming}<Radio size={16} /> {t('Streaming starten')}{:else}<Play size={16} />
       {t('Aufnahme starten')}{/if}
   </button>
-  {#if sdr.busy && !sessionId}<span class="ml-3 text-sm text-amber-600"
+  {#if sdr.busyFor(deviceId) && !sessionId}<span class="ml-3 text-sm text-amber-600"
       >{t('SDR belegt ({kind})', { kind: sdr.status?.holder?.kind })}</span
     >{/if}
 </form>
