@@ -166,10 +166,10 @@ class CwSession(BaseStreamingDecoder):
         self.tap = spectrum.SpectrumTap(sid, int(self.frequency), self.sample_rate,
                                         dc_spike=self.sdr_type == SDRType.HACKRF, flags=flags)
         try:
-            self.session.status = 'running'
             self.session.frequency = self.target
+            self._publish_state()          # state first: a client may tune as soon as it sees "running"
+            self.session.status = 'running'
             session_manager.save_session(self.session)
-            self._publish_state()
             while not self.stop_event.is_set():
                 self.sdr_proc = self._start_sdr_capture()
                 if not self._run(flags, session_manager):

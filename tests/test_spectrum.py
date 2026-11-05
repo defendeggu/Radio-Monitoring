@@ -142,6 +142,7 @@ class TestSession:
         collector = Collector(sid)
         try:
             spectrum.touch_viewer(sid, listening=True)
+            wait_for(lambda: spectrum.load_state(sid) is not None)     # tune needs the published state
             assert client.post(f'/spectrum/{sid}/tune',
                                json={'channel': CENTRE + 100_000, 'modulation': 'USB'}).status_code == 200
             wait_for(lambda: collector.kinds(FRAME_AUDIO))
