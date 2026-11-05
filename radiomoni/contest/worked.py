@@ -25,7 +25,9 @@ VERSION_KEY = 'contest:qsos:version'
 MAX_QSOS = 50_000
 
 N1MM_BANDS = {'1.8': '160m', '3.5': '80m', '5': '60m', '7': '40m', '10': '30m', '14': '20m', '18': '17m',
-              '21': '15m', '24': '12m', '28': '10m'}
+              '21': '15m', '24': '12m', '28': '10m', '50': '6m', '144': '2m', '432': '70cm', '1296': '23cm'}
+# Cabrillo writes VHF/UHF bands as designators instead of kHz
+CABRILLO_BANDS = {'50': '6m', '144': '2m', '432': '70cm', '1.2G': '23cm', '1296': '23cm'}
 PHONE = {'SSB', 'USB', 'LSB', 'PH', 'AM', 'FM', 'PHONE'}
 DIGITAL = {'RTTY', 'RY', 'DG', 'FT8', 'FT4', 'PSK', 'PSK31', 'DIGI', 'DATA'}
 
@@ -46,7 +48,7 @@ def band_from_khz(khz: float) -> Optional[str]:
 def band_from_text(text: str) -> Optional[str]:
     """ADIF '20m' / '20M', N1MM '14' or '3,5' (MHz)."""
     text = (text or '').strip().lower().replace(',', '.')
-    if text.endswith('m') and text[:-1].isdigit():
+    if re.fullmatch(r'\d+c?m', text):
         return text
     if text in N1MM_BANDS:
         return N1MM_BANDS[text]
@@ -95,10 +97,12 @@ def parse_cabrillo(text: str) -> list[dict[str, Any]]:
         call = next((t.upper() for t in tokens[6:] if t.upper() != mycall and cs.is_valid(t.upper())), None)
         if call is None:
             continue
-        try:
-            band = band_from_khz(float(tokens[1]))
-        except ValueError:
-            band = None
+        band = CABRILLO_BANDS.get(tokens[1].upper())
+        if band is None:
+            try:
+                band = band_from_khz(float(tokens[1]))
+            except ValueError:
+                band = None
         qsos.append({'call': call, 'band': band, 'mode': normalize_mode(tokens[2]),
                      'time': f'{tokens[3]} {tokens[4]}'})
     return qsos

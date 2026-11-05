@@ -6,6 +6,7 @@ bands: [160m, 80m, 40m, 20m, 15m, 10m]
 dupe: band
 multipliers:
   - {type: wpx, per: contest}
+when: last full weekend of May, 48 h from Saturday 00:00 UTC
 url: https://cqwpx.com/rules.htm
 assistance: >-
   A local skimmer counts as assistance: allowed in assisted and multi-operator

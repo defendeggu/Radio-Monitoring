@@ -1,0 +1,16 @@
+# USKA VHF/UHF/Microwaves Contest May — first weekend of May (2026: 2–3 May)
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/vhf-contest-mai/
+id: uska-vhf-may
+name: USKA VHF/UHF/Microwaves Contest May
+modes: [CW, SSB]
+bands: [2m, 70cm, 23cm]
+dupe: band
+multipliers: []
+highlight: [portable]
+when: >-
+  first weekend of May (2026: 2–3 May)
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/vhf-contest-mai/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format. Bands from 1.3 GHz up count as well; the skimmer covers up to 23 cm.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

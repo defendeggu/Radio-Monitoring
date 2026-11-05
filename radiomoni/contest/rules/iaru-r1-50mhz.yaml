@@ -1,0 +1,16 @@
+# IARU Region 1 50 MHz Contest — June, Saturday 14:00 – Sunday 14:00 UTC (2026: 20–21 June)
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/iaru-50-mhz/
+id: iaru-r1-50mhz
+name: IARU Region 1 50 MHz Contest
+modes: [CW, SSB]
+bands: [6m]
+dupe: band
+multipliers: []
+highlight: []
+when: >-
+  June, Saturday 14:00 – Sunday 14:00 UTC (2026: 20–21 June)
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/iaru-50-mhz/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

@@ -2,7 +2,7 @@
 id: general
 name: General (no contest)
 modes: [CW, SSB]
-bands: [160m, 80m, 60m, 40m, 30m, 20m, 17m, 15m, 12m, 10m]
+bands: [160m, 80m, 60m, 40m, 30m, 20m, 17m, 15m, 12m, 10m, 6m, 2m, 70cm, 23cm]
 dupe: band_mode
 multipliers: []
 url: ''

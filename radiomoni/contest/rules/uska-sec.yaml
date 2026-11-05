@@ -1,0 +1,16 @@
+# USKA Swiss Emergency Contest (SEC) — autumn (2026: Saturday 7 November, 09:00–12:00 and 14:00–17:00 Swiss time)
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/special-contests/sec/
+id: uska-sec
+name: USKA Swiss Emergency Contest (SEC)
+modes: [SSB]
+bands: [80m, 40m, 2m, 70cm]
+dupe: band_mode
+multipliers: []
+highlight: [swiss]
+when: >-
+  autumn (2026: Saturday 7 November, 09:00–12:00 and 14:00–17:00 Swiss time)
+url: https://uska.ch/de/funkamateure/wettbewerbe/special-contests/sec/
+notes: >-
+  Emergency communication exercise in SSB on HF and VHF/UHF, plus CB radio and repeaters (not covered). The live skimmer decodes CW only. Multipliers (cantons) and points come from the exchange and are not detected; the skimmer reports new and dupe stations, Swiss stations highlighted. Bands and details were not taken from the rules PDF (download behind a bot check) — check them before use.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

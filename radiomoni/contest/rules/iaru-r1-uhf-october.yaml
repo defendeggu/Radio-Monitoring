@@ -1,0 +1,16 @@
+# IARU Region 1 UHF/Microwaves Contest October — first full weekend of October, 24 hours
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/uhf-microwaves-oktober/
+id: iaru-r1-uhf-october
+name: IARU Region 1 UHF/Microwaves Contest October
+modes: [CW, SSB]
+bands: [70cm, 23cm]
+dupe: band
+multipliers: []
+highlight: [portable]
+when: >-
+  first full weekend of October, 24 hours
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/uhf-microwaves-oktober/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format. Bands above 1.3 GHz count as well; the skimmer covers up to 23 cm.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

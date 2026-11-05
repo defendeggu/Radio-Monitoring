@@ -7,6 +7,7 @@ dupe: band
 multipliers:
   - {type: cq_zone, per: band}
   - {type: dxcc, per: band}
+when: last full weekend of October, 48 h from Saturday 00:00 UTC
 url: https://cqww.com/rules.htm
 assistance: >-
   A local skimmer counts as assistance: allowed in assisted and multi-operator

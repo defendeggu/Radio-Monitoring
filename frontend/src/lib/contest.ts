@@ -41,6 +41,7 @@ export interface ContestRules {
   multipliers: { type: string; per: string }[];
   highlight: string[];
   url: string;
+  when: string;
   notes: string;
   assistance: string;
 }

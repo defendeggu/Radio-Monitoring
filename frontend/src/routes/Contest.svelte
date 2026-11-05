@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte';
   import { BookOpen, Play, RefreshCw, Trash2, Upload } from '@lucide/svelte';
   import { api } from '../lib/api';
-  import { CW_BANDS } from '../lib/bands';
+  import { CW_BANDS, VHF_CW_BANDS } from '../lib/bands';
   import { TONES, markerKind, tags, type ContestRules, type SkimmerSpot } from '../lib/contest';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
@@ -88,6 +88,14 @@
 
   const hasCw = routes.some((r) => r.path === 'cw');
   const rules = $derived(contests.find((c) => c.id === active) ?? status?.contest ?? null);
+  const ALL_BANDS = [...CW_BANDS, ...VHF_CW_BANDS];
+  // only the bands of the selected contest (all HF and VHF CW segments when it names none)
+  const contestBands = $derived(
+    rules?.bands.length ? ALL_BANDS.filter((b) => rules!.bands.includes(b.id)) : ALL_BANDS,
+  );
+  $effect(() => {
+    if (contestBands.length && !contestBands.some((b) => b.id === band)) band = contestBands[0].id;
+  });
   const shown = $derived(
     spots.filter(
       (s) => (!priorityFilter || s.priority === priorityFilter) && (!bandFilter || s.band === bandFilter),
@@ -291,6 +299,10 @@
             ? rules.multipliers.map((m) => `${m.type} (${m.per})`).join(', ')
             : t('keine')} · {t('Doppelte')}: {rules.dupe}
         </p>
+        {#if rules.when}<p class="text-sm">
+            <span class="text-slate-500">{t('Termin')}:</span>
+            {rules.when}
+          </p>{/if}
         {#if rules.notes}<p class="hint">{rules.notes}</p>{/if}
         {#if rules.assistance}
           <p
@@ -313,7 +325,7 @@
         <div>
           <span class="label">{t('Band (CW-Segment)')}</span>
           <div class="flex flex-wrap gap-2">
-            {#each CW_BANDS as b (b.id)}
+            {#each contestBands as b (b.id)}
               <button
                 class="chip {band === b.id ? 'ring-2 ring-cyan-500' : ''}"
                 type="button"
@@ -415,7 +427,7 @@
           <label class="label" for="sband">{t('Band')}</label>
           <select id="sband" class="input" bind:value={bandFilter}>
             <option value="">{t('alle')}</option>
-            {#each CW_BANDS as b (b.id)}<option value={b.id}>{b.label}</option>{/each}
+            {#each ALL_BANDS as b (b.id)}<option value={b.id}>{b.label}</option>{/each}
           </select>
         </div>
       </div>

@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- Contest-Skimmer: Regeln für die KW-, UKW- und Spezial-Contests der USKA (Weihnachtswettbewerb SSB und CW, NMD, Swiss Emergency Contest, SwAC, VHF/UHF März und Mai, H26 VHF, Mini Contest August) und die IARU-Region-1-UKW-Contests (50 MHz, VHF September, UHF/Microwaves Oktober, Marconi Memorial). Jede Regel nennt den üblichen Termin (`when`).
+- Contest-Skimmer auf 6 m, 2 m, 70 cm und 23 cm (CW-Segmente nach IARU Region 1); das Log erkennt diese Bänder auch in ADIF, Cabrillo und N1MM+.
+
 ## [5.0.0] – 2026-11-05
 
 Neue Empfangsarten für Kurzwelle: Spektrum/Wasserfall mit Mithören, CW-Decoder, Reverse Beacon Network und Contest-Skimmer mit Anbindung an N1MM+.

@@ -7,6 +7,7 @@ dupe: band
 multipliers:
   - {type: dxcc, per: band}
 highlight: [portable]
+when: first full weekend of September, Saturday 13:00 – Sunday 12:59 UTC
 url: https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules
 notes: >-
   In Switzerland organised by the USKA as Field Day:

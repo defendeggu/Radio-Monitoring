@@ -119,7 +119,10 @@ class TestRefData:
 class TestRules:
     def test_all_files_valid(self):
         everything = rules.all_rules()
-        assert {'general', 'cq-ww-cw', 'iaru-r1-fieldday-cw', 'helvetia'} <= set(everything)
+        assert {'general', 'cq-ww-cw', 'iaru-r1-fieldday-cw', 'helvetia', 'uska-christmas-cw', 'uska-nmd',
+                'uska-sec', 'uska-swac', 'uska-h26-vhf', 'iaru-r1-vhf-september', 'marconi-memorial'} <= set(everything)
+        assert all(r.when for r in everything.values() if r.id != 'general')
+        assert rules.get('marconi-memorial').bands == ['2m'] and rules.get('marconi-memorial').modes == ['CW']
         assert rules.get('cq-ww-cw').multipliers[0].type == 'cq_zone'
         assert rules.get('nonexistent').id == 'general'
 
@@ -159,9 +162,19 @@ class TestWorked:
             ('DL1ABC', '20m', 'CW'), ('K1ABC', '40m', 'CW'), ('OK2PDT', '80m', 'SSB')]
 
     @pytest.mark.parametrize('text, band', [('20m', '20m'), ('14', '20m'), ('3,5', '80m'), ('1.8', '160m'),
-                                            ('10', '30m'), ('18', '17m'), ('x', None)])
+                                            ('10', '30m'), ('18', '17m'), ('2M', '2m'), ('70cm', '70cm'),
+                                            ('144', '2m'), ('432', '70cm'), ('50', '6m'), ('x', None)])
     def test_band_from_text(self, text, band):
         assert worked.band_from_text(text) == band
+
+    def test_vhf_logs(self):
+        cabrillo = ('QSO: 144 CW 2026-11-07 1403 HB9XX 599 001 JN47 DL1ABC 599 012 JN58\n'
+                    'QSO: 1.2G PH 2026-11-07 1410 HB9XX 59 002 JN47 OK2PDT 59 003 JN89\n'
+                    'QSO: 144050 CW 2026-11-07 1420 HB9XX 599 003 JN47 F5ABC 599 004 JN36\n')
+        assert [(q['call'], q['band']) for q in worked.parse_log(cabrillo)] == [
+            ('DL1ABC', '2m'), ('OK2PDT', '23cm'), ('F5ABC', '2m')]
+        adif = '<CALL:6>DL1ABC <BAND:4>70CM <MODE:2>CW <EOR> <CALL:6>OK2PDT <FREQ:7>144.050 <MODE:2>CW <EOR>'
+        assert [q['band'] for q in worked.parse_adif(adif)] == ['70cm', '2m']
 
     def test_log_in_redis(self):
         assert worked.import_log(ADIF) == 3
@@ -196,6 +209,14 @@ class TestClassify:
         assert engine.classify('DL2XYZ', 7_010_000)['new_mults'][0]['value'] == 'DL2'
         assert engine.classify('HB9XYZ', 14_030_000)['in_scp'] is True
         assert engine.classify('HB9QQQ', 14_030_000)['in_scp'] is False
+
+    def test_vhf_contest(self, contest_data):
+        engine.set_active_contest('marconi-memorial')
+        worked.import_log('QSO: 144 CW 2026-11-07 1403 HB9XX 599 001 JN47 DL1ABC 599 012 JN58\n')
+        assert engine.classify('DL1ABC', 144_050_000, 'CW')['priority'] == 'dupe'
+        new = engine.classify('OK2PDT', 144_050_000, 'CW')
+        assert new['priority'] == 'normal' and new['band'] == '2m' and new['in_contest']
+        assert not engine.classify('OK2PDT', 14_025_000, 'CW')['in_contest']          # HF is not in this contest
 
     def test_band_mode_dupes_and_highlight(self, contest_data):
         engine.set_active_contest('helvetia')

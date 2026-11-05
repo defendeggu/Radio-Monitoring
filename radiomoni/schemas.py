@@ -228,14 +228,15 @@ class ExternalDecoderRequest(StrictModel):
 
 
 HfBand = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m']
+ContestBand = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm', '23cm']
 ContestId = Annotated[str, Field(pattern=r'^[a-z0-9-]{1,40}$')]
 
 
 class SkimmerRequest(StrictModel):
     """Contest skimmer on one band segment: decodes every CW signal and reports the callsigns."""
-    band: Optional[HfBand] = Field(None, description='CW segment of this band (IARU Region 1 band plan)')
-    freq_low: Optional[int] = Field(None, ge=1_000_000, le=30_000_000, description='Segment start in Hz')
-    freq_high: Optional[int] = Field(None, ge=1_000_000, le=30_000_000, description='Segment end in Hz')
+    band: Optional[ContestBand] = Field(None, description='CW segment of this band (IARU Region 1 band plan)')
+    freq_low: Optional[int] = Field(None, ge=1_000_000, le=1_300_000_000, description='Segment start in Hz')
+    freq_high: Optional[int] = Field(None, ge=1_000_000, le=1_300_000_000, description='Segment end in Hz')
     mode: Literal['CW'] = Field('CW', description='CW only for now; SSB follows after the phase 0 evaluation')
     contest: Optional[ContestId] = Field(None, description='Contest rules; empty = the active contest')
     max_decoders: int = Field(24, ge=1, le=64, description='Signals decoded at the same time')
@@ -361,7 +362,7 @@ class RbnSpotsQuery(QueryModel):
 
 
 class SkimmerSpotsQuery(QueryModel):
-    band: Optional[HfBand] = None
+    band: Optional[ContestBand] = None
     priority: Optional[Literal['high', 'normal', 'dupe']] = None
     source: Optional[Literal['skimmer', 'rbn']] = None
     max_age: int = Field(30, ge=1, le=60, description='Minutes')
@@ -370,7 +371,7 @@ class SkimmerSpotsQuery(QueryModel):
 
 class LookupQuery(QueryModel):
     call: str = Field(..., min_length=3, max_length=14, pattern=r'^[A-Za-z0-9/]+$')
-    frequency: int = Field(14_025_000, ge=1_000_000, le=30_000_000)
+    frequency: int = Field(14_025_000, ge=1_000_000, le=1_300_000_000)
     mode: Literal['CW', 'SSB'] = 'CW'
 
 

@@ -1,0 +1,16 @@
+# USKA Christmas Contest SSB — first weekend of December, Saturday, SSB 07:00–09:59 UTC (digital 10:00–10:59 UTC)
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/christmas-contest-ssb-digi/
+id: uska-christmas-ssb
+name: USKA Christmas Contest SSB
+modes: [SSB]
+bands: [160m, 80m, 40m, 20m, 15m, 10m]
+dupe: band_mode
+multipliers: []
+highlight: [swiss]
+when: >-
+  first weekend of December, Saturday, SSB 07:00–09:59 UTC (digital 10:00–10:59 UTC)
+url: https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/christmas-contest-ssb-digi/
+notes: >-
+  Multipliers (cantons) and points come from the exchange and are not detected; the skimmer reports new and dupe stations, Swiss stations highlighted. Bands and details were not taken from the rules PDF (download behind a bot check) — check them before use. Digital modes (one QSO per station, band and digital mode) are not decoded.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

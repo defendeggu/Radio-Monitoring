@@ -71,9 +71,12 @@ Ein CW-Segment (zum Beispiel 14,000–14,070 MHz) braucht etwa einen halben CPU-
    | CQ WW DX CW / SSB | CQ-Zone und DXCC pro Band | pro Band |
    | CQ WPX CW / SSB | WPX-Präfix einmal pro Contest | pro Band |
    | USKA Helvetia Contest | DXCC pro Band, Schweizer Stationen hervorgehoben (Kantone kommen aus dem Austausch und sind nicht erkennbar) | pro Band und Betriebsart |
+   | USKA Weihnachtswettbewerb SSB / CW, NMD, Swiss Emergency Contest | keine erkennbaren (Kantone aus dem Austausch), Schweizer Stationen hervorgehoben | pro Band und Betriebsart |
+   | USKA SwAC, VHF/UHF März und Mai, H26 VHF, Mini Contest August | keine (Punkte = Kilometer aus dem Locator) | pro Band |
+   | IARU R1 50 MHz, VHF September, UHF/Microwaves Oktober, Marconi Memorial (2 m CW) | keine (Punkte = Kilometer aus dem Locator) | pro Band |
    | Allgemein | keine, nur neue und seltene Stationen | pro Band und Betriebsart |
 
-   Der Field Day der USKA ist der IARU-Region-1-Fieldday. Die Regeln des Helvetia Contest sind nicht gegen das aktuelle Reglement-PDF geprüft, weil dessen Download hinter einer Bot-Prüfung liegt. Für Weihnachtswettbewerb und NMD gibt es noch keine Regeldatei. Eine neue Datei im Ordner `rules/` genügt, das Format steht in `radiomoni/contest/rules.py`.
+   Jede Regel nennt den üblichen Termin. Der HB9HQ Contest der USKA ist die IARU HF World Championship, der Field Day der USKA der IARU-Region-1-Fieldday. Für die UKW-Contests kennt der Skimmer die CW-Segmente von 6 m, 2 m, 70 cm und 23 cm. Den 2-m-Bereich empfangen HackRF und Airspy HF+ (60–260 MHz). Termine, Bänder und Betriebsarten stammen von den Contest-Seiten der USKA. Die Reglement-PDFs liegen hinter einer Bot-Prüfung und sind nicht übernommen: Bänder und Details der Schweizer Contests vor dem Einsatz im Reglement prüfen. Nicht aufgenommen sind IARU ATV (Fernsehen), Microwaves Juni (erst ab 2,3 GHz) und HB9WARD (Aktivität, kein Contest). Eine neue Datei im Ordner `rules/` genügt, das Format steht in `radiomoni/contest/rules.py`.
 2. **Band wählen und *Skimmer starten*.**
    - Das SDR wird neben das CW-Segment gelegt, damit die DC-Spitze nicht stört.
    - Ein laufender Wasserfall weicht.
@@ -208,9 +211,12 @@ A CW segment (for example 14.000–14.070 MHz) needs about half a CPU core for 2
    | CQ WW DX CW / SSB | CQ zone and DXCC per band | per band |
    | CQ WPX CW / SSB | WPX prefix once per contest | per band |
    | USKA Helvetia Contest | DXCC per band, Swiss stations highlighted (cantons come from the exchange and cannot be detected) | per band and mode |
+   | USKA Christmas Contest SSB / CW, NMD, Swiss Emergency Contest | none detectable (cantons from the exchange), Swiss stations highlighted | per band and mode |
+   | USKA SwAC, VHF/UHF March and May, H26 VHF, Mini Contest August | none (points = kilometres from the locator) | per band |
+   | IARU R1 50 MHz, VHF September, UHF/Microwaves October, Marconi Memorial (2 m CW) | none (points = kilometres from the locator) | per band |
    | General | none, only new and rare stations | per band and mode |
 
-   The USKA Field Day is the IARU Region 1 Fieldday. The Helvetia rules have not been checked against the current rules PDF, because its download sits behind a bot check. The Christmas contest and NMD have no rule file yet. A new file in the `rules/` folder is enough; the format is described in `radiomoni/contest/rules.py`.
+   Every rule names the usual date. The USKA HB9HQ Contest is the IARU HF World Championship, the USKA Field Day the IARU Region 1 Fieldday. For the VHF contests the skimmer knows the CW segments of 6 m, 2 m, 70 cm and 23 cm; HackRF and Airspy HF+ (60–260 MHz) receive 2 m. Dates, bands and modes come from the USKA contest pages. The rules PDFs sit behind a bot check and were not used, so check the bands and details of the Swiss contests in the rules before use. Not included: IARU ATV (television), Microwaves June (2.3 GHz and up) and HB9WARD (activity, not a contest). A new file in the `rules/` folder is enough; the format is described in `radiomoni/contest/rules.py`.
 2. **Pick the band and click *Start skimmer*.**
    - The SDR is tuned beside the CW segment so its DC spike does not get in the way.
    - A running waterfall gives way.

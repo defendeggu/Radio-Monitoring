@@ -50,12 +50,15 @@ SPOTS_KEY = 'skimmer:spots'
 SPOTS_TTL = 3600
 RBN_FORWARD_S = 10.0
 
-# CW segments of the IARU Region 1 HF band plan (same as frontend/src/lib/bands.ts), Hz
+# CW segments of the IARU Region 1 band plans (same as frontend/src/lib/bands.ts), Hz
 CW_SEGMENTS: dict[str, tuple[int, int]] = {
     '160m': (1_810_000, 1_838_000), '80m': (3_500_000, 3_570_000), '60m': (5_351_500, 5_354_000),
     '40m': (7_000_000, 7_040_000), '30m': (10_100_000, 10_130_000), '20m': (14_000_000, 14_070_000),
     '17m': (18_068_000, 18_095_000), '15m': (21_000_000, 21_070_000), '12m': (24_890_000, 24_915_000),
     '10m': (28_000_000, 28_070_000),
+    # VHF/UHF CW segments (IARU Region 1): 6 m, 2 m, 70 cm, 23 cm
+    '6m': (50_000_000, 50_100_000), '2m': (144_000_000, 144_150_000), '70cm': (432_000_000, 432_100_000),
+    '23cm': (1_296_000_000, 1_296_150_000),
 }
 
 

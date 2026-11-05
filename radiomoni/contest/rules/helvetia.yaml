@@ -11,6 +11,7 @@ dupe: band_mode
 multipliers:
   - {type: dxcc, per: band}
 highlight: [swiss]
+when: last full weekend of April, Saturday 13:00 – Sunday 12:59 UTC
 url: https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/helvetia-contest/
 notes: >-
   Canton multipliers come from the exchange and are not detected. Check the

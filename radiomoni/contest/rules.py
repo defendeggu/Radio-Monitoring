@@ -25,7 +25,7 @@ RULES_DIR = os.path.join(os.path.dirname(__file__), 'rules')
 DEFAULT_CONTEST = 'general'
 
 MultiplierType = Literal['dxcc', 'wpx', 'cq_zone', 'itu_zone', 'continent']
-Band = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m']
+Band = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm', '23cm']
 
 
 class Multiplier(BaseModel):
@@ -44,6 +44,7 @@ class ContestRules(BaseModel):
     multipliers: list[Multiplier] = []
     highlight: list[Literal['portable', 'swiss']] = []
     url: str = ''
+    when: str = ''              # usual date and time, e.g. "first full weekend of June, 15:00–14:59 UTC"
     notes: str = ''
     assistance: str = ''
 

@@ -58,8 +58,14 @@ HF_BANDS: dict[str, tuple[float, float]] = {    # amateur bands in kHz (whole ba
 }
 
 
+# VHF/UHF bands of IARU Region 1 (contest skimmer on 6 m … 23 cm; RBN itself is HF only)
+VHF_BANDS: dict[str, tuple[float, float]] = {
+    '6m': (50000, 52000), '2m': (144000, 146000), '70cm': (430000, 440000), '23cm': (1240000, 1300000),
+}
+
+
 def band_of(khz: float) -> Optional[str]:
-    for name, (low, high) in HF_BANDS.items():
+    for name, (low, high) in (HF_BANDS | VHF_BANDS).items():
         if low <= khz <= high:
             return name
     return None

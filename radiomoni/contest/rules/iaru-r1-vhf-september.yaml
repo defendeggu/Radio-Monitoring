@@ -1,0 +1,16 @@
+# IARU Region 1 VHF Contest September — first full weekend of September, 33 hours
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/vhf-contest-september/
+id: iaru-r1-vhf-september
+name: IARU Region 1 VHF Contest September
+modes: [CW, SSB]
+bands: [2m]
+dupe: band
+multipliers: []
+highlight: [portable]
+when: >-
+  first full weekend of September, 33 hours
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/vhf-contest-september/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

@@ -370,6 +370,7 @@ export const en: Record<string, string> = {
   Suchen: 'Search',
   System: 'System',
   'Telnet-Port {port}': 'Telnet port {port}',
+  Termin: 'Date',
   'Test senden': 'Send test',
   'Text / Transkript': 'Text / transcript',
   'Tonhöhe beim Mithören (Hz)': 'Listening pitch (Hz)',

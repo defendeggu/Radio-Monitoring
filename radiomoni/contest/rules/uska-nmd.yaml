@@ -1,0 +1,16 @@
+# USKA National Mountain Day (NMD) — July (2026: 19 July, 06:00–09:59 UTC), CW and SSB from summits
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/nmd-national-mountain-day/
+id: uska-nmd
+name: USKA National Mountain Day (NMD)
+modes: [CW, SSB]
+bands: [80m, 40m, 20m, 6m, 2m, 70cm]
+dupe: band_mode
+multipliers: []
+highlight: [swiss, portable]
+when: >-
+  July (2026: 19 July, 06:00–09:59 UTC), CW and SSB from summits
+url: https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/nmd-national-mountain-day/
+notes: >-
+  Swiss stations operate from summits; details in the rules on nmd.uska.ch. Multipliers (cantons) and points come from the exchange and are not detected; the skimmer reports new and dupe stations, Swiss stations highlighted. Bands and details were not taken from the rules PDF (download behind a bot check) — check them before use.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

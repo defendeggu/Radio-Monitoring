@@ -1,0 +1,16 @@
+# Marconi Memorial Contest 144 MHz (CW) — first weekend of November, 24 hours
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/marconi-memorial/
+id: marconi-memorial
+name: Marconi Memorial Contest 144 MHz (CW)
+modes: [CW]
+bands: [2m]
+dupe: band
+multipliers: []
+highlight: []
+when: >-
+  first weekend of November, 24 hours
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/marconi-memorial/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format. CW only.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

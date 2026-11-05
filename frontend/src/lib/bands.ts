@@ -23,6 +23,14 @@ export const CW_BANDS: Band[] = [
   { id: '10m', label: '10 m', start: 28.0 * MHZ, end: 28.07 * MHZ, cw: true },
 ];
 
+/** CW segments of 6 m … 23 cm (IARU Region 1), for the contest skimmer. */
+export const VHF_CW_BANDS: Band[] = [
+  { id: '6m', label: '6 m', start: 50.0 * MHZ, end: 50.1 * MHZ, cw: true },
+  { id: '2m', label: '2 m', start: 144.0 * MHZ, end: 144.15 * MHZ, cw: true },
+  { id: '70cm', label: '70 cm', start: 432.0 * MHZ, end: 432.1 * MHZ, cw: true },
+  { id: '23cm', label: '23 cm', start: 1296.0 * MHZ, end: 1296.15 * MHZ, cw: true },
+];
+
 export const VHF_BANDS: Band[] = [
   { id: 'air', label: 'Flugfunk', start: 118 * MHZ, end: 137 * MHZ },
   { id: '2m', label: '2 m', start: 144 * MHZ, end: 146 * MHZ },

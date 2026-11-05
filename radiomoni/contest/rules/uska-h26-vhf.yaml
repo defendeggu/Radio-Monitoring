@@ -1,0 +1,16 @@
+# USKA Helvetia VHF/UHF/Microwaves Contest H26 — beginning of July, 14:00–13:59 UTC (2026: 4–5 July)
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/helvetia-h26-vhf/
+id: uska-h26-vhf
+name: USKA Helvetia VHF/UHF/Microwaves Contest H26
+modes: [CW, SSB]
+bands: [2m, 70cm, 23cm]
+dupe: band
+multipliers: []
+highlight: [swiss]
+when: >-
+  beginning of July, 14:00–13:59 UTC (2026: 4–5 July)
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/helvetia-h26-vhf/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

@@ -285,6 +285,12 @@ class TestSession:
         assert client.post('/skimmer/start', json={'freq_low': 14_000_000, 'freq_high': 14_001_000}).status_code == 400
         assert client.post('/skimmer/start', json={'band': '20m', 'mode': 'SSB'}).status_code == 400
 
+    @pytest.mark.parametrize('band', ['6m', '2m', '70cm', '23cm', '160m'])
+    def test_every_cw_segment_fits(self, mock_sdr_hardware, band):
+        low, high = skimmer_session.CW_SEGMENTS[band]
+        s = skimmer_session.SkimmerSession(low, high, gain=30)
+        assert s.seg_centre == (low + high) // 2 and s.frequency == s.seg_centre + 500_000
+
     def test_too_wide_for_the_sdr(self, mock_sdr_hardware):
         with pytest.raises(ValueError, match='too wide'):
             skimmer_session.SkimmerSession(14_000_000, 14_900_000, gain=30)

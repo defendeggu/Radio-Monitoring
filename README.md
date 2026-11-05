@@ -14,7 +14,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **VOX-Aufnahme:** einen Kanal dauerhaft überwachen. Aufgenommen und transkribiert wird nur, wenn jemand sendet.
 - **Spektrum / Wasserfall:** Frequenzbereich live ansehen und im Browser mithören (FM, AM, SSB, CW). Gibt das SDR automatisch frei, sobald ein anderer Job startet.
 - **CW-Decoder:** Morse auf Kurzwelle live dekodieren, mit automatischer Tempo- und Frequenzanpassung. Daneben die aktuellen Spots des Reverse Beacon Network; ein Klick stellt den Empfänger auf die Station.
-- **Contest-Skimmer:** alle CW-Signale eines Bandsegments gleichzeitig dekodieren und die Rufzeichen nach Contest-Reglement einstufen (neuer Multiplikator, selten, doppelt). Meldet in die Bandmap von N1MM+ (eingebauter DX-Cluster), liest das Log live aus N1MM+ und blendet beim eigenen Senden aus. CQ WW, CQ WPX, IARU-Fieldday, IARU HF Championship, Helvetia Contest.
+- **Contest-Skimmer:** alle CW-Signale eines Bandsegments gleichzeitig dekodieren und die Rufzeichen nach Contest-Reglement einstufen (neuer Multiplikator, selten, doppelt). Meldet in die Bandmap von N1MM+ (eingebauter DX-Cluster), liest das Log live aus N1MM+ und blendet beim eigenen Senden aus. CQ WW, CQ WPX, IARU-Fieldday, IARU HF Championship, die KW- und UKW-Contests der USKA und die IARU-UKW-Contests.
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
@@ -131,7 +131,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **VOX recording:** monitor a channel continuously. Recording and transcription only happen while someone is transmitting.
 - **Spectrum / waterfall:** watch a frequency range live and listen in the browser (FM, AM, SSB, CW). Frees the SDR automatically as soon as another job starts.
 - **CW decoder:** decode Morse on shortwave live, with automatic speed and frequency tracking. Next to it the current spots of the Reverse Beacon Network; a click tunes the receiver to the station.
-- **Contest skimmer:** decode every CW signal of a band segment at once and classify the callsigns by the contest rules (new multiplier, rare, dupe). Reports to the N1MM+ bandmap (built-in DX cluster), reads the log live from N1MM+ and blanks while you transmit. CQ WW, CQ WPX, IARU Fieldday, IARU HF Championship, Helvetia Contest.
+- **Contest skimmer:** decode every CW signal of a band segment at once and classify the callsigns by the contest rules (new multiplier, rare, dupe). Reports to the N1MM+ bandmap (built-in DX cluster), reads the log live from N1MM+ and blanks while you transmit. CQ WW, CQ WPX, IARU Fieldday, IARU HF Championship, the USKA HF and VHF contests and the IARU VHF contests.
 - **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters

@@ -1,0 +1,16 @@
+# USKA Mini Contest August — first weekend of August, Saturday and Sunday 07:00–11:59 UTC (two sessions)
+# Source: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/mini-contest-august/
+id: uska-mini-august
+name: USKA Mini Contest August
+modes: [CW, SSB]
+bands: [2m, 70cm, 23cm]
+dupe: band
+multipliers: []
+highlight: []
+when: >-
+  first weekend of August, Saturday and Sunday 07:00–11:59 UTC (two sessions)
+url: https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/mini-contest-august/
+notes: >-
+  IARU Region 1 VHF/UHF rules: points are kilometres (QRB) from the locator in the exchange (RS(T) + serial + locator); there are no callsign multipliers. The skimmer reports new and dupe stations. Logs in EDI format.
+assistance: >-
+  Check in the current rules whether your category allows spotting assistance.

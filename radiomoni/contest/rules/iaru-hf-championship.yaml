@@ -7,7 +7,12 @@ dupe: band_mode
 multipliers:
   - {type: itu_zone, per: band}
 # IARU member society HQ stations are multipliers too; they cannot be told from the callsign
+when: second full weekend of July, Saturday 12:00 – Sunday 11:59 UTC
 url: https://www.arrl.org/iaru-hf-championship
+notes: >-
+  The Swiss HQ team operates as HB9HQ (USKA HB9HQ Contest,
+  https://uska.ch/de/funkamateure/wettbewerbe/special-contests/hb9hq-contest/).
+  Exchange RS(T) + ITU zone, HQ stations RS(T) + society (599 USKA).
 assistance: >-
   Single-operator "unassisted" categories forbid spotting help. Use the
   skimmer only in a category that allows it.
