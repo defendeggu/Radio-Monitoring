@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.3.0] – 2026-11-05
+
 ### Neu
 - Mehrere SDRs gleichzeitig: Jedes Gerät hat seine eigene Sperre (`sdr:lock:<device_id>`), Jobs auf verschiedenen Geräten laufen parallel.
   - Die Geräteliste kommt aus sysfs, ohne ein Gerät zu öffnen.
