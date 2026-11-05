@@ -88,11 +88,11 @@ Neue Versionen in `requirements*.txt` bzw. `frontend/package.json` eintragen (be
 Die Versionsnummer (SemVer) steht in `radiomoni/version.py`. Von dort liest sie `pyproject.toml`, die API (OpenAPI, `/health`) und `scripts/version.py`, das sie ins README-Badge und nach `frontend/package.json`/`package-lock.json` schreibt. Die CI bricht ab, wenn eine Stelle abweicht.
 
 ```bash
-python3 scripts/version.py set 4.1.0     # alle Stellen setzen
+python3 scripts/version.py set 5.0.0     # alle Stellen setzen
 python3 scripts/version.py check         # prüfen (läuft in der CI)
 ```
 
-Release: Abschnitt `## [Unreleased]` im CHANGELOG in `## [4.1.0] – JJJJ-MM-TT` umbenennen und einen leeren `[Unreleased]`-Abschnitt darüber anlegen, Version setzen, committen, `git tag v4.1.0` und `git push --tags`.
+Release: Abschnitt `## [Unreleased]` im CHANGELOG in `## [5.0.0] – JJJJ-MM-TT` umbenennen und einen leeren `[Unreleased]`-Abschnitt darüber anlegen, Version setzen, committen, `git tag v5.0.0` und `git push --tags`.
 
 ---
 
@@ -186,8 +186,8 @@ Enter new versions in `requirements*.txt` or `frontend/package.json` (for npm, r
 The version number (SemVer) lives in `radiomoni/version.py`. `pyproject.toml`, the API (OpenAPI, `/health`) and `scripts/version.py` read it from there; the script writes it to the README badge and to `frontend/package.json`/`package-lock.json`. CI fails if any place differs.
 
 ```bash
-python3 scripts/version.py set 4.1.0     # set all places
+python3 scripts/version.py set 5.0.0     # set all places
 python3 scripts/version.py check         # check (runs in CI)
 ```
 
-Release: rename the `## [Unreleased]` section in the CHANGELOG to `## [4.1.0] – YYYY-MM-DD` and add an empty `[Unreleased]` section above it, set the version, commit, `git tag v4.1.0` and `git push --tags`.
+Release: rename the `## [Unreleased]` section in the CHANGELOG to `## [5.0.0] – YYYY-MM-DD` and add an empty `[Unreleased]` section above it, set the version, commit, `git tag v5.0.0` and `git push --tags`.

@@ -4,6 +4,10 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.0.0] – 2026-11-05
+
+Neue Empfangsarten für Kurzwelle: Spektrum/Wasserfall mit Mithören, CW-Decoder, Reverse Beacon Network und Contest-Skimmer mit Anbindung an N1MM+.
+
 ### Neu
 - Seite *Spektrum*: Wasserfall mit gemitteltem Spektrum, Zoom, Band-Schnellwahl und Lesezeichen-Marken; Mithören im Browser (FM, AM, USB, LSB, CW, Squelch). API: `POST /spectrum`, `GET /spectrum/{id}/stream` (binärer Live-Strom), `POST /spectrum/{id}/tune`.
 - Laufende VOX-Sessions liefern ihr Spektrum mit; es lässt sich auf der Seite *Spektrum* ansehen.
@@ -19,6 +23,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 ### Geändert
 - Der Wasserfall belegt das SDR nur, solange es niemand anders braucht: Jeder Job (auch per Zeitplan) beendet ihn und übernimmt das SDR. `/sdr/status` meldet dafür `preemptible`.
 - Gemeinsame Signalverarbeitung mit Zustand über die Datenblöcke hinweg (`radiomoni/dsp.py`).
+- Das Compose-File veröffentlicht zwei weitere Ports des API-Containers: TCP 7300 (DX-Cluster) und UDP 12060 (N1MM+), standardmässig nur auf `127.0.0.1` (`CONTEST_BIND`, `CLUSTER_PORT`, `N1MM_PORT`). Belegt ein anderer Dienst diese Ports, startet der Container nicht; dann die Ports in `.env` ändern.
+- Zeitpläne kennen die Aktionen `cw` und `skimmer`.
+- Neue Abhängigkeit PyYAML (Contest-Regeln); das API-Image muss neu gebaut werden.
+
+### Update von 4.x
+1. `git pull`, dann `./scripts/setup-env.sh` (ergänzt die neuen Einstellungen in `.env`) und `docker compose build radio-api web-interface && docker compose up -d`.
+2. `./scripts/setup-elk-users.sh` (Index-Template `radio-skimmer`) und `./scripts/import-kibana-dashboards.sh` (Dashboards *CW* und *Contest-Skimmer*).
+3. Für den Contest-Skimmer einmal die Referenzdaten laden: Seite *Contest-Skimmer* → *Referenzdaten aktualisieren*.
 
 ## [4.1.0] – 2026-11-01
 

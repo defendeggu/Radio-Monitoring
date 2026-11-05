@@ -1,6 +1,6 @@
 # Roadmap
 
-Stand: 2026-11-05 (Version 4.1.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md).
+Stand: 2026-11-05 (Version 5.0.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md).
 
 ## Offen
 
