@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.4.0] – 2026-11-06
+
 ### Neu
 - SDRplay RSP (RSPduo, RSP1A, RSPdx …) über SoapySDR, wenn das Image mit `WITH_SDRPLAY=1` gebaut ist.
   - Die proprietäre API lädt der Build von sdrplay.com, mit fester Prüfsumme, ohne das Installer-Skript auszuführen. Sie steht nicht im Repo.
