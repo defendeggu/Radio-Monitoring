@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.5.0] – 2026-11-06
+
 ### Neu
 - RBN über einen DX-Cluster: `RBN_LOGIN_COMMANDS` schickt nach dem Login Befehle wie `SET/SKIMMER`; das Spot-Format von CC Cluster (z. B. GB7DXG) wird verstanden.
 
