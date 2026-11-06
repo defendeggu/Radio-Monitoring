@@ -99,6 +99,20 @@ def holders() -> dict[str, dict[str, Any]]:
     return result
 
 
+def annotate(device_id: str, extra: dict[str, Any]) -> bool:
+    """Add facts to the details of a held lock (e.g. the RSPduo master/slave role); keeps its TTL."""
+    r = get_redis()
+    key = LOCK_PREFIX + device_id
+    raw = r.get(key)
+    if not raw:
+        return False
+    holder = json.loads(raw)
+    holder['details'] = {**(holder.get('details') or {}), **extra}
+    ttl = r.ttl(key)
+    r.set(key, json.dumps(holder), ex=ttl if ttl and ttl > 0 else LOCK_TTL)
+    return True
+
+
 def find_holder(owner: str) -> Optional[dict[str, Any]]:
     """The lock held by `owner` on any device."""
     return next((h for h in holders().values() if h.get('owner') == owner), None)
@@ -178,6 +192,10 @@ def preempt(kind: str, device_id: Optional[str] = None) -> bool:
     device = _device(device_id)
     holder = current_holder(device)
     if not holder or not is_preemptible(holder.get('kind')) or holder.get('kind') == kind:
+        return False
+    from radiomoni.sdrplay import dependents
+    if dependents(device):
+        logger.info(f"Not preempting {holder.get('owner')} on {device}: the other RSPduo tuner depends on it")
         return False
     logger.info(f"Preempting SDR holder {holder.get('owner')} ({holder.get('kind')}) on {device} for {kind}")
     try:

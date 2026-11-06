@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 sdr_bp = Blueprint('sdr', __name__)
 
 # Processes that hold the SDR (killed by force-stop)
-SDR_PROCESSES = {'hackrf_transfer', 'rtl_sdr', 'rtl_fm', 'airspyhf_rx', 'uhd_rx_cfile', 'multimon-ng',
+SDR_PROCESSES = {'hackrf_transfer', 'rtl_sdr', 'rtl_fm', 'airspyhf_rx', 'uhd_rx_cfile', 'sdrplay_rx', 'multimon-ng',
                  'direwolf', 'rtl_433', 'readsb', 'rtl_ais'}
 # the tools that open a device of each type (force-stop of one device)
 DEVICE_PROCESSES: dict[SDRType, set[str]] = {
@@ -30,6 +30,7 @@ DEVICE_PROCESSES: dict[SDRType, set[str]] = {
     SDRType.RTLSDR: {'rtl_sdr', 'rtl_fm', 'rtl_433', 'readsb', 'rtl_ais'},
     SDRType.AIRSPYHF: {'airspyhf_rx'},
     SDRType.USRP: {'uhd_rx_cfile'},
+    SDRType.SDRPLAY: {'sdrplay_rx'},
 }
 
 _detect_cache: tuple[float, dict[str, Any]] = (0.0, {})

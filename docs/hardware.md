@@ -10,8 +10,9 @@
 | HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | Sprache, VOX, APRS, POCSAG, Repeater, ADS-B |
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | 768 kS/s | Sprache, VOX, Spektrum, CW |
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | bis 25 MS/s | zusätzlich Multi-Channel DDC |
+| SDRplay RSPduo (`WITH_SDRPLAY=1`) | 1 kHz – 2 GHz, KW über Hi-Z | 2 MS/s pro Tuner | zwei Tuner gleichzeitig; Sprache, VOX, APRS, POCSAG, Spektrum, CW, Skimmer |
 
-Erkennung: Ist *Automatisch* gewählt, wird in der Reihenfolge HackRF, Airspy HF+, RTL-SDR gesucht. Den USRP wählst du explizit über seine IP-Adresse.
+Erkennung: Ist *Automatisch* gewählt, wird in der Reihenfolge HackRF, Airspy HF+, RTL-SDR, SDRplay gesucht. Den USRP wählst du explizit über seine IP-Adresse.
 
 ### Mehrere SDRs gleichzeitig
 
@@ -79,6 +80,38 @@ Für die CW-Seite und den Wasserfall auf 3–30 MHz eignen sich die Geräte unte
 - **Abstimmen:** HackRF und RTL-SDR haben in der Mitte ihres Empfangsbereichs eine DC-Spitze. Die CW-Session stimmt die Hardware deshalb um ein Viertel der Bandbreite neben die gewünschte Frequenz und mischt das Signal digital zurück.
 - **Testsignale:** Die Baken des [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) senden auf 14.100, 18.110, 21.150, 24.930 und 28.200 MHz reihum ihr Rufzeichen in CW (alle 3 Minuten jede Bake 10 s lang).
 
+## SDRplay RSPduo
+
+Der RSPduo hat zwei Tuner (1 kHz – 2 GHz, 14-Bit-ADC). Tuner 1 hat zusätzlich einen Hi-Z-Eingang für Kurzwelle. Andere RSPs (RSP1A, RSP1B, RSPdx) gehen ebenfalls, mit einem Tuner.
+
+1. **Udev-Regel auf dem Host,** damit der Container das Gerät öffnen darf. Die Regel legt auch der Installer von SDRplay an:
+   ```bash
+   sudo tee /etc/udev/rules.d/66-sdrplay.rules >/dev/null <<'RULES'
+   SUBSYSTEM=="usb",ENV{DEVTYPE}=="usb_device",ATTRS{idVendor}=="1df7",MODE:="0666"
+   RULES
+   sudo udevadm control --reload && sudo udevadm trigger
+   ```
+   Die SDRplay-API selbst braucht der Host nicht, sie läuft im Container.
+2. **Image mit SDRplay bauen** (`WITH_SDRPLAY=1`, siehe [installation.md](installation.md#sdrplay-rsp)).
+3. **Prüfen:** `docker compose exec radio-api SoapySDRUtil --find=driver=sdrplay` zeigt den RSPduo mit den Modi Single Tuner, Dual Tuner, Master und Slave.
+
+**Zwei Geräte statt eines:** In der Geräteliste erscheint der RSPduo als *RSPduo Tuner A* und *RSPduo Tuner B*, jeder mit eigener Sperre. Ein Beispiel: Skimmer CW 40 m auf Tuner A und SSB 20 m auf Tuner B gleichzeitig.
+
+- **Master und Slave:** Der erste Job auf einem der beiden Tuner öffnet den RSPduo als Master, ein Job auf dem anderen Tuner läuft danach als Slave. Beide laufen dann mit höchstens 2 MS/s.
+- **Den Master stoppen:** Stoppt der Master, endet auch der Slave. Deshalb fragt die Oberfläche nach, bevor sie einen Master mit laufendem Slave stoppt. Die API antwortet ohne `?force=1` mit 409 und `dependent_sessions`.
+- **Wasserfall:** Ein Wasserfall auf dem Master weicht nicht, solange ein Slave läuft.
+- **Antenne:** Tuner A nutzt unter 30 MHz den Hi-Z-Eingang (`SDRPLAY_HIZ`), Tuner B den 50-Ω-Eingang. Bias-T gibt es nur auf Tuner B (`SDRPLAY_BIAS_T`, Standard aus).
+- **Notch-Filter:** Gegen MW- und UKW-Rundfunk ist er unter 30 MHz an (`SDRPLAY_NOTCH=auto`). `on` schaltet zusätzlich den DAB-Notch ein, `off` schaltet beide aus.
+- **Verstärkung:** RadioMonis Verstärkung (0–76 dB) wird auf die LNA-Stufe des Bandes abgebildet. Die ZF-Verstärkung regelt die AGC (`SDRPLAY_AGC`).
+- **Grenzen:**
+  - Den RSPduo-Modus *Single Tuner* mit bis zu 10 MS/s bietet RadioMoni noch nicht an.
+  - ADS-B, AIS und ISM laufen nicht auf dem RSP.
+
+**Lizenz der SDRplay-API:**
+- **Weitergabe:** Die API ist proprietär und darf nicht weitergegeben werden. Darum steht sie nicht im Repo. Der Build lädt sie von sdrplay.com, mit fester Prüfsumme.
+- **Annahme:** Wer mit `WITH_SDRPLAY=1` baut, nimmt die Lizenz an. Sie liegt im Image unter `/opt/sdrplay_api/sdrplay_license.txt`.
+- **Datenübertragung:** Laut Abschnitt 6 der Lizenz darf die Software Gerätedaten an einen Server von SDRplay übermitteln und auf Firmware-Updates hinweisen.
+
 ## USRP N200
 
 1. Den Host-Port mit einer statischen IP im Netz des N200 konfigurieren (Standard des N200: `192.168.10.2`):
@@ -129,8 +162,9 @@ Multi-Channel: Die Mittenfrequenz plus/minus die halbe Bandbreite muss alle Kan�
 | HackRF One | 1 MHz – 6 GHz | 2 – 20 MS/s | voice, VOX, APRS, POCSAG, repeaters, ADS-B |
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | 768 kS/s | voice, VOX, spectrum, CW |
 | USRP N200 + WBX | 50 MHz – 2.2 GHz | up to 25 MS/s | additionally multi-channel DDC |
+| SDRplay RSPduo (`WITH_SDRPLAY=1`) | 1 kHz – 2 GHz, HF via Hi-Z | 2 MS/s per tuner | two tuners at once; voice, VOX, APRS, POCSAG, spectrum, CW, skimmer |
 
-Detection: with *Detect automatically* selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR. The USRP is selected explicitly by its IP address.
+Detection: with *Detect automatically* selected, devices are searched in the order HackRF, Airspy HF+, RTL-SDR, SDRplay. The USRP is selected explicitly by its IP address.
 
 #### Several SDRs at the same time
 
@@ -197,6 +231,38 @@ For the CW page and the waterfall on 3–30 MHz the devices differ:
 - **Overload:** if the waterfall shows many phantom signals, lower the gain. With the HackRF and the RTL-SDR an HF high-pass that cuts medium-wave broadcasting below 1.7 MHz helps.
 - **Tuning:** the HackRF and the RTL-SDR have a DC spike in the middle of their receive range. The CW session therefore tunes the hardware a quarter of the bandwidth beside the wanted frequency and mixes the signal back digitally.
 - **Test signals:** the beacons of the [NCDXF/IARU International Beacon Project](https://www.ncdxf.org/beacon/) send their callsign in CW in turn on 14.100, 18.110, 21.150, 24.930 and 28.200 MHz (every 3 minutes each beacon for 10 s).
+
+### SDRplay RSPduo
+
+The RSPduo has two tuners (1 kHz – 2 GHz, 14-bit ADC). Tuner 1 also has a Hi-Z input for shortwave. Other RSPs (RSP1A, RSP1B, RSPdx) work too, with one tuner.
+
+1. **Udev rule on the host,** so the container may open the device. The SDRplay installer creates the same rule:
+   ```bash
+   sudo tee /etc/udev/rules.d/66-sdrplay.rules >/dev/null <<'RULES'
+   SUBSYSTEM=="usb",ENV{DEVTYPE}=="usb_device",ATTRS{idVendor}=="1df7",MODE:="0666"
+   RULES
+   sudo udevadm control --reload && sudo udevadm trigger
+   ```
+   The host does not need the SDRplay API itself; it runs inside the container.
+2. **Build the image with SDRplay** (`WITH_SDRPLAY=1`, see [installation.md](installation.md#sdrplay-rsp-1)).
+3. **Check:** `docker compose exec radio-api SoapySDRUtil --find=driver=sdrplay` lists the RSPduo with the modes single tuner, dual tuner, master and slave.
+
+**Two devices instead of one:** In the device list the RSPduo appears as *RSPduo Tuner A* and *RSPduo Tuner B*, each with its own lock. For example: skimmer CW 40 m on tuner A and SSB 20 m on tuner B at the same time.
+
+- **Master and slave:** The first job on either tuner opens the RSPduo as master; a job on the other tuner then runs as slave. Both run at up to 2 MS/s.
+- **Stopping the master:** When the master stops, the slave ends too. That is why the interface asks before it stops a master with a running slave. Without `?force=1` the API answers 409 with `dependent_sessions`.
+- **Waterfall:** A waterfall on the master does not give way while a slave runs.
+- **Antenna:** Tuner A uses the Hi-Z input below 30 MHz (`SDRPLAY_HIZ`), tuner B the 50 Ω input. Bias-T exists only on tuner B (`SDRPLAY_BIAS_T`, off by default).
+- **Notch filters:** The MW/FM broadcast notch is on below 30 MHz (`SDRPLAY_NOTCH=auto`). `on` also enables the DAB notch, `off` disables both.
+- **Gain:** RadioMoni's gain (0–76 dB) is mapped to the LNA state of the band. The IF gain is set by the AGC (`SDRPLAY_AGC`).
+- **Limits:**
+  - RadioMoni does not offer the RSPduo *single tuner* mode with up to 10 MS/s yet.
+  - ADS-B, AIS and ISM do not run on an RSP.
+
+**SDRplay API licence:**
+- **Redistribution:** The API is proprietary and may not be redistributed, so it is not in the repository. The build downloads it from sdrplay.com with a pinned checksum.
+- **Acceptance:** By building with `WITH_SDRPLAY=1` you accept its licence. It is in the image as `/opt/sdrplay_api/sdrplay_license.txt`.
+- **Data:** Section 6 of the licence allows the software to send device details to an SDRplay server and to point out firmware updates.
 
 ### USRP N200
 

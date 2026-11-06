@@ -59,6 +59,7 @@ class TestSDRDetection(unittest.TestCase):
             Mock(returncode=1, stdout=""),   # HackRF not found (text=True -> str)
             Mock(returncode=1, stdout=""),   # Airspy HF+ not found (text=True -> str)
             Mock(returncode=1, stdout=""),   # RTL-SDR not found (text=True -> str)
+            Mock(returncode=1, stdout=""),   # SDRplay RSP not found (SoapySDRUtil)
         ]
 
         result = detect_sdr()

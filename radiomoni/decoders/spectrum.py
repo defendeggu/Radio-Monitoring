@@ -53,6 +53,7 @@ SPAN_LIMITS = {
     SDRType.RTLSDR: (250_000, 2_400_000),
     SDRType.AIRSPYHF: (768_000, 768_000),
     SDRType.USRP: (200_000, 10_000_000),
+    SDRType.SDRPLAY: (250_000, 10_000_000),    # an RSPduo tuner (master/slave): up to 2 MS/s
 }
 
 
@@ -212,6 +213,8 @@ class SpectrumSession(BaseStreamingDecoder):
         if self.sdr_type == SDRType.UNKNOWN:
             raise ValueError("No SDR hardware detected")
         low, high = SPAN_LIMITS.get(self.sdr_type, (200_000, 10_000_000))
+        if self.device is not None and self.device.tuner:
+            high = min(high, 2_000_000)
         self.sample_rate = min(max(int(sample_rate), low), high)
         get_sdr_instance(frequency=frequency, sample_rate=self.sample_rate, gain=gain,
                          sdr_type=self.sdr_type, device_address=device_address)
@@ -340,7 +343,7 @@ class SpectrumSession(BaseStreamingDecoder):
     def _run(self, flags: _Flags, session_manager: SessionManager) -> bool:
         """Read IQ until stop (returns False) or a retune is requested (returns True)."""
         assert self.sdr_proc is not None and self.sdr_proc.stdout is not None and self.session is not None
-        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP) else 1
+        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP, SDRType.SDRPLAY) else 1
         chunk_bytes = int(self.sample_rate * CHUNK_SECONDS) * 2 * bytes_per_value
         started = self.session.start_time.timestamp()
         last_save = time.time()

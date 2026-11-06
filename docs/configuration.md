@@ -63,6 +63,18 @@ Das Fenster *RBN-Spots* auf der CW-Seite und die Spot-Marken im Wasserfall zeige
 
 Gespeichert werden nur CW-Spots auf Kurzwelle der letzten 30 Minuten, in Redis, nicht in Elasticsearch.
 
+## SDRplay RSP
+
+Nur mit einem Image, das mit `WITH_SDRPLAY=1` gebaut ist (siehe [installation.md](installation.md#sdrplay-rsp)).
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `WITH_SDRPLAY` | `0` | Build-Schalter: SDRplay-API (von sdrplay.com, Lizenz von SDRplay), SoapySDR, `sdrplay_rx` |
+| `SDRPLAY_HIZ` | `true` | RSPduo Tuner A: Hi-Z-Eingang unter 30 MHz |
+| `SDRPLAY_NOTCH` | `auto` | `auto`: MW/UKW-Notch unter 30 MHz; `on`: dazu DAB-Notch; `off`: keiner |
+| `SDRPLAY_BIAS_T` | `false` | Bias-T (RSPduo nur Tuner B), z. B. für eine aktive Antenne |
+| `SDRPLAY_AGC` | `true` | ZF-Verstärkung per AGC; die LNA-Stufe folgt der eingestellten Verstärkung |
+
 ## Contest-Skimmer
 
 Bedienung, N1MM+ und Reglement: [contest.md](contest.md). Die Ports des Clusters und des N1MM+-Empfängers sind im Compose-File immer veröffentlicht, aber es hört nur etwas zu, wenn der Dienst eingeschaltet ist.
@@ -166,6 +178,18 @@ The *RBN spots* window on the CW page and the spot markers in the waterfall show
 | `RBN_SPOTTER_PREFIXES` | European prefixes | only spots from skimmers with these callsign prefixes (comma-separated), `*` = all |
 
 Only CW spots on shortwave of the last 30 minutes are kept, in Redis, not in Elasticsearch.
+
+### SDRplay RSP
+
+Only with an image built with `WITH_SDRPLAY=1` (see [installation.md](installation.md#sdrplay-rsp-1)).
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `WITH_SDRPLAY` | `0` | build switch: SDRplay API (from sdrplay.com, SDRplay licence), SoapySDR, `sdrplay_rx` |
+| `SDRPLAY_HIZ` | `true` | RSPduo tuner A: Hi-Z input below 30 MHz |
+| `SDRPLAY_NOTCH` | `auto` | `auto`: MW/FM notch below 30 MHz; `on`: plus DAB notch; `off`: none |
+| `SDRPLAY_BIAS_T` | `false` | bias-T (RSPduo tuner B only), e.g. for an active antenna |
+| `SDRPLAY_AGC` | `true` | IF gain by AGC; the LNA state follows the configured gain |
 
 ### Contest skimmer
 

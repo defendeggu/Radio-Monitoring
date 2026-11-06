@@ -106,6 +106,12 @@ RBN_SPOTTER_PREFIXES: list[str] = [] if os.getenv('RBN_SPOTTER_PREFIXES', '').st
 # --- SDR devices ------------------------------------------------------------------
 # USB devices are listed from sysfs (no device is opened); overridable for tests.
 SYSFS_USB_ROOT: str = os.getenv('SYSFS_USB_ROOT', '/sys/bus/usb/devices')
+# SDRplay RSP (image built with WITH_SDRPLAY=1): Hi-Z port of tuner 1 below 30 MHz,
+# broadcast notch filters (auto = MW/FM notch below 30 MHz, on = also DAB, off), bias-T, IF AGC
+SDRPLAY_HIZ: bool = _bool('SDRPLAY_HIZ', True)
+SDRPLAY_NOTCH: str = (os.getenv('SDRPLAY_NOTCH', 'auto').strip().lower() or 'auto')
+SDRPLAY_BIAS_T: bool = _bool('SDRPLAY_BIAS_T', False)
+SDRPLAY_AGC: bool = _bool('SDRPLAY_AGC', True)
 
 # --- Contest skimmer ----------------------------------------------------------
 # cty.csv, MASTER.SCP and the Most Wanted list are cached here (works without internet).

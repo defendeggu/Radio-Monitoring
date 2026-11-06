@@ -32,6 +32,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 | HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; auch ADS-B; lange Aufnahmen besser mit RTL-SDR |
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | Kurzwelle, empfohlen für CW und den Contest-Skimmer |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | über Gigabit-Ethernet; Image mit `WITH_USRP=1` bauen |
+| SDRplay RSPduo (und andere RSPs) | 1 kHz – 2 GHz, Kurzwelle über Hi-Z | zwei Tuner gleichzeitig (je bis 2 MS/s); Image mit `WITH_SDRPLAY=1` bauen (proprietäre API, beim Build von sdrplay.com geladen) |
 
 Details, udev-Regeln, PPM-Korrektur und Fehlerbehebung: [docs/hardware.md](docs/hardware.md).
 
@@ -111,6 +112,8 @@ flowchart LR
 | [Country Files / Big CTY](https://www.country-files.com/) (AD1C) | `cty.csv`: DXCC-Gebiet, Kontinent, CQ- und ITU-Zone pro Präfix für den Contest-Skimmer |
 | [Super Check Partial](https://www.supercheckpartial.com/) | `MASTER.SCP`: Rufzeichen, die in Contests aktiv sind; Plausibilitätsprüfung der Skimmer-Spots |
 | [Club Log DXCC Most Wanted](https://clublog.org/mostwanted.php) | Rangliste der gesuchtesten DXCC-Gebiete (Hinweis *RARE*) |
+| [SDRplay API](https://www.sdrplay.com/api/) (proprietär, Lizenz von SDRplay) | Treiber und Dienst für die RSPs; nur im Image mit `WITH_SDRPLAY=1`, beim Build von sdrplay.com geladen, nicht weitergegeben |
+| [SoapySDR](https://github.com/pothosware/SoapySDR) (Boost) und [SoapySDRPlay3](https://github.com/pothosware/SoapySDRPlay3) (MIT) | Zugriff auf die RSPs, Modi des RSPduo (Master/Slave) |
 | [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | Format der Pakete `RadioInfo`, `contactinfo`, `contactdelete` |
 | Ausschreibungen: [IARU-R1-Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), USKA-Contests [KW](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [UKW](https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/) und [Spezial](https://uska.ch/de/funkamateure/wettbewerbe/special-contests/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | Termine, Bänder, Multiplikatoren und Doppelte der Contest-Regeln (`radiomoni/contest/rules/`) |
 
@@ -154,6 +157,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 | HackRF One | 1 MHz – 6 GHz | min. 2 MS/s; also ADS-B; long recordings work better with an RTL-SDR |
 | Airspy HF+ | 0.5 kHz – 31 MHz, 60 – 260 MHz | shortwave, recommended for CW and the contest skimmer |
 | Ettus USRP N200 (WBX) | 50 MHz – 2.2 GHz | via Gigabit Ethernet; build the image with `WITH_USRP=1` |
+| SDRplay RSPduo (and other RSPs) | 1 kHz – 2 GHz, shortwave via Hi-Z | two tuners at once (up to 2 MS/s each); build the image with `WITH_SDRPLAY=1` (proprietary API, downloaded from sdrplay.com during the build) |
 
 Details, udev rules, PPM correction and troubleshooting: [docs/hardware.md](docs/hardware.md#english-version).
 
@@ -235,6 +239,8 @@ Each file is written in German first, followed by an English version.
 | [Country Files / Big CTY](https://www.country-files.com/) (AD1C) | `cty.csv`: DXCC entity, continent, CQ and ITU zone per prefix for the contest skimmer |
 | [Super Check Partial](https://www.supercheckpartial.com/) | `MASTER.SCP`: callsigns active in contests; plausibility check of the skimmer spots |
 | [Club Log DXCC Most Wanted](https://clublog.org/mostwanted.php) | ranking of the most wanted DXCC entities (note *RARE*) |
+| [SDRplay API](https://www.sdrplay.com/api/) (proprietary, SDRplay licence) | driver and service for the RSPs; only in an image built with `WITH_SDRPLAY=1`, downloaded from sdrplay.com during the build, not redistributed |
+| [SoapySDR](https://github.com/pothosware/SoapySDR) (Boost) and [SoapySDRPlay3](https://github.com/pothosware/SoapySDRPlay3) (MIT) | access to the RSPs, RSPduo modes (master/slave) |
 | [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | format of the `RadioInfo`, `contactinfo`, `contactdelete` packets |
 | Contest rules: [IARU R1 Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), USKA contests [HF](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [VHF](https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/) and [special](https://uska.ch/de/funkamateure/wettbewerbe/special-contests/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | dates, bands, multipliers and dupes of the contest rules (`radiomoni/contest/rules/`) |
 

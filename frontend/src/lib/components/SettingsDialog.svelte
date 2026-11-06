@@ -103,6 +103,7 @@
           <option value="hackrf">HackRF One</option>
           <option value="rtlsdr">RTL-SDR</option>
           <option value="airspyhf">Airspy HF+</option>
+          <option value="sdrplay">{t('SDRplay RSP (RSPduo, RSP1A …)')}</option>
           <option value="usrp">{t('USRP N200 (Netzwerk)')}</option>
         </select>
       </div>

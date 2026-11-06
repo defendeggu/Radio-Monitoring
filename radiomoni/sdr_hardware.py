@@ -54,6 +54,7 @@ class SDRType(Enum):
     RTLSDR = "rtlsdr"
     AIRSPYHF = "airspyhf"
     USRP = "usrp"
+    SDRPLAY = "sdrplay"
     UNKNOWN = "unknown"
 
 
@@ -576,6 +577,70 @@ class AirspyHFCapture(SDRCapture):
                 os.unlink(iq_file)
 
 
+class SdrplayCapture(SDRCapture):
+    """SDRplay RSP (RSPduo, RSP1A, RSPdx …) through SoapySDR and sdrplay_rx (image with WITH_SDRPLAY=1).
+
+    Command line and RSPduo master/slave: radiomoni.sdrplay. The device selector
+    (['--device', 'SERIAL[:A|B]']) comes from radiomoni.devices via device_args.
+    """
+
+    def __init__(self, frequency: int, sample_rate: int = 2_000_000, gain: int = 20,
+                 max_rate: int = 10_000_000):
+        super().__init__(frequency, sample_rate, gain)
+        self.max_rate = max_rate
+
+    def is_available(self) -> bool:
+        """An RSP is reachable through the SDRplay API service."""
+        try:
+            result = subprocess.run(['SoapySDRUtil', '--find=driver=sdrplay'], capture_output=True, text=True,
+                                    timeout=15)
+            return result.returncode == 0 and 'driver = sdrplay' in result.stdout
+        except (subprocess.TimeoutExpired, FileNotFoundError):
+            return False
+
+    def get_frequency_range(self) -> Tuple[int, int]:
+        return (1_000, 2_000_000_000)
+
+    def get_max_sample_rate(self) -> int:
+        return self.max_rate
+
+    def capture_iq(self, duration: int, output_file: str) -> None:
+        from radiomoni import sdrplay
+        self.logger.info(f"SDRplay IQ capture: {self.frequency/1e6:.3f} MHz, {duration}s")
+        with tempfile.NamedTemporaryFile(suffix='.raw', delete=False) as tmpfile:
+            raw_file = tmpfile.name
+        try:
+            cmd, facts = sdrplay.command(self.device_args, self.frequency, self.sample_rate, self.gain,
+                                         samples=int(duration * self.sample_rate), output=raw_file)
+            sdrplay.note_role(self.device_args, facts)
+            self.logger.info(f"Running: {' '.join(cmd)}")
+            result = subprocess.run(cmd, capture_output=True, text=True, timeout=duration * 2 + 20)
+            if result.returncode != 0:
+                raise RuntimeError(f"sdrplay_rx failed: {result.stderr.strip()[-300:]}")
+            iq_data = np.fromfile(raw_file, dtype=np.int16)
+            iq_samples = ((iq_data[0::2].astype(np.float32) + 1j * iq_data[1::2].astype(np.float32))
+                          / 32768.0).astype(np.complex64)
+            os.makedirs(os.path.dirname(output_file) or '.', exist_ok=True)
+            iq_samples.tofile(output_file)
+        finally:
+            if os.path.exists(raw_file):
+                os.unlink(raw_file)
+
+    def capture_audio(self, duration: int, output_file: str, modulation: str = 'FM') -> None:
+        with tempfile.NamedTemporaryFile(suffix='.iq', delete=False) as tmpfile:
+            iq_file = tmpfile.name
+        try:
+            self.capture_iq(duration, iq_file)
+            iq_samples = np.fromfile(iq_file, dtype=np.complex64)
+            audio = self._demodulate(iq_samples, modulation)
+            self._save_wav(audio, output_file)
+            del iq_samples, audio
+            gc.collect()
+        finally:
+            if os.path.exists(iq_file):
+                os.unlink(iq_file)
+
+
 class USRPCapture(SDRCapture):
     """Ettus Research USRP N200 implementation (Gigabit Ethernet via UHD)"""
 
@@ -692,7 +757,7 @@ def detect_sdr(preferred_type: Optional[str] = None,
                         'auto', or None). When set and not 'auto', only that type is tried.
         device_address: IP address for USRP N200 (required when preferred_type='usrp').
 
-    Priority for auto-detect: HackRF > Airspy HF+ > RTL-SDR
+    Priority for auto-detect: HackRF > Airspy HF+ > RTL-SDR > SDRplay RSP
     """
     logger.info("Detecting SDR hardware...")
 
@@ -701,6 +766,7 @@ def detect_sdr(preferred_type: Optional[str] = None,
         'rtlsdr': SDRType.RTLSDR,
         'airspyhf': SDRType.AIRSPYHF,
         'usrp': SDRType.USRP,
+        'sdrplay': SDRType.SDRPLAY,
     }
 
     # Explicit device type requested (not auto)
@@ -722,7 +788,7 @@ def detect_sdr(preferred_type: Optional[str] = None,
             return sdr_type
         logger.warning(f"Unknown preferred_type '{preferred_type}', falling back to auto-detect")
 
-    # Auto-detect: HackRF > Airspy HF+ > RTL-SDR
+    # Auto-detect: HackRF > Airspy HF+ > RTL-SDR > SDRplay RSP
     hackrf = HackRFCapture(frequency=100_000_000)
     if hackrf.is_available():
         logger.info("Detected: HackRF One")
@@ -737,6 +803,10 @@ def detect_sdr(preferred_type: Optional[str] = None,
     if rtlsdr.is_available():
         logger.info("Detected: RTL-SDR")
         return SDRType.RTLSDR
+
+    if SdrplayCapture(frequency=100_000_000).is_available():
+        logger.info("Detected: SDRplay RSP")
+        return SDRType.SDRPLAY
 
     logger.warning("No SDR hardware detected")
     return SDRType.UNKNOWN
@@ -788,6 +858,12 @@ def get_sdr_instance(frequency: int, sample_rate: int = 2_000_000, gain: int = 2
         instance = AirspyHFCapture(frequency, clamped_rate, gain)
     elif sdr_type == SDRType.RTLSDR:
         instance = RTLSDRCapture(frequency, sample_rate, gain)
+    elif sdr_type == SDRType.SDRPLAY:
+        # an RSPduo tuner (selector SERIAL:A|B) runs master/slave at up to 2 MS/s
+        from radiomoni import sdrplay
+        tuner = sdrplay.parse_selector(list(device_args or []))[1]
+        instance = SdrplayCapture(frequency, sample_rate, gain,
+                                  max_rate=sdrplay.DUO_MAX_RATE if tuner else sdrplay.SINGLE_MAX_RATE)
     elif sdr_type == SDRType.USRP:
         if not device_address:
             raise ValueError("USRP N200 requires a device_address (IP address)")

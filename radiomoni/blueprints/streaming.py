@@ -7,7 +7,7 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
-from flask import Blueprint, Response, jsonify
+from flask import Blueprint, Response, jsonify, request
 
 from radiomoni import actions
 from radiomoni import events
@@ -110,11 +110,22 @@ def get_streaming_session(session_id: str) -> Response:
 
 
 @streaming_bp.delete('/stream-decode/<session_id>')
-@api('Stop a streaming session', tags=['Streaming'], responses={404: 'Unknown session'})
+@api('Stop a streaming session', tags=['Streaming'],
+     responses={404: 'Unknown session', 409: 'RSPduo master with a running slave (repeat with ?force=1)'})
 def stop_streaming_session(session_id: str) -> Response:
     session = session_manager.get_session(session_id)
     if not session:
         raise ApiError('Session not found', 404)
+    if session.device_id and request.args.get('force') not in ('1', 'true'):
+        from radiomoni.sdrplay import dependents
+        held = dependents(session.device_id)
+        if held:
+            # stopping the RSPduo master also ends the slave on the other tuner
+            devices = {h.get('device_id') for h in held}
+            dependent = [x.session_id for x in session_manager.list_sessions()
+                         if x.device_id in devices and x.status in ('starting', 'running')]
+            raise ApiError('The other RSPduo tuner runs as slave of this one and stops too', 409,
+                           dependent_sessions=dependent, dependent_devices=sorted(d for d in devices if d))
     if not stop_session(session_id) and not session_manager.reap_orphaned_sessions():
         # owned by another API process: ask it to stop via the control channel
         events.send_control('stop', session_id=session_id)

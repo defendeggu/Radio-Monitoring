@@ -35,10 +35,16 @@ USB_IDS: dict[tuple[str, str], SDRType] = {
     ('0bda', '2838'): SDRType.RTLSDR,
     ('0bda', '2832'): SDRType.RTLSDR,
     ('03eb', '800c'): SDRType.AIRSPYHF,
+    # SDRplay RSPs (image with WITH_SDRPLAY=1)
+    ('1df7', '2500'): SDRType.SDRPLAY, ('1df7', '3000'): SDRType.SDRPLAY, ('1df7', '3010'): SDRType.SDRPLAY,
+    ('1df7', '3020'): SDRType.SDRPLAY, ('1df7', '3030'): SDRType.SDRPLAY, ('1df7', '3050'): SDRType.SDRPLAY,
+    ('1df7', '3060'): SDRType.SDRPLAY,
 }
-AUTO_ORDER = (SDRType.HACKRF, SDRType.AIRSPYHF, SDRType.RTLSDR)
+RSP_MODELS = {'2500': 'RSP1', '3000': 'RSP1A', '3010': 'RSP2', '3020': 'RSPduo', '3030': 'RSPdx', '3050': 'RSP1B',
+              '3060': 'RSPdx-R2'}
+AUTO_ORDER = (SDRType.HACKRF, SDRType.AIRSPYHF, SDRType.RTLSDR, SDRType.SDRPLAY)
 LABELS = {SDRType.HACKRF: 'HackRF One', SDRType.RTLSDR: 'RTL-SDR', SDRType.AIRSPYHF: 'Airspy HF+',
-          SDRType.USRP: 'USRP N200'}
+          SDRType.USRP: 'USRP N200', SDRType.SDRPLAY: 'SDRplay RSP'}
 CACHE_SECONDS = 10.0
 
 
@@ -57,9 +63,12 @@ class Device:
     usb_path: Optional[str] = None
     shared: bool = False                # more than one device of this type: tools need a selector
     serial_unique: bool = True
+    tuner: Optional[str] = None         # RSPduo: 'A' or 'B' (each tuner is a device with its own lock)
 
     def args(self, tool: str) -> list[str]:
         """Device selector for a command line tool; empty when this is the only device of its type."""
+        if self.type == SDRType.SDRPLAY:          # sdrplay_rx always needs serial (and tuner)
+            return ['--device', (self.serial or '') + (f':{self.tuner}' if self.tuner else '')]
         if not self.shared:
             return []
         if self.type == SDRType.HACKRF and self.serial:
@@ -92,7 +101,7 @@ def _read(path: str) -> Optional[str]:
 def scan_usb(root: Optional[str] = None) -> list[Device]:
     """SDRs on USB, in a stable order (bus path), with ids and selectors."""
     root = root or config.SYSFS_USB_ROOT
-    found: list[tuple[SDRType, str, Optional[str]]] = []
+    found: list[tuple[SDRType, str, Optional[str], str]] = []
     try:
         entries = sorted(os.listdir(root))
     except OSError:
@@ -108,17 +117,30 @@ def scan_usb(root: Optional[str] = None) -> list[Device]:
         serial = _read(os.path.join(base, 'serial'))
         if sdr_type == SDRType.HACKRF and serial and not re.fullmatch(r'[0-9a-fA-F]+', serial):
             serial = None             # "RunningFromRAM" (firmware loaded to RAM) is no serial number
-        found.append((sdr_type, name, serial))
+        found.append((sdr_type, name, serial, (pid or '').lower()))
     devices: list[Device] = []
     for sdr_type in AUTO_ORDER:
         of_type = [f for f in found if f[0] == sdr_type]
         serials = [f[2] for f in of_type]
-        for index, (_, path, serial) in enumerate(of_type):
+        for index, (_, path, serial, pid) in enumerate(of_type):
             unique = bool(serial) and serials.count(serial) == 1
             key = serial if unique else str(index)
-            label = LABELS[sdr_type] + (f' #{index + 1}' if len(of_type) > 1 else '')
-            devices.append(Device(id=f'{sdr_type.value}:{key}', type=sdr_type, index=index, serial=serial,
-                                  label=label, usb_path=path, shared=len(of_type) > 1, serial_unique=unique))
+            suffix = f' #{index + 1}' if len(of_type) > 1 else ''
+            common = dict(type=sdr_type, index=index, serial=serial, usb_path=path, shared=len(of_type) > 1,
+                          serial_unique=unique)
+            if sdr_type == SDRType.SDRPLAY:
+                model = RSP_MODELS.get(pid, 'RSP')
+                same_model = [f for f in of_type if f[3] == pid]       # number only RSPs of the same model
+                suffix = f' #{same_model.index((_, path, serial, pid)) + 1}' if len(same_model) > 1 else ''
+                if model == 'RSPduo':           # two tuners: two devices with their own locks
+                    for tuner in ('A', 'B'):
+                        devices.append(Device(id=f'sdrplay:{key}:{tuner}', label=f'RSPduo{suffix} Tuner {tuner}',
+                                              tuner=tuner, **common))  # type: ignore[arg-type]
+                    continue
+                devices.append(Device(id=f'sdrplay:{key}', label=model + suffix, **common))  # type: ignore[arg-type]
+                continue
+            devices.append(Device(id=f'{sdr_type.value}:{key}', label=LABELS[sdr_type] + suffix,
+                                  **common))  # type: ignore[arg-type]
     return devices
 
 

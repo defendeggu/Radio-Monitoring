@@ -75,6 +75,18 @@ docker compose exec radio-api uhd_images_downloader   # FPGA-Images (einmalig)
 
 Die IP-Adresse des Geräts trägst du in der Weboberfläche unter *Einstellungen* ein. Netzwerk-Setup: siehe [hardware.md](hardware.md#usrp-n200).
 
+## SDRplay RSP
+
+Das Standard-Image enthält die SDRplay-API nicht, denn sie ist proprietär. Mit `WITH_SDRPLAY=1` lädt der Build sie von sdrplay.com (Prüfsumme fest) und baut SoapySDRPlay3 sowie `sdrplay_rx`. Damit nimmst du die [Lizenz von SDRplay](hardware.md#sdrplay-rspduo) an.
+
+```bash
+echo "WITH_SDRPLAY=1" >> .env
+docker compose build radio-api && docker compose up -d radio-api
+docker compose exec radio-api SoapySDRUtil --find=driver=sdrplay
+```
+
+Auf dem Host braucht es die udev-Regel, siehe [hardware.md](hardware.md#sdrplay-rspduo).
+
 ## Dockge / Portainer
 
 Der Stack nutzt relative Bind-Mounts und liest alle Werte aus `.env`. Du kannst das Verzeichnis direkt als Stack in Dockge verwenden. Den Port der Weboberfläche setzt du mit `WEB_PORT`.
@@ -177,6 +189,18 @@ docker compose exec radio-api uhd_images_downloader   # FPGA images (once)
 ```
 
 Enter the device's IP address in the web interface under *Settings*. Network setup: see [hardware.md](hardware.md#usrp-n200-1).
+
+### SDRplay RSP
+
+The standard image does not contain the SDRplay API, because it is proprietary. With `WITH_SDRPLAY=1` the build downloads it from sdrplay.com (pinned checksum) and builds SoapySDRPlay3 and `sdrplay_rx`. By doing so you accept the [SDRplay licence](hardware.md#sdrplay-rspduo-1).
+
+```bash
+echo "WITH_SDRPLAY=1" >> .env
+docker compose build radio-api && docker compose up -d radio-api
+docker compose exec radio-api SoapySDRUtil --find=driver=sdrplay
+```
+
+The host needs the udev rule, see [hardware.md](hardware.md#sdrplay-rspduo-1).
 
 ### Dockge / Portainer
 

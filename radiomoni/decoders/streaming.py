@@ -474,6 +474,14 @@ class BaseStreamingDecoder(ABC):
                 samples = int(self.sample_rate * self.duration)
                 cmd.extend(['-N', str(samples)])
 
+        elif self.sdr_type == SDRType.SDRPLAY:
+            # SDRplay RSP via SoapySDR (sdrplay_rx, int16 IQ); RSPduo tuners run as master/slave
+            from radiomoni import sdrplay
+            selector = self._device_args('sdrplay_rx')
+            cmd, facts = sdrplay.command(selector, self.frequency, self.sample_rate, self.gain,
+                                         samples=int(self.sample_rate * self.duration) if self.duration else None)
+            sdrplay.note_role(selector, facts)
+
         else:
             raise ValueError(f"Unsupported SDR type: {self.sdr_type}")
 
@@ -671,7 +679,7 @@ class BaseStreamingDecoder(ABC):
             iq_float = np.frombuffer(iq_bytes, dtype=np.int8).astype(np.float32) / 127.0
         elif self.sdr_type == SDRType.RTLSDR:
             iq_float = (np.frombuffer(iq_bytes, dtype=np.uint8).astype(np.float32) - 127.5) / 127.5
-        elif self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP):
+        elif self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP, SDRType.SDRPLAY):
             usable = len(iq_bytes) - (len(iq_bytes) % 2)
             iq_float = np.frombuffer(iq_bytes[:usable], dtype=np.int16).astype(np.float32) / 32768.0
         else:

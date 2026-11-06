@@ -1,7 +1,7 @@
 // Shapes of the API responses used by the UI (see /api/openapi.json for the full API)
 
 export type Modulation = 'FM' | 'AM' | 'USB' | 'LSB';
-export type DeviceType = 'auto' | 'hackrf' | 'rtlsdr' | 'airspyhf' | 'usrp';
+export type DeviceType = 'auto' | 'hackrf' | 'rtlsdr' | 'airspyhf' | 'usrp' | 'sdrplay';
 
 export interface SdrDetect {
   detected: boolean;
@@ -25,6 +25,8 @@ export interface SdrDevice {
   type: string;
   label: string;
   serial?: string | null;
+  /** RSPduo: tuner A or B (master/slave, up to 2 MS/s) */
+  tuner?: string | null;
   busy: boolean;
   preemptible: boolean;
   holder: LockHolder | null;

@@ -4,6 +4,15 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- SDRplay RSP (RSPduo, RSP1A, RSPdx …) über SoapySDR, wenn das Image mit `WITH_SDRPLAY=1` gebaut ist.
+  - Die proprietäre API lädt der Build von sdrplay.com, mit fester Prüfsumme, ohne das Installer-Skript auszuführen. Sie steht nicht im Repo.
+  - Eigener Streamer `sdrplay_rx` (int16-IQ nach stdout); der API-Dienst startet mit dem Container.
+  - Antenne (Hi-Z auf Tuner A unter 30 MHz), Notch gegen Rundfunk, Bias-T und LNA-Stufe aus der Verstärkung; einstellbar mit `SDRPLAY_*`.
+- RSPduo mit zwei Tunern gleichzeitig: Tuner A und B sind zwei Geräte mit eigener Sperre.
+  - Der erste Job öffnet als Master, der zweite als Slave, beide mit bis zu 2 MS/s.
+  - Einen Master mit laufendem Slave stoppt die API nur mit `?force=1`; die Oberfläche fragt nach. Ein Wasserfall auf dem Master weicht dann nicht.
+
 ## [5.3.0] – 2026-11-05
 
 ### Neu

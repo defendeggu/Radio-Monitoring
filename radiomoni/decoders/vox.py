@@ -155,7 +155,7 @@ class VoxRecorder(BaseStreamingDecoder):
 
     def _vox_loop(self, iq_stream: Optional[IO[bytes]], session_manager: SessionManager) -> None:
         assert iq_stream is not None and self.session is not None
-        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP) else 1
+        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP, SDRType.SDRPLAY) else 1
         chunk_bytes = int(self.sample_rate * CHUNK_SECONDS) * 2 * bytes_per_value
         started = time.time()
         last_save = started

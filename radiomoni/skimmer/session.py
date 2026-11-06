@@ -108,7 +108,7 @@ class SkimmerSession(BaseStreamingDecoder):
         self.freq_low, self.freq_high = int(freq_low), int(freq_high)
         width = self.freq_high - self.freq_low
         self.seg_centre = (self.freq_low + self.freq_high) // 2
-        self.dc_offset = int(rate / 4) if sdr_type in (SDRType.HACKRF, SDRType.RTLSDR) else 0
+        self.dc_offset = int(rate / 4) if sdr_type in (SDRType.HACKRF, SDRType.RTLSDR, SDRType.SDRPLAY) else 0
         if width / 2 + self.dc_offset > EDGE * rate:
             raise ValueError(f'Segment of {width / 1000:.0f} kHz is too wide for {rate / 1000:.0f} kS/s')
         super().__init__(self.seg_centre + self.dc_offset, duration, gain, rate)
@@ -226,7 +226,7 @@ class SkimmerSession(BaseStreamingDecoder):
 
     def _run(self, session_manager: SessionManager) -> None:
         assert self.sdr_proc is not None and self.sdr_proc.stdout is not None and self.session is not None
-        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP) else 1
+        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP, SDRType.SDRPLAY) else 1
         chunk_bytes = int(self.sample_rate * CHUNK_SECONDS) * 2 * bytes_per_value
         started = self.session.start_time.timestamp()
         last_save = last_state = time.time()

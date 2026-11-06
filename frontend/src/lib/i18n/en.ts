@@ -39,6 +39,8 @@ export const en: Record<string, string> = {
   'APRS am Morgen': 'APRS in the morning',
   Art: 'Mode',
   'Audio nicht verfügbar ({error})': 'Audio not available ({error})',
+  'Auf dem anderen Tuner des RSPduo läuft eine Session, die von dieser abhängt ({n}). Sie stoppt mit. Trotzdem stoppen?':
+    'A session on the other RSPduo tuner depends on this one ({n}). It stops too. Stop anyway?',
   'Aufgenommene Durchgänge': 'Recorded transmissions',
   'Aufnahme fehlgeschlagen: {error}': 'Recording failed: {error}',
   'Aufnahme starten': 'Start recording',
@@ -342,6 +344,7 @@ export const en: Record<string, string> = {
   'SDR ist belegt ({kind})': 'SDR is busy ({kind})',
   'SDR-Gerät': 'SDR device',
   'SDR-Geräte': 'SDR devices',
+  'SDRplay RSP (RSPduo, RSP1A …)': 'SDRplay RSP (RSPduo, RSP1A …)',
   Segment: 'Segment',
   Segmente: 'Segments',
   'seit {when}': 'since {when}',

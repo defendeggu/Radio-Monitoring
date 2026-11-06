@@ -50,7 +50,19 @@
   async function stop() {
     stopping = true;
     try {
-      await api.del(`/stream-decode/${sessionId}`);
+      try {
+        await api.del(`/stream-decode/${sessionId}`);
+      } catch (e) {
+        // RSPduo master: the slave on the other tuner stops with it
+        const dependent = (e as { body?: { dependent_sessions?: string[] } }).body?.dependent_sessions;
+        if ((e as { status?: number }).status !== 409 || !dependent) throw e;
+        const question = t(
+          'Auf dem anderen Tuner des RSPduo läuft eine Session, die von dieser abhängt ({n}). Sie stoppt mit. Trotzdem stoppen?',
+          { n: dependent.length },
+        );
+        if (!confirm(question)) return;
+        await api.del(`/stream-decode/${sessionId}?force=1`);
+      }
       toasts.push(t('Session gestoppt'), 'success');
       await poll();
     } catch (e) {

@@ -196,6 +196,7 @@ services:
       target: runtime
       args:
         WITH_USRP: ${WITH_USRP:-0}
+        WITH_SDRPLAY: ${WITH_SDRPLAY:-0}
     image: radiomoni-api:latest
     container_name: radio-transcription-api
     <<: [*hardening, *logging]
@@ -266,6 +267,10 @@ services:
       - N1MM_ENABLED=${N1MM_ENABLED:-false}
       - N1MM_ALLOWED=${N1MM_ALLOWED:-}
       - CLUSTER_ENABLED=${CLUSTER_ENABLED:-false}
+      - SDRPLAY_HIZ=${SDRPLAY_HIZ:-true}
+      - SDRPLAY_NOTCH=${SDRPLAY_NOTCH:-auto}
+      - SDRPLAY_BIAS_T=${SDRPLAY_BIAS_T:-false}
+      - SDRPLAY_AGC=${SDRPLAY_AGC:-true}
       - NTFY_URL=${NTFY_URL:-}
       - NTFY_TOKEN=${NTFY_TOKEN:-}
       - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-}

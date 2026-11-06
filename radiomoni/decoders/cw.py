@@ -45,7 +45,7 @@ MAX_TRANSMISSION_SECONDS = 60
 EDGE = 0.45                    # usable part of the bandwidth on each side of the centre
 
 SAMPLE_RATES = {SDRType.HACKRF: 2_000_000, SDRType.RTLSDR: 1_024_000, SDRType.AIRSPYHF: 768_000,
-                SDRType.USRP: 1_000_000}
+                SDRType.USRP: 1_000_000, SDRType.SDRPLAY: 2_000_000}
 
 
 class CwSession(BaseStreamingDecoder):
@@ -66,7 +66,7 @@ class CwSession(BaseStreamingDecoder):
         self.device_address = device.address or device_address
         self.target = int(frequency)
         # keep the wanted signal away from the DC spike of zero-IF receivers
-        self.dc_offset = int(rate / 4) if sdr_type in (SDRType.HACKRF, SDRType.RTLSDR) else 0
+        self.dc_offset = int(rate / 4) if sdr_type in (SDRType.HACKRF, SDRType.RTLSDR, SDRType.SDRPLAY) else 0
         self.frequency = self.target + self.dc_offset          # hardware centre
         get_sdr_instance(frequency=int(self.frequency), sample_rate=rate, gain=gain, sdr_type=sdr_type,
                          device_address=device_address)
@@ -190,7 +190,7 @@ class CwSession(BaseStreamingDecoder):
 
     def _run(self, flags: Any, session_manager: SessionManager) -> bool:
         assert self.sdr_proc is not None and self.sdr_proc.stdout is not None and self.session is not None
-        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP) else 1
+        bytes_per_value = 2 if self.sdr_type in (SDRType.AIRSPYHF, SDRType.USRP, SDRType.SDRPLAY) else 1
         chunk_bytes = int(self.sample_rate * CHUNK_SECONDS) * 2 * bytes_per_value
         started = self.session.start_time.timestamp()
         last_save = last_state = time.time()

@@ -30,7 +30,10 @@
     rtlsdr: [250_000, 1_024_000, 2_048_000, 2_400_000],
     airspyhf: [768_000],
     usrp: [1_000_000, 2_000_000, 5_000_000, 10_000_000],
+    sdrplay: [2_000_000, 4_000_000, 6_000_000, 8_000_000, 10_000_000],
   };
+  // an RSPduo tuner runs master/slave: at most 2 MS/s
+  const TUNER_SPANS = [500_000, 1_000_000, 2_000_000];
   const WIDTHS: Record<Listen, number> = { FM: 12_500, AM: 8_000, USB: 2_700, LSB: 2_700, CW: 500 };
 
   let centre = $state(Number(router.params.get('f')) || 145_500_000);
@@ -62,7 +65,11 @@
   const player = new LivePlayer();
 
   const hasCw = routes.some((r) => r.path === 'cw');
-  const spans = $derived(SPANS[sdr.detect?.type ?? ''] ?? [2_000_000]);
+  const spans = $derived.by(() => {
+    const device = sdr.deviceFor(deviceId);
+    if (device?.tuner) return TUNER_SPANS;
+    return SPANS[device?.type ?? sdr.detect?.type ?? ''] ?? [2_000_000];
+  });
   const tunable = $derived(!!info?.tunable);
   const others = $derived(
     (sdr.status?.active_sessions ?? []).filter(
