@@ -4,7 +4,8 @@ Reverse Beacon Network (RBN): live CW spots from skimmers around the world.
 https://www.reversebeacon.net/ — the spots come over telnet
 (telnet.reversebeacon.net:7000 for CW/RTTY), the login asks for a callsign.
 RBN asks end users to prefer a DX cluster that relays its spots, so host and
-port are configurable (RBN_HOST, RBN_PORT).
+port are configurable (RBN_HOST, RBN_PORT). Most clusters only send skimmer
+spots after a command such as SET/SKIMMER (RBN_LOGIN_COMMANDS).
 
 One API process (leader lock in Redis) holds the single connection, filters
 the spots (CW, HF, optionally skimmers with given prefixes), merges duplicates
@@ -43,11 +44,12 @@ MERGE_KHZ = 0.5
 SILENCE_TIMEOUT = 300      # s without a line → reconnect
 
 # Example: "DX de EA5WU-#:   14014.0  OH6BG          CW    22 dB  27 WPM  CQ      1234Z"
-# Skimmer suffixes may be digits or letters: KM3T-2-#, DF4UE-RP-#
+# Skimmer suffixes may be digits or letters: KM3T-2-#, DF4UE-RP-#. Clusters (CC Cluster) drop the
+# blank after long skimmer calls ("DX de DL8LAS-3-#:21020.6") and write beacons as "NCDXF BCN".
 SPOT_RE = re.compile(
-    r'^DX de (?P<spotter>[A-Z0-9/]+(?:-[A-Z0-9]+)?)(?:-#)?:\s+(?P<khz>\d+(?:\.\d+)?)\s+(?P<dx>[A-Z0-9/]+)\s+'
+    r'^DX de (?P<spotter>[A-Z0-9/]+(?:-[A-Z0-9]+)?)(?:-#)?:\s*(?P<khz>\d+(?:\.\d+)?)\s+(?P<dx>[A-Z0-9/]+)\s+'
     r'(?P<mode>[A-Z0-9]+)\s+(?P<snr>-?\d+)\s*dB\s+(?P<speed>\d+)\s*(?P<unit>WPM|BPS)\s+'
-    r'(?P<type>NCDXF B|BEACON|CQ|DX)\s+(?P<time>\d{4})Z')
+    r'(?P<type>NCDXF B(?:CN)?|BEACON|CQ|DX)\s+(?P<time>\d{4})Z')
 
 HF_MIN_KHZ, HF_MAX_KHZ = 1800.0, 30000.0
 
@@ -80,7 +82,7 @@ def parse_spot(line: str) -> Optional[dict[str, Any]]:
     return {
         'spotter': m['spotter'], 'callsign': m['dx'], 'frequency': int(round(khz * 1000)), 'khz': khz,
         'mode': m['mode'], 'snr_db': int(m['snr']), 'wpm': int(m['speed']) if m['unit'] == 'WPM' else None,
-        'type': m['type'], 'utc': m['time'], 'band': band_of(khz),
+        'type': 'NCDXF B' if m['type'].startswith('NCDXF') else m['type'], 'utc': m['time'], 'band': band_of(khz),
     }
 
 
@@ -172,8 +174,10 @@ class RbnClient:
 
     def __init__(self, callsign: str, host: str, port: int, prefixes: list[str],
                  connect: Optional[Callable[[str, int], socket.socket]] = None,
-                 on_spot: Optional[Callable[[dict[str, Any]], None]] = None):
+                 on_spot: Optional[Callable[[dict[str, Any]], None]] = None,
+                 login_commands: Optional[list[str]] = None):
         self.callsign = callsign
+        self.login_commands = login_commands or []   # sent after the callsign, e.g. SET/SKIMMER
         self.host = host
         self.port = port
         self.prefixes = prefixes
@@ -250,6 +254,8 @@ class RbnClient:
                     buffer += data
                     if not logged_in and b'call' in buffer.lower() and b':' in buffer:
                         sock.sendall(self.callsign.encode() + b'\r\n')
+                        for command in self.login_commands:
+                            sock.sendall(command.encode() + b'\r\n')
                         logged_in = True
                         buffer = b''
                         continue
@@ -272,7 +278,8 @@ class RbnClient:
         """Parse, filter and store one line. Returns the merged entry for accepted spots."""
         spot = parse_spot(line)
         if spot is None:
-            if line.startswith('DX de') and time.time() - self._last_unknown_log > 60:
+            # warn only for skimmer lines; clusters also relay human spots, which are not RBN data
+            if line.startswith('DX de') and '-#:' in line and time.time() - self._last_unknown_log > 60:
                 self._last_unknown_log = time.time()
                 logger.warning(f"RBN: unknown spot format: {line.strip()[:120]}")
             return None
@@ -326,7 +333,8 @@ def start_if_enabled() -> Optional[RbnClient]:
     if not config.RBN_CALLSIGN:
         logger.warning("RBN_ENABLED is set but RBN_CALLSIGN is empty — RBN spots stay off")
         return None
-    _client = RbnClient(config.RBN_CALLSIGN, config.RBN_HOST, config.RBN_PORT, config.RBN_SPOTTER_PREFIXES)
+    _client = RbnClient(config.RBN_CALLSIGN, config.RBN_HOST, config.RBN_PORT, config.RBN_SPOTTER_PREFIXES,
+                        login_commands=config.RBN_LOGIN_COMMANDS)
     _client.start()
     logger.info(f"RBN client started ({config.RBN_HOST}:{config.RBN_PORT} as {config.RBN_CALLSIGN})")
     return _client

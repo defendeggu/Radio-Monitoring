@@ -96,6 +96,8 @@ RBN_ENABLED: bool = _bool('RBN_ENABLED', False)
 RBN_CALLSIGN: str = os.getenv('RBN_CALLSIGN', '').strip().upper()
 RBN_HOST: str = os.getenv('RBN_HOST', 'telnet.reversebeacon.net').strip()
 RBN_PORT: int = _int('RBN_PORT', 7000)
+# Commands sent after the callsign, separated by ";" (DX clusters: SET/SKIMMER enables RBN spots)
+RBN_LOGIN_COMMANDS: list[str] = [c.strip() for c in os.getenv('RBN_LOGIN_COMMANDS', '').split(';') if c.strip()]
 # Only keep spots of skimmers whose callsign starts with one of these prefixes.
 # Empty = European skimmers (what is audible in central Europe), "*" = every skimmer.
 RBN_DEFAULT_PREFIXES = 'HB,DL,DK,DJ,DF,DM,DO,DA,DB,DC,DD,DG,DH,F,OE,I,ON,OO,PA,PD,G,M,OK,OM,SP,S5,9A,HA,LX,EA,CT,OZ,SM,LA,OH'

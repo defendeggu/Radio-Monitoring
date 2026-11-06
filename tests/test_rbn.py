@@ -15,6 +15,9 @@ LINES = {
     'cq': 'DX de EA5WU-#:   14014.0  OH6BG          CW    22 dB  27 WPM  CQ      1234Z',
     'ssid': 'DX de KM3T-2-#:  7023.40  DL1ABC         CW    15 dB  24 WPM  CQ      0938Z',
     'suffix': 'DX de DF4UE-RP-#: 14069.40  CT1EXR         CW    14 dB  15 WPM  CQ      0709Z',
+    # CC Cluster (GB7DXG), seen live: no blank after long skimmer calls, beacons as "NCDXF BCN"
+    'cluster': 'DX de DL8LAS-3-#:21020.6  RN0SZ        CW  6 dB 16 WPM CQ             0747Z',
+    'cluster_bcn': 'DX de EI4HQ-#:   14100.0  OH2B         CW 27 dB 19 WPM NCDXF BCN      0746Z',
     'ncdxf': 'DX de DK9IP-#:   14100.0  4X6TU          CW    12 dB  22 WPM  NCDXF B 1234Z',
     'beacon': 'DX de HB9DCO-#:  28263.9  DK0TEN         CW     8 dB  12 WPM  BEACON  1801Z',
     'rtty': 'DX de DL8LAS-#:  14085.0  RA3XYZ         RTTY  18 dB  45 BPS  CQ      1300Z',
@@ -32,12 +35,16 @@ class TestParser:
         assert rbn.parse_spot(LINES['ssid'])['frequency'] == 7_023_400
         assert rbn.parse_spot(LINES['suffix'])['spotter'] == 'DF4UE-RP'  # letter suffix, seen live
         assert rbn.parse_spot(LINES['suffix'])['callsign'] == 'CT1EXR'
+        cluster = rbn.parse_spot(LINES['cluster'])
+        assert (cluster['spotter'], cluster['callsign'], cluster['khz']) == ('DL8LAS-3', 'RN0SZ', 21020.6)
+        assert rbn.parse_spot(LINES['cluster_bcn'])['type'] == 'NCDXF B'
         assert rbn.parse_spot(LINES['ncdxf'])['type'] == 'NCDXF B'
         assert rbn.parse_spot(LINES['beacon'])['band'] == '10m'
         rtty = rbn.parse_spot(LINES['rtty'])
         assert rtty['mode'] == 'RTTY' and rtty['wpm'] is None
 
-    @pytest.mark.parametrize('line', ['', 'Please enter your call:', 'Welcome to RBN', 'DX de garbage'])
+    @pytest.mark.parametrize('line', ['', 'Please enter your call:', 'Welcome to RBN', 'DX de garbage',
+                                      'DX de EA6AOJ:    14305.0  EA6KB        EA6/MA-060 SOTA                0752Z'])
     def test_other_lines(self, line):
         assert rbn.parse_spot(line) is None
 
@@ -101,9 +108,10 @@ class TestQuery:
 class FakeTelnet:
     """Server side of a socketpair: prompt, read the callsign, send lines, then close."""
 
-    def __init__(self, lines: list[str], hold: float = 0.0):
+    def __init__(self, lines: list[str], hold: float = 0.0, login_lines: int = 1):
         self.client_side, self.server_side = socket.socketpair()
         self.login = b''
+        self.login_lines = login_lines   # callsign plus login commands
         self.lines = lines
         self.hold = hold
         self.thread = threading.Thread(target=self._serve, daemon=True)
@@ -112,7 +120,7 @@ class FakeTelnet:
     def _serve(self) -> None:
         s = self.server_side
         s.sendall(b'Welcome to the RBN\r\nPlease enter your call: ')
-        while not self.login.endswith(b'\r\n'):
+        while self.login.count(b'\r\n') < self.login_lines:
             self.login += s.recv(64)
         for line in self.lines:
             s.sendall(line.encode() + b'\r\n')
@@ -135,6 +143,21 @@ class TestClient:
         assert sorted(s['callsign'] for s in spots) == ['DL1ABC', 'OH6BG']   # RTTY filtered out
         state = rbn.status()
         assert state['connected'] is False and state['total'] == 2 and state['spots_per_minute'] == 2
+
+    def test_human_cluster_spots_are_ignored_quietly(self, caplog):
+        client = rbn.RbnClient('HB9XYZ', 'h', 1, prefixes=[])
+        assert client.handle_line('DX de IZ0EIK:     7058.0  IZ0MQN       DTMBAI-032 PG                  0753Z') is None
+        assert 'unknown spot format' not in caplog.text
+        client.handle_line('DX de EA5WU-#: garbage')
+        assert 'unknown spot format' in caplog.text
+
+    def test_login_commands_follow_the_callsign(self):
+        server = FakeTelnet([LINES['cq']], login_lines=3)
+        client = rbn.RbnClient('HB9XYZ', 'host', 7373, prefixes=[], connect=server.connect,
+                               login_commands=['SET/SKIMMER', 'SET/NOFT8'])
+        with pytest.raises(ConnectionError):
+            client._session()
+        assert server.login == b'HB9XYZ\r\nSET/SKIMMER\r\nSET/NOFT8\r\n'
 
     def test_only_one_leader(self):
         a = rbn.RbnClient('HB9XYZ', 'h', 1, [])

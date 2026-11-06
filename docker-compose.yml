@@ -260,6 +260,7 @@ services:
       - RBN_CALLSIGN=${RBN_CALLSIGN:-}
       - RBN_HOST=${RBN_HOST:-telnet.reversebeacon.net}
       - RBN_PORT=${RBN_PORT:-7000}
+      - RBN_LOGIN_COMMANDS=${RBN_LOGIN_COMMANDS:-}
       - RBN_SPOTTER_PREFIXES=${RBN_SPOTTER_PREFIXES:-}
       - CONTEST_DATA_DIR=/app/data/contest
       - SKIMMER_CALLSIGN=${SKIMMER_CALLSIGN:-}

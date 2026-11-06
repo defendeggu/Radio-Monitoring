@@ -58,7 +58,8 @@ Das Fenster *RBN-Spots* auf der CW-Seite und die Spot-Marken im Wasserfall zeige
 |---|---|---|
 | `RBN_ENABLED` | `false` | Verbindung zu RBN aufbauen |
 | `RBN_CALLSIGN` | – | Rufzeichen für den Login (Pflicht, sonst bleibt RBN aus) |
-| `RBN_HOST`, `RBN_PORT` | `telnet.reversebeacon.net`, `7000` | Server. RBN wünscht, dass Endnutzer einen DX-Cluster nutzen, der die RBN-Spots weitergibt; dessen Adresse hier eintragen. |
+| `RBN_HOST`, `RBN_PORT` | `telnet.reversebeacon.net`, `7000` | Server. RBN wünscht, dass Endnutzer einen DX-Cluster nutzen, der die RBN-Spots weitergibt; dessen Adresse hier eintragen, z. B. `gb7dxg.lebs.org.uk`, `7373` (CC Cluster). |
+| `RBN_LOGIN_COMMANDS` | – | Befehle nach dem Login, mit `;` getrennt. CC Cluster und DX Spider schicken RBN-Spots erst nach `SET/SKIMMER`. |
 | `RBN_SPOTTER_PREFIXES` | europäische Präfixe | Nur Spots von Skimmern mit diesen Rufzeichen-Präfixen (Komma-getrennt), `*` = alle |
 
 Gespeichert werden nur CW-Spots auf Kurzwelle der letzten 30 Minuten, in Redis, nicht in Elasticsearch.
@@ -174,7 +175,8 @@ The *RBN spots* window on the CW page and the spot markers in the waterfall show
 |---|---|---|
 | `RBN_ENABLED` | `false` | connect to RBN |
 | `RBN_CALLSIGN` | – | callsign for the login (required, otherwise RBN stays off) |
-| `RBN_HOST`, `RBN_PORT` | `telnet.reversebeacon.net`, `7000` | server. RBN asks end users to use a DX cluster that relays the RBN spots; enter its address here. |
+| `RBN_HOST`, `RBN_PORT` | `telnet.reversebeacon.net`, `7000` | server. RBN asks end users to use a DX cluster that relays the RBN spots; enter its address here, e.g. `gb7dxg.lebs.org.uk`, `7373` (CC Cluster). |
+| `RBN_LOGIN_COMMANDS` | – | commands after the login, separated by `;`. CC Cluster and DX Spider send RBN spots only after `SET/SKIMMER`. |
 | `RBN_SPOTTER_PREFIXES` | European prefixes | only spots from skimmers with these callsign prefixes (comma-separated), `*` = all |
 
 Only CW spots on shortwave of the last 30 minutes are kept, in Redis, not in Elasticsearch.

@@ -4,6 +4,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- RBN über einen DX-Cluster: `RBN_LOGIN_COMMANDS` schickt nach dem Login Befehle wie `SET/SKIMMER`; das Spot-Format von CC Cluster (z. B. GB7DXG) wird verstanden.
+
 ## [5.4.0] – 2026-11-06
 
 ### Neu
@@ -75,6 +78,9 @@ Neue Empfangsarten für Kurzwelle: Spektrum/Wasserfall mit Mithören, CW-Decoder
 - Das Compose-File veröffentlicht zwei weitere Ports des API-Containers: TCP 7300 (DX-Cluster) und UDP 12060 (N1MM+), standardmässig nur auf `127.0.0.1` (`CONTEST_BIND`, `CLUSTER_PORT`, `N1MM_PORT`). Belegt ein anderer Dienst diese Ports, startet der Container nicht; dann die Ports in `.env` ändern.
 - Zeitpläne kennen die Aktionen `cw` und `skimmer`.
 - Neue Abhängigkeit PyYAML (Contest-Regeln); das API-Image muss neu gebaut werden.
+
+### Behoben
+- RBN: Spots von Skimmern mit Buchstaben-Zusatz im Rufzeichen (z. B. `DF4UE-RP`) wurden verworfen.
 
 ### Update von 4.x
 1. `git pull`, dann `./scripts/setup-env.sh` (ergänzt die neuen Einstellungen in `.env`) und `docker compose build radio-api web-interface && docker compose up -d`.
