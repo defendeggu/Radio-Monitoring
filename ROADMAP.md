@@ -16,6 +16,7 @@ Stand: 2026-11-06 (Version 5.5.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 | Contest-Skimmer SSB messen | SSB ist experimentell eingebaut; an echten Contest-Aufnahmen Präzision (Ziel ≥ 90 %) und Ausbeute (≥ 30 %) messen und Prompt, Modell und Schwellen einstellen ([contest.md](docs/contest.md)) | mittel |
 | Contest-Messung CW | IQ am CQ WW CW (28.–29. November 2026) aufnehmen und gegen RBN auswerten; Ziel: Einsatz am IARU-R1-Fieldday CW (Juni 2027) | klein |
 | Contest-Regeln prüfen | Bänder und Details der USKA-Contests (Helvetia, Weihnachtswettbewerb, NMD, SEC) gegen die Reglement-PDFs prüfen | klein |
+| Flugfunk-Transkription (ATC) | 1. AM-VOX mit Kanalfilter vor Hüllkurve und Squelch (`dsp.ChannelReceiver`) und Bandpass 300–3400 Hz; 2. Transkriptionsprofil `atc` mit eigenem Modell (`jacktol/whisper-medium.en-fine-tuned-for-ATC-faster-whisper`, MIT; large-v3 optional), englischem Prompt, NATO-Hotwords und Halluzinationsfilter, im Flugfunkband vorgewählt; 3. regelbasierte Nachbearbeitung (Rufzeichen wie „Swiss 123“ → SWR123, Flugfläche, QNH, Piste, Squawk), Abgleich mit ADS-B, Alarm bei Squawk 7500/7600/7700. Am Gerät gegen `small` messen | gross |
 | KrakenSDR als fünf Empfänger | Die fünf kohärenten Kanäle (24 MHz – 1,7 GHz) als fünf RTL-SDR nutzen, z. B. APRS, POCSAG, ADS-B, AIS und VOX gleichzeitig; am Gerät prüfen: Erkennung über die Seriennummern 1000–1004, Strom und USB-Last, Bias-T | klein |
 | KrakenSDR-Peilung | Heimdall DAQ und `krakensdr_doa` (GPL-3) als eigener Container; RadioMoni liest die Peilungen, zeigt sie als Peillinie auf der Karte und speichert sie in Elasticsearch; eine Sperre für alle fünf Kanäle | gross |
 
@@ -29,6 +30,7 @@ Stand: 2026-11-06 (Version 5.5.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 - RTTY- und FT8-Spots des RBN (Port 7001) anzeigen
 - Contest-Skimmer auf mehreren Bändern gleichzeitig (setzt „Mehrere SDRs“ voraus)
 - Multiplikatoren aus dem Austausch (Kantone, Seriennummern) aus dem dekodierten Text lesen
+- Flugfunk: lokale LLM-Nachbearbeitung der ATC-Transkripte, abschaltbar und nur zusätzlich zum Rohtext (ein LLM „korrigiert“ Rufzeichen und Zahlen sonst gern falsch)
 - KrakenSDR: Richtung zu VOX-Aufnahmen, Repeater-Scan und APRS-Paketen speichern (Störer, Missbrauch auf Relais)
 - KrakenSDR: Störquellen suchen mit Dauerpeilung, Alarm und Richtungs-Heatmap in Kibana
 - KrakenSDR: Kreuzpeilung von zwei Standorten oder mobil mit GPS (Fuchsjagd auf 2 m und 70 cm)
