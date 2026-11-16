@@ -4,6 +4,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Behoben
+- Redis startete nach einem harten Abschalten nicht mehr, wenn das Ende der AOF-Datei nur halb geschrieben war (und damit auch die API nicht). Ein kaputtes Ende bis 4 KB wird jetzt beim Start abgeschnitten (`aof-load-corrupt-tail-max-size`).
+
+### Geändert
+- Redis fasst die AOF-Datei schon ab 8 MB zusammen statt ab 64 MB; sie wuchs durch die laufend erneuerten Sperren und Session-Stände auf über 50 MB bei rund zehn Schlüsseln.
+
 ## [5.5.0] – 2026-11-06
 
 ### Neu

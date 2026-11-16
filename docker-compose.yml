@@ -173,7 +173,11 @@ services:
     <<: [*hardening, *logging]
     environment:
       - REDIS_PASSWORD=${REDIS_PASSWORD:?REDIS_PASSWORD missing — run scripts/setup-env.sh}
-    command: ["sh", "-c", "exec redis-server --appendonly yes --requirepass \"$$REDIS_PASSWORD\""]
+    # AOF keeps the contest log (contest:qsos) across restarts. Locks and session states are
+    # rewritten every few seconds, so compact the AOF from 8 MB on (default 64 MB). After a
+    # hard power-off, drop a broken tail of up to 4 KB (the last half-written command)
+    # instead of refusing to start.
+    command: ["sh", "-c", "exec redis-server --appendonly yes --auto-aof-rewrite-min-size 8mb --aof-load-corrupt-tail-max-size 4096 --requirepass \"$$REDIS_PASSWORD\""]
     volumes:
       - redis-data:/data
     networks: [backend]
