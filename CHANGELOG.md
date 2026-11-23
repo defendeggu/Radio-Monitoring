@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.6.0] – 2026-11-23
+
 ### Neu
 - APRS: Ein Parser für alle gängigen Formate (`radiomoni/aprs_parse.py`) statt nur unkomprimierter Positionen.
   - Mic-E (Breite im Zielrufzeichen), komprimierte Positionen, Positionen mit Zeitstempel, Objekte und Items, Nachrichten mit Bestätigung, Bulletins, Status, Wetter, Telemetrie und Third-Party-Pakete (das innere Paket mit „via iGate“).
