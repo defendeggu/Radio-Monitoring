@@ -22,7 +22,8 @@ pocsag_bp = Blueprint('pocsag', __name__)
 @api('Search POCSAG messages', tags=['POCSAG'], query=PocsagSearchQuery)
 def search_pocsag() -> Response:
     q = parse_query(PocsagSearchQuery)
-    results = get_storage().search_pocsag(address=q.address, message_type=q.type, hours=q.hours, limit=q.limit)
+    results = get_storage().search_pocsag(address=q.address, message_type=q.type, hours=q.hours, limit=q.limit,
+                                          text_only=q.text_only)
     return jsonify({'status': 'success', 'count': results['total'], 'results': results['hits']})
 
 

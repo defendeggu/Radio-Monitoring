@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { Download, Search } from '@lucide/svelte';
+  import { BellOff, Download, Search } from '@lucide/svelte';
   import { api, download } from '../lib/api';
   import DecoderControls from '../lib/components/DecoderControls.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
@@ -13,12 +13,35 @@
   let address = $state('');
   let hours = $state(24);
 
+  // "Tone only" pages (no text) are most of the traffic; hiding them is remembered per browser
+  const HIDE_KEY = 'radiomoni.pocsag.hideTone';
+  let hideTone = $state(readHideTone());
+  function readHideTone(): boolean {
+    try {
+      return localStorage.getItem(HIDE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  }
+  function toggleTone() {
+    hideTone = !hideTone;
+    try {
+      localStorage.setItem(HIDE_KEY, hideTone ? '1' : '0');
+    } catch {
+      /* private mode: not remembered */
+    }
+    void load();
+  }
+  const isTone = (m: PocsagMessage) => !String(m.message_text ?? '').trim();
+  const shown = $derived(hideTone ? messages.filter((m) => !isTone(m)) : messages);
+
   async function load() {
     try {
       const r = await api.get<{ results: PocsagMessage[] }>('/pocsag/search', {
         hours,
         limit: 300,
         address: address || undefined,
+        text_only: hideTone || undefined,
       });
       messages = r.results;
     } catch (e) {
@@ -85,8 +108,18 @@
       </select>
     </div>
     <button class="btn-secondary" type="submit"><Search size={14} /> {t('Suchen')}</button>
+    <button
+      class={hideTone ? 'btn-primary' : 'btn-secondary'}
+      type="button"
+      aria-pressed={hideTone}
+      title={t('Meldungen ohne Text (nur Piepton) aus- oder einblenden')}
+      onclick={toggleTone}
+    >
+      <BellOff size={14} />
+      {hideTone ? t('„Nur Ton“ ausgeblendet') : t('„Nur Ton“ ausblenden')}
+    </button>
   </form>
-  {#if messages.length}
+  {#if shown.length}
     <div class="overflow-x-auto">
       <table class="table">
         <thead
@@ -97,7 +130,7 @@
           ></thead
         >
         <tbody>
-          {#each messages as m, i (m.uuid ?? i)}
+          {#each shown as m, i (m.uuid ?? i)}
             <tr>
               <td class="text-xs whitespace-nowrap">{time(packetTime(m))}</td>
               <td class="font-mono">{m.address}</td>
@@ -110,6 +143,10 @@
       </table>
     </div>
   {:else}
-    <EmptyState text={t('Noch keine POCSAG-Meldungen.')} />
+    <EmptyState
+      text={hideTone && messages.length
+        ? t('Nur Meldungen ohne Text — „Nur Ton“ ist ausgeblendet.')
+        : t('Noch keine POCSAG-Meldungen.')}
+    />
   {/if}
 </section>

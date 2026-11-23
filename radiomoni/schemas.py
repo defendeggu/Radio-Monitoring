@@ -397,6 +397,7 @@ class AprsSearchQuery(HoursLimitQuery):
 class PocsagSearchQuery(HoursLimitQuery):
     address: Optional[int] = Field(None, ge=0, le=2_097_151)
     type: Optional[str] = Field(None, max_length=20)
+    text_only: bool = Field(False, description='Hide tone-only messages (no text)')
 
 
 class EventSearchQuery(HoursLimitQuery):

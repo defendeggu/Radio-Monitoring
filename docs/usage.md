@@ -71,7 +71,15 @@ Die Liste der Durchgänge aktualisiert sich live. Ein Klick auf einen Eintrag sp
 - **Dauerbetrieb (Streaming):** läuft bis zu 24 h und speichert jedes Paket sofort.
 - **Einzelaufnahme:** zeichnet auf und dekodiert anschliessend (APRS bis 300 s, POCSAG bis 120 s).
 
-Bei APRS zeigt die Karte die letzte Position jeder Station. Die Tabelle enthält zusätzlich den Maidenhead-Locator. Über die Suche filterst du nach Rufzeichen (APRS) bzw. RIC-Adresse (POCSAG). Exportieren kannst du als CSV, bei APRS zusätzlich als GeoJSON und KML für Google Earth.
+Bei APRS zeigt die Karte die letzte Position jeder Station mit ihrem APRS-Symbol (Auto, Haus, Relais, iGate …). Objekte wie Relais-Einträge oder Treffpunkte erscheinen unter ihrem eigenen Namen; ein gelöschtes Objekt verschwindet von der Karte. Die Tabelle zeigt Symbol, Typ, Position, Maidenhead-Locator und eine lesbare Zeile statt der kodierten Nutzdaten, z. B. „Car · En route · 47.0233 N 8.2983 E · 15 km/h 139° · 457 m“. Die Rohdaten klappst du unter *Rohdaten* auf.
+
+RadioMoni liest alle gängigen APRS-Formate: Positionen mit und ohne Zeitstempel (unkomprimiert und komprimiert), **Mic-E** (die Breite steckt im Zielrufzeichen, z. B. `TWPQT0`), Objekte und Items, Nachrichten mit Bestätigung, Bulletins, Status, Wetter, Telemetrie und Third-Party-Pakete (ein iGate sendet ein Internet-Paket über Funk weiter; gezeigt wird das innere Paket mit „via iGate“). Zeichen wie `<0x1c>` in den Rohdaten sind Bytes, die direwolf so ausschreibt; sie gehören zur Mic-E-Kodierung. Ältere gespeicherte Pakete liest `docker exec radio-transcription-api python -m radiomoni.aprs_reparse` mit dem aktuellen Parser neu aus (schreibgeschützte ältere Indizes: siehe [elk.md](elk.md)).
+
+Die Symbolbilder stammen aus dem [aprs.fi-Satz](https://github.com/hessu/aprs-symbols) von OH7LZB. Der Satz hat gemischte Lizenzen (teils unbekannte Urheber, teils Markenlogos); das Web-Image lädt ihn deshalb beim Build in fester Version und das Repo enthält ihn nicht.
+
+Bei POCSAG sind viele Meldungen reine Töne ohne Text (*Nur Ton*). Der Knopf *„Nur Ton“ ausblenden* filtert sie aus; die Einstellung merkt sich der Browser.
+
+Über die Suche filterst du nach Rufzeichen (APRS) bzw. RIC-Adresse (POCSAG). Exportieren kannst du als CSV, bei APRS zusätzlich als GeoJSON und KML für Google Earth.
 
 ## ADS-B · AIS · ISM
 
@@ -207,7 +215,15 @@ The list of transmissions updates live. Clicking an entry plays it.
 - **Continuous operation (streaming):** runs for up to 24 h and stores every packet immediately.
 - **Single capture:** records first and decodes afterwards (APRS up to 300 s, POCSAG up to 120 s).
 
-For APRS the map shows the last position of every station. The table also contains the Maidenhead locator. Use the search to filter by callsign (APRS) or RIC address (POCSAG). You can export as CSV, for APRS also as GeoJSON and as KML for Google Earth.
+For APRS the map shows the last position of every station with its APRS symbol (car, house, repeater, iGate …). Objects such as repeater entries or meeting points appear under their own name; a deleted object disappears from the map. The table shows symbol, type, position, Maidenhead locator and a readable line instead of the encoded payload, e.g. "Car · En route · 47.0233 N 8.2983 E · 15 km/h 139° · 457 m". Open *Raw data* to see the packet as received.
+
+RadioMoni reads all common APRS formats: positions with and without timestamp (uncompressed and compressed), **Mic-E** (the latitude is in the destination field, e.g. `TWPQT0`), objects and items, messages with acks, bulletins, status, weather, telemetry and third-party packets (an iGate forwards an internet packet on RF; the inner packet is shown with "via iGate"). Characters like `<0x1c>` in the raw data are bytes that direwolf writes this way; they are part of the Mic-E encoding. `docker exec radio-transcription-api python -m radiomoni.aprs_reparse` reads older stored packets again with the current parser (read-only older indices: see [elk.md](elk.md)).
+
+The symbol images come from the [aprs.fi set](https://github.com/hessu/aprs-symbols) by OH7LZB. The set has mixed licences (partly unknown authors, partly brand logos), so the web image downloads a pinned version during the build and the repository does not contain it.
+
+For POCSAG many messages are tones without text (*Tone only*). The button *Hide "tone only"* filters them out; the browser remembers the setting.
+
+Use the search to filter by callsign (APRS) or RIC address (POCSAG). You can export as CSV, for APRS also as GeoJSON and as KML for Google Earth.
 
 ### ADS-B · AIS · ISM
 

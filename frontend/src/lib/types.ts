@@ -111,6 +111,18 @@ export interface AprsPacket {
   timestamp?: string;
   '@timestamp'?: string;
   frequency?: number;
+  raw_packet?: string;
+  /** Readable fields (radiomoni/aprs_parse.py); message_text is the summary line. */
+  comment?: string;
+  symbol?: string | null;
+  /** Image name under /aprs-symbols/<id>.png */
+  symbol_id?: string | null;
+  format?: string;
+  object_name?: string;
+  object_killed?: boolean;
+  addressee?: string;
+  device?: string;
+  third_party_via?: string;
 }
 
 export interface PocsagMessage {

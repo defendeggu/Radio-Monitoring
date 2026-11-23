@@ -4,7 +4,18 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- APRS: Ein Parser für alle gängigen Formate (`radiomoni/aprs_parse.py`) statt nur unkomprimierter Positionen.
+  - Mic-E (Breite im Zielrufzeichen), komprimierte Positionen, Positionen mit Zeitstempel, Objekte und Items, Nachrichten mit Bestätigung, Bulletins, Status, Wetter, Telemetrie und Third-Party-Pakete (das innere Paket mit „via iGate“).
+  - Neue Felder: Symbol, Kommentar, Geschwindigkeit (km/h), Kurs, Höhe (m), Objektname, Empfänger, Gerät, Wetterwerte.
+  - `message_text` ist jetzt eine lesbare Zeile statt der kodierten Nutzdaten; die Rohdaten bleiben in `raw_packet`.
+  - `python -m radiomoni.aprs_reparse` liest gespeicherte Pakete mit dem neuen Parser neu aus.
+- APRS-Symbole als Bilder in der Tabelle, auf der Karte und in den Kibana-Listen (aprs.fi-Satz, beim Build des Web-Images in fester Version geladen, nicht im Repo). Die Kibana-Karte zeigt Icons nach Symbol.
+- APRS-Karte: Objekte (Relais, Treffpunkte) sind eigene Punkte unter ihrem Namen; gelöschte Objekte verschwinden.
+- POCSAG: Knopf *„Nur Ton“ ausblenden*; die Suche nimmt `text_only=true`.
+
 ### Behoben
+- POCSAG-Streaming speicherte Meldungen ohne Text als Typ `unknown`; jetzt `tone` wie der Datei-Decoder.
 - Redis startete nach einem harten Abschalten nicht mehr, wenn das Ende der AOF-Datei nur halb geschrieben war (und damit auch die API nicht). Ein kaputtes Ende bis 4 KB wird jetzt beim Start abgeschnitten (`aof-load-corrupt-tail-max-size`).
 
 ### Geändert

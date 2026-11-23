@@ -247,15 +247,20 @@ class ElasticsearchService(StorageBackend):
         return cast(Optional[str], message.get('uuid'))
 
     def search_pocsag(self, address: Optional[int] = None, message_type: Optional[str] = None,
-                      hours: int = 24, limit: int = 100) -> Dict[str, Any]:
+                      hours: int = 24, limit: int = 100, text_only: bool = False) -> Dict[str, Any]:
         """Search POCSAG messages"""
         must: List[Dict[str, Any]] = [{'range': {'@timestamp': {'gte': f'now-{hours}h'}}}]
+        must_not: List[Dict[str, Any]] = []
         if address:
             must.append({'term': {'address': address}})
         if message_type:
             must.append({'term': {'message_type': message_type}})
+        if text_only:                    # tone only: no message_text, or an empty one
+            must.append({'exists': {'field': 'message_text'}})
+            must_not.append({'term': {'message_text.keyword': ''}})
         try:
-            result = self.es_client.search(index=INDEX_PATTERNS['pocsag'], query={'bool': {'must': must}},
+            result = self.es_client.search(index=INDEX_PATTERNS['pocsag'],
+                                           query={'bool': {'must': must, 'must_not': must_not}},
                                            sort=[{'@timestamp': 'desc'}], size=limit, allow_no_indices=True)
         except NotFoundError:
             return {'hits': [], 'total': 0}

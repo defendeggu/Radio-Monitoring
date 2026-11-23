@@ -163,8 +163,26 @@ def search(oid: str, title: str, index: str, columns: list[str], query: str = ''
 
 
 def geo_map(oid: str, title: str, index: str, label: str, tooltip: list[str], color: str,
-            query: str = '') -> Obj:
-    """Kibana Maps: EMS base map plus the documents with a 'position' geo_point."""
+            query: str = '', icons: Optional[tuple[str, list[tuple[str, str]]]] = None) -> Obj:
+    """Kibana Maps: EMS base map plus the documents with a 'position' geo_point.
+
+    icons: (field, [(value, Maki icon)]) draws points as icons by field value (the
+    first Maki icon of the list is used for all other values).
+    """
+    style: Obj = {
+        'fillColor': {'type': 'STATIC', 'options': {'color': color}},
+        'lineColor': {'type': 'STATIC', 'options': {'color': '#FFFFFF'}},
+        'lineWidth': {'type': 'STATIC', 'options': {'size': 1}},
+        'iconSize': {'type': 'STATIC', 'options': {'size': 6}}}
+    if icons:
+        field, stops = icons
+        style['symbolizeAs'] = {'options': {'value': 'icon'}}
+        style['iconSize'] = {'type': 'STATIC', 'options': {'size': 9}}
+        style['icon'] = {'type': 'DYNAMIC', 'options': {
+            'field': {'name': field, 'origin': 'source'}, 'iconPaletteId': None, 'useCustomIconMap': True,
+            'customIconStops': [{'stop': None, 'icon': stops[0][1], 'iconSource': 'MAKI'}]
+            + [{'stop': value, 'icon': icon, 'iconSource': 'MAKI'} for value, icon in stops[1:]],
+            'fieldMetaOptions': {'isEnabled': False}}}
     layers = [
         {'id': 'basemap', 'label': None, 'type': 'EMS_VECTOR_TILE', 'visible': True, 'alpha': 1,
          'minZoom': 0, 'maxZoom': 24, 'sourceDescriptor': {'type': 'EMS_TMS', 'isAutoSelect': True,
@@ -177,11 +195,7 @@ def geo_map(oid: str, title: str, index: str, label: str, tooltip: list[str], co
                               'tooltipProperties': tooltip, 'sortField': '@timestamp', 'sortOrder': 'desc',
                               'topHitsSplitField': '', 'topHitsSize': 1, 'applyGlobalQuery': True,
                               'applyGlobalTime': True, 'applyForceRefresh': True, 'filterByMapBounds': True},
-         'style': {'type': 'VECTOR', 'isTimeAware': True, 'properties': {
-             'fillColor': {'type': 'STATIC', 'options': {'color': color}},
-             'lineColor': {'type': 'STATIC', 'options': {'color': '#FFFFFF'}},
-             'lineWidth': {'type': 'STATIC', 'options': {'size': 1}},
-             'iconSize': {'type': 'STATIC', 'options': {'size': 6}}}},
+         'style': {'type': 'VECTOR', 'isTimeAware': True, 'properties': style},
          'query': {'query': query, 'language': 'kuery'}},
     ]
     map_state = {'zoom': 6.6, 'center': {'lon': 8.23, 'lat': 46.8},
@@ -281,19 +295,41 @@ def vox() -> list[Obj]:
     ])
 
 
+# APRS symbol (radiomoni/aprs_parse.py, field "symbol") -> Maki icon of Kibana Maps. Kibana draws
+# custom icons in one colour only, so the map uses Maki icons; lists show the real APRS symbol
+# images (field format of symbol_id in index-patterns.ndjson).
+APRS_MAP_ICONS = [
+    ('*', 'marker'),
+    ('Car', 'car'), ('SUV', 'car'), ('Van', 'car'), ('Jeep', 'car'), ('Truck', 'car'), ('Truck (18 wheels)', 'car'),
+    ('Recreational vehicle', 'car'), ('Bus', 'bus'), ('Motorcycle', 'scooter'), ('Bicycle', 'bicycle'),
+    ('Jogger', 'pitch'), ('Dog', 'veterinary'), ('House', 'home'), ('Yagi at QTH', 'home'),
+    ('Repeater', 'communications-tower'), ('Digipeater', 'star'), ('iGate', 'triangle'),
+    ('RX-only iGate', 'triangle'), ('TX iGate', 'triangle'), ('Gateway', 'triangle'), ('HF gateway', 'triangle'),
+    ('Weather station', 'information'), ('Weather service site', 'information'), ('Hospital', 'hospital'),
+    ('Ambulance', 'hospital'), ('Restaurant', 'restaurant'), ('Fire department', 'fire-station'),
+    ('Fire truck', 'fire-station'), ('Police', 'police'), ('School', 'school'), ('Hotel', 'lodging'),
+    ('Campground', 'campsite'), ('Shelter', 'shelter'), ('Small aircraft', 'airport'),
+    ('Large aircraft', 'airport'), ('Glider', 'airport'), ('Balloon', 'airport'), ('Helicopter', 'heliport'),
+    ('Ship', 'harbor'), ('Sailboat', 'harbor'), ('Canoe', 'harbor'), ('Railway engine', 'rail'),
+    ('Phone', 'telephone'), ('Laptop', 'mobile-phone'),
+]
+
+
 def aprs() -> list[Obj]:
     return dashboard('rm-dash-aprs', 'APRS', 'APRS-Pakete mit Stationskarte (Seite „APRS“)', [
         [(metric('rm-aprs-count', 'Pakete', APRS, count('Pakete')), 16, 7),
          (metric('rm-aprs-calls', 'Stationen', APRS, unique('source_callsign', 'Rufzeichen')), 16, 7),
          (metric('rm-aprs-pos', 'Pakete mit Position', APRS, count('Mit Position'), 'position : *'), 16, 7)],
         [(geo_map('rm-aprs-map', 'APRS-Stationen', APRS, 'APRS-Stationen',
-                  ['source_callsign', 'packet_type', 'message_text', '@timestamp'], '#54B399'), 30, 22),
+                  ['source_callsign', 'object_name', 'symbol', 'packet_type', 'message_text', '@timestamp'],
+                  '#54B399', icons=('symbol', APRS_MAP_ICONS)), 30, 22),
          (bars('rm-aprs-top', 'Aktivste Stationen', APRS, 'source_callsign', 'Rufzeichen', 15), 18, 22)],
         [(timeline('rm-aprs-tl', 'Pakete über die Zeit', APRS), 24, 12),
          (pie('rm-aprs-types', 'Pakettypen', APRS, 'packet_type', 'Typ'), 12, 12),
          (pie('rm-aprs-path', 'Digipeater-Pfade', APRS, 'path', 'Pfad', 8), 12, 12)],
         [(search('rm-aprs-list', 'APRS – Pakete', APRS,
-                 ['source_callsign', 'destination_callsign', 'packet_type', 'maidenhead', 'message_text']), 48, 16)],
+                 ['symbol_id', 'source_callsign', 'packet_type', 'symbol', 'maidenhead', 'message_text',
+                  'raw_packet']), 48, 16)],
     ])
 
 

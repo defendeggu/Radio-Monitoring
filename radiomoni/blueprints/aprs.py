@@ -41,9 +41,14 @@ def to_geojson(packets: list[dict[str, Any]]) -> dict[str, Any]:
         lat, lon = packet.get('latitude'), packet.get('longitude')
         if lat is None or lon is None:
             continue
-        call = packet.get('source_callsign') or '?'
+        # objects and items (repeaters, meeting points) are stations of their own
+        call = packet.get('object_name') or packet.get('source_callsign') or '?'
+        if packet.get('object_killed'):
+            latest.setdefault(call, {})          # deleted object: hide older positions
+            continue
         if call not in latest:  # packets are sorted newest first
             latest[call] = packet
+    latest = {call: packet for call, packet in latest.items() if packet}
     features = []
     for call, packet in latest.items():
         ts = packet.get('@timestamp') or packet.get('timestamp') or packet.get('created_at')
@@ -55,6 +60,9 @@ def to_geojson(packets: list[dict[str, Any]]) -> dict[str, Any]:
                 'message': packet.get('message_text', ''),
                 'type': packet.get('aprs_type') or packet.get('packet_type', 'unknown'),
                 'symbol': f"{packet.get('symbol_table') or ''}{packet.get('symbol_code') or ''}" or None,
+                'symbol_name': packet.get('symbol'),
+                'symbol_id': packet.get('symbol_id'),
+                'source_callsign': packet.get('source_callsign'),
                 'timestamp': str(ts) if ts else None,
                 'altitude': packet.get('altitude_meters') or packet.get('altitude'),
                 'speed': packet.get('speed_kmh') or packet.get('speed'),

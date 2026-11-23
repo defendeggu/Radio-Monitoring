@@ -96,6 +96,93 @@
         },
         "maidenhead": {
           "type": "keyword"
+        },
+        "comment": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        },
+        "symbol": {
+          "type": "keyword"
+        },
+        "symbol_id": {
+          "type": "keyword"
+        },
+        "format": {
+          "type": "keyword"
+        },
+        "object_name": {
+          "type": "keyword"
+        },
+        "object_killed": {
+          "type": "boolean"
+        },
+        "addressee": {
+          "type": "keyword"
+        },
+        "message_id": {
+          "type": "keyword"
+        },
+        "device": {
+          "type": "keyword"
+        },
+        "mic_e_status": {
+          "type": "keyword"
+        },
+        "third_party_via": {
+          "type": "keyword"
+        },
+        "aprs_timestamp": {
+          "type": "keyword"
+        },
+        "range_km": {
+          "type": "float"
+        },
+        "weather": {
+          "properties": {
+            "wind_direction": {
+              "type": "float"
+            },
+            "wind_speed_kmh": {
+              "type": "float"
+            },
+            "wind_gust_kmh": {
+              "type": "float"
+            },
+            "temperature_c": {
+              "type": "float"
+            },
+            "rain_1h_mm": {
+              "type": "float"
+            },
+            "rain_24h_mm": {
+              "type": "float"
+            },
+            "rain_since_midnight_mm": {
+              "type": "float"
+            },
+            "humidity": {
+              "type": "float"
+            },
+            "pressure_hpa": {
+              "type": "float"
+            },
+            "luminosity": {
+              "type": "float"
+            }
+          }
+        },
+        "telemetry": {
+          "type": "object",
+          "enabled": false
+        },
+        "phg": {
+          "type": "object",
+          "enabled": false
         }
       },
       "dynamic_templates": [

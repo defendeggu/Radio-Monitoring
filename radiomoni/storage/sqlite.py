@@ -247,7 +247,7 @@ class SQLiteStorage(StorageBackend):
         return self._insert('pocsag', message)
 
     def search_pocsag(self, address: Optional[int] = None, message_type: Optional[str] = None,
-                      hours: int = 24, limit: int = 100) -> dict[str, Any]:
+                      hours: int = 24, limit: int = 100, text_only: bool = False) -> dict[str, Any]:
         clauses: list[str] = []
         params: list[Any] = []
         if address:
@@ -256,6 +256,8 @@ class SQLiteStorage(StorageBackend):
         if message_type:
             clauses.append("json_extract(data,'$.message_type') = ?")
             params.append(message_type)
+        if text_only:
+            clauses.append("TRIM(COALESCE(json_extract(data,'$.message_text'), '')) != ''")
         hits, total = self._select('pocsag', hours, ' AND '.join(clauses), params, limit)
         return {'hits': hits, 'total': total}
 

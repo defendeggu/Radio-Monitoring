@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Download, Search } from '@lucide/svelte';
   import { api, download } from '../lib/api';
+  import AprsSymbol from '../lib/components/AprsSymbol.svelte';
   import DecoderControls from '../lib/components/DecoderControls.svelte';
   import EmptyState from '../lib/components/EmptyState.svelte';
   import MapView, { type MapPoint } from '../lib/components/MapView.svelte';
@@ -12,8 +13,40 @@
 
   interface Feature {
     geometry: { coordinates: [number, number] };
-    properties: { callsign: string; message?: string; timestamp?: string; type?: string };
+    properties: {
+      callsign: string;
+      message?: string;
+      timestamp?: string;
+      type?: string;
+      symbol_id?: string | null;
+      symbol_name?: string | null;
+    };
   }
+
+  // packet types of radiomoni/aprs_parse.py
+  const TYPES: Record<string, () => string> = {
+    position: () => t('Position'),
+    object: () => t('Objekt'),
+    item: () => t('Item'),
+    message: () => t('Nachricht'),
+    bulletin: () => t('Bulletin'),
+    ack: () => t('Bestätigung'),
+    rej: () => t('Abgelehnt'),
+    status: () => t('Status'),
+    weather: () => t('Wetter'),
+    telemetry: () => t('Telemetrie'),
+    'telemetry-meta': () => t('Telemetrie-Setup'),
+    capabilities: () => t('Fähigkeiten'),
+    query: () => t('Abfrage'),
+    nmea: () => t('NMEA'),
+    unknown: () => t('unbekannt'),
+  };
+  const typeLabel = (p: AprsPacket) => {
+    const type = p.packet_type ?? p.aprs_type ?? 'unknown';
+    return TYPES[type]?.() ?? type;
+  };
+  const symbolUrl = (id?: string | null) =>
+    id && /^[a-z0-9-]+$/.test(id) ? `/aprs-symbols/${id}.png` : undefined;
 
   let packets = $state<AprsPacket[]>([]);
   let features = $state<Feature[]>([]);
@@ -44,17 +77,22 @@
       const p = e.data as unknown as AprsPacket;
       if (!callsign || p.source_callsign?.toUpperCase() === callsign.toUpperCase())
         packets = [p, ...packets].slice(0, 500);
-      if (p.latitude != null && p.longitude != null) {
+      const station = p.object_name || p.source_callsign;
+      if (p.object_killed) {
+        features = features.filter((f) => f.properties.callsign !== station);
+      } else if (p.latitude != null && p.longitude != null) {
         features = [
           {
             geometry: { coordinates: [p.longitude, p.latitude] },
             properties: {
-              callsign: p.source_callsign,
+              callsign: station,
               message: p.message_text ?? '',
               timestamp: packetTime(p),
+              symbol_id: p.symbol_id,
+              symbol_name: p.symbol,
             },
           },
-          ...features.filter((f) => f.properties.callsign !== p.source_callsign),
+          ...features.filter((f) => f.properties.callsign !== station),
         ];
       }
     });
@@ -67,6 +105,7 @@
       lon: f.geometry.coordinates[0],
       label: f.properties.callsign,
       detail: `${f.properties.message ?? ''} (${time(f.properties.timestamp)})`,
+      icon: symbolUrl(f.properties.symbol_id),
     })),
   );
 
@@ -133,24 +172,34 @@
       <table class="table">
         <thead
           ><tr
-            ><th>{t('Zeit')}</th><th>{t('Rufzeichen')}</th><th>{t('Typ')}</th><th>{t('Position')}</th><th
-              >Locator</th
-            ><th>{t('Nachricht')}</th></tr
+            ><th>{t('Zeit')}</th><th><span class="sr-only">{t('Symbol')}</span></th><th>{t('Rufzeichen')}</th
+            ><th>{t('Typ')}</th><th>{t('Position')}</th><th>Locator</th><th>{t('Nachricht')}</th></tr
           ></thead
         >
         <tbody>
           {#each packets as p, i (p.uuid ?? i)}
             <tr>
               <td class="text-xs whitespace-nowrap">{time(packetTime(p))}</td>
-              <td class="font-mono font-medium">{p.source_callsign}</td>
-              <td>{p.aprs_type ?? p.packet_type}</td>
+              <td class="w-10 min-w-10"><AprsSymbol id={p.symbol_id} name={p.symbol} /></td>
+              <td class="font-mono font-medium whitespace-nowrap">{p.source_callsign}</td>
+              <td class="whitespace-nowrap">{typeLabel(p)}</td>
               <td class="font-mono text-xs"
                 >{p.latitude != null && p.longitude != null
                   ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
                   : '—'}</td
               >
               <td class="font-mono text-xs">{p.maidenhead ?? '—'}</td>
-              <td class="break-all">{p.message_text ?? ''}</td>
+              <td class="break-words">
+                {p.message_text ?? ''}
+                {#if p.raw_packet}
+                  <details class="mt-1">
+                    <summary class="cursor-pointer text-xs text-slate-500 select-none"
+                      >{t('Rohdaten')}</summary
+                    >
+                    <code class="block font-mono text-xs break-all">{p.raw_packet}</code>
+                  </details>
+                {/if}
+              </td>
             </tr>
           {/each}
         </tbody>

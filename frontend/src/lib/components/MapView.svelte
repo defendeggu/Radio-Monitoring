@@ -6,6 +6,8 @@
     label: string;
     detail?: string;
     color?: string;
+    /** Image URL for the marker (e.g. an APRS symbol); a circle when missing */
+    icon?: string;
   }
 </script>
 
@@ -43,12 +45,22 @@
     const bounds: L.LatLngExpression[] = [];
     for (const p of points) {
       if (!Number.isFinite(p.lat) || !Number.isFinite(p.lon)) continue;
-      const marker = L.circleMarker([p.lat, p.lon], {
-        radius: 6,
-        color: p.color ?? '#06b6d4',
-        weight: 2,
-        fillOpacity: 0.6,
-      });
+      const marker: L.Marker | L.CircleMarker = p.icon
+        ? L.marker([p.lat, p.lon], {
+            icon: L.icon({
+              iconUrl: p.icon,
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+              popupAnchor: [0, -12],
+            }),
+            alt: p.label,
+          })
+        : L.circleMarker([p.lat, p.lon], {
+            radius: 6,
+            color: p.color ?? '#06b6d4',
+            weight: 2,
+            fillOpacity: 0.6,
+          });
       // popup content is built with DOM text nodes — radio data is never interpreted as HTML
       const popup = document.createElement('div');
       const title = document.createElement('strong');

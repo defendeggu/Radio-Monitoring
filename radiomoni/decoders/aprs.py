@@ -12,15 +12,15 @@ Usage:
     packets = decoder.decode('path/to/audio.wav')
 """
 
-from typing import List, Optional, Dict, Any, TypedDict
+from typing import List, Optional, Dict, Any, TypedDict, cast
 import logging
 import os
-import re
 import shutil
 import subprocess
 from datetime import datetime, timezone
 
 from radiomoni import config
+from radiomoni.aprs_parse import parse_line
 
 logger = logging.getLogger(__name__)
 
@@ -40,9 +40,20 @@ class APRSPacket(TypedDict, total=False):
     symbol_code: Optional[str]
     raw_packet: str
     aprs_type: str
+    packet_type: str
     aprs_data: Dict[str, Any]
     timestamp: str
     frequency: Optional[int]  # Optional frequency in Hz
+    # radiomoni.aprs_parse: readable fields (message_text is the summary line)
+    comment: str
+    symbol: Optional[str]
+    symbol_id: Optional[str]
+    format: str
+    object_name: str
+    addressee: str
+    message_id: str
+    weather: Dict[str, Any]
+    device: str
 
 
 class APRSDecoder:
@@ -142,226 +153,12 @@ class APRSDecoder:
         return packets
 
     def _parse_packet_line(self, line: str) -> Optional[APRSPacket]:
-        """
-        Parse single APRS packet line from direwolf
-
-        Example formats:
-        [0] W1ABC>APRS,WIDE1-1:=4903.50N/07201.75W-Test message
-        [0] N0CALL>APRS:!4903.50N/07201.75W#PHG5360
-
-        Args:
-            line: Single line of direwolf output
-
-        Returns:
-            Parsed APRS packet or None if parsing failed
-        """
-        try:
-            # Match: [channel] SOURCE>DEST,PATH:payload
-            match = re.match(r'\[(\d+)\]\s+(.+?)>(.+?):(.*)', line)
-            if not match:
-                return None
-
-            channel, source, dest_path, payload = match.groups()
-
-            # Split destination and path
-            dest_parts = dest_path.split(',')
-            destination = dest_parts[0]
-            path = ','.join(dest_parts[1:]) if len(dest_parts) > 1 else ''
-
-            # Parse payload for position, message, etc.
-            lat, lon, altitude, speed, course, msg = self._parse_payload(payload)
-            aprs_type = self._determine_type(payload)
-
-            return APRSPacket(
-                source_callsign=source.strip(),
-                destination_callsign=destination.strip(),
-                path=path.strip(),
-                latitude=lat,
-                longitude=lon,
-                altitude=altitude,
-                speed=speed,
-                course=course,
-                message_text=msg,
-                symbol_table=self._extract_symbol_table(payload),
-                symbol_code=self._extract_symbol_code(payload),
-                raw_packet=line,
-                aprs_type=aprs_type,
-                aprs_data={
-                    'payload': payload,
-                    'channel': channel
-                },
-                timestamp=datetime.now(timezone.utc).isoformat()
-            )
-        except Exception as e:
-            logger.debug(f"Error parsing APRS line {line!r}: {e}")
+        """One direwolf line ("[0] SOURCE>DEST,PATH:info") to a packet (radiomoni.aprs_parse)."""
+        packet = parse_line(line)
+        if packet is None:
             return None
-
-    def _parse_payload(self, payload: str) -> tuple[Optional[float], Optional[float], Optional[int], Optional[float], Optional[int], Optional[str]]:
-        """
-        Parse APRS payload for position and data
-
-        APRS formats:
-        - Position with timestamp: /DDHHMM (compressed or uncompressed)
-        - Position without timestamp: ! or = (uncompressed or compressed)
-        - Message: :ADDRESSEE :message
-        - Weather: _
-        - Telemetry: T#
-
-        Args:
-            payload: APRS payload string
-
-        Returns:
-            Tuple: (lat, lon, altitude, speed, course, message)
-        """
-        lat, lon, alt, speed, course, msg = None, None, None, None, None, None
-
-        # Position report (uncompressed format)
-        # Format: =DDMM.MMN/DDDMM.MME-comment
-        if payload.startswith('=') or payload.startswith('!') or payload.startswith('/'):
-            # Extract position
-            pos_match = re.match(
-                r'[=/!@](\d{4}\.\d{2}[NS])[/\\](\d{5}\.\d{2}[EW])',
-                payload
-            )
-            if pos_match:
-                lat_str, lon_str = pos_match.groups()
-                lat = self._parse_latitude(lat_str)
-                lon = self._parse_longitude(lon_str)
-
-                # Extract message after position (after symbol)
-                remainder = payload[pos_match.end():]
-                if len(remainder) > 1:
-                    msg = remainder[1:].strip()  # Skip symbol character
-
-        # Message format: :ADDRESSEE :message
-        elif payload.startswith(':'):
-            msg_match = re.match(r':(.{9}):(.+)', payload)
-            if msg_match:
-                addressee, message = msg_match.groups()
-                msg = f"To {addressee.strip()}: {message.strip()}"
-
-        # Weather report
-        elif payload.startswith('_'):
-            msg = "Weather report"
-            # Could parse weather data here
-
-        # Telemetry
-        elif payload.startswith('T#'):
-            msg = "Telemetry data"
-
-        # Other/unknown format
-        else:
-            msg = payload.strip()
-
-        return lat, lon, alt, speed, course, msg
-
-    def _parse_latitude(self, lat_str: str) -> Optional[float]:
-        """
-        Parse APRS latitude DDMM.MMN to decimal degrees
-
-        Format: DDMM.MM + N/S
-        Example: 4903.50N -> 49 degrees + 3.50 minutes = 49.0583°N
-
-        Args:
-            lat_str: Latitude string (DDMM.MMN)
-
-        Returns:
-            Latitude in decimal degrees or None
-        """
-        match = re.match(r'(\d{2})(\d{2}\.\d{2})([NS])', lat_str)
-        if not match:
-            return None
-
-        deg, min_val, direction = match.groups()
-        decimal = float(deg) + float(min_val) / 60.0
-
-        # South is negative
-        return decimal if direction == 'N' else -decimal
-
-    def _parse_longitude(self, lon_str: str) -> Optional[float]:
-        """
-        Parse APRS longitude DDDMM.MME to decimal degrees
-
-        Format: DDDMM.MM + E/W
-        Example: 07201.75W -> 072 degrees + 01.75 minutes = 72.0292°W = -72.0292°
-
-        Args:
-            lon_str: Longitude string (DDDMM.MME)
-
-        Returns:
-            Longitude in decimal degrees or None
-        """
-        match = re.match(r'(\d{3})(\d{2}\.\d{2})([EW])', lon_str)
-        if not match:
-            return None
-
-        deg, min_val, direction = match.groups()
-        decimal = float(deg) + float(min_val) / 60.0
-
-        # West is negative
-        return decimal if direction == 'E' else -decimal
-
-    def _determine_type(self, payload: str) -> str:
-        """
-        Determine APRS packet type from payload
-
-        Args:
-            payload: APRS payload string
-
-        Returns:
-            Packet type: 'position', 'message', 'weather', 'telemetry', or 'unknown'
-        """
-        if not payload:
-            return 'unknown'
-
-        first_char = payload[0]
-
-        if first_char in '=!/!@':
-            return 'position'
-        elif first_char == ':':
-            return 'message'
-        elif first_char == '_':
-            return 'weather'
-        elif first_char == 'T' and payload.startswith('T#'):
-            return 'telemetry'
-        elif first_char == '>':
-            return 'status'
-        else:
-            return 'unknown'
-
-    def _extract_symbol_table(self, payload: str) -> Optional[str]:
-        """
-        Extract APRS symbol table character
-
-        In uncompressed position: character before symbol code
-        Format: ...lat/lon[TABLE][CODE]...
-
-        Args:
-            payload: APRS payload string
-
-        Returns:
-            Symbol table character or None
-        """
-        # Simplified: In position reports, symbol table is typically '/' or '\'
-        if payload.startswith('=') or payload.startswith('!'):
-            # Look for pattern after lat/lon
-            if '/' in payload:
-                return '/'
-        return None
-
-    def _extract_symbol_code(self, payload: str) -> Optional[str]:
-        """
-        Extract APRS symbol code character
-
-        Args:
-            payload: APRS payload string
-
-        Returns:
-            Symbol code character or None
-        """
-        # Simplified: Symbol code follows symbol table
-        # Full implementation would extract from position report format
-        return None
+        packet['timestamp'] = datetime.now(timezone.utc).isoformat()
+        return cast(APRSPacket, packet)
 
     def _simulate_decode(self, audio_file: str) -> List[APRSPacket]:
         """
@@ -433,8 +230,8 @@ if __name__ == '__main__':
         print(f"  From: {packet['source_callsign']}")
         print(f"  To: {packet['destination_callsign']}")
         print(f"  Type: {packet['aprs_type']}")
-        if packet['latitude'] and packet['longitude']:
+        if packet.get('latitude') is not None and packet.get('longitude') is not None:
             print(f"  Position: {packet['latitude']:.4f}, {packet['longitude']:.4f}")
-        if packet['message_text']:
+        if packet.get('message_text'):
             print(f"  Message: {packet['message_text']}")
         print()

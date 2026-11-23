@@ -31,6 +31,7 @@ from scipy import signal
 import json
 
 from radiomoni import alerts
+from radiomoni.aprs_parse import parse_line as parse_aprs_line
 from radiomoni import events
 from radiomoni.devices import Device
 from radiomoni.dsp import DecimationStage
@@ -978,99 +979,13 @@ class StreamingAPRSDecoder(BaseStreamingDecoder):
         return proc
 
     def _parse_decoder_line(self, line: str) -> Optional[Dict[str, Any]]:
-        """Parse direwolf output line to APRS packet dict
-
-        Example direwolf output:
-        [0] KG6HUM-7>APDR15,WIDE1-1:!3745.75N/12212.47W>088/019/A=000305
-        """
-        try:
-            # Skip empty lines and non-packet lines
-            if not line or not line.startswith('['):
-                return None
-
-            # Extract components
-            # Format: [channel] SOURCE>DEST,PATH:DATA
-            parts = line.split(':', 1)
-            if len(parts) != 2:
-                return None
-
-            header = parts[0]
-            data = parts[1].strip()
-
-            # Parse header: [0] SOURCE>DEST,PATH
-            header = header.split(']', 1)[1].strip()  # Remove channel number
-            source_dest = header.split('>', 1)
-            if len(source_dest) != 2:
-                return None
-
-            source = source_dest[0].strip()
-            dest_and_path = source_dest[1].split(',')
-            destination = dest_and_path[0].strip()
-            path = ','.join(dest_and_path[1:]) if len(dest_and_path) > 1 else ''
-
-            # Determine packet type from data
-            packet_type = 'unknown'
-            latitude = None
-            longitude = None
-            message_text = data
-
-            if data.startswith('!') or data.startswith('='):
-                # Position packet
-                packet_type = 'position'
-                # Try to parse position (simple parsing)
-                # Full APRS position parsing is complex, simplified here
-                try:
-                    # Example: !3745.75N/12212.47W>
-                    if len(data) > 19:
-                        lat_str = data[1:8]  # 3745.75
-                        lat_dir = data[8]     # N
-                        lon_str = data[10:18] # 12212.47
-                        lon_dir = data[18]    # W
-
-                        # Convert to decimal degrees (simplified)
-                        lat_deg = float(lat_str[:2])
-                        lat_min = float(lat_str[2:])
-                        latitude = lat_deg + (lat_min / 60.0)
-                        if lat_dir == 'S':
-                            latitude = -latitude
-
-                        lon_deg = float(lon_str[:3])
-                        lon_min = float(lon_str[3:])
-                        longitude = lon_deg + (lon_min / 60.0)
-                        if lon_dir == 'W':
-                            longitude = -longitude
-                except (ValueError, IndexError):
-                    pass  # Position parsing failed, keep as None
-
-            elif data.startswith(':'):
-                # Message packet
-                packet_type = 'message'
-
-            elif data.startswith('>'):
-                # Status packet
-                packet_type = 'status'
-
-            elif data.startswith('T#'):
-                # Telemetry packet
-                packet_type = 'telemetry'
-
-            packet = {
-                'uuid': str(uuid.uuid4()),
-                'source_callsign': source,
-                'destination_callsign': destination,
-                'path': path,
-                'packet_type': packet_type,
-                'message_text': message_text,
-                'raw_packet': line,
-                'latitude': latitude,
-                'longitude': longitude
-            }
-
-            return packet
-
-        except Exception as e:
-            logger.error(f"Failed to parse APRS line: {line} - {e}")
+        """direwolf output line ("[0] SOURCE>DEST,PATH:info") to a packet (radiomoni.aprs_parse)."""
+        if not line or not line.startswith('['):
             return None
+        packet = parse_aprs_line(line)
+        if packet is not None:
+            packet['uuid'] = str(uuid.uuid4())
+        return packet
 
     def _index_packet(self, packet: Dict[str, Any]) -> None:
         """Store APRS packet"""
@@ -1207,6 +1122,8 @@ class StreamingPOCSAGDecoder(BaseStreamingDecoder):
             elif 'Numeric:' in parts:
                 message_type = 'numeric'
                 message_text = parts.split('Numeric:')[1].strip()
+            if not message_text:
+                message_type = 'tone'        # tone only: the pager beeps, no text
 
             packet = {
                 'uuid': str(uuid.uuid4()),

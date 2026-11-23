@@ -83,7 +83,8 @@ class StorageBackend(ABC):
 
     @abstractmethod
     def search_pocsag(self, address: Optional[int] = None, message_type: Optional[str] = None,
-                      hours: int = 24, limit: int = 100) -> dict[str, Any]: ...
+                      hours: int = 24, limit: int = 100, text_only: bool = False) -> dict[str, Any]:
+        """text_only: leave out tone-only messages (no text)."""
 
     @abstractmethod
     def get_pocsag_stats(self, hours: int = 24) -> dict[str, Any]: ...
