@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir pillow==11.3.0 \
 COPY scripts/aprs_symbols.py /work/
 RUN python3 aprs_symbols.py /work /out/aprs-symbols
 
-FROM nginx:1.30.6-alpine
+FROM nginx:1.30.7-alpine
 # Pull Alpine security fixes that the upstream image does not contain yet
 # (the CI Trivy scan fails on fixable HIGH/CRITICAL findings)
 RUN apk upgrade --no-cache

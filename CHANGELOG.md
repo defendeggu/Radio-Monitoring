@@ -4,6 +4,9 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Sicherheit
+- Web-Image auf nginx 1.30.7: behebt CVE-2026-113425, -121810, -123007, -123633 (kritisch) sowie CVE-2026-118899 und -123634 (hoch).
+
 ## [5.6.0] – 2026-11-23
 
 ### Neu
