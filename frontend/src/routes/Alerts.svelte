@@ -113,7 +113,7 @@
   <div>
     <label class="label" for="asrc">{t('Quelle')}</label>
     <select id="asrc" class="input" bind:value={draft.source}>
-      {#each ['any', 'aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'skimmer'] as s (s)}<option
+      {#each ['any', 'aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'skimmer', 'onair'] as s (s)}<option
           value={s}>{s === 'any' ? t('alle') : s.toUpperCase()}</option
         >{/each}
     </select>
@@ -128,6 +128,7 @@
       <option value="icao">ICAO</option>
       <option value="mmsi">MMSI</option>
       <option value="model">{t('Sensor-Modell')}</option>
+      <option value="event_type">{t('OnAir-Ereignistyp')}</option>
     </select>
   </div>
   <div>

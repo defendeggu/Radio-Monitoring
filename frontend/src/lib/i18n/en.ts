@@ -480,4 +480,32 @@ export const en: Record<string, string> = {
   Übersicht: 'Overview',
   '„Nur Ton“ ausblenden': 'Hide “tone only”',
   '„Nur Ton“ ausgeblendet': '“Tone only” hidden',
+  // OnAir
+  Bilder: 'Pictures',
+  Digitalfunk: 'Digital voice',
+  erkannt: 'detected',
+  'kein Signal': 'no signal',
+  Kennung: 'Identifier',
+  'LoRa / Mesh': 'LoRa / mesh',
+  Luftfahrt: 'Aviation',
+  Meldung: 'Message',
+  'Noch keine OnAir-Meldungen.': 'No OnAir messages yet.',
+  'OnAir {mode} gestartet': 'OnAir {mode} started',
+  'OnAir hat das SDR nur während einer Sitzung offen; RadioMoni hält solange die SDR-Sperre.':
+    'OnAir has the SDR open only during a session; RadioMoni holds the SDR lock meanwhile.',
+  'OnAir ist nicht eingerichtet: Profil „onair“ in COMPOSE_PROFILES und ONAIR_URL setzen (docs/onair.md).':
+    'OnAir is not set up: add the profile “onair” to COMPOSE_PROFILES and set ONAIR_URL (docs/onair.md).',
+  'OnAir nicht erreichbar: {error}': 'OnAir not reachable: {error}',
+  'OnAir-Ereignistyp': 'OnAir event type',
+  'OnAir-Mitwirkende': 'OnAir contributors',
+  'OnAir-Seite öffnen': 'Open OnAir page',
+  Radiosonden: 'Radiosondes',
+  Rundfunk: 'Broadcast',
+  Satelliten: 'Satellites',
+  Seefunk: 'Maritime',
+  'Sensoren / Pager': 'Sensors / pagers',
+  Signal: 'Signal',
+  Weitere: 'More',
+  'Zusätzlicher Empfänger mit eigenem Decoder (ACARS, VDL2, Radiosonden, Digitalfunk, Wettersatelliten …)':
+    'Additional receiver with its own decoders (ACARS, VDL2, radiosondes, digital voice, weather satellites …)',
 };

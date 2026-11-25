@@ -47,7 +47,7 @@
 
   const feed = $derived(
     live.recent
-      .filter((e) => ['aprs', 'pocsag', 'adsb', 'ais', 'ism', 'vox', 'alert'].includes(e.type))
+      .filter((e) => ['aprs', 'pocsag', 'adsb', 'ais', 'ism', 'onair', 'vox', 'alert'].includes(e.type))
       .slice(0, 12),
   );
 
@@ -63,6 +63,8 @@
         return `${d.shipname ?? d.mmsi}`;
       case 'ism':
         return `${d.model} ${d.temperature_C !== undefined ? `${d.temperature_C} °C` : ''}`;
+      case 'onair':
+        return `${d.ident ?? d.event_type ?? ''} — ${String(d.text ?? '').slice(0, 80)}`;
       case 'vox':
         return `${d.state} ${d.text ?? d.audio_file ?? ''}`;
       case 'alert':

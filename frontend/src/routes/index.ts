@@ -12,6 +12,7 @@ import {
   Plane,
   Radio,
   RadioTower,
+  Satellite,
   Search,
   Smartphone,
   SquareCode,
@@ -26,6 +27,7 @@ import Cw from './Cw.svelte';
 import Dashboard from './Dashboard.svelte';
 import Decoders from './Decoders.svelte';
 import Multi from './Multi.svelte';
+import Onair from './Onair.svelte';
 import Pocsag from './Pocsag.svelte';
 import Recordings from './Recordings.svelte';
 import Repeater from './Repeater.svelte';
@@ -75,6 +77,7 @@ export const routes: RouteDef[] = [
   { path: 'aprs', label: () => 'APRS', group: 'receive', icon: MapPin, component: Aprs },
   { path: 'pocsag', label: () => 'POCSAG', group: 'receive', icon: Smartphone, component: Pocsag },
   { path: 'decoders', label: () => 'ADS-B · AIS · ISM', group: 'receive', icon: Plane, component: Decoders },
+  { path: 'onair', label: () => 'OnAir', group: 'receive', icon: Satellite, component: Onair },
   { path: 'repeater', label: () => t('Repeater-Scan'), group: 'receive', icon: Search, component: Repeater },
   {
     path: 'multi',

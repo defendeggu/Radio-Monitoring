@@ -319,3 +319,86 @@ test('two SDRs: the CW start runs on the chosen device', async ({ page }) => {
   await expect(page.getByText('SDR device is busy')).toBeVisible();
   expect(cwStarts.at(-1)).toMatchObject({ device_id: 'rtlsdr:0', device_type: 'auto' });
 });
+
+test('OnAir page: mode sets the frequency, start sends the mode, messages are escaped', async ({ page }) => {
+  const starts: Record<string, unknown>[] = [];
+  await page.route('**/api/onair/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
+    const json = (body: unknown, status = 200) => ({
+      status,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+    if (path === '/onair/status')
+      return route.fulfill(
+        json({
+          enabled: true,
+          reachable: true,
+          version: '4.6.0',
+          sessions: [],
+          attribution: 'Based on OnAir by Kristijonas Adomaitis - https://on-air.dev',
+          contributors: 'https://github.com/adswill/OnAir/blob/main/CONTRIBUTORS.md',
+        }),
+      );
+    if (path === '/onair/modes')
+      return route.fulfill(
+        json({
+          modes: [
+            {
+              id: 'acars',
+              family: 18,
+              sub: null,
+              name: 'ACARS',
+              default_frequency: 131500000,
+              group: 'aviation',
+            },
+            {
+              id: 'sonde',
+              family: 15,
+              sub: null,
+              name: 'Radiosonde',
+              default_frequency: 403000000,
+              group: 'sondes',
+            },
+          ],
+        }),
+      );
+    if (path === '/onair/search')
+      return route.fulfill(
+        json({
+          count: 1,
+          results: [
+            {
+              uuid: 'u1',
+              '@timestamp': '2026-11-25T10:27:35Z',
+              event_type: 'acars.message',
+              family: 'acars',
+              mode: 'ACARS',
+              ident: 'MU0218',
+              text: '<img src=x onerror=alert(1)> POS',
+              fields: { flight: 'MU0218' },
+              frequency: 131725000,
+            },
+          ],
+        }),
+      );
+    if (path === '/onair/map') return route.fulfill(json({ type: 'FeatureCollection', features: [] }));
+    if (path === '/onair/start') {
+      starts.push(route.request().postDataJSON());
+      return route.fulfill(json({ error: 'SDR device is busy — in use by aprs' }, 409));
+    }
+    return route.fulfill(json({}));
+  });
+  let dialog = false;
+  page.on('dialog', () => (dialog = true));
+  await page.goto('/#/onair');
+  await expect(page.getByRole('heading', { name: 'OnAir' })).toBeVisible();
+  await expect(page.getByText('<img src=x onerror=alert(1)> POS')).toBeVisible();
+  expect(dialog).toBe(false);
+  await page.getByLabel('Betriebsart').selectOption('sonde');
+  await expect(page.getByLabel('Frequenz (MHz)')).toHaveValue('403');
+  await page.getByRole('button', { name: 'Starten' }).click();
+  await expect(page.getByText('SDR device is busy')).toBeVisible();
+  expect(starts.at(-1)).toMatchObject({ mode: 'sonde', frequency: 403000000, gain: null, duration: 3600 });
+  await expect(page.getByText('Based on OnAir by Kristijonas Adomaitis')).toBeVisible();
+});

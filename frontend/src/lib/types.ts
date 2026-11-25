@@ -231,3 +231,42 @@ export interface LiveEvent<T = Record<string, unknown>> {
   time: string;
   data: T;
 }
+
+/** An OnAir mode offered by RadioMoni (GET /onair/modes) */
+export interface OnAirMode {
+  id: string;
+  family: number;
+  sub: string | null;
+  name: string;
+  default_frequency: number;
+  group: string;
+}
+
+/** A message decoded by OnAir (index radio-onair-*) */
+export interface OnAirMessage {
+  uuid: string;
+  timestamp?: string;
+  '@timestamp'?: string;
+  event_type: string;
+  family: string;
+  mode: string;
+  ident: string | null;
+  text: string;
+  fields: Record<string, unknown>;
+  frequency?: number;
+  latitude?: number;
+  longitude?: number;
+  altitude?: number;
+  session_id?: string;
+}
+
+export interface OnAirStatus {
+  enabled: boolean;
+  reachable: boolean;
+  version?: string | null;
+  error?: string;
+  receiver?: Record<string, unknown>;
+  attribution: string;
+  contributors: string;
+  sessions: (StreamSession & { onair_mode?: string; onair_mode_name?: string; group?: string })[];
+}
