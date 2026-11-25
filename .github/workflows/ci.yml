@@ -75,6 +75,7 @@ jobs:
         run: |
           docker build -t radiomoni-api:ci .
           docker build -t radiomoni-web:ci frontend
+          docker build -t radiomoni-onair:ci onair
       - name: Trivy (API image)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -86,6 +87,15 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: radiomoni-web:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+      # OnAir (optional container, official release .deb): Ubuntu packages only; the binaries
+      # OnAir bundles itself (FFmpeg, radio libraries) are OnAir's to update
+      - name: Trivy (OnAir image)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: radiomoni-onair:ci
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: '1'

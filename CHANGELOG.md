@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.7.0] – 2026-11-25
+
 ### Neu
 - OnAir ([on-air.dev](https://on-air.dev/)) als optionaler zusätzlicher Empfänger, im eigenen Container (Compose-Profil `onair`, `docs/onair.md`).
   - Betriebsarten, die RadioMoni fehlen: ACARS, VDL2, HFDL, Radiosonden, Digitalfunk (DMR, P25, NXDN, dPMR, D-STAR, YSF, M17), Meteor-M LRPT, LoRa/Meshtastic, DAB.
@@ -15,6 +17,7 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ### Geändert
 - Die API bekommt `METRICS_API_KEY` jetzt auch ohne GPU-Setup (für `/metrics/onair`).
+- Die CI baut auch das OnAir-Image und prüft es mit Trivy (HIGH und CRITICAL, Ubuntu-Pakete).
 
 ## [5.6.1] – 2026-11-23
 
