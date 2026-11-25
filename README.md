@@ -18,6 +18,7 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
+- **OnAir (optional):** der Empfänger [OnAir](https://on-air.dev/) als eigener Container für ACARS, VDL2, Radiosonden, Digitalfunk (DMR, P25 …), Wettersatelliten, LoRa und mehr; RadioMoni steuert ihn über die SDR-Sperre und speichert, zeigt und alarmiert ([docs/onair.md](docs/onair.md))
 - **Mehrere SDRs gleichzeitig:** jedes Gerät mit eigener Sperre, z. B. APRS am HackRF und AIS am RTL-SDR parallel
 - **Multi-Channel (USRP N200):** bis zu 8 Kanäle aus einem Breitband-Strom gleichzeitig dekodieren
 - **Alarme:** Rufzeichen, Pager-Adressen oder Stichworte melden, per ntfy, Telegram, Webhook oder E-Mail
@@ -92,6 +93,7 @@ flowchart LR
 | Hardware, Treiber, Fehlerbehebung | [docs/hardware.md](docs/hardware.md) |
 | Bedienung der Weboberfläche | [docs/usage.md](docs/usage.md) |
 | Contest-Skimmer, N1MM+, Reglement | [docs/contest.md](docs/contest.md) |
+| OnAir als zusätzlicher Empfänger | [docs/onair.md](docs/onair.md) |
 | REST-API, Beispiele, Live-Events | [docs/api.md](docs/api.md) |
 | Sicherheit | [docs/security.md](docs/security.md) |
 | Elasticsearch, Kibana, Backup | [docs/elk.md](docs/elk.md) |
@@ -116,12 +118,13 @@ flowchart LR
 | [SoapySDR](https://github.com/pothosware/SoapySDR) (Boost) und [SoapySDRPlay3](https://github.com/pothosware/SoapySDRPlay3) (MIT) | Zugriff auf die RSPs, Modi des RSPduo (Master/Slave) |
 | [APRS Protocol Reference 1.0.1](http://www.aprs.org/doc/APRS101.PDF) und [APRS 1.2 / Mic-E-Typen](http://www.aprs.org/aprs12.html) | Formate der APRS-Pakete (Position, Mic-E, Objekte, Nachrichten, Wetter, Telemetrie) in `radiomoni/aprs_parse.py` |
 | [aprs.fi-Symbolsatz](https://github.com/hessu/aprs-symbols) (OH7LZB, gemischte Lizenzen, siehe dortige COPYRIGHT.md) | Bilder der APRS-Symbole in Tabelle, Karte und Kibana; beim Build des Web-Images in fester Version geladen, nicht im Repo |
+| [OnAir](https://on-air.dev/) von Kristijonas Adomaitis ([GPL-3.0 mit Zusatzbedingungen](https://github.com/adswill/OnAir/blob/main/ADDITIONAL-TERMS.md), [Mitwirkende](https://github.com/adswill/OnAir/blob/main/CONTRIBUTORS.md)) | Zusätzlicher Empfänger im optionalen Container `onair`. Based on OnAir by Kristijonas Adomaitis - https://on-air.dev. Das offizielle Release wird beim Build geladen, nicht im Repo; RadioMoni nutzt nur die API |
 | [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | Format der Pakete `RadioInfo`, `contactinfo`, `contactdelete` |
 | Ausschreibungen: [IARU-R1-Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), USKA-Contests [KW](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [UKW](https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/) und [Spezial](https://uska.ch/de/funkamateure/wettbewerbe/special-contests/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | Termine, Bänder, Multiplikatoren und Doppelte der Contest-Regeln (`radiomoni/contest/rules/`) |
 
 ## Rechtlicher Hinweis
 
-Die Software empfängt nur, sie sendet nicht. Beachte die Gesetze deines Landes. In der Schweiz gilt das Fernmeldegesetz: Nicht für dich bestimmte Inhalte (z. B. Pager-Meldungen von Blaulicht-Organisationen) darfst du nicht weitergeben oder verwerten. Verschlüsselte Kommunikation darfst du nicht entschlüsseln. Für Aufbewahrung und Export der Daten bist du selbst verantwortlich.
+Die Software empfängt nur, sie sendet nicht (auch nicht über OnAir: RadioMoni ruft dessen Sende-API nie auf). Beachte die Gesetze deines Landes. In der Schweiz gilt das Fernmeldegesetz: Nicht für dich bestimmte Inhalte (z. B. Pager-Meldungen von Blaulicht-Organisationen) darfst du nicht weitergeben oder verwerten. Verschlüsselte Kommunikation darfst du nicht entschlüsseln. Für Aufbewahrung und Export der Daten bist du selbst verantwortlich.
 
 ## Lizenz und Credits
 
@@ -145,6 +148,7 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters
+- **OnAir (optional):** the receiver [OnAir](https://on-air.dev/) as a container of its own for ACARS, VDL2, radiosondes, digital voice (DMR, P25 …), weather satellites, LoRa and more; RadioMoni drives it through the SDR lock and stores, shows and alerts ([docs/onair.md](docs/onair.md#english-version))
 - **Several SDRs at once:** every device has its own lock, e.g. APRS on the HackRF and AIS on the RTL-SDR in parallel
 - **Multi-channel (USRP N200):** decode up to 8 channels simultaneously from one wideband stream
 - **Alerts:** report callsigns, pager addresses or keywords via ntfy, Telegram, webhook or e-mail
@@ -221,6 +225,7 @@ Each file is written in German first, followed by an English version.
 | Hardware, drivers, troubleshooting | [docs/hardware.md](docs/hardware.md#english-version) |
 | Using the web interface | [docs/usage.md](docs/usage.md#english-version) |
 | Contest skimmer, N1MM+, contest rules | [docs/contest.md](docs/contest.md#english-version) |
+| OnAir as an additional receiver | [docs/onair.md](docs/onair.md#english-version) |
 | REST API, examples, live events | [docs/api.md](docs/api.md#english-version) |
 | Security | [docs/security.md](docs/security.md#english-version) |
 | Elasticsearch, Kibana, backup | [docs/elk.md](docs/elk.md#english-version) |

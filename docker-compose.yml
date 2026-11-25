@@ -127,8 +127,11 @@ services:
       - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
       - ELASTICSEARCH_USERNAME=beats_writer
       - ELASTICSEARCH_PASSWORD=${BEATS_WRITER_PASSWORD:?BEATS_WRITER_PASSWORD missing — run scripts/setup-env.sh}
+      - METRICS_API_KEY=${METRICS_API_KEY:-}
     volumes:
       - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
+      # OnAir receiver metrics through the API (nothing while OnAir is off)
+      - ./monitoring/metricbeat/onair.yml:/usr/share/metricbeat/modules.d/onair.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
       - /proc:/hostfs/proc:ro
@@ -241,6 +244,8 @@ services:
       - TZ=${TZ:-Europe/Zurich}
       - API_KEYS=${API_KEYS:?API_KEYS missing — run scripts/setup-env.sh}
       - TRUSTED_IPS=${TRUSTED_IPS:-}
+      # read-only key for /metrics/* (Metricbeat: OnAir, GPU)
+      - METRICS_API_KEY=${METRICS_API_KEY:-}
       - PROXY_COUNT=1
       - STORAGE_BACKEND=${STORAGE_BACKEND:-elasticsearch}
       - SQLITE_PATH=/app/data/radiomoni.sqlite3

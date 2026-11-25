@@ -9,10 +9,12 @@ Stand: 2026-11-23 (Version 5.6.1). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 | Benutzer und Rollen | Lesende und steuernde Rollen, Login statt API-Key im Browser | mittel |
 | APRS-IS-iGate | empfangene Pakete mit Rufzeichen und Passcode an APRS-IS weiterleiten | mittel |
 | PPM-Kalibrierung | automatisch an einem bekannten Träger messen und pro Gerät speichern | klein |
-| DMR / P25 | Digitalfunk mit dsd-fme (nicht in Debian, eigener Build nötig) | mittel |
+| DMR / P25 am Gerät | läuft über OnAir (Profil `onair`); an einem Relais in der Nähe prüfen: Rufe, Talkgroups, Sprache mit selbst beschafften Codecs | klein |
 | RSPduo am Gerät prüfen | Stufe 2 und 3 sind mit simuliertem Gerät gebaut; am echten RSPduo prüfen: Erkennung, Hi-Z und Notch, Master/Slave mit zwei Skimmern, Stopp des Masters, CPU-Last | klein |
 | RSPduo Single Tuner | Modus *Single Tuner* mit bis zu 10 MS/s als drittes Gerät neben Tuner A und B (schliesst die beiden Tuner solange aus) | klein |
-| Wetterbilder | NOAA-/Meteor-APT- und LRPT-Dekodierung | mittel |
+| Wetterbilder am Gerät | Meteor-M LRPT über OnAir; einen Überflug aufnehmen und prüfen, wo das Bild landet (Galerie, `image.done`); Überflüge im Planer | klein |
+| OnAir im Planer | OnAir-Modi als Zeitplan-Job (z. B. nachts ACARS, Meteor-Überflüge) | klein |
+| Radiosonden am Gerät | Aufstieg Payerne (00 und 12 UTC, ca. 402–405 MHz) mit OnAir verfolgen und landen sehen | klein |
 | Contest-Skimmer SSB messen | SSB ist experimentell eingebaut; an echten Contest-Aufnahmen Präzision (Ziel ≥ 90 %) und Ausbeute (≥ 30 %) messen und Prompt, Modell und Schwellen einstellen ([contest.md](docs/contest.md)) | mittel |
 | Contest-Messung CW | IQ am CQ WW CW (28.–29. November 2026) aufnehmen und gegen RBN auswerten; Ziel: Einsatz am IARU-R1-Fieldday CW (Juni 2027) | klein |
 | Contest-Regeln prüfen | Bänder und Details der USKA-Contests (Helvetia, Weihnachtswettbewerb, NMD, SEC) gegen die Reglement-PDFs prüfen | klein |

@@ -1,0 +1,9 @@
+# OnAir receiver metrics, passed on by the radio API (empty while OnAir is off)
+# -> metricbeat-*, fields prometheus.metrics.onair_* (running, frequency, load, dropped samples ...)
+- module: prometheus
+  metricsets: ["collector"]
+  period: 30s
+  hosts: ["radio-api:5000"]
+  metrics_path: /metrics/onair
+  headers:
+    X-API-Key: "${METRICS_API_KEY}"

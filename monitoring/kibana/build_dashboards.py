@@ -26,6 +26,7 @@ CAPTURES, APRS, POCSAG, REPEATER = 'radio-captures-pattern', 'radio-aprs-pattern
     'radio-repeater-pattern'
 ADSB, AIS, ISM, ALERTS = 'radio-adsb-pattern', 'radio-ais-pattern', 'radio-ism-pattern', 'radio-alerts-pattern'
 CW, SKIMMER = 'radio-cw-pattern', 'radio-skimmer-pattern'
+ONAIR, METRICBEAT = 'radio-onair-pattern', 'metricbeat-pattern'
 
 Obj = dict[str, Any]
 
@@ -456,9 +457,30 @@ def skimmer() -> list[Obj]:
     ])
 
 
+
+def onair() -> list[Obj]:
+    return dashboard('rm-dash-onair', 'OnAir', 'Meldungen des OnAir-Empfängers (on-air.dev, Seite „OnAir“)', [
+        [(metric('rm-oa-count', 'Meldungen', ONAIR, count('Meldungen')), 12, 7),
+         (metric('rm-oa-idents', 'Sender', ONAIR, unique('ident', 'Sender')), 12, 7),
+         (metric('rm-oa-types', 'Ereignistypen', ONAIR, unique('event_type', 'Typen')), 12, 7),
+         (metric('rm-oa-pos', 'Meldungen mit Position', ONAIR, count('Mit Position'), 'position : *'), 12, 7)],
+        [(timeline('rm-oa-tl', 'Meldungen nach Familie über die Zeit', ONAIR, split='family'), 24, 12),
+         (pie('rm-oa-family', 'Familie', ONAIR, 'family', 'Familie'), 12, 12),
+         (bars('rm-oa-top', 'Häufigste Sender', ONAIR, 'ident', 'Kennung', 15), 12, 12)],
+        [(geo_map('rm-oa-map', 'OnAir-Positionen', ONAIR, 'Positionen',
+                  ['event_type', 'ident', 'text', 'altitude', 'frequency', '@timestamp'], '#14B8A6'), 30, 20),
+         (bars('rm-oa-evtypes', 'Ereignistypen', ONAIR, 'event_type', 'Typ', 15), 18, 20)],
+        [(timeline('rm-oa-load', 'Empfänger-Last (%)', METRICBEAT, 'prometheus.metrics.onair_load_percent : *',
+                   value=avg('prometheus.metrics.onair_load_percent', 'Last %')), 24, 12),
+         (timeline('rm-oa-dropped', 'Verlorene Samples', METRICBEAT, 'prometheus.metrics.onair_dropped_samples_total : *',
+                   value=maximum('prometheus.metrics.onair_dropped_samples_total', 'Samples')), 24, 12)],
+        [(search('rm-oa-list', 'OnAir – Meldungen', ONAIR, ['event_type', 'mode', 'ident', 'frequency', 'text']), 48, 16)],
+    ])
+
+
 DASHBOARDS = {
     'overview': overview, 'voice': voice, 'vox': vox, 'aprs': aprs, 'pocsag': pocsag, 'adsb': adsb,
-    'ais': ais, 'ism': ism, 'repeater': repeater, 'cw': cw, 'skimmer': skimmer, 'alerts': alerts,
+    'ais': ais, 'ism': ism, 'repeater': repeater, 'cw': cw, 'skimmer': skimmer, 'alerts': alerts, 'onair': onair,
 }
 
 

@@ -93,6 +93,10 @@ Bedienung, N1MM+ und Reglement: [contest.md](contest.md). Die Ports des Clusters
 
 Die Referenzdaten (`cty.csv`, `MASTER.SCP`, Most Wanted) liegen in `/app/data/contest` im Volume `api-data`.
 
+## OnAir
+
+Der optionale Empfänger [OnAir](https://on-air.dev/) im Container `onair` (Profil `onair`): `ONAIR_URL`, `ONAIR_TOKEN`, `ONAIR_ALL_MODES`, `ONAIR_STORE_INSIGHTS`, `ONAIR_BIND`, `ONAIR_PORT`, `ONAIR_PUBLIC_URL`, `ONAIR_CODEC_DIR`. Alles in [onair.md](onair.md).
+
 ## Alarm-Benachrichtigungen
 
 Alle Ziele sind optional. In den Alarmregeln wählst du nur den Kanal, die Ziele selbst stehen ausschliesslich hier. So kann eine Regel den Server nicht zu beliebigen URLs schicken.
@@ -209,6 +213,10 @@ Operation, N1MM+ and contest rules: [contest.md](contest.md#english-version). Th
 | `CONTEST_BIND` | `127.0.0.1` | interface for both ports; `0.0.0.0` for a logger in the LAN (then set `N1MM_ALLOWED`) |
 
 The reference data (`cty.csv`, `MASTER.SCP`, Most Wanted) is kept in `/app/data/contest` in the `api-data` volume.
+
+### OnAir
+
+The optional receiver [OnAir](https://on-air.dev/) in the container `onair` (profile `onair`): `ONAIR_URL`, `ONAIR_TOKEN`, `ONAIR_ALL_MODES`, `ONAIR_STORE_INSIGHTS`, `ONAIR_BIND`, `ONAIR_PORT`, `ONAIR_PUBLIC_URL`, `ONAIR_CODEC_DIR`. See [onair.md](onair.md#english-version).
 
 ### Alert notifications
 

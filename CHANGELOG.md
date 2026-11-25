@@ -4,6 +4,18 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- OnAir ([on-air.dev](https://on-air.dev/)) als optionaler zusätzlicher Empfänger, im eigenen Container (Compose-Profil `onair`, `docs/onair.md`).
+  - Betriebsarten, die RadioMoni fehlen: ACARS, VDL2, HFDL, Radiosonden, Digitalfunk (DMR, P25, NXDN, dPMR, D-STAR, YSF, M17), Meteor-M LRPT, LoRa/Meshtastic, DAB.
+  - RadioMoni hält die SDR-Sperre, solange OnAir das Gerät offen hat. Ein Wächter stoppt OnAir, wenn keine OnAir-Session eine Sperre hält.
+  - Meldungen in `radio-onair-*`, live, auf der Karte (Sonden mit Bahn), mit Alarmregeln (Quelle `onair`, Feld Ereignistyp) und als CSV-Export; Bilder von Wettersatelliten in einer Galerie.
+  - Neue Seite *OnAir* mit Link zur eigenen OnAir-Seite (Wasserfall, Mithören) über nginx auf Port 8765.
+  - Kibana-Dashboard *RadioMoni · OnAir*; Metricbeat liest OnAirs Metriken über `/metrics/onair`.
+  - Kein Senden: Der Client ruft nur Empfangspfade auf, der Container hat keinen Internetzugang. OnAir (GPL-3.0) wird beim Build in fester Version geladen und ist nicht im Repo.
+
+### Geändert
+- Die API bekommt `METRICS_API_KEY` jetzt auch ohne GPU-Setup (für `/metrics/onair`).
+
 ## [5.6.1] – 2026-11-23
 
 ### Sicherheit

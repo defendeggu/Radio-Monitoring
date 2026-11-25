@@ -163,3 +163,16 @@ def link() -> Response:
         raise ApiError('OnAir is not set up', 503)
     return jsonify({'status': 'success', 'url': config.ONAIR_PUBLIC_URL or None, 'port': 8765,
                     'token': config.ONAIR_TOKEN})
+
+
+@onair_bp.get('/metrics/onair')
+@api("OnAir's receiver metrics (Prometheus text, passed on; empty when OnAir is off)", tags=['System'])
+def metrics() -> Response:
+    """For Metricbeat (monitoring/metricbeat/onair.yml): onair_receiver_running, frequency, load, dropped samples ..."""
+    text = ''
+    if enabled():
+        try:
+            text = str(OnAirClient(timeout=3.0).get('metrics'))
+        except OnAirError as e:
+            logger.debug(f"OnAir metrics: {e}")
+    return Response(text, mimetype='text/plain', headers={'Cache-Control': 'no-store'})

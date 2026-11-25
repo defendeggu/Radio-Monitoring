@@ -72,6 +72,8 @@ class FakeOnAir:
             return FakeResponse(200, DEVICES)
         if path == 'telemetry':
             return FakeResponse(200, {'running': self.running, 'blocksOk': 3})
+        if path == 'metrics':
+            return FakeResponse(200, '# TYPE onair_receiver_running gauge\nonair_receiver_running 0\n')
         if path == '':
             return FakeResponse(200, {'name': 'onair-server', 'version': '4.6.0'})
         return FakeResponse(404, {'error': 'no'})
@@ -343,3 +345,11 @@ def test_alert_rule_on_event_type(client):
     assert len(fired) == 1 and 'V1234567' in fired[0]['summary']
     any_rule = {'source': 'any', 'field': 'any', 'match_type': 'contains', 'pattern': 'sonde'}
     assert not alerts.matches(any_rule, 'onair', mapping.to_document(SONDE))   # the type is not searched as text
+
+
+def test_metrics_passthrough(client, onair, monkeypatch):
+    r = client.get('/metrics/onair')
+    assert r.status_code == 200 and r.mimetype == 'text/plain' and b'onair_receiver_running 0' in r.data
+    monkeypatch.setattr(config, 'ONAIR_URL', '')
+    r = client.get('/metrics/onair')
+    assert r.status_code == 200 and r.data == b''
