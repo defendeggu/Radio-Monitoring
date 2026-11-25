@@ -63,6 +63,8 @@ Danach im Browser **http://localhost:8080** öffnen und unter *Einstellungen* de
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 ```
 
+**OnAir** als zusätzlicher Empfänger (ACARS, Radiosonden, Digitalfunk, Wettersatelliten …): in `.env` `COMPOSE_PROFILES=elk,onair` und `ONAIR_URL=http://onair:8765` setzen, dann `docker compose up -d --build`. Details in [docs/onair.md](docs/onair.md).
+
 ## Architektur
 
 ```mermaid
@@ -78,11 +80,15 @@ flowchart LR
   API -- "Telnet (optional)" --> RBN["Reverse Beacon<br/>Network"]
   N1MM["N1MM+"] -- "UDP :12060 (optional)" --> API
   API -- "DX-Cluster TCP :7300 (optional)" --> N1MM
+  API -- "API + Token (optional)" --> OnAir["onair<br/>OnAir-Empfänger"]
+  OnAir -. "USB, nur unter SDR-Lock" .-> SDR
+  Web -- ":8765 OnAir-Seite" --> OnAir
 ```
 
 - Veröffentlicht ist die Weboberfläche. Für den Contest-Skimmer kommen DX-Cluster (TCP 7300) und N1MM+-Empfang (UDP 12060) dazu, standardmässig nur auf `127.0.0.1` und nur aktiv, wenn eingeschaltet. API, Redis, Elasticsearch und Logstash sind ausschliesslich im Docker-Netz erreichbar, Kibana nur auf `localhost`.
 - Eine SDR-Sperre in Redis verhindert, dass zwei Jobs gleichzeitig auf das Gerät zugreifen. Ein zweiter Job bekommt sofort *HTTP 409*. Ausnahme ist der Wasserfall: Er gibt das SDR frei, sobald ein anderer Job startet.
 - Jedes dekodierte Paket wird gespeichert, live an die Oberfläche geschickt und gegen die Alarmregeln geprüft.
+- OnAir (optional, Profil `onair`) läuft in einem eigenen Container ohne Internetzugang. Es öffnet das SDR nur, solange RadioMoni die SDR-Sperre dafür hält; seine Meldungen landen wie alle anderen in Elasticsearch ([docs/onair.md](docs/onair.md)).
 
 ## Dokumentation
 
@@ -193,6 +199,8 @@ Then open **http://localhost:8080** in your browser and enter the API key under 
 docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 ```
 
+**OnAir** as an additional receiver (ACARS, radiosondes, digital voice, weather satellites …): set `COMPOSE_PROFILES=elk,onair` and `ONAIR_URL=http://onair:8765` in `.env`, then `docker compose up -d --build`. See [docs/onair.md](docs/onair.md#english-version).
+
 ### Architecture
 
 ```mermaid
@@ -208,11 +216,15 @@ flowchart LR
   API -- "telnet (optional)" --> RBN["Reverse Beacon<br/>Network"]
   N1MM["N1MM+"] -- "UDP :12060 (optional)" --> API
   API -- "DX cluster TCP :7300 (optional)" --> N1MM
+  API -- "API + token (optional)" --> OnAir["onair<br/>OnAir receiver"]
+  OnAir -. "USB, only under the SDR lock" .-> SDR
+  Web -- ":8765 OnAir page" --> OnAir
 ```
 
 - The web interface is published. For the contest skimmer, the DX cluster (TCP 7300) and the N1MM+ receiver (UDP 12060) are added, by default only on `127.0.0.1` and only active when enabled. API, Redis, Elasticsearch and Logstash are reachable only inside the Docker network, Kibana only on `localhost`.
 - An SDR lock in Redis prevents two jobs from accessing the device at the same time. A second job immediately gets *HTTP 409*. The waterfall is the exception: it frees the SDR as soon as another job starts.
 - Every decoded packet is stored, sent live to the interface and checked against the alert rules.
+- OnAir (optional, profile `onair`) runs in a container of its own without internet access. It opens the SDR only while RadioMoni holds the SDR lock for it; its messages go to Elasticsearch like all others ([docs/onair.md](docs/onair.md#english-version)).
 
 ### Documentation
 
