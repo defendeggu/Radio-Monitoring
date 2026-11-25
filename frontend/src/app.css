@@ -83,3 +83,10 @@
   background: rgb(15 23 42);
   color: rgb(226 232 240);
 }
+
+/* map markers of APRS stations received over the internet (APRS-IS / aprs.fi) */
+.map-internet {
+  outline: 2px dashed #f59e0b;
+  outline-offset: 1px;
+  border-radius: 4px;
+}

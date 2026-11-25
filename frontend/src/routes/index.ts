@@ -12,6 +12,7 @@ import {
   Plane,
   Radio,
   RadioTower,
+  Route,
   Satellite,
   Search,
   Smartphone,
@@ -21,6 +22,7 @@ import {
 import Alerts from './Alerts.svelte';
 import ApiDocs from './ApiDocs.svelte';
 import Aprs from './Aprs.svelte';
+import AprsStats from './AprsStats.svelte';
 import Bookmarks from './Bookmarks.svelte';
 import Contest from './Contest.svelte';
 import Cw from './Cw.svelte';
@@ -89,6 +91,13 @@ export const routes: RouteDef[] = [
   },
   { path: 'recordings', label: () => t('Aufnahmen'), group: 'data', icon: FileAudio, component: Recordings },
   { path: 'bookmarks', label: () => t('Lesezeichen'), group: 'data', icon: Bookmark, component: Bookmarks },
+  {
+    path: 'aprs-stats',
+    label: () => t('APRS-Statistik'),
+    group: 'data',
+    icon: Route,
+    component: AprsStats,
+  },
   { path: 'alerts', label: () => t('Alarme'), group: 'data', icon: BellRing, component: Alerts },
   {
     path: 'schedules',

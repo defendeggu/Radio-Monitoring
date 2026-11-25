@@ -123,6 +123,54 @@ export interface AprsPacket {
   addressee?: string;
   device?: string;
   third_party_via?: string;
+  /** rf = heard over the air (also when missing: stored before 5.8.0), internet = from aprs-stats */
+  reception?: 'rf' | 'internet';
+  /** rf | aprs_is | import | beacon */
+  reception_source?: string | null;
+  igate?: string | null;
+  also_rf?: boolean;
+  gemeinde?: string | null;
+  kanton?: string | null;
+}
+
+/** A trip from aprs-stats (GET /aprsstats/trips) */
+export interface AprsTrip {
+  uuid: string;
+  callsign: string;
+  start: string;
+  end: string | null;
+  km: number | null;
+  seconds: number | null;
+  avg_speed?: number;
+  max_speed?: number | null;
+  from: string | null;
+  to: string | null;
+  round_trip: boolean;
+}
+
+export interface AprsStatsSummary {
+  km: number | null;
+  points: number | null;
+  devices: number | null;
+  days: number | null;
+  by_source: Record<string, number>;
+  gemeinden: number | null;
+  gemeinden_total: number | null;
+  kantone: number | null;
+  kantone_total: number | null;
+  last: string | null;
+}
+
+export interface AprsStatsStatus {
+  enabled: boolean;
+  reachable: boolean;
+  version?: string;
+  error?: string;
+  feed_rf: boolean;
+  collector?: { state?: string; login?: string; last_packet_at?: string | null; last_error?: string | null };
+  counts?: Record<string, number | string>;
+  sync?: { time?: string; ok?: boolean; error?: string | null };
+  feed?: Record<string, number>;
 }
 
 export interface PocsagMessage {

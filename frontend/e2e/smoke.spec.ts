@@ -193,7 +193,7 @@ test('dashboard renders and escapes radio data', async ({ page }) => {
 
 test('navigation and APRS start shows server error', async ({ page }) => {
   await page.goto('/');
-  await page.getByRole('link', { name: 'APRS' }).click();
+  await page.getByRole('link', { name: 'APRS', exact: true }).click();
   await expect(page).toHaveURL(/#\/aprs/);
   await page.getByRole('button', { name: /APRS Europe/ }).click();
   await expect(page.getByLabel('Frequenz (MHz)')).toHaveValue('144.8');
@@ -401,4 +401,117 @@ test('OnAir page: mode sets the frequency, start sends the mode, messages are es
   await expect(page.getByText('SDR device is busy')).toBeVisible();
   expect(starts.at(-1)).toMatchObject({ mode: 'sonde', frequency: 403000000, gain: null, duration: 3600 });
   await expect(page.getByText('Based on OnAir by Kristijonas Adomaitis')).toBeVisible();
+});
+
+test('APRS: reception column and filter (over the air / internet)', async ({ page }) => {
+  const searches: string[] = [];
+  await page.route('**/api/aprs/**', async (route) => {
+    const url = new URL(route.request().url());
+    const json = (body: unknown) => ({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+    if (url.pathname.endsWith('/aprs/map'))
+      return route.fulfill(json({ type: 'FeatureCollection', features: [] }));
+    searches.push(url.searchParams.get('reception') ?? '');
+    const all = [
+      {
+        uuid: 'a',
+        source_callsign: 'N0RF-9',
+        packet_type: 'position',
+        message_text: 'funk',
+        reception: 'rf',
+      },
+      {
+        uuid: 'b',
+        source_callsign: 'N0NET-9',
+        packet_type: 'position',
+        message_text: 'netz',
+        reception: 'internet',
+        reception_source: 'aprs_is',
+        igate: 'N0GATE-10',
+        gemeinde: 'Luzern',
+        kanton: 'LU',
+      },
+      { uuid: 'c', source_callsign: 'N0OLD', packet_type: 'status', message_text: 'alt' },
+    ];
+    const r = url.searchParams.get('reception');
+    const results = all.filter((p) => !r || (p.reception === 'internet' ? 'internet' : 'rf') === r);
+    return route.fulfill(json({ results, count: results.length }));
+  });
+  await page.goto('/#/aprs');
+  const rows = page.locator('table tbody tr');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.nth(1)).toContainText('Internet');
+  await expect(rows.nth(1)).toContainText('APRS-IS');
+  await expect(rows.nth(1)).toContainText('Luzern (LU)');
+  await expect(rows.nth(2)).toContainText('Funk'); // stored before 5.8.0: over the air
+  await page.getByRole('button', { name: 'Internet', exact: true }).click();
+  await expect(rows).toHaveCount(1);
+  expect(searches.at(-1)).toBe('internet');
+  await page.getByRole('button', { name: 'Funk', exact: true }).click();
+  await expect(rows).toHaveCount(2);
+});
+
+test('APRS statistics page: tiles, trips, link', async ({ page }) => {
+  await page.route('**/api/aprsstats/**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
+    const json = (body: unknown) => ({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+    const s = (km: number) => ({
+      km,
+      points: 30,
+      devices: 2,
+      days: 1,
+      by_source: { rf: 12, aprs_is: 18 },
+      gemeinden: 7,
+      gemeinden_total: 2110,
+      kantone: 2,
+      kantone_total: 26,
+      last: null,
+    });
+    if (path === '/aprsstats/status')
+      return route.fulfill(
+        json({
+          enabled: true,
+          reachable: true,
+          version: '0.6.0',
+          feed_rf: true,
+          collector: { state: 'connected' },
+        }),
+      );
+    if (path === '/aprsstats/summary')
+      return route.fulfill(json({ today: s(5), week: s(123.4), all: s(999) }));
+    if (path === '/aprsstats/trips')
+      return route.fulfill(
+        json({
+          trips: [
+            {
+              uuid: 't1',
+              callsign: 'N0CALL-9',
+              start: '2026-11-25T08:00:00Z',
+              end: '2026-11-25T08:30:00Z',
+              km: 21.5,
+              seconds: 1800,
+              avg_speed: 43,
+              from: 'Zuhause',
+              to: 'Luzern (LU)',
+              round_trip: false,
+            },
+          ],
+        }),
+      );
+    return route.fulfill(json({}));
+  });
+  await page.goto('/#/aprs-stats');
+  await expect(page.getByRole('heading', { name: 'APRS-Statistik' })).toBeVisible();
+  await expect(page.getByText('123.4').or(page.getByText('123,4'))).toBeVisible();
+  await expect(page.getByText('12 · 18')).toBeVisible();
+  await expect(page.getByText('Zuhause → Luzern (LU)')).toBeVisible();
+  await page.getByRole('tab', { name: 'Heute' }).click();
+  await expect(page.getByText('5', { exact: true })).toBeVisible();
 });

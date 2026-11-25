@@ -6,6 +6,7 @@
   import EmptyState from '../lib/components/EmptyState.svelte';
   import MapView, { type MapPoint } from '../lib/components/MapView.svelte';
   import PageHeader from '../lib/components/PageHeader.svelte';
+  import ReceptionBadge from '../lib/components/ReceptionBadge.svelte';
   import { packetTime, time } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
   import { live, toasts } from '../lib/stores.svelte';
@@ -20,8 +21,17 @@
       type?: string;
       symbol_id?: string | null;
       symbol_name?: string | null;
+      reception?: string;
     };
   }
+
+  type Reception = '' | 'rf' | 'internet';
+  const RECEPTION_KEY = 'radiomoni.aprs.reception';
+  const RECEPTIONS: [Reception, () => string][] = [
+    ['', () => t('Alle')],
+    ['rf', () => t('Funk')],
+    ['internet', () => t('Internet')],
+  ];
 
   // packet types of radiomoni/aprs_parse.py
   const TYPES: Record<string, () => string> = {
@@ -52,6 +62,29 @@
   let features = $state<Feature[]>([]);
   let callsign = $state('');
   let hours = $state(24);
+  let reception = $state<Reception>(readReception());
+
+  function readReception(): Reception {
+    try {
+      const v = localStorage.getItem(RECEPTION_KEY);
+      return v === 'rf' || v === 'internet' ? v : '';
+    } catch {
+      return '';
+    }
+  }
+
+  function setReception(v: Reception) {
+    reception = v;
+    try {
+      if (v) localStorage.setItem(RECEPTION_KEY, v);
+      else localStorage.removeItem(RECEPTION_KEY);
+    } catch {
+      /* storage unavailable */
+    }
+  }
+
+  const matchesReception = (r?: string | null) =>
+    !reception || (r === 'internet' ? 'internet' : 'rf') === reception;
 
   async function load() {
     try {
@@ -60,8 +93,9 @@
           hours,
           limit: 200,
           callsign: callsign || undefined,
+          reception: reception || undefined,
         }),
-        api.get<{ features: Feature[] }>('/aprs/map', { hours }),
+        api.get<{ features: Feature[] }>('/aprs/map', { hours, reception: reception || undefined }),
       ]);
       packets = search.results;
       features = map.features;
@@ -72,9 +106,11 @@
 
   $effect(() => {
     void hours;
+    void reception;
     void load();
     return live.on(['aprs'], (e) => {
       const p = e.data as unknown as AprsPacket;
+      if (!matchesReception(p.reception)) return;
       if (!callsign || p.source_callsign?.toUpperCase() === callsign.toUpperCase())
         packets = [p, ...packets].slice(0, 500);
       const station = p.object_name || p.source_callsign;
@@ -90,6 +126,7 @@
               timestamp: packetTime(p),
               symbol_id: p.symbol_id,
               symbol_name: p.symbol,
+              reception: p.reception ?? 'rf',
             },
           },
           ...features.filter((f) => f.properties.callsign !== station),
@@ -106,6 +143,7 @@
       label: f.properties.callsign,
       detail: `${f.properties.message ?? ''} (${time(f.properties.timestamp)})`,
       icon: symbolUrl(f.properties.symbol_id),
+      internet: f.properties.reception === 'internet',
     })),
   );
 
@@ -138,13 +176,34 @@
 <section class="card mt-6">
   <div class="mb-3 flex items-center justify-between">
     <h2 class="text-sm font-semibold">{t('Stationen ({n})', { n: points.length })}</h2>
-    <select class="input !w-auto" bind:value={hours} aria-label={t('Zeitraum')}>
-      <option value={1}>1 h</option><option value={24}>24 h</option><option value={168}
-        >{t('{n} Tage', { n: 7 })}</option
-      >
-    </select>
+    <div class="flex flex-wrap items-center gap-2">
+      <div class="flex gap-1" role="group" aria-label={t('Empfang')}>
+        {#each RECEPTIONS as [value, label] (value)}
+          <button
+            type="button"
+            class="chip {reception === value
+              ? '!border-accent-500 text-accent-600 dark:text-accent-400'
+              : ''}"
+            aria-pressed={reception === value}
+            onclick={() => setReception(value)}>{label()}</button
+          >
+        {/each}
+      </div>
+      <select class="input !w-auto" bind:value={hours} aria-label={t('Zeitraum')}>
+        <option value={1}>1 h</option><option value={24}>24 h</option><option value={168}
+          >{t('{n} Tage', { n: 7 })}</option
+        >
+      </select>
+    </div>
   </div>
   <MapView {points} />
+  <p class="mt-2 flex flex-wrap items-center gap-3 text-xs text-slate-500">
+    <span class="flex items-center gap-1"><ReceptionBadge reception="rf" /> {t('eigener Empfänger')}</span>
+    <span class="flex items-center gap-1"
+      ><ReceptionBadge reception="internet" />
+      {t('APRS-IS oder Import über aprs-stats; auf der Karte gestrichelt umrandet')}</span
+    >
+  </p>
 </section>
 
 <section class="card mt-6">
@@ -173,7 +232,9 @@
         <thead
           ><tr
             ><th>{t('Zeit')}</th><th><span class="sr-only">{t('Symbol')}</span></th><th>{t('Rufzeichen')}</th
-            ><th>{t('Typ')}</th><th>{t('Position')}</th><th>Locator</th><th>{t('Nachricht')}</th></tr
+            ><th>{t('Empfang')}</th><th>{t('Typ')}</th><th>{t('Position')}</th><th>Locator</th><th
+              >{t('Nachricht')}</th
+            ></tr
           ></thead
         >
         <tbody>
@@ -182,11 +243,21 @@
               <td class="text-xs whitespace-nowrap">{time(packetTime(p))}</td>
               <td class="w-10 min-w-10"><AprsSymbol id={p.symbol_id} name={p.symbol} /></td>
               <td class="font-mono font-medium whitespace-nowrap">{p.source_callsign}</td>
+              <td
+                ><ReceptionBadge
+                  reception={p.reception}
+                  source={p.reception_source}
+                  igate={p.igate}
+                  alsoRf={p.also_rf}
+                /></td
+              >
               <td class="whitespace-nowrap">{typeLabel(p)}</td>
               <td class="font-mono text-xs"
                 >{p.latitude != null && p.longitude != null
                   ? `${p.latitude.toFixed(4)}, ${p.longitude.toFixed(4)}`
-                  : '—'}</td
+                  : '—'}{#if p.gemeinde}<div class="font-sans text-slate-500">
+                    {p.gemeinde}{p.kanton && !p.gemeinde.endsWith(`(${p.kanton})`) ? ` (${p.kanton})` : ''}
+                  </div>{/if}</td
               >
               <td class="font-mono text-xs">{p.maidenhead ?? '—'}</td>
               <td class="break-words">

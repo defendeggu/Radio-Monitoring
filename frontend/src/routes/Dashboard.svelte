@@ -54,7 +54,7 @@
   function describe(type: string, d: Record<string, unknown>): string {
     switch (type) {
       case 'aprs':
-        return `${d.source_callsign ?? '?'} — ${String(d.message_text ?? '').slice(0, 80)}`;
+        return `${d.reception === 'internet' ? `[${t('Internet')}] ` : ''}${d.source_callsign ?? '?'} — ${String(d.message_text ?? '').slice(0, 80)}`;
       case 'pocsag':
         return `RIC ${d.address} — ${String(d.message_text ?? t('Nur Ton')).slice(0, 80)}`;
       case 'adsb':

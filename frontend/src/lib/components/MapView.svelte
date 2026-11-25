@@ -8,6 +8,8 @@
     color?: string;
     /** Image URL for the marker (e.g. an APRS symbol); a circle when missing */
     icon?: string;
+    /** Received over the internet (APRS-IS / aprs.fi): dashed amber outline */
+    internet?: boolean;
   }
 </script>
 
@@ -52,13 +54,15 @@
               iconSize: [24, 24],
               iconAnchor: [12, 12],
               popupAnchor: [0, -12],
+              className: p.internet ? 'map-internet' : '',
             }),
             alt: p.label,
           })
         : L.circleMarker([p.lat, p.lon], {
             radius: 6,
-            color: p.color ?? '#06b6d4',
+            color: p.internet ? '#f59e0b' : (p.color ?? '#06b6d4'),
             weight: 2,
+            dashArray: p.internet ? '3 3' : undefined,
             fillOpacity: 0.6,
           });
       // popup content is built with DOM text nodes — radio data is never interpreted as HTML
