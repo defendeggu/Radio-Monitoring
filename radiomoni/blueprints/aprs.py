@@ -11,7 +11,7 @@ from radiomoni import alerts
 from radiomoni import events
 from radiomoni.api_docs import api, parse_body, parse_query
 from radiomoni.errors import ApiError
-from radiomoni.schemas import AprsSearchQuery, DecodeFileRequest, HoursLimitQuery
+from radiomoni.schemas import AprsMapQuery, AprsSearchQuery, DecodeFileRequest, HoursLimitQuery
 from radiomoni.services import get_aprs_decoder, validate_file_path
 from radiomoni.storage.base import get_storage
 
@@ -23,7 +23,8 @@ aprs_bp = Blueprint('aprs', __name__)
 @api('Search APRS packets', tags=['APRS'], query=AprsSearchQuery)
 def search_aprs() -> Response:
     q = parse_query(AprsSearchQuery)
-    results = get_storage().search_aprs(callsign=q.callsign, packet_type=q.type, hours=q.hours, limit=q.limit)
+    results = get_storage().search_aprs(callsign=q.callsign, packet_type=q.type, hours=q.hours, limit=q.limit,
+                                        reception=q.reception)
     return jsonify({'status': 'success', 'count': results['total'], 'results': results['hits']})
 
 
@@ -68,16 +69,20 @@ def to_geojson(packets: list[dict[str, Any]]) -> dict[str, Any]:
                 'speed': packet.get('speed_kmh') or packet.get('speed'),
                 'course': packet.get('course'),
                 'frequency': packet.get('frequency'),
+                'reception': packet.get('reception') or 'rf',
+                'reception_source': packet.get('reception_source') or 'rf',
+                'gemeinde': packet.get('gemeinde'),
+                'kanton': packet.get('kanton'),
             },
         })
     return {'type': 'FeatureCollection', 'features': features}
 
 
 @aprs_bp.get('/aprs/map')
-@api('APRS station positions as GeoJSON (latest per callsign)', tags=['APRS'], query=HoursLimitQuery)
+@api('APRS station positions as GeoJSON (latest per callsign)', tags=['APRS'], query=AprsMapQuery)
 def get_aprs_map_data() -> Response:
-    q = parse_query(HoursLimitQuery)
-    results = get_storage().search_aprs(hours=q.hours, limit=1000)
+    q = parse_query(AprsMapQuery)
+    results = get_storage().search_aprs(hours=q.hours, limit=1000, reception=q.reception)
     return jsonify(to_geojson(results.get('hits', [])))
 
 

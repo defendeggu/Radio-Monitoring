@@ -18,9 +18,11 @@ Flask blueprints of the RadioMoni API.
 - contest     contest skimmer, contest rules, worked log, N1MM+ / DX cluster
 - export      CSV / GeoJSON / KML / ZIP export
 - onair       OnAir (on-air.dev) receiver: modes, sessions, messages, map, pictures
+- aprsstats   aprs-stats: APRS statistics (trips, places, municipalities), internet APRS data
 """
 
 from radiomoni.blueprints.aprs import aprs_bp
+from radiomoni.blueprints.aprsstats import aprsstats_bp
 from radiomoni.blueprints.capture import capture_bp
 from radiomoni.blueprints.contest import contest_bp
 from radiomoni.blueprints.cw import cw_bp
@@ -40,6 +42,6 @@ from radiomoni.blueprints.streaming import streaming_bp
 
 ALL_BLUEPRINTS = [health_bp, sdr_bp, capture_bp, recordings_bp, aprs_bp, pocsag_bp, repeater_bp,
                   streaming_bp, spectrum_bp, decoders_bp, stats_bp, library_bp, export_bp, rbn_bp,
-                  cw_bp, contest_bp, onair_bp]
+                  cw_bp, contest_bp, onair_bp, aprsstats_bp]
 
 __all__ = ['ALL_BLUEPRINTS']

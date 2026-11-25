@@ -4,6 +4,10 @@ Read stored APRS packets again from raw_packet with the current parser
 readable text too (Mic-E, objects, third-party, weather …).
 
     docker exec radio-transcription-api python -m radiomoni.aprs_reparse [--dry-run]
+    docker exec radio-transcription-api python -m radiomoni.aprs_reparse --set-reception [--dry-run]
+
+--set-reception only marks packets stored before 5.8.0 as heard over the air
+(reception=rf, reception_source=rf); nothing else changes.
 
 Works with both storage backends (Elasticsearch: partial updates in place,
 SQLite: the JSON document of each row). Time, frequency, session and raw
@@ -46,10 +50,18 @@ def reparsed(doc: dict[str, Any]) -> Optional[dict[str, Any]]:
     return packet
 
 
-def _es(storage: Any, dry_run: bool) -> tuple[int, int]:
+RECEPTION_RF = {'reception': 'rf', 'reception_source': 'rf'}
+
+
+def _es(storage: Any, dry_run: bool, set_reception: bool = False) -> tuple[int, int]:
     from elasticsearch.helpers import bulk, scan
 
     def actions() -> Iterator[dict[str, Any]]:
+        if set_reception:
+            query = {'query': {'bool': {'must_not': [{'exists': {'field': 'reception'}}]}}}
+            for hit in scan(storage.es_client, index='radio-aprs-*', query=query, _source=False):
+                yield {'_op_type': 'update', '_index': hit['_index'], '_id': hit['_id'], 'doc': RECEPTION_RF}
+            return
         for hit in scan(storage.es_client, index='radio-aprs-*', query={'query': {'exists': {'field': 'raw_packet'}}},
                         _source=['raw_packet']):
             fields = reparsed(hit['_source'])
@@ -68,13 +80,15 @@ def _es(storage: Any, dry_run: bool) -> tuple[int, int]:
     return ok, len(failed) if isinstance(errors, list) else int(errors)
 
 
-def _sqlite(storage: Any, dry_run: bool) -> tuple[int, int]:
+def _sqlite(storage: Any, dry_run: bool, set_reception: bool = False) -> tuple[int, int]:
     updated = 0
     with storage._conn() as conn:
         rows = conn.execute("SELECT uuid, data FROM docs WHERE kind = 'aprs'").fetchall()
         for uid, data in rows:
             doc = json.loads(data)
-            fields = reparsed(doc)
+            if set_reception and 'reception' in doc:
+                continue
+            fields = dict(RECEPTION_RF) if set_reception else reparsed(doc)
             if fields is None:
                 continue
             doc.update(fields)
@@ -87,13 +101,15 @@ def _sqlite(storage: Any, dry_run: bool) -> tuple[int, int]:
 def main() -> None:
     parser = argparse.ArgumentParser(description='Re-read stored APRS packets with the current parser')
     parser.add_argument('--dry-run', action='store_true', help='only count, write nothing')
+    parser.add_argument('--set-reception', action='store_true',
+                        help='only mark packets stored before 5.8.0 as heard over the air (reception=rf)')
     args = parser.parse_args()
     logging.basicConfig(level=logging.WARNING)
     storage = get_storage()
     if storage.name == 'elasticsearch':
-        done, failed = _es(storage, args.dry_run)
+        done, failed = _es(storage, args.dry_run, args.set_reception)
     else:
-        done, failed = _sqlite(storage, args.dry_run)
+        done, failed = _sqlite(storage, args.dry_run, args.set_reception)
     verb = 'would update' if args.dry_run else 'updated'
     print(f'APRS packets {verb}: {done}' + (f', failed: {failed}' if failed else ''))
 

@@ -18,7 +18,10 @@ from typing import Any, Optional
 from radiomoni import config
 
 # Kinds of "event" documents that are stored generically (one index/table each)
-EVENT_KINDS = ('adsb', 'ais', 'ism', 'alerts', 'cw', 'skimmer', 'onair')
+EVENT_KINDS = ('adsb', 'ais', 'ism', 'alerts', 'cw', 'skimmer', 'onair', 'aprstrips', 'aprsplaces')
+# Kinds written with put_docs (fixed ids, index by the document's own date): aprs-stats trips and places
+PUT_KINDS = ('aprstrips', 'aprsplaces')
+RECEPTIONS = ('rf', 'internet')
 
 
 def enrich_aprs(doc: dict[str, Any]) -> dict[str, Any]:
@@ -31,6 +34,24 @@ def enrich_aprs(doc: dict[str, Any]) -> dict[str, Any]:
         except ValueError:
             pass
     return doc
+
+
+def prepare_aprs(doc: dict[str, Any]) -> dict[str, Any]:
+    """Before storing an APRS document: reception (default: heard over the air) and locator."""
+    doc.setdefault('reception', 'rf')
+    doc.setdefault('reception_source', 'rf' if doc['reception'] == 'rf' else None)
+    return enrich_aprs(doc)
+
+
+def aprs_stored(doc: dict[str, Any]) -> None:
+    """After storing an APRS document: send packets heard over the air to aprs-stats (never raises)."""
+    if doc.get('reception') != 'rf':
+        return
+    try:
+        from radiomoni.aprsstats import feed
+        feed.submit(doc)
+    except Exception:  # the feed must never break storing
+        pass
 
 
 class StorageBackend(ABC):
@@ -72,7 +93,12 @@ class StorageBackend(ABC):
 
     @abstractmethod
     def search_aprs(self, callsign: Optional[str] = None, packet_type: Optional[str] = None,
-                    hours: int = 24, limit: int = 100) -> dict[str, Any]: ...
+                    hours: int = 24, limit: int = 100, reception: Optional[str] = None) -> dict[str, Any]:
+        """reception: 'rf' (also documents without the field, stored before 5.8.0) or 'internet'."""
+
+    @abstractmethod
+    def update_aprs(self, doc_id: str, timestamp: Optional[str], fields: dict[str, Any]) -> bool:
+        """Add fields to a stored APRS document (by uuid; timestamp helps find its daily index)."""
 
     @abstractmethod
     def get_aprs_stats(self, hours: int = 24) -> dict[str, Any]: ...
@@ -115,6 +141,13 @@ class StorageBackend(ABC):
     @abstractmethod
     def search_events(self, kind: str, hours: int = 24, limit: int = 100,
                       term: Optional[dict[str, Any]] = None) -> dict[str, Any]: ...
+
+    @abstractmethod
+    def put_docs(self, kind: str, docs: list[dict[str, Any]], replace: bool = False) -> int:
+        """Write documents with fixed ids (uuid), idempotent: the same id again replaces it.
+        Elasticsearch: daily index by the document's @timestamp. replace=True: the documents are the
+        complete current set of this kind (one index radio-<kind>-current, everything else is removed).
+        Returns the number written."""
 
 
 _instance: Optional[StorageBackend] = None

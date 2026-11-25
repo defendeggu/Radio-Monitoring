@@ -17,7 +17,7 @@ from elasticsearch import Elasticsearch
 from elasticsearch.exceptions import NotFoundError
 
 from radiomoni import config, recording_links
-from radiomoni.storage.base import EVENT_KINDS, StorageBackend, enrich_aprs
+from radiomoni.storage.base import EVENT_KINDS, PUT_KINDS, StorageBackend, aprs_stored, prepare_aprs
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +31,8 @@ INDEX_PATTERNS = {
     'ais': 'radio-ais-*',
     'ism': 'radio-ism-*',
     'onair': 'radio-onair-*',
+    'aprstrips': 'radio-aprstrips-*',
+    'aprsplaces': 'radio-aprsplaces-*',
     'alerts': 'radio-alerts-*',
     'cw': 'radio-cw-*',
     'skimmer': 'radio-skimmer-*',
@@ -188,7 +190,7 @@ class ElasticsearchService(StorageBackend):
     # ------------------------------------------------------------------ APRS
     def index_aprs(self, message: Dict[str, Any]) -> Optional[str]:
         """Index APRS message via Logstash"""
-        enrich_aprs(message)
+        prepare_aprs(message)
         message.setdefault('uuid', str(uuid.uuid4()))
         message.setdefault('@timestamp', message.get('timestamp') or _now())
         if message.get('latitude') is not None and message.get('longitude') is not None:
@@ -196,18 +198,25 @@ class ElasticsearchService(StorageBackend):
         if message.get('frequency'):
             message['frequency_mhz'] = message['frequency'] / 1_000_000.0
         self._post_logstash(self.logstash_aprs_host, message, 'APRS')
+        aprs_stored(message)
         return cast(Optional[str], message.get('uuid'))
 
     def search_aprs(self, callsign: Optional[str] = None, packet_type: Optional[str] = None,
-                    hours: int = 24, limit: int = 100) -> Dict[str, Any]:
+                    hours: int = 24, limit: int = 100, reception: Optional[str] = None) -> Dict[str, Any]:
         """Search APRS messages"""
         must: List[Dict[str, Any]] = [{'range': {'@timestamp': {'gte': f'now-{hours}h'}}}]
+        must_not: List[Dict[str, Any]] = []
         if callsign:
             must.append({'term': {'source_callsign': callsign.upper()}})
         if packet_type:
             must.append({'term': {'packet_type': packet_type}})
+        if reception == 'internet':
+            must.append({'term': {'reception': 'internet'}})
+        elif reception == 'rf':      # documents from before 5.8.0 have no reception: all heard over the air
+            must_not.append({'term': {'reception': 'internet'}})
         try:
-            result = self.es_client.search(index=INDEX_PATTERNS['aprs'], query={'bool': {'must': must}},
+            result = self.es_client.search(index=INDEX_PATTERNS['aprs'],
+                                           query={'bool': {'must': must, 'must_not': must_not}},
                                            sort=[{'@timestamp': 'desc'}], size=limit, allow_no_indices=True)
         except NotFoundError:
             return {'hits': [], 'total': 0}
@@ -402,6 +411,56 @@ class ElasticsearchService(StorageBackend):
         index = f"radio-{kind}-{datetime.now(timezone.utc):%Y.%m.%d}"
         self.es_client.index(index=index, id=doc['uuid'], document=doc)
         return cast(Optional[str], doc['uuid'])
+
+    def update_aprs(self, doc_id: str, timestamp: Optional[str], fields: Dict[str, Any]) -> bool:
+        """Partial update of an APRS document: first in the daily index of its timestamp, else searched."""
+        index = None
+        if timestamp:
+            try:
+                day = datetime.fromisoformat(str(timestamp).replace('Z', '+00:00')).astimezone(timezone.utc)
+                index = f"radio-aprs-{day:%Y.%m.%d}"
+            except ValueError:
+                index = None
+        if index:
+            try:
+                self.es_client.update(index=index, id=doc_id, doc=fields)
+                return True
+            except NotFoundError:
+                pass
+        try:
+            found = self.es_client.search(index=INDEX_PATTERNS['aprs'], query={'term': {'uuid': doc_id}}, size=1,
+                                          allow_no_indices=True)['hits']['hits']
+        except NotFoundError:
+            return False
+        if not found:
+            return False
+        self.es_client.update(index=found[0]['_index'], id=found[0]['_id'], doc=fields)
+        return True
+
+    def put_docs(self, kind: str, docs: List[Dict[str, Any]], replace: bool = False) -> int:
+        """Bulk index with fixed ids (uuid) into radio-<kind>-<date of @timestamp>, or with replace=True
+        into radio-<kind>-current, removing what is not in `docs` (needs the delete privilege there)."""
+        from elasticsearch.helpers import bulk
+        if kind not in PUT_KINDS:
+            raise ValueError(f"Unknown kind: {kind}")
+        actions = []
+        for doc in docs:
+            if replace:
+                index = f"radio-{kind}-current"
+            else:
+                ts = str(doc.get('@timestamp') or _now())
+                day = datetime.fromisoformat(ts.replace('Z', '+00:00')).astimezone(timezone.utc)
+                index = f"radio-{kind}-{day:%Y.%m.%d}"
+            actions.append({'_op_type': 'index', '_index': index, '_id': doc['uuid'], '_source': doc})
+        ok = int(bulk(self.es_client, actions, raise_on_error=True, refresh='wait_for')[0]) if actions else 0
+        if replace:
+            keep = [d['uuid'] for d in docs]
+            try:
+                self.es_client.delete_by_query(index=f"radio-{kind}-current", refresh=True, conflicts='proceed',
+                                               query={'bool': {'must_not': [{'ids': {'values': keep}}]}})
+            except NotFoundError:
+                pass
+        return ok
 
     def search_events(self, kind: str, hours: int = 24, limit: int = 100,
                       term: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:

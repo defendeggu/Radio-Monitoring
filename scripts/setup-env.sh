@@ -69,6 +69,9 @@ ensure CLUSTER_ENABLED false
 ensure N1MM_ENABLED false
 # OnAir (profile "onair", docs/onair.md): the token always, ONAIR_URL only when you turn it on
 ensure ONAIR_TOKEN "$(secret 32)" secret
+# aprs-stats (profile "aprsstats", docs/aprs-stats.md): database password and API token
+ensure APRSSTATS_DB_PASSWORD "$(secret 32)" secret
+ensure APRSSTATS_API_TOKEN "$(secret 40)" secret
 
 # --- ELK ----------------------------------------------------------------------
 ensure ELASTIC_PASSWORD "$(secret 32)" secret

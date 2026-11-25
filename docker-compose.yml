@@ -225,7 +225,7 @@ services:
       - whisper-models:/app/models
       - api-data:/app/data
       - onair-data:/onair-data:ro
-    networks: [web, backend, onair]
+    networks: [web, backend, onair, aprsstats]
     # Contest skimmer: DX cluster for the N1MM+ bandmap (TCP) and N1MM+ broadcasts (UDP).
     # Nothing listens unless CLUSTER_ENABLED / N1MM_ENABLED; CONTEST_BIND=0.0.0.0 for a logger in the LAN.
     ports:
@@ -301,6 +301,12 @@ services:
       - ONAIR_ALL_MODES=${ONAIR_ALL_MODES:-false}
       - ONAIR_STORE_INSIGHTS=${ONAIR_STORE_INSIGHTS:-true}
       - ONAIR_PUBLIC_URL=${ONAIR_PUBLIC_URL:-}
+      # aprs-stats (profile "aprsstats"): empty APRSSTATS_URL = off
+      - APRSSTATS_URL=${APRSSTATS_URL:-}
+      - APRSSTATS_API_TOKEN=${APRSSTATS_API_TOKEN:-}
+      - APRSSTATS_PUBLIC_URL=${APRSSTATS_PUBLIC_URL:-}
+      - APRSSTATS_FEED_RF=${APRSSTATS_FEED_RF:-true}
+      - APRSSTATS_SYNC=${APRSSTATS_SYNC:-true}
     restart: unless-stopped
 
   # ===========================================================================
@@ -335,6 +341,76 @@ services:
     restart: unless-stopped
 
   # ===========================================================================
+  # aprs-stats: APRS statistics (trips, places, municipalities), opt-in:
+  # COMPOSE_PROFILES=elk,aprsstats. Built from github.com/defendeggu/aprs-stats
+  # (MIT) in a fixed version. RadioMoni sends it the APRS packets heard over the
+  # air and copies its data (internet packets, trips, places) to Elasticsearch.
+  # docs/aprs-stats.md
+  # ===========================================================================
+  aprsstats-db:
+    profiles: [aprsstats]
+    image: postgis/postgis:16-3.5
+    container_name: radio-aprsstats-db
+    <<: [*hardening, *logging]
+    environment:
+      - POSTGRES_DB=aprs
+      - POSTGRES_USER=aprs
+      - POSTGRES_PASSWORD=${APRSSTATS_DB_PASSWORD:-}
+      - TZ=${TZ:-Europe/Zurich}
+    volumes:
+      - aprsstats-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aprs -d aprs"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    mem_limit: 1g
+    networks: [aprsstats]
+    restart: unless-stopped
+
+  aprsstats-web: &aprsstats
+    profiles: [aprsstats]
+    build:
+      context: ${APRSSTATS_BUILD_CONTEXT:-https://github.com/defendeggu/aprs-stats.git#v0.6.0:app}
+    image: radiomoni-aprsstats:0.6.0
+    container_name: radio-aprsstats-web
+    <<: [*hardening, *logging]
+    command: ["uvicorn", "aprs_stats.web:app", "--host", "0.0.0.0", "--port", "8000", "--proxy-headers",
+              "--forwarded-allow-ips", "*"]
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop: [ALL]
+    environment:
+      - DATABASE_URL=postgresql://aprs:${APRSSTATS_DB_PASSWORD:-}@aprsstats-db:5432/aprs
+      - TZ=${TZ:-Europe/Zurich}
+      - APRS_STATS_API_TOKEN=${APRSSTATS_API_TOKEN:-}
+      - APRS_IS_LOGIN=${APRSSTATS_APRS_IS_LOGIN:-}
+      - APRS_IS_PASSCODE=${APRSSTATS_APRS_IS_PASSCODE:--1}
+      - APRS_IS_SERVER=${APRSSTATS_APRS_IS_SERVER:-rotate.aprs2.net}
+      - APRS_IS_PORT=${APRSSTATS_APRS_IS_PORT:-14580}
+      - TRIP_GAP_MINUTES=${APRSSTATS_TRIP_GAP_MINUTES:-20}
+      - MAX_PLAUSIBLE_KMH=${APRSSTATS_MAX_PLAUSIBLE_KMH:-250}
+      - BOUNDARIES_AUTOLOAD=${APRSSTATS_BOUNDARIES_AUTOLOAD:-1}
+      - NOMINATIM_URL=${APRSSTATS_NOMINATIM_URL:-https://nominatim.openstreetmap.org}
+      - NOMINATIM_EMAIL=${APRSSTATS_NOMINATIM_EMAIL:-}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    depends_on:
+      aprsstats-db:
+        condition: service_healthy
+    mem_limit: 512m
+    networks: [aprsstats, aprsstats-out]
+    restart: unless-stopped
+
+  aprsstats-collector:
+    <<: *aprsstats
+    container_name: radio-aprsstats-collector
+    command: ["python", "-m", "aprs_stats.collector"]
+    healthcheck:
+      disable: true
+    mem_limit: 256m
+
+  # ===========================================================================
   # Web UI (Svelte build served by nginx, proxies /api/ to the API)
   # ===========================================================================
   web-interface:
@@ -352,7 +428,9 @@ services:
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:8080"
       # OnAir's own page (profile "onair"); the token travels unencrypted, so local only by default
       - "${ONAIR_BIND:-127.0.0.1}:${ONAIR_PORT:-8765}:8765"
-    networks: [web, onair]
+      # aprs-stats' own page (profile "aprsstats"); it has no login, so local only by default
+      - "${APRSSTATS_BIND:-127.0.0.1}:${APRSSTATS_PORT:-8092}:8092"
+    networks: [web, onair, aprsstats]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
       interval: 30s
@@ -366,6 +444,7 @@ volumes:
   whisper-models:
   api-data:
   onair-data:
+  aprsstats-db:
 
 networks:
   web:
@@ -373,3 +452,7 @@ networks:
   # OnAir: no route to the internet; only the API and the nginx proxy reach it
   onair:
     internal: true
+  # aprs-stats: database only here; web and collector also on aprsstats-out (APRS-IS, swisstopo, Nominatim)
+  aprsstats:
+    internal: true
+  aprsstats-out:

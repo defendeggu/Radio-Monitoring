@@ -59,7 +59,8 @@ put_json PUT /_security/role/logstash_writer '{
 }' "role logstash_writer"
 put_json PUT /_security/role/radio_api '{
   "cluster": ["monitor"],
-  "indices": [{"names": ["radio-*"], "privileges": ["read", "view_index_metadata", "create_doc", "index", "create_index", "auto_configure"]}]
+  "indices": [{"names": ["radio-*"], "privileges": ["read", "view_index_metadata", "create_doc", "index", "create_index", "auto_configure"]},
+              {"names": ["radio-aprsplaces-*"], "privileges": ["delete"]}]
 }' "role radio_api"
 put_json PUT /_security/role/beats_writer '{
   "cluster": ["monitor", "read_ilm", "read_pipeline", "manage_index_templates", "manage_ilm"],

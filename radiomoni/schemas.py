@@ -403,6 +403,17 @@ class CwSearchQuery(HoursLimitQuery):
 class AprsSearchQuery(HoursLimitQuery):
     callsign: Optional[str] = Field(None, max_length=12, pattern=r'^[A-Za-z0-9/-]+$')
     type: Optional[str] = Field(None, max_length=20)
+    reception: Optional[Literal['rf', 'internet']] = Field(
+        None, description='rf = heard over the air, internet = APRS-IS / aprs.fi import (aprs-stats)')
+
+
+class AprsMapQuery(HoursLimitQuery):
+    reception: Optional[Literal['rf', 'internet']] = None
+
+
+class AprsStatsTripsQuery(QueryModel):
+    days: int = Field(7, ge=1, le=366)
+    limit: int = Field(50, ge=1, le=500)
 
 
 class PocsagSearchQuery(HoursLimitQuery):

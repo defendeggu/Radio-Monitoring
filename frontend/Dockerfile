@@ -34,8 +34,9 @@ RUN apk upgrade --no-cache
 COPY nginx/nginx.conf /etc/nginx/nginx.conf
 COPY nginx/default.conf /etc/nginx/conf.d/default.conf
 COPY nginx/onair.conf /etc/nginx/conf.d/onair.conf
+COPY nginx/aprsstats.conf /etc/nginx/conf.d/aprsstats.conf
 COPY --from=build /app/dist /usr/share/nginx/html
 COPY --from=aprs-symbols /out/aprs-symbols /usr/share/nginx/html/aprs-symbols
 USER nginx
-EXPOSE 8080 8765
+EXPOSE 8080 8765 8092
 CMD ["nginx", "-g", "daemon off;"]

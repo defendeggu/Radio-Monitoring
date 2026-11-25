@@ -151,3 +151,15 @@ ONAIR_STORE_INSIGHTS: bool = _bool('ONAIR_STORE_INSIGHTS', True)
 # Address of the OnAir page (waterfall, Listen) behind the nginx proxy, for the link in the UI;
 # empty = http://<host of the RadioMoni page>:8765
 ONAIR_PUBLIC_URL: str = os.getenv('ONAIR_PUBLIC_URL', '').rstrip('/')
+
+# --- aprs-stats (APRS statistics: trips, places, municipalities; compose profile "aprsstats") ----
+# Base URL of aprs-stats' API inside Docker; empty = the integration is off.
+APRSSTATS_URL: str = os.getenv('APRSSTATS_URL', '').rstrip('/')
+APRSSTATS_TOKEN: str = os.getenv('APRSSTATS_API_TOKEN', '')
+# Address of aprs-stats' own page for the link in the UI; empty = http://<host of the RadioMoni page>:8092
+APRSSTATS_PUBLIC_URL: str = os.getenv('APRSSTATS_PUBLIC_URL', '').rstrip('/')
+# Send APRS packets heard over the air to aprs-stats (it keeps those of its stations).
+APRSSTATS_FEED_RF: bool = _bool('APRSSTATS_FEED_RF', True)
+# Copy aprs-stats' data (internet packets, imports, trips, places) into Elasticsearch / SQLite.
+APRSSTATS_SYNC: bool = _bool('APRSSTATS_SYNC', True)
+APRSSTATS_SYNC_SECONDS: int = _int('APRSSTATS_SYNC_SECONDS', 60)

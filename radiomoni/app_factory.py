@@ -74,6 +74,11 @@ def start_background_services() -> None:
         start_watchdog()
     except Exception as e:
         logger.error(f"OnAir watchdog could not start: {e}", exc_info=True)
+    try:
+        from radiomoni.aprsstats import sync
+        sync.start()
+    except Exception as e:
+        logger.error(f"aprs-stats sync could not start: {e}", exc_info=True)
 
 
 def create_app(start_background: bool = True) -> Flask:

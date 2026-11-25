@@ -17,7 +17,7 @@ from collections import Counter
 from datetime import datetime, timezone
 from typing import Any, Iterable, Optional
 
-from radiomoni.storage.base import EVENT_KINDS, StorageBackend, enrich_aprs
+from radiomoni.storage.base import EVENT_KINDS, PUT_KINDS, StorageBackend, aprs_stored, prepare_aprs
 
 logger = logging.getLogger(__name__)
 
@@ -216,12 +216,37 @@ class SQLiteStorage(StorageBackend):
 
     # ------------------------------------------------------------------ APRS
     def index_aprs(self, message: dict[str, Any]) -> Optional[str]:
-        return self._insert('aprs', enrich_aprs(message))
+        doc_id = self._insert('aprs', prepare_aprs(message))
+        aprs_stored(message)
+        return doc_id
+
+    def update_aprs(self, doc_id: str, timestamp: Optional[str], fields: dict[str, Any]) -> bool:
+        with self._conn() as conn:
+            row = conn.execute("SELECT data FROM docs WHERE uuid = ? AND kind = 'aprs'", (doc_id,)).fetchone()
+            if not row:
+                return False
+            doc = json.loads(row[0])
+            doc.update(fields)
+            conn.execute('UPDATE docs SET data = ? WHERE uuid = ?', (json.dumps(doc, default=str), doc_id))
+        return True
+
+    def put_docs(self, kind: str, docs: list[dict[str, Any]], replace: bool = False) -> int:
+        if kind not in PUT_KINDS:
+            raise ValueError(f"Unknown kind: {kind}")
+        if replace:     # the documents are the complete set of this kind
+            with self._conn() as conn:
+                conn.execute('DELETE FROM docs WHERE kind = ?', (kind,))
+        for doc in docs:
+            self._insert(kind, doc)
+        return len(docs)
 
     def search_aprs(self, callsign: Optional[str] = None, packet_type: Optional[str] = None,
-                    hours: int = 24, limit: int = 100) -> dict[str, Any]:
+                    hours: int = 24, limit: int = 100, reception: Optional[str] = None) -> dict[str, Any]:
         clauses: list[str] = []
         params: list[Any] = []
+        if reception in ('rf', 'internet'):
+            clauses.append("COALESCE(json_extract(data,'$.reception'),'rf') = ?")
+            params.append(reception)
         if callsign:
             clauses.append("UPPER(json_extract(data,'$.source_callsign')) = ?")
             params.append(callsign.upper())
