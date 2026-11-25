@@ -30,6 +30,7 @@ INDEX_PATTERNS = {
     'adsb': 'radio-adsb-*',
     'ais': 'radio-ais-*',
     'ism': 'radio-ism-*',
+    'onair': 'radio-onair-*',
     'alerts': 'radio-alerts-*',
     'cw': 'radio-cw-*',
     'skimmer': 'radio-skimmer-*',

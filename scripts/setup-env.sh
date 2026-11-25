@@ -67,6 +67,8 @@ ensure RBN_ENABLED false
 ensure RBN_CALLSIGN ""
 ensure CLUSTER_ENABLED false
 ensure N1MM_ENABLED false
+# OnAir (profile "onair", docs/onair.md): the token always, ONAIR_URL only when you turn it on
+ensure ONAIR_TOKEN "$(secret 32)" secret
 
 # --- ELK ----------------------------------------------------------------------
 ensure ELASTIC_PASSWORD "$(secret 32)" secret

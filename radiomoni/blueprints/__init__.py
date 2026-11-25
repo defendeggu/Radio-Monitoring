@@ -17,6 +17,7 @@ Flask blueprints of the RadioMoni API.
 - rbn         Reverse Beacon Network CW spots
 - contest     contest skimmer, contest rules, worked log, N1MM+ / DX cluster
 - export      CSV / GeoJSON / KML / ZIP export
+- onair       OnAir (on-air.dev) receiver: modes, sessions, messages, map, pictures
 """
 
 from radiomoni.blueprints.aprs import aprs_bp
@@ -27,6 +28,7 @@ from radiomoni.blueprints.decoders import decoders_bp
 from radiomoni.blueprints.export import export_bp
 from radiomoni.blueprints.health import health_bp
 from radiomoni.blueprints.library import library_bp
+from radiomoni.blueprints.onair import onair_bp
 from radiomoni.blueprints.pocsag import pocsag_bp
 from radiomoni.blueprints.rbn import rbn_bp
 from radiomoni.blueprints.recordings import recordings_bp
@@ -38,6 +40,6 @@ from radiomoni.blueprints.streaming import streaming_bp
 
 ALL_BLUEPRINTS = [health_bp, sdr_bp, capture_bp, recordings_bp, aprs_bp, pocsag_bp, repeater_bp,
                   streaming_bp, spectrum_bp, decoders_bp, stats_bp, library_bp, export_bp, rbn_bp,
-                  cw_bp, contest_bp]
+                  cw_bp, contest_bp, onair_bp]
 
 __all__ = ['ALL_BLUEPRINTS']

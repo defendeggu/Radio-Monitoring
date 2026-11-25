@@ -221,7 +221,8 @@ services:
       - ./captures:/app/captures
       - whisper-models:/app/models
       - api-data:/app/data
-    networks: [web, backend]
+      - onair-data:/onair-data:ro
+    networks: [web, backend, onair]
     # Contest skimmer: DX cluster for the N1MM+ bandmap (TCP) and N1MM+ broadcasts (UDP).
     # Nothing listens unless CLUSTER_ENABLED / N1MM_ENABLED; CONTEST_BIND=0.0.0.0 for a logger in the LAN.
     ports:
@@ -289,6 +290,43 @@ services:
       - ALERT_EMAIL_TO=${ALERT_EMAIL_TO:-}
       - LOG_LEVEL=${LOG_LEVEL:-INFO}
       - GUNICORN_THREADS=${GUNICORN_THREADS:-32}
+      # OnAir (profile "onair"): empty ONAIR_URL = off
+      - ONAIR_URL=${ONAIR_URL:-}
+      - ONAIR_TOKEN=${ONAIR_TOKEN:-}
+      - ONAIR_ALL_MODES=${ONAIR_ALL_MODES:-false}
+      - ONAIR_STORE_INSIGHTS=${ONAIR_STORE_INSIGHTS:-true}
+      - ONAIR_PUBLIC_URL=${ONAIR_PUBLIC_URL:-}
+    restart: unless-stopped
+
+  # ===========================================================================
+  # OnAir (on-air.dev) headless receiver, opt-in: COMPOSE_PROFILES=elk,onair
+  # GPL-3.0, not part of this repository: onair/Dockerfile downloads the
+  # official release. radio-api starts and stops it under the SDR lock;
+  # docs/onair.md. Based on OnAir by Kristijonas Adomaitis - https://on-air.dev
+  # ===========================================================================
+  onair:
+    profiles: [onair]
+    build:
+      context: ./onair
+    image: radiomoni-onair:4.6.0
+    container_name: radio-onair
+    <<: [*hardening, *logging]
+    mem_limit: 2g
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    cap_drop: [ALL]
+    device_cgroup_rules:
+      - "c 189:* rmw"
+    volumes:
+      - /dev/bus/usb:/dev/bus/usb
+      - onair-data:/data
+      # voice codec plug-ins you get yourself (docs/onair.md), never part of the repository
+      - ${ONAIR_CODEC_DIR:-./onair/codecs}:/codecs:ro
+    environment:
+      - TZ=${TZ:-Europe/Zurich}
+      - ONAIR_TOKEN=${ONAIR_TOKEN:-}
+    networks: [onair]
     restart: unless-stopped
 
   # ===========================================================================
@@ -307,7 +345,9 @@ services:
     cap_drop: [ALL]
     ports:
       - "${WEB_BIND:-0.0.0.0}:${WEB_PORT:-8080}:8080"
-    networks: [web]
+      # OnAir's own page (profile "onair"); the token travels unencrypted, so local only by default
+      - "${ONAIR_BIND:-127.0.0.1}:${ONAIR_PORT:-8765}:8765"
+    networks: [web, onair]
     healthcheck:
       test: ["CMD-SHELL", "wget -qO- http://127.0.0.1:8080/healthz >/dev/null || exit 1"]
       interval: 30s
@@ -320,7 +360,11 @@ volumes:
   redis-data:
   whisper-models:
   api-data:
+  onair-data:
 
 networks:
   web:
   backend:
+  # OnAir: no route to the internet; only the API and the nginx proxy reach it
+  onair:
+    internal: true

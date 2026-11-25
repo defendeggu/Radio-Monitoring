@@ -135,3 +135,19 @@ CLUSTER_MAX_CLIENTS: int = _int('CLUSTER_MAX_CLIENTS', 20)
 # --- Logstash ingestion -----------------------------------------------------
 LOGSTASH_HTTP_USER: str = os.getenv('LOGSTASH_HTTP_USER', 'radio')
 LOGSTASH_HTTP_PASSWORD: str | None = os.getenv('LOGSTASH_HTTP_PASSWORD') or None
+
+# --- OnAir (on-air.dev, separate container, compose profile "onair") ----------
+# Base URL of onair-server's remote-control API; empty = the integration is off.
+ONAIR_URL: str = os.getenv('ONAIR_URL', '').rstrip('/')
+ONAIR_TOKEN: str = os.getenv('ONAIR_TOKEN', '')
+# onair-server's data volume, mounted read-only (decoded messages as JSON lines, pictures).
+ONAIR_DATA_DIR: str = os.getenv('ONAIR_DATA_DIR', '/onair-data')
+# Path of that volume inside the OnAir container (paths in its events start with it).
+ONAIR_CONTAINER_DATA_DIR: str = os.getenv('ONAIR_CONTAINER_DATA_DIR', '/data')
+# Offer every OnAir mode, not only the chosen families (aviation, sondes, digital voice, ...).
+ONAIR_ALL_MODES: bool = _bool('ONAIR_ALL_MODES', False)
+# Store OnAir's "insight" events (receiver observations such as "pager silent").
+ONAIR_STORE_INSIGHTS: bool = _bool('ONAIR_STORE_INSIGHTS', True)
+# Address of the OnAir page (waterfall, Listen) behind the nginx proxy, for the link in the UI;
+# empty = http://<host of the RadioMoni page>:8765
+ONAIR_PUBLIC_URL: str = os.getenv('ONAIR_PUBLIC_URL', '').rstrip('/')

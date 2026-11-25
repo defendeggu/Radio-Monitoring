@@ -1,0 +1,85 @@
+{
+  "index_patterns": [
+    "radio-onair-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni radio-onair daily indices (messages decoded by OnAir, on-air.dev)"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "false",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "session_id": {
+          "type": "keyword"
+        },
+        "device_id": {
+          "type": "keyword"
+        },
+        "event_type": {
+          "type": "keyword"
+        },
+        "family": {
+          "type": "keyword"
+        },
+        "mode": {
+          "type": "keyword"
+        },
+        "ident": {
+          "type": "keyword"
+        },
+        "text": {
+          "type": "text",
+          "fields": {
+            "keyword": {
+              "type": "keyword",
+              "ignore_above": 1024
+            }
+          }
+        },
+        "fields": {
+          "type": "flattened",
+          "ignore_above": 1024
+        },
+        "truncated": {
+          "type": "boolean"
+        },
+        "frequency": {
+          "type": "long"
+        },
+        "latitude": {
+          "type": "float"
+        },
+        "longitude": {
+          "type": "float"
+        },
+        "position": {
+          "type": "geo_point"
+        },
+        "altitude": {
+          "type": "float"
+        },
+        "image_path": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}

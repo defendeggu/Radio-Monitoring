@@ -41,6 +41,8 @@ COLUMNS: dict[str, list[str]] = {
             'latitude', 'longitude', 'destination'],
     'ism': ['@timestamp', 'sensor_id', 'model', 'id', 'channel', 'battery_ok', 'temperature_C', 'humidity',
             'pressure_hPa', 'wind_avg_km_h', 'rain_mm'],
+    'onair': ['@timestamp', 'event_type', 'mode', 'ident', 'frequency', 'latitude', 'longitude', 'altitude', 'text',
+              'fields'],
     'alerts': ['@timestamp', 'rule_name', 'source', 'summary'],
 }
 

@@ -37,12 +37,13 @@ _CACHE_TTL = 5.0
 
 # Which document fields each logical field maps to
 FIELD_MAP: dict[str, tuple[str, ...]] = {
-    'callsign': ('source_callsign', 'callsign', 'flight', 'shipname'),
+    'callsign': ('source_callsign', 'callsign', 'flight', 'shipname', 'ident'),
     'address': ('address',),
     'text': ('message_text', 'transcription', 'text'),
     'icao': ('icao', 'hex'),
     'mmsi': ('mmsi',),
     'model': ('model',),
+    'event_type': ('event_type',),   # OnAir: acars.message, sonde.update, session.call ...
 }
 
 _executor = ThreadPoolExecutor(max_workers=2, thread_name_prefix='alert-notify')
@@ -103,7 +104,8 @@ def _active_rules() -> list[dict[str, Any]]:
 # ----------------------------------------------------------------- matching
 def _values(rule_field: str, doc: dict[str, Any]) -> list[str]:
     if rule_field == 'any':
-        keys = tuple(k for keys in FIELD_MAP.values() for k in keys)
+        # the event type is a filter of its own, not text to search ("message" would match every ACARS message)
+        keys = tuple(k for name, keys in FIELD_MAP.items() if name != 'event_type' for k in keys)
     else:
         keys = FIELD_MAP.get(rule_field, ())
     return [str(doc[k]) for k in keys if doc.get(k) not in (None, '')]
@@ -147,7 +149,7 @@ def evaluate(source: str, doc: dict[str, Any]) -> list[dict[str, Any]]:
 
 def _summary(source: str, doc: dict[str, Any]) -> str:
     who = doc.get('source_callsign') or doc.get('callsign') or doc.get('address') or doc.get('flight') or doc.get('icao') \
-        or doc.get('mmsi') or doc.get('model') or ''
+        or doc.get('mmsi') or doc.get('model') or doc.get('ident') or ''
     text = doc.get('message_text') or doc.get('transcription') or doc.get('text') or ''
     freq = doc.get('frequency')
     freq_str = f" @ {freq / 1e6:.4f} MHz" if isinstance(freq, (int, float)) and freq else ''

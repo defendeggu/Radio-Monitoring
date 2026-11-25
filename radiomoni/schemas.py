@@ -18,7 +18,7 @@ DeviceId = Annotated[str, Field(pattern=r'^[a-z]+:[A-Za-z0-9._:-]{1,64}$', descr
 Modulation = Literal['FM', 'AM', 'USB', 'LSB']
 CaptureMode = Literal['voice', 'aprs', 'pocsag', 'raw']
 StreamMode = Literal['aprs', 'pocsag']
-DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'skimmer', 'any']
+DataSource = Literal['aprs', 'pocsag', 'voice', 'adsb', 'ais', 'ism', 'cw', 'rbn', 'skimmer', 'onair', 'any']
 
 # Widest range across supported hardware; get_sdr_instance() narrows it per device.
 MIN_FREQ = 500
@@ -234,6 +234,17 @@ class ExternalDecoderRequest(StrictModel):
     device_id: Optional[DeviceId] = Field(None, description='Run on this SDR (default: a suitable one)')
 
 
+class OnAirRequest(StrictModel):
+    """Run one OnAir mode (GET /onair/modes) on a HackRF or RTL-SDR; OnAir decodes, RadioMoni stores."""
+    mode: str = Field(..., pattern=r'^[a-z0-9_]{1,32}$', description='OnAir mode id, e.g. acars, sonde, dmr, meteor')
+    sub: Optional[str] = Field(None, pattern=r'^[A-Za-z0-9_.-]{1,32}$', description='Sub-mode, when the mode has several')
+    frequency: Optional[int] = Field(None, ge=1_000_000, le=MAX_FREQ, description="Empty = the mode's default")
+    gain: Optional[float] = Field(None, ge=0, le=102, description='Total gain in dB; empty = automatic gain')
+    sample_rate: Optional[int] = Field(None, ge=0, le=20_000_000, description="Empty or 0 = the mode's own rate")
+    duration: int = Field(3600, ge=30, le=config.MAX_STREAM_DURATION)
+    device_id: Optional[DeviceId] = Field(None, description='Run on this SDR (default: a free HackRF / RTL-SDR)')
+
+
 HfBand = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m']
 ContestBand = Literal['160m', '80m', '60m', '40m', '30m', '20m', '17m', '15m', '12m', '10m', '6m', '2m', '70cm', '23cm']
 ContestId = Annotated[str, Field(pattern=r'^[a-z0-9-]{1,40}$')]
@@ -299,7 +310,7 @@ class AlertRuleModel(StrictModel):
     name: str = Field(..., min_length=1, max_length=80)
     enabled: bool = True
     source: DataSource = 'any'
-    field: Literal['any', 'callsign', 'address', 'text', 'icao', 'mmsi', 'model'] = 'any'
+    field: Literal['any', 'callsign', 'address', 'text', 'icao', 'mmsi', 'model', 'event_type'] = 'any'
     match_type: Literal['contains', 'equals', 'regex'] = 'contains'
     pattern: str = Field(..., min_length=1, max_length=200)
     case_sensitive: bool = False
@@ -405,6 +416,14 @@ class EventSearchQuery(HoursLimitQuery):
     mmsi: Optional[str] = Field(None, max_length=12, pattern=r'^[0-9]+$')
     model: Optional[str] = Field(None, max_length=60)
     sensor_id: Optional[str] = Field(None, max_length=120)
+
+
+class OnAirSearchQuery(HoursLimitQuery):
+    event_type: Optional[str] = Field(None, max_length=64, pattern=r'^[a-z0-9_.]+$',
+                                      description='e.g. acars.message, sonde.update, session.call')
+    family: Optional[str] = Field(None, max_length=32, pattern=r'^[a-z0-9_]+$', description='e.g. acars, sonde, lora')
+    ident: Optional[str] = Field(None, max_length=128)
+    session_id: Optional[str] = Field(None, max_length=64, pattern=r'^[A-Za-z0-9-]+$')
 
 
 class RepeaterListQuery(QueryModel):

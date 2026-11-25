@@ -7,8 +7,8 @@ pydantic models — and returns a small dict describing what was started.
 
 from typing import Any
 
-from radiomoni.schemas import (CaptureRequest, CwRequest, ExternalDecoderRequest, SkimmerRequest, SpectrumRequest,
-                               StreamRequest, VoxRequest)
+from radiomoni.schemas import (CaptureRequest, CwRequest, ExternalDecoderRequest, OnAirRequest, SkimmerRequest,
+                               SpectrumRequest, StreamRequest, VoxRequest)
 
 
 def start_stream(req: StreamRequest) -> dict[str, Any]:
@@ -52,6 +52,24 @@ def start_external_decoder(req: ExternalDecoderRequest) -> dict[str, Any]:
     session_id = start_stream_session(session, req.decoder, int(session.frequency), session.sample_rate,
                                       req.gain if req.gain is not None else -1)
     return {'session_id': session_id, 'mode': req.decoder, 'frequency': int(session.frequency)}
+
+
+
+def start_onair(req: OnAirRequest) -> dict[str, Any]:
+    from radiomoni.jobs import start_stream_session
+    from radiomoni.onair import modes
+    from radiomoni.onair.client import OnAirClient, OnAirError, enabled
+    from radiomoni.onair.session import KIND, OnAirSession
+
+    if not enabled():
+        raise OnAirError('OnAir is not set up (compose profile "onair", ONAIR_URL, ONAIR_TOKEN; see docs/onair.md)')
+    client = OnAirClient()
+    mode = modes.find(client.modes(), req.mode, req.sub)
+    session = OnAirSession(mode, duration=req.duration, frequency=req.frequency, gain=req.gain,
+                           sample_rate=req.sample_rate, device_id=req.device_id, client=client)
+    session_id = start_stream_session(session, KIND, int(session.frequency), session.sample_rate,
+                                      int(req.gain) if req.gain is not None else -1)
+    return {'session_id': session_id, 'mode': KIND, 'frequency': int(session.frequency), **session.state()}
 
 
 def start_spectrum(req: SpectrumRequest) -> dict[str, Any]:

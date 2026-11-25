@@ -35,6 +35,7 @@ rm -f "$tmp"
 # the shared volume, where radio-api reads them. families: every event family except "time" (the
 # default leaves out voice, session and satellite, i.e. DMR/P25 calls and passes). No MQTT, no webhook.
 mkdir -p /data/events
+chmod 755 /data /data/events   # radio-api reads the messages (read-only mount); server.conf stays 0600
 cat > /data/integrations.json <<EOF
 {"version":1,"families":${ONAIR_EVENT_FAMILIES:-33488895},"max_per_second":200,
  "mqtt":{"enabled":false},"webhook":{"enabled":false},
