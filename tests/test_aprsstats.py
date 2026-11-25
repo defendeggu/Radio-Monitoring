@@ -188,6 +188,8 @@ def test_trips_and_places(aprsstats):
     s = sync.Syncer()
     s.sync_trips()
     s.sync_trips()                                      # same id: replaced, not doubled
+    trip_calls = [params for m, path, params in aprsstats.calls if path == 'stats/trips']
+    assert trip_calls[0] == {} and 'from' in trip_calls[1]     # first run: all trips, then the last 7 days
     trips = get_storage().search_events('aprstrips', hours=48)['hits']
     assert len(trips) == 1 and trips[0]['avg_speed'] == 24.6 and trips[0]['start_position'] == {'lat': 47.05, 'lon': 8.3}
     assert s.sync_places() == 2

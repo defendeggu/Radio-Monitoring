@@ -31,6 +31,7 @@ logger = logging.getLogger(__name__)
 CURSOR_PACKETS = 'aprsstats:cursor:packets'
 CURSOR_POSITIONS = 'aprsstats:cursor:positions'
 STATUS_KEY = 'aprsstats:sync'
+TRIPS_ALL_DONE = 'aprsstats:trips:all'      # set after the first run, which takes all trips
 TRIPS_EVERY = 15 * 60
 PLACES_EVERY = 60 * 60
 TRIP_DAYS = 7
@@ -211,10 +212,15 @@ class Syncer:
                 return n
 
     def sync_trips(self) -> int:
+        """Trips of the last 7 days (they change while they go on); the very first run takes all of them."""
         from radiomoni.storage.base import get_storage
-        since = (datetime.now(timezone.utc) - timedelta(days=TRIP_DAYS)).isoformat()
-        trips = self.client.get('stats/trips', {'from': since}) or []
-        return get_storage().put_docs('aprstrips', [trip_document(t) for t in trips])
+        everything = not get_redis().get(TRIPS_ALL_DONE)
+        params = {} if everything else {'from': (datetime.now(timezone.utc) - timedelta(days=TRIP_DAYS)).isoformat()}
+        trips = self.client.get('stats/trips', params) or []
+        n = get_storage().put_docs('aprstrips', [trip_document(t) for t in trips])
+        if everything:
+            get_redis().set(TRIPS_ALL_DONE, '1')
+        return n
 
     def sync_places(self) -> int:
         from radiomoni.storage.base import get_storage
