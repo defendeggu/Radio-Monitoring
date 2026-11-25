@@ -75,7 +75,9 @@ class FakeOnAir:
         if path == 'metrics':
             return FakeResponse(200, '# TYPE onair_receiver_running gauge\nonair_receiver_running 0\n')
         if path == '':
-            return FakeResponse(200, {'name': 'onair-server', 'version': '4.6.0'})
+            return FakeResponse(200, {'name': 'OnAir remote API', 'version': 1})
+        if path == 'x/server':
+            return FakeResponse(200, {'name': 'OnAir headless server', 'version': '4.6.0', 'autostart': False})
         return FakeResponse(404, {'error': 'no'})
 
     def post(self, url, json=None, headers=None, timeout=None):

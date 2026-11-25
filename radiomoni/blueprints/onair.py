@@ -48,8 +48,9 @@ def status() -> Response:
         return jsonify({'status': 'success', **info, 'reachable': False})
     client = OnAirClient(timeout=3.0)
     try:
-        about = client.get('')
-        info.update({'reachable': True, 'version': about.get('version') if isinstance(about, dict) else None,
+        server = client.get('x/server')
+        server = server if isinstance(server, dict) else {}
+        info.update({'reachable': True, 'version': server.get('version'), 'autostart': server.get('autostart'),
                      'receiver': client.status()})
     except OnAirError as e:
         info.update({'reachable': False, 'error': str(e)})
