@@ -27,6 +27,7 @@ CAPTURES, APRS, POCSAG, REPEATER = 'radio-captures-pattern', 'radio-aprs-pattern
 ADSB, AIS, ISM, ALERTS = 'radio-adsb-pattern', 'radio-ais-pattern', 'radio-ism-pattern', 'radio-alerts-pattern'
 CW, SKIMMER = 'radio-cw-pattern', 'radio-skimmer-pattern'
 ONAIR, METRICBEAT = 'radio-onair-pattern', 'metricbeat-pattern'
+TRIPS, PLACES = 'radio-aprstrips-pattern', 'radio-aprsplaces-pattern'
 
 Obj = dict[str, Any]
 
@@ -164,7 +165,8 @@ def search(oid: str, title: str, index: str, columns: list[str], query: str = ''
 
 
 def geo_map(oid: str, title: str, index: str, label: str, tooltip: list[str], color: str,
-            query: str = '', icons: Optional[tuple[str, list[tuple[str, str]]]] = None) -> Obj:
+            query: str = '', icons: Optional[tuple[str, list[tuple[str, str]]]] = None,
+            geo_field: str = 'position') -> Obj:
     """Kibana Maps: EMS base map plus the documents with a 'position' geo_point.
 
     icons: (field, [(value, Maki icon)]) draws points as icons by field value (the
@@ -191,7 +193,7 @@ def geo_map(oid: str, title: str, index: str, label: str, tooltip: list[str], co
          'style': {'type': 'EMS_VECTOR_TILE'}},
         {'id': f'{oid}-points', 'label': label, 'type': 'GEOJSON_VECTOR', 'visible': True, 'alpha': 0.85,
          'minZoom': 0, 'maxZoom': 24, 'includeInFitToBounds': True,
-         'sourceDescriptor': {'type': 'ES_SEARCH', 'id': f'{oid}-source', 'geoField': 'position',
+         'sourceDescriptor': {'type': 'ES_SEARCH', 'id': f'{oid}-source', 'geoField': geo_field,
                               'indexPatternRefName': 'layer_1_source_index_pattern', 'scalingType': 'LIMIT',
                               'tooltipProperties': tooltip, 'sortField': '@timestamp', 'sortOrder': 'desc',
                               'topHitsSplitField': '', 'topHitsSize': 1, 'applyGlobalQuery': True,
@@ -318,19 +320,22 @@ APRS_MAP_ICONS = [
 
 def aprs() -> list[Obj]:
     return dashboard('rm-dash-aprs', 'APRS', 'APRS-Pakete mit Stationskarte (Seite „APRS“)', [
-        [(metric('rm-aprs-count', 'Pakete', APRS, count('Pakete')), 16, 7),
-         (metric('rm-aprs-calls', 'Stationen', APRS, unique('source_callsign', 'Rufzeichen')), 16, 7),
-         (metric('rm-aprs-pos', 'Pakete mit Position', APRS, count('Mit Position'), 'position : *'), 16, 7)],
+        [(metric('rm-aprs-count', 'Pakete', APRS, count('Pakete')), 12, 7),
+         (metric('rm-aprs-calls', 'Stationen', APRS, unique('source_callsign', 'Rufzeichen')), 12, 7),
+         (metric('rm-aprs-pos', 'Pakete mit Position', APRS, count('Mit Position'), 'position : *'), 12, 7),
+         (metric('rm-aprs-net', 'Über Internet', APRS, count('Internet'), 'reception : "internet"'), 12, 7)],
         [(geo_map('rm-aprs-map', 'APRS-Stationen', APRS, 'APRS-Stationen',
-                  ['source_callsign', 'object_name', 'symbol', 'packet_type', 'message_text', '@timestamp'],
+                  ['source_callsign', 'empfang', 'object_name', 'symbol', 'packet_type', 'gemeinde', 'message_text',
+                   'igate', '@timestamp'],
                   '#54B399', icons=('symbol', APRS_MAP_ICONS)), 30, 22),
          (bars('rm-aprs-top', 'Aktivste Stationen', APRS, 'source_callsign', 'Rufzeichen', 15), 18, 22)],
-        [(timeline('rm-aprs-tl', 'Pakete über die Zeit', APRS), 24, 12),
-         (pie('rm-aprs-types', 'Pakettypen', APRS, 'packet_type', 'Typ'), 12, 12),
-         (pie('rm-aprs-path', 'Digipeater-Pfade', APRS, 'path', 'Pfad', 8), 12, 12)],
+        [(timeline('rm-aprs-tl', 'Pakete über die Zeit nach Empfang', APRS, split='empfang'), 24, 12),
+         (pie('rm-aprs-reception', 'Empfang (Funk / Internet)', APRS, 'empfang', 'Empfang', 2), 8, 12),
+         (pie('rm-aprs-types', 'Pakettypen', APRS, 'packet_type', 'Typ'), 8, 12),
+         (pie('rm-aprs-path', 'Digipeater-Pfade', APRS, 'path', 'Pfad', 8), 8, 12)],
         [(search('rm-aprs-list', 'APRS – Pakete', APRS,
-                 ['symbol_id', 'source_callsign', 'packet_type', 'symbol', 'maidenhead', 'message_text',
-                  'raw_packet']), 48, 16)],
+                 ['symbol_id', 'source_callsign', 'empfang', 'packet_type', 'symbol', 'maidenhead', 'gemeinde',
+                  'message_text', 'raw_packet']), 48, 16)],
     ])
 
 
@@ -478,9 +483,34 @@ def onair() -> list[Obj]:
     ])
 
 
+
+def aprsstats() -> list[Obj]:
+    return dashboard('rm-dash-aprsstats', 'APRS-Statistik',
+                     'Fahrten, Orte und Gemeinden aus aprs-stats, APRS über Funk und Internet (Seite „APRS-Statistik“)', [
+        [(metric('rm-as-trips', 'Fahrten', TRIPS, count('Fahrten')), 10, 7),
+         (metric('rm-as-km', 'Kilometer', TRIPS, total('km', 'km')), 10, 7),
+         (metric('rm-as-gem', 'Gemeinden', APRS, unique('gemeinde', 'Gemeinden')), 10, 7),
+         (metric('rm-as-kt', 'Kantone', APRS, unique('kanton', 'Kantone')), 9, 7),
+         (metric('rm-as-net', 'Positionen über Internet', APRS, count('Internet'),
+                 'reception : "internet" and position : *'), 9, 7)],
+        [(timeline('rm-as-km-tl', 'Kilometer pro Tag nach Gerät', TRIPS, split='callsign', value=total('km', 'km')), 30, 12),
+         (pie('rm-as-reception', 'Positionen nach Empfang', APRS, 'empfang', 'Empfang', 2, 'position : *'), 18, 12)],
+        [(geo_map('rm-as-trip-map', 'Fahrten: Ziele', TRIPS, 'Ziele',
+                  ['callsign', 'from', 'to', 'km', 'avg_speed', '@timestamp'], '#E7664C', geo_field='end_position'), 24, 20),
+         (geo_map('rm-as-place-map', 'Orte', PLACES, 'Orte', ['name', 'gemeinde', 'kanton', 'hours', 'days'], '#6092C0'),
+          24, 20)],
+        [(bars('rm-as-gem-top', 'Gemeinden nach Positionen', APRS, 'gemeinde', 'Gemeinde', 20, 'gemeinde : *'), 24, 14),
+         (pie('rm-as-kt-pie', 'Kantone', APRS, 'kanton', 'Kanton', 26, 'kanton : *'), 24, 14)],
+        [(search('rm-as-trip-list', 'Fahrten', TRIPS, ['callsign', 'from', 'to', 'km', 'seconds', 'avg_speed', 'max_speed']),
+          28, 16),
+         (search('rm-as-place-list', 'Orte', PLACES, ['name', 'gemeinde', 'kanton', 'hours', 'days', 'last']), 20, 16)],
+    ])
+
+
 DASHBOARDS = {
     'overview': overview, 'voice': voice, 'vox': vox, 'aprs': aprs, 'pocsag': pocsag, 'adsb': adsb,
     'ais': ais, 'ism': ism, 'repeater': repeater, 'cw': cw, 'skimmer': skimmer, 'alerts': alerts, 'onair': onair,
+    'aprsstats': aprsstats,
 }
 
 

@@ -24,6 +24,7 @@ python3 monitoring/kibana/build_dashboards.py
 | `cw-dashboard.ndjson` | RadioMoni · CW | `radio-cw-*`, dekodierte Durchgänge mit Play-Button |
 | `skimmer-dashboard.ndjson` | RadioMoni · Contest-Skimmer | `radio-skimmer-*`, Spots mit Land, Multiplikator und Priorität |
 | `onair-dashboard.ndjson` | RadioMoni · OnAir | `radio-onair-*` (Meldungen des OnAir-Empfängers, mit Karte) und `metricbeat-*` (Last, verlorene Samples) |
+| `aprsstats-dashboard.ndjson` | RadioMoni · APRS-Statistik | `radio-aprstrips-*` (Fahrten), `radio-aprsplaces-*` (Orte) und `radio-aprs-*` (Gemeinden, Kantone, Funk/Internet) aus aprs-stats |
 | `alerts-dashboard.ndjson` | RadioMoni · Alarme | `radio-alerts-*` |
 | `logs-dashboard.ndjson` | RadioMoni · System – Logs | Container-Logs (`radio-logs-*`) |
 | `health-dashboard.ndjson` | RadioMoni · System – Zustand | Host, Container, Elasticsearch und GPU (Metricbeat; GPU nur mit `docker-compose.gpu.yml`). Von Hand gepflegt, nicht von `build_dashboards.py` erzeugt |

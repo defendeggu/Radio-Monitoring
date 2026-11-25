@@ -3,7 +3,7 @@
     "radio-aprs-*"
   ],
   "priority": 200,
-  "version": 4,
+  "version": 5,
   "_meta": {
     "managed_by": "radiomoni",
     "description": "RadioMoni radio-aprs daily indices"
@@ -183,6 +183,39 @@
         "phg": {
           "type": "object",
           "enabled": false
+        },
+        "reception": {
+          "type": "keyword"
+        },
+        "reception_source": {
+          "type": "keyword"
+        },
+        "also_rf": {
+          "type": "boolean"
+        },
+        "igate": {
+          "type": "keyword"
+        },
+        "digis": {
+          "type": "keyword"
+        },
+        "qconstruct": {
+          "type": "keyword"
+        },
+        "aprsstats_id": {
+          "type": "long"
+        },
+        "gemeinde": {
+          "type": "keyword"
+        },
+        "bfs_nr": {
+          "type": "integer"
+        },
+        "kanton": {
+          "type": "keyword"
+        },
+        "country": {
+          "type": "keyword"
         }
       },
       "dynamic_templates": [

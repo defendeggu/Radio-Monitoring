@@ -97,6 +97,10 @@ Die Referenzdaten (`cty.csv`, `MASTER.SCP`, Most Wanted) liegen in `/app/data/co
 
 Der optionale Empfänger [OnAir](https://on-air.dev/) im Container `onair` (Profil `onair`): `ONAIR_URL`, `ONAIR_TOKEN`, `ONAIR_ALL_MODES`, `ONAIR_STORE_INSIGHTS`, `ONAIR_BIND`, `ONAIR_PORT`, `ONAIR_PUBLIC_URL`, `ONAIR_CODEC_DIR`. Alles in [onair.md](onair.md).
 
+## aprs-stats
+
+Die optionale APRS-Statistik [aprs-stats](https://github.com/defendeggu/aprs-stats) (Profil `aprsstats`): `APRSSTATS_URL`, `APRSSTATS_DB_PASSWORD`, `APRSSTATS_API_TOKEN`, `APRSSTATS_APRS_IS_*`, `APRSSTATS_FEED_RF`, `APRSSTATS_SYNC`, `APRSSTATS_BIND`, `APRSSTATS_PORT`, `APRSSTATS_PUBLIC_URL` und die Auswertung. Alles in [aprs-stats.md](aprs-stats.md).
+
 ## Alarm-Benachrichtigungen
 
 Alle Ziele sind optional. In den Alarmregeln wählst du nur den Kanal, die Ziele selbst stehen ausschliesslich hier. So kann eine Regel den Server nicht zu beliebigen URLs schicken.
@@ -217,6 +221,10 @@ The reference data (`cty.csv`, `MASTER.SCP`, Most Wanted) is kept in `/app/data/
 ### OnAir
 
 The optional receiver [OnAir](https://on-air.dev/) in the container `onair` (profile `onair`): `ONAIR_URL`, `ONAIR_TOKEN`, `ONAIR_ALL_MODES`, `ONAIR_STORE_INSIGHTS`, `ONAIR_BIND`, `ONAIR_PORT`, `ONAIR_PUBLIC_URL`, `ONAIR_CODEC_DIR`. See [onair.md](onair.md#english-version).
+
+### aprs-stats
+
+The optional APRS statistics [aprs-stats](https://github.com/defendeggu/aprs-stats) (profile `aprsstats`): `APRSSTATS_URL`, `APRSSTATS_DB_PASSWORD`, `APRSSTATS_API_TOKEN`, `APRSSTATS_APRS_IS_*`, `APRSSTATS_FEED_RF`, `APRSSTATS_SYNC`, `APRSSTATS_BIND`, `APRSSTATS_PORT`, `APRSSTATS_PUBLIC_URL`. See [aprs-stats.md](aprs-stats.md#english-version).
 
 ### Alert notifications
 

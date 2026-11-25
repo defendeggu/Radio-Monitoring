@@ -1,0 +1,81 @@
+{
+  "index_patterns": [
+    "radio-aprstrips-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni trips from aprs-stats (one document per device and start)"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "false",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "callsign": {
+          "type": "keyword"
+        },
+        "start": {
+          "type": "date"
+        },
+        "end": {
+          "type": "date"
+        },
+        "km": {
+          "type": "float"
+        },
+        "seconds": {
+          "type": "integer"
+        },
+        "points": {
+          "type": "integer"
+        },
+        "max_speed": {
+          "type": "float"
+        },
+        "avg_speed": {
+          "type": "float"
+        },
+        "from": {
+          "type": "keyword"
+        },
+        "to": {
+          "type": "keyword"
+        },
+        "round_trip": {
+          "type": "boolean"
+        },
+        "start_gemeinde": {
+          "type": "keyword"
+        },
+        "start_kanton": {
+          "type": "keyword"
+        },
+        "end_gemeinde": {
+          "type": "keyword"
+        },
+        "end_kanton": {
+          "type": "keyword"
+        },
+        "start_position": {
+          "type": "geo_point"
+        },
+        "end_position": {
+          "type": "geo_point"
+        }
+      }
+    }
+  }
+}

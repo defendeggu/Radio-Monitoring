@@ -15,7 +15,8 @@ Funküberwachung mit Software Defined Radio: aufnehmen, dekodieren, transkribier
 - **Spektrum / Wasserfall:** Frequenzbereich live ansehen und im Browser mithören (FM, AM, SSB, CW). Gibt das SDR automatisch frei, sobald ein anderer Job startet.
 - **CW-Decoder:** Morse auf Kurzwelle live dekodieren, mit automatischer Tempo- und Frequenzanpassung. Daneben die aktuellen Spots des Reverse Beacon Network; ein Klick stellt den Empfänger auf die Station.
 - **Contest-Skimmer:** alle CW-Signale eines Bandsegments gleichzeitig dekodieren (SSB experimentell mit Whisper und Phonetik-Parser, mit Ausschnitt zum Nachhören) und die Rufzeichen nach Contest-Reglement einstufen (neuer Multiplikator, selten, doppelt). Meldet in die Bandmap von N1MM+ (eingebauter DX-Cluster), liest das Log live aus N1MM+ und blendet beim eigenen Senden aus. CQ WW, CQ WPX, IARU-Fieldday, IARU HF Championship, die KW- und UKW-Contests der USKA und die IARU-UKW-Contests.
-- **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator
+- **APRS und POCSAG:** als Einzelaufnahme oder im 24/7-Streaming, APRS-Stationen auf einer Karte, Maidenhead-Locator. Jedes APRS-Paket ist gekennzeichnet: über **Funk** oder über **Internet** empfangen
+- **APRS-Statistik (optional):** [aprs-stats](https://github.com/defendeggu/aprs-stats) als eigene Container: Kilometer, Fahrten, Orte, besuchte Gemeinden und Kantone aus Funk und APRS-IS, Import von aprs.fi; alles auch in Kibana ([docs/aprs-stats.md](docs/aprs-stats.md))
 - **ADS-B, AIS, ISM-Sensoren:** Flugzeuge (readsb, RTL-SDR oder HackRF), Schiffe (rtl_ais) und Funksensoren (rtl_433) mit einem RTL-SDR
 - **Repeater-Scan:** Aktivität der Schweizer FM-Relais messen
 - **OnAir (optional):** der Empfänger [OnAir](https://on-air.dev/) als eigener Container für ACARS, VDL2, Radiosonden, Digitalfunk (DMR, P25 …), Wettersatelliten, LoRa und mehr; RadioMoni steuert ihn über die SDR-Sperre und speichert, zeigt und alarmiert ([docs/onair.md](docs/onair.md))
@@ -65,6 +66,8 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 
 **OnAir** als zusätzlicher Empfänger (ACARS, Radiosonden, Digitalfunk, Wettersatelliten …): in `.env` `COMPOSE_PROFILES=elk,onair` und `ONAIR_URL=http://onair:8765` setzen, dann `docker compose up -d --build`. Details in [docs/onair.md](docs/onair.md).
 
+**APRS-Statistik** mit aprs-stats: `COMPOSE_PROFILES=elk,aprsstats` und `APRSSTATS_URL=http://aprsstats-web:8000`, Details in [docs/aprs-stats.md](docs/aprs-stats.md). Die Profile lassen sich kombinieren, z. B. `elk,onair,aprsstats`.
+
 ## Architektur
 
 ```mermaid
@@ -83,6 +86,9 @@ flowchart LR
   API -- "API + Token (optional)" --> OnAir["onair<br/>OnAir-Empfänger"]
   OnAir -. "USB, nur unter SDR-Lock" .-> SDR
   Web -- ":8765 OnAir-Seite" --> OnAir
+  API -- "Funk-Pakete, Abgleich (optional)" --> AS["aprs-stats<br/>web, collector, PostGIS"]
+  AS -- "APRS-IS" --> Internet((Internet))
+  Web -- ":8092 aprs-stats-Seite" --> AS
 ```
 
 - Veröffentlicht ist die Weboberfläche. Für den Contest-Skimmer kommen DX-Cluster (TCP 7300) und N1MM+-Empfang (UDP 12060) dazu, standardmässig nur auf `127.0.0.1` und nur aktiv, wenn eingeschaltet. API, Redis, Elasticsearch und Logstash sind ausschliesslich im Docker-Netz erreichbar, Kibana nur auf `localhost`.
@@ -100,6 +106,7 @@ flowchart LR
 | Bedienung der Weboberfläche | [docs/usage.md](docs/usage.md) |
 | Contest-Skimmer, N1MM+, Reglement | [docs/contest.md](docs/contest.md) |
 | OnAir als zusätzlicher Empfänger | [docs/onair.md](docs/onair.md) |
+| APRS-Statistik (aprs-stats), Funk und Internet | [docs/aprs-stats.md](docs/aprs-stats.md) |
 | REST-API, Beispiele, Live-Events | [docs/api.md](docs/api.md) |
 | Sicherheit | [docs/security.md](docs/security.md) |
 | Elasticsearch, Kibana, Backup | [docs/elk.md](docs/elk.md) |
@@ -125,6 +132,10 @@ flowchart LR
 | [APRS Protocol Reference 1.0.1](http://www.aprs.org/doc/APRS101.PDF) und [APRS 1.2 / Mic-E-Typen](http://www.aprs.org/aprs12.html) | Formate der APRS-Pakete (Position, Mic-E, Objekte, Nachrichten, Wetter, Telemetrie) in `radiomoni/aprs_parse.py` |
 | [aprs.fi-Symbolsatz](https://github.com/hessu/aprs-symbols) (OH7LZB, gemischte Lizenzen, siehe dortige COPYRIGHT.md) | Bilder der APRS-Symbole in Tabelle, Karte und Kibana; beim Build des Web-Images in fester Version geladen, nicht im Repo |
 | [OnAir](https://on-air.dev/) von Kristijonas Adomaitis ([GPL-3.0 mit Zusatzbedingungen](https://github.com/adswill/OnAir/blob/main/ADDITIONAL-TERMS.md), [Mitwirkende](https://github.com/adswill/OnAir/blob/main/CONTRIBUTORS.md)) | Zusätzlicher Empfänger im optionalen Container `onair`. Based on OnAir by Kristijonas Adomaitis - https://on-air.dev. Das offizielle Release wird beim Build geladen, nicht im Repo; RadioMoni nutzt nur die API |
+| [aprs-stats](https://github.com/defendeggu/aprs-stats) (MIT) | APRS-Statistik im optionalen Profil `aprsstats`, beim Build in fester Version aus GitHub gebaut |
+| [APRS-IS](https://www.aprs-is.net/) (aprs2.net) | APRS über Internet für aprs-stats (Collector, Filter auf die eingetragenen Stationen) |
+| [aprs.fi-Export](https://aprs.fi/export) | Import älterer Positionen in aprs-stats |
+| [swissBOUNDARIES3D](https://www.swisstopo.admin.ch/de/landschaftsmodell-swissboundaries3d) (swisstopo, frei nutzbar mit Quellenangabe) | Gemeinde- und Kantonsgrenzen in aprs-stats, beim ersten Start geladen |
 | [N1MM Logger+ External UDP Broadcasts](https://n1mmwp.hamdocs.com/appendices/external-udp-broadcasts/) | Format der Pakete `RadioInfo`, `contactinfo`, `contactdelete` |
 | Ausschreibungen: [IARU-R1-Fieldday](https://www.darc.de/der-club/referate/conteste/iaru-region-1-fieldday/rules), USKA-Contests [KW](https://uska.ch/de/funkamateure/wettbewerbe/contests-kw/), [UKW](https://uska.ch/de/funkamateure/wettbewerbe/uska-contests-ukw/) und [Spezial](https://uska.ch/de/funkamateure/wettbewerbe/special-contests/), [IARU HF Championship](https://www.arrl.org/iaru-hf-championship), [CQ WW](https://cqww.com/rules.htm), [CQ WPX](https://cqwpx.com/rules.htm) | Termine, Bänder, Multiplikatoren und Doppelte der Contest-Regeln (`radiomoni/contest/rules/`) |
 
@@ -151,7 +162,8 @@ Radio monitoring with software defined radio: record, decode, transcribe, search
 - **Spectrum / waterfall:** watch a frequency range live and listen in the browser (FM, AM, SSB, CW). Frees the SDR automatically as soon as another job starts.
 - **CW decoder:** decode Morse on shortwave live, with automatic speed and frequency tracking. Next to it the current spots of the Reverse Beacon Network; a click tunes the receiver to the station.
 - **Contest skimmer:** decode every CW signal of a band segment at once (SSB experimental with Whisper and a phonetic parser, with a clip to listen back) and classify the callsigns by the contest rules (new multiplier, rare, dupe). Reports to the N1MM+ bandmap (built-in DX cluster), reads the log live from N1MM+ and blanks while you transmit. CQ WW, CQ WPX, IARU Fieldday, IARU HF Championship, the USKA HF and VHF contests and the IARU VHF contests.
-- **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator
+- **APRS and POCSAG:** as a single capture or 24/7 streaming, APRS stations on a map, Maidenhead locator. Every APRS packet is marked: received **over the air** or over the **internet**
+- **APRS statistics (optional):** [aprs-stats](https://github.com/defendeggu/aprs-stats) as containers of its own: kilometres, trips, places, municipalities and cantons visited, from radio and APRS-IS, aprs.fi import; all of it in Kibana too ([docs/aprs-stats.md](docs/aprs-stats.md#english-version))
 - **ADS-B, AIS, ISM sensors:** aircraft (readsb, RTL-SDR or HackRF), ships (rtl_ais) and wireless sensors (rtl_433) with an RTL-SDR
 - **Repeater scan:** measure the activity of Swiss FM repeaters
 - **OnAir (optional):** the receiver [OnAir](https://on-air.dev/) as a container of its own for ACARS, VDL2, radiosondes, digital voice (DMR, P25 …), weather satellites, LoRa and more; RadioMoni drives it through the SDR lock and stores, shows and alerts ([docs/onair.md](docs/onair.md#english-version))
@@ -201,6 +213,8 @@ docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
 
 **OnAir** as an additional receiver (ACARS, radiosondes, digital voice, weather satellites …): set `COMPOSE_PROFILES=elk,onair` and `ONAIR_URL=http://onair:8765` in `.env`, then `docker compose up -d --build`. See [docs/onair.md](docs/onair.md#english-version).
 
+**APRS statistics** with aprs-stats: `COMPOSE_PROFILES=elk,aprsstats` and `APRSSTATS_URL=http://aprsstats-web:8000`, see [docs/aprs-stats.md](docs/aprs-stats.md#english-version). Profiles combine, e.g. `elk,onair,aprsstats`.
+
 ### Architecture
 
 ```mermaid
@@ -219,6 +233,9 @@ flowchart LR
   API -- "API + token (optional)" --> OnAir["onair<br/>OnAir receiver"]
   OnAir -. "USB, only under the SDR lock" .-> SDR
   Web -- ":8765 OnAir page" --> OnAir
+  API -- "radio packets, sync (optional)" --> AS["aprs-stats<br/>web, collector, PostGIS"]
+  AS -- "APRS-IS" --> Internet((Internet))
+  Web -- ":8092 aprs-stats page" --> AS
 ```
 
 - The web interface is published. For the contest skimmer, the DX cluster (TCP 7300) and the N1MM+ receiver (UDP 12060) are added, by default only on `127.0.0.1` and only active when enabled. API, Redis, Elasticsearch and Logstash are reachable only inside the Docker network, Kibana only on `localhost`.
@@ -238,6 +255,7 @@ Each file is written in German first, followed by an English version.
 | Using the web interface | [docs/usage.md](docs/usage.md#english-version) |
 | Contest skimmer, N1MM+, contest rules | [docs/contest.md](docs/contest.md#english-version) |
 | OnAir as an additional receiver | [docs/onair.md](docs/onair.md#english-version) |
+| APRS statistics (aprs-stats), radio and internet | [docs/aprs-stats.md](docs/aprs-stats.md#english-version) |
 | REST API, examples, live events | [docs/api.md](docs/api.md#english-version) |
 | Security | [docs/security.md](docs/security.md#english-version) |
 | Elasticsearch, Kibana, backup | [docs/elk.md](docs/elk.md#english-version) |

@@ -4,6 +4,21 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- **APRS über Funk oder Internet:** Jedes APRS-Paket trägt `reception` (`rf` / `internet`) und `reception_source` (`rf`, `aprs_is`, `import`, `beacon`).
+  - APRS-Seite: Spalte *Empfang* mit iGate und dem Hinweis „auch über Funk gehört“, Filter *Alle / Funk / Internet*, Internet-Stationen auf der Karte gestrichelt umrandet.
+  - Kibana: Laufzeitfeld `empfang`, Anteil und Zeitlinie im APRS-Dashboard.
+  - Pakete von vor 5.8.0 gelten als Funk; `python -m radiomoni.aprs_reparse --set-reception` setzt das Feld.
+- **aprs-stats im Stack** (Compose-Profil `aprsstats`, `docs/aprs-stats.md`): PostGIS, Web und Collector aus [aprs-stats](https://github.com/defendeggu/aprs-stats) v0.6.0.
+  - RadioMoni schickt die über Funk dekodierten APRS-Pakete an aprs-stats.
+  - Ein Abgleich holt Internet-Pakete (APRS-IS, eigene Bake), aprs.fi-Importe, Fahrten und Orte nach Elasticsearch und ergänzt Funk-Pakete um Gemeinde und Kanton.
+  - Neue Seite *APRS-Statistik* (Kilometer, Funk/Internet, Gemeinden, Kantone, Fahrten) und Link zur Seite von aprs-stats über nginx auf Port 8092.
+  - Kibana-Dashboard *RadioMoni · APRS-Statistik*, Indizes `radio-aprstrips-*` und `radio-aprsplaces-current`.
+- API: `/aprs/search` und `/aprs/map` nehmen `reception`; neu `/aprsstats/status`, `summary`, `trips`, `sync`, `link`, `counts`.
+
+### Geändert
+- Die Rolle `radio_api` darf in `radio-aprsplaces-*` löschen (die Orte werden bei jedem Abgleich ersetzt); `./scripts/setup-elk-users.sh` erneut ausführen.
+
 ## [5.7.0] – 2026-11-25
 
 ### Neu

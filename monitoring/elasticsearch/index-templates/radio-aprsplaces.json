@@ -1,0 +1,62 @@
+{
+  "index_patterns": [
+    "radio-aprsplaces-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni places from aprs-stats (radio-aprsplaces-current, replaced by every sync)"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "false",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "name": {
+          "type": "keyword"
+        },
+        "own_name": {
+          "type": "boolean"
+        },
+        "gemeinde": {
+          "type": "keyword"
+        },
+        "kanton": {
+          "type": "keyword"
+        },
+        "position": {
+          "type": "geo_point"
+        },
+        "hours": {
+          "type": "float"
+        },
+        "days": {
+          "type": "integer"
+        },
+        "points": {
+          "type": "integer"
+        },
+        "first": {
+          "type": "date"
+        },
+        "last": {
+          "type": "date"
+        },
+        "callsigns": {
+          "type": "keyword"
+        }
+      }
+    }
+  }
+}

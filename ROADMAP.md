@@ -25,7 +25,7 @@ Stand: 2026-11-25 (Version 5.7.0). Erledigtes steht im [CHANGELOG](CHANGELOG.md)
 ## Ideen
 
 - Push-Benachrichtigungen im Browser (Web Push) zusätzlich zu ntfy und Telegram
-- Statistik pro Rufzeichen (erste/letzte Sichtung, Heatmap)
+- Statistik pro Rufzeichen für *alle* gehörten Stationen (erste/letzte Sichtung, Heatmap); für die eigenen Stationen erledigt mit aprs-stats (5.8.0)
 - Export nach InfluxDB/Grafana für Sensorwerte aus rtl_433
 - Breitband-Überblick im Wasserfall mit `hackrf_sweep` (1 MHz – 6 GHz in einem Bild)
 - WebGL-Renderer für den Wasserfall, falls Canvas 2D bei grossen FFTs nicht reicht
