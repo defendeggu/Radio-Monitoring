@@ -76,6 +76,8 @@ jobs:
           docker build -t radiomoni-api:ci .
           docker build -t radiomoni-web:ci frontend
           docker build -t radiomoni-onair:ci onair
+          # aprs-stats (optional profile): the release named in docker-compose.yml
+          docker build -t radiomoni-aprsstats:ci "https://github.com/defendeggu/aprs-stats.git#v0.6.0:app"
       - name: Trivy (API image)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
@@ -96,6 +98,13 @@ jobs:
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: radiomoni-onair:ci
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: '1'
+      - name: Trivy (aprs-stats image)
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: radiomoni-aprsstats:ci
           severity: CRITICAL,HIGH
           ignore-unfixed: true
           exit-code: '1'
