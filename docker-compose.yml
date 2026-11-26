@@ -307,6 +307,11 @@ services:
       - APRSSTATS_PUBLIC_URL=${APRSSTATS_PUBLIC_URL:-}
       - APRSSTATS_FEED_RF=${APRSSTATS_FEED_RF:-true}
       - APRSSTATS_SYNC=${APRSSTATS_SYNC:-true}
+      # Jetvision AirSquitter / Radarcape as network ADS-B source: empty = off
+      - AIRSQUITTER_URL=${AIRSQUITTER_URL:-}
+      - AIRSQUITTER_NAME=${AIRSQUITTER_NAME:-airsquitter}
+      - AIRSQUITTER_POLL_SECONDS=${AIRSQUITTER_POLL_SECONDS:-5}
+      - AIRSQUITTER_STORE_SECONDS=${AIRSQUITTER_STORE_SECONDS:-60}
     restart: unless-stopped
 
   # ===========================================================================

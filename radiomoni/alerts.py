@@ -40,9 +40,10 @@ FIELD_MAP: dict[str, tuple[str, ...]] = {
     'callsign': ('source_callsign', 'callsign', 'flight', 'shipname', 'ident'),
     'address': ('address',),
     'text': ('message_text', 'transcription', 'text'),
-    'icao': ('icao', 'hex'),
+    'icao': ('icao', 'hex', 'registration'),
     'mmsi': ('mmsi',),
     'model': ('model',),
+    'squawk': ('squawk',),           # ADS-B transponder code, e.g. 7700 / 7600 / 7500
     'event_type': ('event_type',),   # OnAir: acars.message, sonde.update, session.call ...
 }
 

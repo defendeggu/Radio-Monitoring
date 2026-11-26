@@ -95,6 +95,9 @@ def parse_readsb_aircraft(payload: dict[str, Any]) -> list[dict[str, Any]]:
             'rssi': ac.get('rssi'),
             'messages': ac.get('messages'),
             'seen': ac.get('seen'),
+            'receiver': 'radiomoni',
+            # readsb lists the fields that came from MLAT / TIS-B, e.g. mlat: ['lat', 'lon']
+            'position_source': 'mlat' if 'lat' in (ac.get('mlat') or []) else 'tisb' if ac.get('tisb') else 'adsb',
         })
     return out
 
@@ -320,7 +323,8 @@ class ExternalDecoderSession(BaseStreamingDecoder):
                     aircraft = parse_readsb_aircraft(json.load(f))
             except (OSError, ValueError):
                 continue
-            events.publish('adsb_snapshot', {'session_id': self.session.session_id, 'aircraft': aircraft})
+            events.publish('adsb_snapshot', {'session_id': self.session.session_id, 'receiver': 'radiomoni',
+                                             'aircraft': aircraft})
             now = time.time()
             for ac in aircraft:
                 if now - self._last_stored.get(ac['icao'], 0) < ADSB_STORE_INTERVAL:

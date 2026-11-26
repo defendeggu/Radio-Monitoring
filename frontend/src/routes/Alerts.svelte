@@ -125,7 +125,8 @@
       <option value="callsign">{t('Rufzeichen / Flug / Schiff')}</option>
       <option value="address">{t('POCSAG-Adresse')}</option>
       <option value="text">{t('Text / Transkript')}</option>
-      <option value="icao">ICAO</option>
+      <option value="icao">{t('ICAO / Kennzeichen')}</option>
+      <option value="squawk">Squawk</option>
       <option value="mmsi">MMSI</option>
       <option value="model">{t('Sensor-Modell')}</option>
       <option value="event_type">{t('OnAir-Ereignistyp')}</option>

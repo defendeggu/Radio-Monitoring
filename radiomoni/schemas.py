@@ -310,7 +310,7 @@ class AlertRuleModel(StrictModel):
     name: str = Field(..., min_length=1, max_length=80)
     enabled: bool = True
     source: DataSource = 'any'
-    field: Literal['any', 'callsign', 'address', 'text', 'icao', 'mmsi', 'model', 'event_type'] = 'any'
+    field: Literal['any', 'callsign', 'address', 'text', 'icao', 'mmsi', 'model', 'event_type', 'squawk'] = 'any'
     match_type: Literal['contains', 'equals', 'regex'] = 'contains'
     pattern: str = Field(..., min_length=1, max_length=200)
     case_sensitive: bool = False
@@ -427,6 +427,9 @@ class EventSearchQuery(HoursLimitQuery):
     mmsi: Optional[str] = Field(None, max_length=12, pattern=r'^[0-9]+$')
     model: Optional[str] = Field(None, max_length=60)
     sensor_id: Optional[str] = Field(None, max_length=120)
+    receiver: Optional[str] = Field(None, max_length=40, pattern=r'^[a-z0-9_-]+$',
+                                    description='ADS-B: radiomoni (own SDR, also documents without the field) or the '
+                                                'name of a network receiver such as airsquitter')
 
 
 class OnAirSearchQuery(HoursLimitQuery):

@@ -71,11 +71,10 @@ def send(item: dict[str, Any], client: Optional[AprsStatsClient] = None) -> dict
 
 
 def _run() -> None:
-    client = AprsStatsClient(timeout=10.0)
     while True:
         item = _queue.get()
         try:
-            result = send(item, client)
+            result = send(item, AprsStatsClient(timeout=10.0))   # per packet: follows changed settings
             stats['sent'] += 1
             if result.get('stored'):
                 stats['kept'] += 1

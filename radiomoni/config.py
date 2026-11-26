@@ -163,3 +163,12 @@ APRSSTATS_FEED_RF: bool = _bool('APRSSTATS_FEED_RF', True)
 # Copy aprs-stats' data (internet packets, imports, trips, places) into Elasticsearch / SQLite.
 APRSSTATS_SYNC: bool = _bool('APRSSTATS_SYNC', True)
 APRSSTATS_SYNC_SECONDS: int = _int('APRSSTATS_SYNC_SECONDS', 60)
+
+# --- AirSquitter / Radarcape (Jetvision) as a network ADS-B source -------------------
+# Base URL of the device (its aircraftlist.json is polled); empty = off.
+AIRSQUITTER_URL: str = os.getenv('AIRSQUITTER_URL', '').rstrip('/')
+# Name stored in `receiver` for its aircraft (own ADS-B sessions: radiomoni)
+AIRSQUITTER_NAME: str = (os.getenv('AIRSQUITTER_NAME', '').strip() or 'airsquitter')
+AIRSQUITTER_POLL_SECONDS: int = max(2, _int('AIRSQUITTER_POLL_SECONDS', 5))
+# Store a position per aircraft at most this often (the live view gets every poll)
+AIRSQUITTER_STORE_SECONDS: int = max(5, _int('AIRSQUITTER_STORE_SECONDS', 60))

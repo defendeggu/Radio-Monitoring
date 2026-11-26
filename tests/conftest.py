@@ -31,6 +31,9 @@ os.environ.update({
     'RBN_CALLSIGN': '',
     'N1MM_ENABLED': 'false',
     'CLUSTER_ENABLED': 'false',
+    'ONAIR_URL': '',                   # a local .env must not connect the tests to OnAir, aprs-stats
+    'APRSSTATS_URL': '',               # or the AirSquitter either
+    'AIRSQUITTER_URL': '',
     'CONTEST_DATA_DIR': os.path.join(_TEST_DIR, 'contest'),
     'SYSFS_USB_ROOT': os.path.join(_TEST_DIR, 'no-usb'),   # never see the SDRs of the machine running the tests
 })
