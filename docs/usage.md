@@ -93,6 +93,16 @@ Diese Decoder steuern das SDR direkt: ADS-B einen **RTL-SDR oder HackRF**, AIS u
 
 Die Verstärkung leer lassen heisst automatische Regelung. Die PPM-Korrektur ist beschrieben in [hardware.md](hardware.md#frequenzkorrektur-ppm).
 
+### AirSquitter / Radarcape im Netz
+
+Ein ADS-B-Empfänger von Jetvision ([Air!Squitter, Radarcape](https://wiki.jetvision.de/wiki/Radarcape:User_Services_and_Interfaces)) im Netz lässt sich als zweite Quelle einbinden, ohne SDR: `AIRSQUITTER_URL=http://<Adresse des Geräts>` in `.env`, dann radio-api neu starten. RadioMoni liest im Hintergrund die dekodierte Flugzeugliste des Geräts (`aircraftlist.json`), alle 5 s.
+
+- Der Reiter ADS-B zeigt eine Statuszeile mit der Zahl der Flugzeuge nach Ortung und einen Filter *Alle / AirSquitter / eigener Empfänger*. Die Flugzeuge erscheinen auch ohne eigene ADS-B-Session.
+- Spalten: Kennzeichen, Typ und Route (sofern das Gerät sie kennt), **Ortung** (ADS-B, MLAT, FLARM, TIS-B), Empfänger und Distanz. Auf der Karte ist die Farbe die Ortung. Notfall-Squawks (7500, 7600, 7700) sind rot.
+- Gespeichert wird pro Flugzeug höchstens alle `AIRSQUITTER_STORE_SECONDS` (Vorgabe 60 s) eine Position, nach `radio-adsb-*`, mit `receiver` und `position_source`. Bei rund 45 Flugzeugen sind das etwa 65 000 Dokumente pro Tag. Positionen, die das Gerät seit über 60 s nicht erneuert hat, werden angezeigt, aber nicht gespeichert.
+- Alarmregeln gelten auch für diese Flugzeuge, z. B. Feld *Squawk* gleich `7700` oder ein Kennzeichen unter *ICAO / Kennzeichen*.
+- In Kibana zeigt das ADS-B-Dashboard die Aufteilung nach Ortung und Empfänger, Typen, Betreiber und Distanzen. Das Laufzeitfeld `empfaenger` zählt ältere Dokumente ohne `receiver` als `radiomoni`.
+
 ## Repeater-Scan
 
 Hört die importierten FM-Relais nacheinander ab und misst Träger, Anzahl Durchgänge, Aktivität in % und Signalstärke.
@@ -236,6 +246,14 @@ These decoders control the SDR directly: ADS-B an **RTL-SDR or HackRF**, AIS and
 | ISM | rtl_433 (433.92/868 MHz) | weather stations, thermometers, meters (last value per sensor) |
 
 Leaving the gain empty means automatic gain control. The PPM correction is described in [hardware.md](hardware.md#frequency-correction-ppm).
+
+#### AirSquitter / Radarcape on the network
+
+A Jetvision ADS-B receiver ([Air!Squitter, Radarcape](https://wiki.jetvision.de/wiki/Radarcape:User_Services_and_Interfaces)) on the network can be a second source, without an SDR: set `AIRSQUITTER_URL=http://<device address>` in `.env` and restart radio-api. RadioMoni reads the device's decoded aircraft list (`aircraftlist.json`) every 5 s in the background.
+- The ADS-B tab shows a status line and an *All / AirSquitter / own receiver* filter.
+- It adds the columns registration, type, route, **position source** (ADS-B, MLAT, FLARM, TIS-B), receiver and distance. The map is coloured by position source.
+- One position per aircraft is stored at most every `AIRSQUITTER_STORE_SECONDS` (default 60 s) into `radio-adsb-*`, with `receiver` and `position_source`.
+- Alert rules apply, e.g. field *Squawk* equals `7700`.
 
 ### Repeater scan
 

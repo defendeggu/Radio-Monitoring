@@ -101,6 +101,17 @@ Der optionale Empfänger [OnAir](https://on-air.dev/) im Container `onair` (Prof
 
 Die optionale APRS-Statistik [aprs-stats](https://github.com/defendeggu/aprs-stats) (Profil `aprsstats`): `APRSSTATS_URL`, `APRSSTATS_DB_PASSWORD`, `APRSSTATS_API_TOKEN`, `APRSSTATS_APRS_IS_*`, `APRSSTATS_FEED_RF`, `APRSSTATS_SYNC`, `APRSSTATS_BIND`, `APRSSTATS_PORT`, `APRSSTATS_PUBLIC_URL` und die Auswertung. Alles in [aprs-stats.md](aprs-stats.md).
 
+## AirSquitter / Radarcape
+
+ADS-B-Empfänger von Jetvision im Netz als zweite ADS-B-Quelle ([usage.md](usage.md#airsquitter--radarcape-im-netz)):
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `AIRSQUITTER_URL` | leer | Adresse des Geräts, z. B. `http://192.168.1.50`; leer = aus |
+| `AIRSQUITTER_NAME` | `airsquitter` | Name im Feld `receiver` |
+| `AIRSQUITTER_POLL_SECONDS` | `5` | Abfrage der Flugzeugliste |
+| `AIRSQUITTER_STORE_SECONDS` | `60` | höchstens eine gespeicherte Position pro Flugzeug in diesem Abstand |
+
 ## Alarm-Benachrichtigungen
 
 Alle Ziele sind optional. In den Alarmregeln wählst du nur den Kanal, die Ziele selbst stehen ausschliesslich hier. So kann eine Regel den Server nicht zu beliebigen URLs schicken.
@@ -225,6 +236,10 @@ The optional receiver [OnAir](https://on-air.dev/) in the container `onair` (pro
 ### aprs-stats
 
 The optional APRS statistics [aprs-stats](https://github.com/defendeggu/aprs-stats) (profile `aprsstats`): `APRSSTATS_URL`, `APRSSTATS_DB_PASSWORD`, `APRSSTATS_API_TOKEN`, `APRSSTATS_APRS_IS_*`, `APRSSTATS_FEED_RF`, `APRSSTATS_SYNC`, `APRSSTATS_BIND`, `APRSSTATS_PORT`, `APRSSTATS_PUBLIC_URL`. See [aprs-stats.md](aprs-stats.md#english-version).
+
+### AirSquitter / Radarcape
+
+A Jetvision ADS-B receiver on the network as a second ADS-B source: `AIRSQUITTER_URL` (empty = off), `AIRSQUITTER_NAME`, `AIRSQUITTER_POLL_SECONDS` (5), `AIRSQUITTER_STORE_SECONDS` (60).
 
 ### Alert notifications
 

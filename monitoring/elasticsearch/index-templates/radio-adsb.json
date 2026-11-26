@@ -3,7 +3,7 @@
     "radio-adsb-*"
   ],
   "priority": 200,
-  "version": 4,
+  "version": 5,
   "_meta": {
     "managed_by": "radiomoni",
     "description": "RadioMoni radio-adsb daily indices"
@@ -76,6 +76,60 @@
         },
         "seen": {
           "type": "float"
+        },
+        "receiver": {
+          "type": "keyword"
+        },
+        "position_source": {
+          "type": "keyword"
+        },
+        "available_sources": {
+          "type": "keyword"
+        },
+        "registration": {
+          "type": "keyword"
+        },
+        "aircraft_type": {
+          "type": "keyword"
+        },
+        "operator": {
+          "type": "keyword"
+        },
+        "origin": {
+          "type": "keyword"
+        },
+        "destination": {
+          "type": "keyword"
+        },
+        "country": {
+          "type": "keyword"
+        },
+        "gnss_altitude_ft": {
+          "type": "float"
+        },
+        "distance_km": {
+          "type": "float"
+        },
+        "position_age_s": {
+          "type": "float"
+        },
+        "air_temperature_c": {
+          "type": "float"
+        },
+        "wind_speed_kt": {
+          "type": "float"
+        },
+        "wind_direction": {
+          "type": "float"
+        },
+        "alert_flag": {
+          "type": "boolean"
+        },
+        "spi": {
+          "type": "boolean"
+        },
+        "timestamp": {
+          "type": "date"
         }
       },
       "dynamic_templates": [

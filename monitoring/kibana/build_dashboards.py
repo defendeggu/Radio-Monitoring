@@ -357,18 +357,27 @@ def pocsag() -> list[Obj]:
 
 def adsb() -> list[Obj]:
     return dashboard('rm-dash-adsb', 'ADS-B', 'Flugzeuge auf 1090 MHz (Seite „ADS-B · AIS · ISM“, Reiter ADS-B)', [
-        [(metric('rm-adsb-aircraft', 'Flugzeuge', ADSB, unique('icao', 'Flugzeuge')), 12, 7),
-         (metric('rm-adsb-flights', 'Flugnummern', ADSB, unique('flight', 'Flugnummern')), 12, 7),
-         (metric('rm-adsb-pos', 'Meldungen mit Position', ADSB, count('Mit Position'), 'position : *'), 12, 7),
-         (metric('rm-adsb-alt', 'Höchste Flughöhe (ft)', ADSB, maximum('altitude_ft', 'Fuss')), 12, 7)],
+        [(metric('rm-adsb-aircraft', 'Flugzeuge', ADSB, unique('icao', 'Flugzeuge')), 10, 7),
+         (metric('rm-adsb-flights', 'Flugnummern', ADSB, unique('flight', 'Flugnummern')), 10, 7),
+         (metric('rm-adsb-pos', 'Meldungen mit Position', ADSB, count('Mit Position'), 'position : *'), 10, 7),
+         (metric('rm-adsb-alt', 'Höchste Flughöhe (ft)', ADSB, maximum('altitude_ft', 'Fuss')), 9, 7),
+         (metric('rm-adsb-range', 'Grösste Distanz (km)', ADSB, maximum('distance_km', 'km')), 9, 7)],
         [(geo_map('rm-adsb-map', 'ADS-B-Flugzeuge', ADSB, 'Flugzeuge',
-                  ['flight', 'icao', 'altitude_ft', 'ground_speed_kt', 'squawk', '@timestamp'], '#6092C0'), 30, 22),
+                  ['flight', 'registration', 'aircraft_type', 'icao', 'position_source', 'empfaenger', 'altitude_ft',
+                   'ground_speed_kt', 'squawk', 'origin', 'destination', '@timestamp'], '#6092C0'), 30, 22),
          (table('rm-adsb-top', 'Flugzeuge', ADSB, 'icao', 'ICAO',
                 [count('Meldungen'), maximum('altitude_ft', 'Max. Höhe (ft)'), maximum('rssi', 'Max. RSSI')]), 18, 22)],
-        [(timeline('rm-adsb-tl', 'Flugzeuge über die Zeit', ADSB, value=unique('icao', 'Flugzeuge')), 24, 12),
-         (histogram('rm-adsb-alt-hist', 'Flughöhen (ft)', ADSB, 'altitude_ft', 5000, 'Fuss'), 24, 12)],
+        [(timeline('rm-adsb-tl', 'Flugzeuge über die Zeit nach Empfänger', ADSB, split='empfaenger',
+                   value=unique('icao', 'Flugzeuge')), 24, 12),
+         (pie('rm-adsb-source', 'Ortung (ADS-B / MLAT / FLARM)', ADSB, 'position_source', 'Ortung', 4), 12, 12),
+         (pie('rm-adsb-receiver', 'Empfänger', ADSB, 'empfaenger', 'Empfänger', 5), 12, 12)],
+        [(bars('rm-adsb-types', 'Häufigste Flugzeugtypen', ADSB, 'aircraft_type', 'Typ', 15), 16, 14),
+         (bars('rm-adsb-opr', 'Häufigste Betreiber', ADSB, 'operator', 'Betreiber', 15), 16, 14),
+         (histogram('rm-adsb-dist', 'Distanz (km)', ADSB, 'distance_km', 25, 'km'), 16, 14)],
+        [(histogram('rm-adsb-alt-hist', 'Flughöhen (ft)', ADSB, 'altitude_ft', 5000, 'Fuss'), 48, 10)],
         [(search('rm-adsb-list', 'ADS-B – Meldungen', ADSB,
-                 ['icao', 'flight', 'altitude_ft', 'ground_speed_kt', 'track', 'squawk', 'rssi']), 48, 16)],
+                 ['empfaenger', 'position_source', 'icao', 'flight', 'registration', 'aircraft_type', 'origin',
+                  'destination', 'altitude_ft', 'ground_speed_kt', 'squawk', 'distance_km', 'rssi']), 48, 16)],
     ])
 
 

@@ -15,6 +15,12 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
   - Neue Seite *APRS-Statistik* (Kilometer, Funk/Internet, Gemeinden, Kantone, Fahrten) und Link zur Seite von aprs-stats über nginx auf Port 8092.
   - Kibana-Dashboard *RadioMoni · APRS-Statistik*, Indizes `radio-aprstrips-*` und `radio-aprsplaces-current`.
 - API: `/aprs/search` und `/aprs/map` nehmen `reception`; neu `/aprsstats/status`, `summary`, `trips`, `sync`, `link`, `counts`.
+- **Jetvision AirSquitter / Radarcape** als ADS-B-Quelle im Netz (`AIRSQUITTER_URL`), ohne SDR. RadioMoni liest die Flugzeugliste des Geräts im Hintergrund.
+  - Erfasst werden ADS-B, MLAT und FLARM, mit Kennzeichen, Typ, Betreiber, Route und Distanz.
+  - Reiter ADS-B: Statuszeile, Filter nach Empfänger, Ortung als Farbe auf der Karte, Notfall-Squawks rot.
+  - ADS-B-Dokumente tragen `receiver` (Gerät oder `radiomoni`) und `position_source` (`adsb`, `mlat`, `flarm`, `tisb`). `/decoders/adsb/latest` und `search` nehmen `receiver`; neu ist `/decoders/airsquitter/status`.
+  - Kibana: ADS-B-Dashboard mit Ortung, Empfänger, Typen, Betreibern und Distanz; Laufzeitfeld `empfaenger`.
+- Alarmregeln: neues Feld *Squawk* (z. B. 7700), *ICAO* prüft auch das Kennzeichen.
 
 ### Geändert
 - Die Rolle `radio_api` darf in `radio-aprsplaces-*` löschen (die Orte werden bei jedem Abgleich ersetzt); `./scripts/setup-elk-users.sh` erneut ausführen.
