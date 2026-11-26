@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.8.0] – 2026-11-26
+
 ### Neu
 - **APRS über Funk oder Internet:** Jedes APRS-Paket trägt `reception` (`rf` / `internet`) und `reception_source` (`rf`, `aprs_is`, `import`, `beacon`).
   - APRS-Seite: Spalte *Empfang* mit iGate und dem Hinweis „auch über Funk gehört“, Filter *Alle / Funk / Internet*, Internet-Stationen auf der Karte gestrichelt umrandet.
