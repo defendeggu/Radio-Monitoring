@@ -196,6 +196,29 @@ export interface Aircraft {
   longitude?: number | null;
   rssi?: number | null;
   seen?: number;
+  /** radiomoni (own SDR; also when missing) or a network receiver such as airsquitter */
+  receiver?: string;
+  /** adsb | mlat | flarm | tisb */
+  position_source?: string | null;
+  registration?: string | null;
+  aircraft_type?: string | null;
+  operator?: string | null;
+  origin?: string | null;
+  destination?: string | null;
+  distance_km?: number | null;
+  timestamp?: string;
+  '@timestamp'?: string;
+}
+
+export interface AirSquitterStatus {
+  enabled: boolean;
+  name: string;
+  ok?: boolean;
+  time?: string;
+  error?: string | null;
+  aircraft?: number;
+  with_position?: number;
+  by_source?: Record<string, number>;
 }
 
 export interface Bookmark {

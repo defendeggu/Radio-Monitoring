@@ -515,3 +515,70 @@ test('APRS statistics page: tiles, trips, link', async ({ page }) => {
   await page.getByRole('tab', { name: 'Heute' }).click();
   await expect(page.getByText('5', { exact: true })).toBeVisible();
 });
+
+test('ADS-B: AirSquitter aircraft with MLAT / FLARM and receiver filter', async ({ page }) => {
+  await page.route('**/api/decoders**', async (route) => {
+    const path = new URL(route.request().url()).pathname.replace(/^\/api/, '');
+    const json = (body: unknown) => ({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(body),
+    });
+    if (path === '/decoders')
+      return route.fulfill(
+        json({
+          decoders: [{ decoder: 'adsb', tool: 'readsb', installed: true, default_frequency: 1090000000 }],
+        }),
+      );
+    if (path === '/decoders/airsquitter/status')
+      return route.fulfill(
+        json({ enabled: true, name: 'airsquitter', ok: true, aircraft: 2, by_source: { adsb: 1, mlat: 1 } }),
+      );
+    if (path === '/decoders/adsb/latest')
+      return route.fulfill(
+        json({
+          results: [
+            {
+              icao: '44046E',
+              flight: 'TST17',
+              registration: 'OE-TST',
+              aircraft_type: 'GLEX',
+              origin: 'LSZH',
+              destination: 'EGLL',
+              altitude_ft: 27575,
+              squawk: '7700',
+              position_source: 'adsb',
+              receiver: 'airsquitter',
+              latitude: 46.0,
+              longitude: 8.2,
+              distance_km: 118,
+            },
+            {
+              icao: '45B86F',
+              registration: 'OY-TST',
+              aircraft_type: 'J328',
+              position_source: 'mlat',
+              receiver: 'airsquitter',
+              latitude: 47.7,
+              longitude: 10.1,
+              distance_km: 160,
+            },
+            { icao: 'ABCDEF', flight: 'OWN1', latitude: 47.0, longitude: 8.0, distance_km: 5 },
+          ],
+        }),
+      );
+    return route.fulfill(json({}));
+  });
+  await page.goto('/#/decoders');
+  await expect(page.getByText('AirSquitter: 2 Flugzeuge')).toBeVisible();
+  const rows = page.locator('table tbody tr');
+  await expect(rows).toHaveCount(3);
+  await expect(rows.first()).toContainText('OWN1'); // nearest first
+  await expect(rows.first()).toContainText('eigener Empfänger');
+  await expect(page.getByText('LSZH → EGLL')).toBeVisible();
+  await expect(rows.nth(2)).toContainText('MLAT');
+  await page.getByRole('button', { name: 'AirSquitter', exact: true }).click();
+  await expect(rows).toHaveCount(2);
+  await page.getByRole('button', { name: 'eigener Empfänger', exact: true }).click();
+  await expect(rows).toHaveCount(1);
+});

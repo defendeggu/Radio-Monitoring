@@ -553,4 +553,12 @@ export const en: Record<string, string> = {
   'Über Internet empfangen': 'Received over the internet',
   'Über Funk empfangen': 'Received over the air',
   'auch über Funk gehört': 'also heard over the air',
+  // AirSquitter
+  Kennzeichen: 'Registration',
+  Route: 'Route',
+  Ortung: 'Position source',
+  'AirSquitter nicht erreichbar: {error}': 'AirSquitter not reachable: {error}',
+  'AirSquitter: {n} Flugzeuge': 'AirSquitter: {n} aircraft',
+  'AirSquitter: noch keine Daten': 'AirSquitter: no data yet',
+  'ICAO / Kennzeichen': 'ICAO / registration',
 };

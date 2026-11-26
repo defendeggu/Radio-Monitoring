@@ -10,7 +10,7 @@
   import { packetTime, time } from '../lib/format';
   import { t } from '../lib/i18n.svelte';
   import { live, sdr, toasts } from '../lib/stores.svelte';
-  import type { Aircraft } from '../lib/types';
+  import type { Aircraft, AirSquitterStatus } from '../lib/types';
 
   type Kind = 'adsb' | 'ais' | 'ism';
   interface DecoderInfo {
@@ -34,7 +34,39 @@
   let hours = $state(1);
   let ismFrequency = $state(433_920_000);
   let sessionId = $state<string | null>(null);
-  let aircraft = $state<Aircraft[]>([]);
+  // ADS-B per receiver (own SDR session, network receivers such as the AirSquitter), merged for the view
+  let byReceiver = $state<Record<string, Aircraft[]>>({});
+  let receiverFilter = $state('');
+  let airsquitter = $state<AirSquitterStatus | null>(null);
+  const OWN = 'radiomoni';
+  const receiverOf = (a: Aircraft) => a.receiver || OWN;
+  const aircraft = $derived.by(() => {
+    const merged = new Map<string, Aircraft>();
+    for (const [receiver, list] of Object.entries(byReceiver)) {
+      if (receiverFilter && receiver !== receiverFilter) continue;
+      for (const a of list) {
+        const prev = merged.get(a.icao);
+        // the same aircraft from two receivers: keep the one with a position
+        if (!prev || (prev.latitude == null && a.latitude != null)) merged.set(a.icao, a);
+      }
+    }
+    return [...merged.values()].sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
+  });
+  const SOURCE_COLORS: Record<string, string> = {
+    adsb: '#3b82f6',
+    mlat: '#a855f7',
+    flarm: '#22c55e',
+    tisb: '#f59e0b',
+  };
+  const SOURCE_LABELS: Record<string, string> = {
+    adsb: 'ADS-B',
+    mlat: 'MLAT',
+    flarm: 'FLARM',
+    tisb: 'TIS-B',
+  };
+  const sourceLabel = (s?: string | null) => (s ? (SOURCE_LABELS[s] ?? s) : '');
+  const receiverLabel = (r: string) =>
+    r === OWN ? t('eigener Empfänger') : r === 'airsquitter' ? 'AirSquitter' : r;
   let docs = $state<Doc[]>([]);
   let busy = $state(false);
 
@@ -47,11 +79,30 @@
       .catch(() => {});
   });
 
+  async function loadAirSquitter() {
+    try {
+      airsquitter = await api.get<AirSquitterStatus>('/decoders/airsquitter/status');
+    } catch {
+      airsquitter = null;
+    }
+  }
+
+  $effect(() => {
+    if (kind !== 'adsb') return;
+    void loadAirSquitter();
+    const timer = setInterval(loadAirSquitter, 15_000);
+    return () => clearInterval(timer);
+  });
+
   async function loadLatest() {
     try {
       const r = await api.get<{ results: Doc[] }>(`/decoders/${kind}/latest`, { hours: 24, limit: 200 });
       docs = r.results;
-      if (kind === 'adsb') aircraft = r.results as unknown as Aircraft[];
+      if (kind === 'adsb') {
+        const grouped: Record<string, Aircraft[]> = {};
+        for (const a of r.results as unknown as Aircraft[]) (grouped[receiverOf(a)] ??= []).push(a);
+        byReceiver = grouped;
+      }
     } catch (e) {
       toasts.error(e);
     }
@@ -62,8 +113,10 @@
     sessionId = sdr.status?.active_sessions.find((s) => s.mode === kind)?.session_id ?? null;
     void loadLatest();
     return live.on(['adsb_snapshot', 'ais', 'ism'], (e) => {
-      if (e.type === 'adsb_snapshot' && kind === 'adsb')
-        aircraft = (e.data as { aircraft: Aircraft[] }).aircraft;
+      if (e.type === 'adsb_snapshot' && kind === 'adsb') {
+        const snap = e.data as { receiver?: string; aircraft: Aircraft[] };
+        byReceiver = { ...byReceiver, [snap.receiver || OWN]: snap.aircraft };
+      }
       if (e.type === kind && kind !== 'adsb') {
         const d = e.data as Doc;
         const key = kind === 'ais' ? 'mmsi' : 'sensor_id';
@@ -101,9 +154,17 @@
             id: a.icao,
             lat: a.latitude!,
             lon: a.longitude!,
-            label: a.flight || a.icao,
-            detail: `${a.altitude_ft ?? '?'} ft · ${a.ground_speed_kt ?? '?'} kt`,
-            color: '#a855f7',
+            label: a.flight || a.registration || a.icao,
+            detail: [
+              a.aircraft_type,
+              a.registration,
+              `${a.altitude_ft ?? '?'} ft · ${a.ground_speed_kt ?? '?'} kt`,
+              sourceLabel(a.position_source),
+              receiverLabel(receiverOf(a)),
+            ]
+              .filter(Boolean)
+              .join(' · '),
+            color: SOURCE_COLORS[a.position_source ?? 'adsb'] ?? '#3b82f6',
           }))
       : kind === 'ais'
         ? docs
@@ -201,8 +262,49 @@
 
 {#if sessionId}<div class="mt-4"><SessionCard {sessionId} countLabel={t('Meldungen')} /></div>{/if}
 
+{#if kind === 'adsb' && airsquitter?.enabled}
+  <div class="card mt-4 flex flex-wrap items-center justify-between gap-3 text-sm">
+    <span class={airsquitter.ok === false ? 'text-red-500' : ''}>
+      {#if airsquitter.ok === false}
+        {t('AirSquitter nicht erreichbar: {error}', { error: airsquitter.error ?? '?' })}
+      {:else if airsquitter.ok}
+        {t('AirSquitter: {n} Flugzeuge', { n: airsquitter.aircraft ?? 0 })}
+        ({Object.entries(airsquitter.by_source ?? {})
+          .map(([s, n]) => `${n} ${sourceLabel(s) || '–'}`)
+          .join(' · ')})
+      {:else}
+        {t('AirSquitter: noch keine Daten')}
+      {/if}
+    </span>
+    <div class="flex gap-1" role="group" aria-label={t('Empfänger')}>
+      {#each [['', t('Alle')], [airsquitter.name, 'AirSquitter'], [OWN, t('eigener Empfänger')]] as [value, label] (value)}
+        <button
+          type="button"
+          class="chip {receiverFilter === value
+            ? '!border-accent-500 text-accent-600 dark:text-accent-400'
+            : ''}"
+          aria-pressed={receiverFilter === value}
+          onclick={() => (receiverFilter = value)}>{label}</button
+        >
+      {/each}
+    </div>
+  </div>
+{/if}
+
 {#if kind !== 'ism'}
-  <section class="card mt-6"><MapView {points} /></section>
+  <section class="card mt-6">
+    <MapView {points} />
+    {#if kind === 'adsb'}
+      <p class="mt-2 flex flex-wrap gap-3 text-xs text-slate-500">
+        {#each Object.entries(SOURCE_LABELS) as [key, label] (key)}
+          <span class="flex items-center gap-1"
+            ><span class="inline-block h-2.5 w-2.5 rounded-full" style="background: {SOURCE_COLORS[key]}"
+            ></span>{label}</span
+          >
+        {/each}
+      </p>
+    {/if}
+  </section>
 {/if}
 
 <section class="card mt-6 overflow-x-auto">
@@ -211,19 +313,33 @@
       <table class="table">
         <thead
           ><tr
-            ><th>ICAO</th><th>{t('Flug')}</th><th>{t('Höhe (ft)')}</th><th>{t('Speed (kt)')}</th><th
-              >{t('Kurs')}</th
-            ><th>Squawk</th><th>RSSI</th></tr
+            ><th>ICAO</th><th>{t('Flug')}</th><th>{t('Kennzeichen')}</th><th>{t('Typ')}</th><th
+              >{t('Route')}</th
+            ><th>{t('Höhe (ft)')}</th><th>{t('Speed (kt)')}</th><th>{t('Kurs')}</th><th>Squawk</th><th
+              >{t('Ortung')}</th
+            ><th>{t('Empfänger')}</th><th>km</th><th>RSSI</th></tr
           ></thead
         >
         <tbody>
           {#each aircraft as a (a.icao)}
             <tr
               ><td class="font-mono">{a.icao}</td><td class="font-mono">{a.flight ?? ''}</td><td
-                >{a.altitude_ft ?? ''}</td
-              ><td>{a.ground_speed_kt ?? ''}</td><td>{a.track ?? ''}</td><td>{a.squawk ?? ''}</td><td
-                >{a.rssi ?? ''}</td
-              ></tr
+                class="font-mono">{a.registration ?? ''}</td
+              ><td class="font-mono">{a.aircraft_type ?? ''}</td><td class="text-xs whitespace-nowrap"
+                >{a.origin || a.destination ? `${a.origin ?? '?'} → ${a.destination ?? '?'}` : ''}</td
+              ><td>{a.altitude_ft ?? ''}</td><td>{a.ground_speed_kt ?? ''}</td><td>{a.track ?? ''}</td><td
+                class={a.squawk === '7700' || a.squawk === '7600' || a.squawk === '7500'
+                  ? 'font-semibold text-red-500'
+                  : ''}>{a.squawk ?? ''}</td
+              ><td
+                >{#if a.position_source}<span
+                    class="rounded px-1.5 py-0.5 text-xs font-medium text-white"
+                    style="background: {SOURCE_COLORS[a.position_source] ?? '#64748b'}"
+                    >{sourceLabel(a.position_source)}</span
+                  >{/if}</td
+              ><td class="text-xs whitespace-nowrap">{receiverLabel(receiverOf(a))}</td><td
+                >{a.distance_km != null ? Math.round(a.distance_km) : ''}</td
+              ><td>{a.rssi ?? ''}</td></tr
             >
           {/each}
         </tbody>
