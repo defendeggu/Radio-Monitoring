@@ -41,16 +41,16 @@
   const OWN = 'radiomoni';
   const receiverOf = (a: Aircraft) => a.receiver || OWN;
   const aircraft = $derived.by(() => {
-    const merged = new Map<string, Aircraft>();
+    const merged: Record<string, Aircraft> = {};
     for (const [receiver, list] of Object.entries(byReceiver)) {
       if (receiverFilter && receiver !== receiverFilter) continue;
       for (const a of list) {
-        const prev = merged.get(a.icao);
+        const prev = merged[a.icao];
         // the same aircraft from two receivers: keep the one with a position
-        if (!prev || (prev.latitude == null && a.latitude != null)) merged.set(a.icao, a);
+        if (!prev || (prev.latitude == null && a.latitude != null)) merged[a.icao] = a;
       }
     }
-    return [...merged.values()].sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
+    return Object.values(merged).sort((a, b) => (a.distance_km ?? 1e9) - (b.distance_km ?? 1e9));
   });
   const SOURCE_COLORS: Record<string, string> = {
     adsb: '#3b82f6',
