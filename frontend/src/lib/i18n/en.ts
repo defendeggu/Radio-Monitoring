@@ -561,4 +561,5 @@ export const en: Record<string, string> = {
   'AirSquitter: {n} Flugzeuge': 'AirSquitter: {n} aircraft',
   'AirSquitter: noch keine Daten': 'AirSquitter: no data yet',
   'ICAO / Kennzeichen': 'ICAO / registration',
+  'ohne Ortung': 'no position source',
 };

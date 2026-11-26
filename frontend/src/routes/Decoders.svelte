@@ -270,7 +270,7 @@
       {:else if airsquitter.ok}
         {t('AirSquitter: {n} Flugzeuge', { n: airsquitter.aircraft ?? 0 })}
         ({Object.entries(airsquitter.by_source ?? {})
-          .map(([s, n]) => `${n} ${sourceLabel(s) || '–'}`)
+          .map(([s, n]) => `${n} ${s === 'none' ? t('ohne Ortung') : sourceLabel(s)}`)
           .join(' · ')})
       {:else}
         {t('AirSquitter: noch keine Daten')}
