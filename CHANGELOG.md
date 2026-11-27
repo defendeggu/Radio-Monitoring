@@ -4,6 +4,8 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+## [5.9.1] – 2026-11-27
+
 ### Geändert
 - **Metricbeat sammelt rund 90 % weniger** (vorher ~1,4 Mio. Dokumente und ~1 GB pro Tag, jetzt ~140 000 und ~100 MB):
   - Container-Metriken alle 30 statt 15 s.
