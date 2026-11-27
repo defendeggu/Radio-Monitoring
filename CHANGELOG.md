@@ -4,6 +4,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Neu
+- **Tracks auf den Kibana-Karten:** Die Karten der Dashboards ADS-B, AIS und APRS verbinden die Positionen eines Flugzeugs, Schiffs oder einer APRS-Station zu einer Linie.
+  - RadioMoni baut die Linien selbst (`radiomoni/tracks.py`), jede Minute für die Objekte mit neuen Positionen, in `radio-tracks-*` (geo_shape `track`). Die Track-Ebene von Kibana braucht die Gold-Lizenz, der Stack hat Basic.
+  - Ein Abschnitt endet nach einer Lücke (ADS-B 10 min, AIS und APRS 30 min) und um Mitternacht UTC; Positionen mit unmöglicher Geschwindigkeit fallen weg.
+  - Die Tracks tragen die Felder des Objekts (`icao`, `flight`, `mmsi`, `source_callsign` …), eine Suche im Dashboard filtert Punkte und Linien.
+  - Einstellungen `TRACKS_ENABLED`, `TRACKS_SECONDS`; ältere Tage mit `python -m radiomoni.tracks --days N`.
+  - Update: `./scripts/setup-elk-users.sh` (Template, Rolle `radio_api` darf in `radio-tracks-*` löschen), Dashboards neu importieren.
+
 ## [5.8.0] – 2026-11-26
 
 ### Neu

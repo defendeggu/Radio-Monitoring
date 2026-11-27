@@ -112,6 +112,17 @@ ADS-B-Empfänger von Jetvision im Netz als zweite ADS-B-Quelle ([usage.md](usage
 | `AIRSQUITTER_POLL_SECONDS` | `5` | Abfrage der Flugzeugliste |
 | `AIRSQUITTER_STORE_SECONDS` | `60` | höchstens eine gespeicherte Position pro Flugzeug in diesem Abstand |
 
+### Tracks auf den Kibana-Karten
+
+RadioMoni verbindet die Positionen eines Flugzeugs (ADS-B), Schiffs (AIS) oder einer APRS-Station zu Linien in `radio-tracks-*`. Die Karten der Dashboards ADS-B, AIS und APRS zeigen sie unter den Punkten. Nur mit Elasticsearch; die Track-Ebene von Kibana selbst braucht eine Gold-Lizenz.
+
+| Variable | Standard | Bedeutung |
+|---|---|---|
+| `TRACKS_ENABLED` | `true` | Tracks bauen |
+| `TRACKS_SECONDS` | `60` | so oft werden die Objekte mit neuen Positionen neu verbunden |
+
+Ein Abschnitt endet nach einer Lücke (ADS-B 10 min, AIS und APRS 30 min) und um Mitternacht UTC. Positionen, die eine unmögliche Geschwindigkeit ergäben, fallen weg. Ältere Tage nachträglich: `docker compose exec radio-api python -m radiomoni.tracks --days 30`.
+
 ## Alarm-Benachrichtigungen
 
 Alle Ziele sind optional. In den Alarmregeln wählst du nur den Kanal, die Ziele selbst stehen ausschliesslich hier. So kann eine Regel den Server nicht zu beliebigen URLs schicken.
@@ -240,6 +251,10 @@ The optional APRS statistics [aprs-stats](https://github.com/defendeggu/aprs-sta
 ### AirSquitter / Radarcape
 
 A Jetvision ADS-B receiver on the network as a second ADS-B source: `AIRSQUITTER_URL` (empty = off), `AIRSQUITTER_NAME`, `AIRSQUITTER_POLL_SECONDS` (5), `AIRSQUITTER_STORE_SECONDS` (60).
+
+### Tracks on the Kibana maps
+
+`TRACKS_ENABLED` (true) and `TRACKS_SECONDS` (60): RadioMoni joins the positions of aircraft, ships and APRS stations into lines in `radio-tracks-*`, shown below the points on the ADS-B, AIS and APRS maps (Elasticsearch only; Kibana's own track layer needs a Gold licence). A segment ends after a gap (ADS-B 10 min, AIS/APRS 30 min) and at midnight UTC. Backfill: `python -m radiomoni.tracks --days 30`.
 
 ### Alert notifications
 

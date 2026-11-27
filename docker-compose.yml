@@ -312,6 +312,8 @@ services:
       - AIRSQUITTER_NAME=${AIRSQUITTER_NAME:-airsquitter}
       - AIRSQUITTER_POLL_SECONDS=${AIRSQUITTER_POLL_SECONDS:-5}
       - AIRSQUITTER_STORE_SECONDS=${AIRSQUITTER_STORE_SECONDS:-60}
+      - TRACKS_ENABLED=${TRACKS_ENABLED:-true}
+      - TRACKS_SECONDS=${TRACKS_SECONDS:-60}
     restart: unless-stopped
 
   # ===========================================================================

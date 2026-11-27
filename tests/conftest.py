@@ -34,6 +34,7 @@ os.environ.update({
     'ONAIR_URL': '',                   # a local .env must not connect the tests to OnAir, aprs-stats
     'APRSSTATS_URL': '',               # or the AirSquitter either
     'AIRSQUITTER_URL': '',
+    'TRACKS_ENABLED': 'false',
     'CONTEST_DATA_DIR': os.path.join(_TEST_DIR, 'contest'),
     'SYSFS_USB_ROOT': os.path.join(_TEST_DIR, 'no-usb'),   # never see the SDRs of the machine running the tests
 })

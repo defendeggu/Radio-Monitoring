@@ -28,6 +28,7 @@ ADSB, AIS, ISM, ALERTS = 'radio-adsb-pattern', 'radio-ais-pattern', 'radio-ism-p
 CW, SKIMMER = 'radio-cw-pattern', 'radio-skimmer-pattern'
 ONAIR, METRICBEAT = 'radio-onair-pattern', 'metricbeat-pattern'
 TRIPS, PLACES = 'radio-aprstrips-pattern', 'radio-aprsplaces-pattern'
+TRACKS = 'radio-tracks-pattern'
 
 Obj = dict[str, Any]
 
@@ -166,8 +167,12 @@ def search(oid: str, title: str, index: str, columns: list[str], query: str = ''
 
 def geo_map(oid: str, title: str, index: str, label: str, tooltip: list[str], color: str,
             query: str = '', icons: Optional[tuple[str, list[tuple[str, str]]]] = None,
-            geo_field: str = 'position') -> Obj:
+            geo_field: str = 'position', tracks: Optional[tuple[str, str, list[str]]] = None) -> Obj:
     """Kibana Maps: EMS base map plus the documents with a 'position' geo_point.
+
+    tracks: (kind, colour, tooltip) adds the lines of radio-tracks-* of this kind above the (then smaller) points
+    (built by radiomoni/tracks.py; Kibana's own track layer needs a Gold licence). The tracks carry
+    the object fields (icao, flight, mmsi, source_callsign ...), so a dashboard query on them filters both.
 
     icons: (field, [(value, Maki icon)]) draws points as icons by field value (the
     first Maki icon of the list is used for all other values).
@@ -201,12 +206,31 @@ def geo_map(oid: str, title: str, index: str, label: str, tooltip: list[str], co
          'style': {'type': 'VECTOR', 'isTimeAware': True, 'properties': style},
          'query': {'query': query, 'language': 'kuery'}},
     ]
+    references = [{'id': index, 'name': 'layer_1_source_index_pattern', 'type': 'index-pattern'}]
+    if tracks:
+        kind, line_color, track_tooltip = tracks
+        if not icons:
+            style['iconSize'] = {'type': 'STATIC', 'options': {'size': 3}}
+        layers.append({
+            'id': f'{oid}-tracks', 'label': 'Tracks', 'type': 'GEOJSON_VECTOR', 'visible': True, 'alpha': 0.7,
+            'minZoom': 0, 'maxZoom': 24, 'includeInFitToBounds': False,
+            'sourceDescriptor': {'type': 'ES_SEARCH', 'id': f'{oid}-tracks-source', 'geoField': 'track',
+                                 'indexPatternRefName': 'layer_2_source_index_pattern', 'scalingType': 'LIMIT',
+                                 'tooltipProperties': track_tooltip, 'sortField': '@timestamp', 'sortOrder': 'desc',
+                                 'topHitsSplitField': '', 'topHitsSize': 1, 'applyGlobalQuery': True,
+                                 'applyGlobalTime': True, 'applyForceRefresh': True, 'filterByMapBounds': True},
+            'style': {'type': 'VECTOR', 'isTimeAware': True, 'properties': {
+                'fillColor': {'type': 'STATIC', 'options': {'color': line_color}},
+                'lineColor': {'type': 'STATIC', 'options': {'color': line_color}},
+                'lineWidth': {'type': 'STATIC', 'options': {'size': 2}}}},
+            'query': {'query': f'kind : "{kind}"', 'language': 'kuery'}})
+        references.append({'id': TRACKS, 'name': 'layer_2_source_index_pattern', 'type': 'index-pattern'})
     map_state = {'zoom': 6.6, 'center': {'lon': 8.23, 'lat': 46.8},
                  'timeFilters': {'from': 'now-24h', 'to': 'now'}, 'refreshConfig': {'isPaused': True, 'interval': 0},
                  'query': {'query': '', 'language': 'kuery'}, 'filters': [], 'settings': {}}
     return {
         'id': oid, 'type': 'map', 'coreMigrationVersion': CORE_VERSION, 'typeMigrationVersion': '8.4.0',
-        'references': [{'id': index, 'name': 'layer_1_source_index_pattern', 'type': 'index-pattern'}],
+        'references': references,
         'attributes': {'title': title, 'description': '', 'layerListJSON': json.dumps(layers),
                        'mapStateJSON': json.dumps(map_state),
                        'uiStateJSON': json.dumps({'isLayerTOCOpen': False, 'openTOCDetails': []})},
@@ -327,7 +351,8 @@ def aprs() -> list[Obj]:
         [(geo_map('rm-aprs-map', 'APRS-Stationen', APRS, 'APRS-Stationen',
                   ['source_callsign', 'empfang', 'object_name', 'symbol', 'packet_type', 'gemeinde', 'message_text',
                    'igate', '@timestamp'],
-                  '#54B399', icons=('symbol', APRS_MAP_ICONS)), 30, 22),
+                  '#54B399', icons=('symbol', APRS_MAP_ICONS),
+                  tracks=('aprs', '#209280', ['label', 'empfang', 'start', 'end', 'points', 'distance_km'])), 30, 22),
          (bars('rm-aprs-top', 'Aktivste Stationen', APRS, 'source_callsign', 'Rufzeichen', 15), 18, 22)],
         [(timeline('rm-aprs-tl', 'Pakete über die Zeit nach Empfang', APRS, split='empfang'), 24, 12),
          (pie('rm-aprs-reception', 'Empfang (Funk / Internet)', APRS, 'empfang', 'Empfang', 2), 8, 12),
@@ -364,7 +389,9 @@ def adsb() -> list[Obj]:
          (metric('rm-adsb-range', 'Grösste Distanz (km)', ADSB, maximum('distance_km', 'km')), 9, 7)],
         [(geo_map('rm-adsb-map', 'ADS-B-Flugzeuge', ADSB, 'Flugzeuge',
                   ['flight', 'registration', 'aircraft_type', 'icao', 'position_source', 'empfaenger', 'altitude_ft',
-                   'ground_speed_kt', 'squawk', 'origin', 'destination', '@timestamp'], '#6092C0'), 30, 22),
+                   'ground_speed_kt', 'squawk', 'origin', 'destination', '@timestamp'], '#6092C0',
+                  tracks=('adsb', '#3F6FA8', ['label', 'registration', 'aircraft_type', 'origin', 'destination',
+                                              'start', 'end', 'max_altitude_ft', 'distance_km'])), 30, 22),
          (table('rm-adsb-top', 'Flugzeuge', ADSB, 'icao', 'ICAO',
                 [count('Meldungen'), maximum('altitude_ft', 'Max. Höhe (ft)'), maximum('rssi', 'Max. RSSI')]), 18, 22)],
         [(timeline('rm-adsb-tl', 'Flugzeuge über die Zeit nach Empfänger', ADSB, split='empfaenger',
@@ -387,7 +414,8 @@ def ais() -> list[Obj]:
          (metric('rm-ais-count', 'Meldungen', AIS, count('Meldungen')), 16, 7),
          (metric('rm-ais-pos', 'Meldungen mit Position', AIS, count('Mit Position'), 'position : *'), 16, 7)],
         [(geo_map('rm-ais-map', 'AIS-Schiffe', AIS, 'Schiffe',
-                  ['shipname', 'mmsi', 'callsign', 'speed', 'course', 'destination', '@timestamp'], '#D36086'), 30, 22),
+                  ['shipname', 'mmsi', 'callsign', 'speed', 'course', 'destination', '@timestamp'], '#D36086',
+                  tracks=('ais', '#A8466B', ['label', 'mmsi', 'destination', 'start', 'end', 'distance_km'])), 30, 22),
          (bars('rm-ais-top', 'Schiffe nach Meldungen', AIS, 'shipname', 'Schiff', 15), 18, 22)],
         [(timeline('rm-ais-tl', 'Schiffe über die Zeit', AIS, value=unique('mmsi', 'Schiffe')), 24, 12),
          (pie('rm-ais-types', 'Nachrichtentypen', AIS, 'msg_type', 'Typ'), 24, 12)],

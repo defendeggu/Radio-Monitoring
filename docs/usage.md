@@ -102,6 +102,7 @@ Ein ADS-B-Empfänger von Jetvision ([Air!Squitter, Radarcape](https://wiki.jetvi
 - Gespeichert wird pro Flugzeug höchstens alle `AIRSQUITTER_STORE_SECONDS` (Vorgabe 60 s) eine Position, nach `radio-adsb-*`, mit `receiver` und `position_source`. Bei rund 45 Flugzeugen sind das etwa 65 000 Dokumente pro Tag. Positionen, die das Gerät seit über 60 s nicht erneuert hat, werden angezeigt, aber nicht gespeichert.
 - Alarmregeln gelten auch für diese Flugzeuge, z. B. Feld *Squawk* gleich `7700` oder ein Kennzeichen unter *ICAO / Kennzeichen*.
 - In Kibana zeigt das ADS-B-Dashboard die Aufteilung nach Ortung und Empfänger, Typen, Betreiber und Distanzen. Das Laufzeitfeld `empfaenger` zählt ältere Dokumente ohne `receiver` als `radiomoni`.
+- Die Karten der Kibana-Dashboards ADS-B, AIS und APRS zeigen die **Tracks**: Die Positionen eines Flugzeugs, Schiffs oder einer Station sind zu einer Linie verbunden ([configuration.md](configuration.md#tracks-auf-den-kibana-karten)). Eine Suche wie `icao : "4b1a2c"` oder `source_callsign : "HB9XYZ-9"` zeigt einen einzelnen Track.
 
 ## Repeater-Scan
 

@@ -84,6 +84,11 @@ def start_background_services() -> None:
         airsquitter.start()
     except Exception as e:
         logger.error(f"AirSquitter poller could not start: {e}", exc_info=True)
+    try:
+        from radiomoni import tracks
+        tracks.start()
+    except Exception as e:
+        logger.error(f"Track builder could not start: {e}", exc_info=True)
 
 
 def create_app(start_background: bool = True) -> Flask:

@@ -172,3 +172,7 @@ AIRSQUITTER_NAME: str = (os.getenv('AIRSQUITTER_NAME', '').strip() or 'airsquitt
 AIRSQUITTER_POLL_SECONDS: int = max(2, _int('AIRSQUITTER_POLL_SECONDS', 5))
 # Store a position per aircraft at most this often (the live view gets every poll)
 AIRSQUITTER_STORE_SECONDS: int = max(5, _int('AIRSQUITTER_STORE_SECONDS', 60))
+
+# --- Tracks for the Kibana maps (radio-tracks-*, only with Elasticsearch) -----------
+TRACKS_ENABLED: bool = _bool('TRACKS_ENABLED', True)
+TRACKS_SECONDS: int = max(15, _int('TRACKS_SECONDS', 60))

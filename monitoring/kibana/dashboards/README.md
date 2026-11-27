@@ -29,6 +29,6 @@ python3 monitoring/kibana/build_dashboards.py
 | `logs-dashboard.ndjson` | RadioMoni · System – Logs | Container-Logs (`radio-logs-*`) |
 | `health-dashboard.ndjson` | RadioMoni · System – Zustand | Host, Container, Elasticsearch und GPU (Metricbeat; GPU nur mit `docker-compose.gpu.yml`). Von Hand gepflegt, nicht von `build_dashboards.py` erzeugt |
 
-Die Karten sind Kibana-Maps auf dem Feld `position` und laden die Grundkarte vom Elastic Maps Service (Internetzugang im Browser nötig). Multi-Channel-Sessions schreiben in die APRS- und POCSAG-Indizes (Feld `channel_label`) und erscheinen dort.
+Die Karten sind Kibana-Maps auf dem Feld `position`. Bei ADS-B, AIS und APRS liegen darüber die Tracks aus `radio-tracks-*` (Data View `radio-tracks-*`, von RadioMoni gebaut, siehe `docs/configuration.md`). Die Grundkarte kommt vom Elastic Maps Service (Internetzugang im Browser nötig). Multi-Channel-Sessions schreiben in die APRS- und POCSAG-Indizes (Feld `channel_label`) und erscheinen dort.
 
 Eigene Dashboards exportierst du in Kibana unter *Stack Management → Saved Objects → Export*. Lege sie unter einem eigenen Dateinamen hier ab, damit `build_dashboards.py` sie nicht überschreibt.

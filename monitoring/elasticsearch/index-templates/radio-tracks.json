@@ -1,0 +1,108 @@
+{
+  "index_patterns": [
+    "radio-tracks-*"
+  ],
+  "priority": 200,
+  "version": 1,
+  "_meta": {
+    "managed_by": "radiomoni",
+    "description": "RadioMoni tracks for the maps (one line per aircraft, ship or APRS station and segment)"
+  },
+  "template": {
+    "settings": {
+      "number_of_shards": 1,
+      "number_of_replicas": 0,
+      "index.lifecycle.name": "radio-retention-policy",
+      "refresh_interval": "5s"
+    },
+    "mappings": {
+      "dynamic": "false",
+      "properties": {
+        "@timestamp": {
+          "type": "date"
+        },
+        "start": {
+          "type": "date"
+        },
+        "end": {
+          "type": "date"
+        },
+        "uuid": {
+          "type": "keyword"
+        },
+        "kind": {
+          "type": "keyword"
+        },
+        "entity": {
+          "type": "keyword"
+        },
+        "label": {
+          "type": "keyword"
+        },
+        "icao": {
+          "type": "keyword"
+        },
+        "flight": {
+          "type": "keyword"
+        },
+        "registration": {
+          "type": "keyword"
+        },
+        "aircraft_type": {
+          "type": "keyword"
+        },
+        "operator": {
+          "type": "keyword"
+        },
+        "origin": {
+          "type": "keyword"
+        },
+        "destination": {
+          "type": "keyword"
+        },
+        "receiver": {
+          "type": "keyword"
+        },
+        "position_source": {
+          "type": "keyword"
+        },
+        "mmsi": {
+          "type": "keyword"
+        },
+        "shipname": {
+          "type": "keyword"
+        },
+        "callsign": {
+          "type": "keyword"
+        },
+        "source_callsign": {
+          "type": "keyword"
+        },
+        "symbol": {
+          "type": "keyword"
+        },
+        "symbol_id": {
+          "type": "keyword"
+        },
+        "reception": {
+          "type": "keyword"
+        },
+        "points": {
+          "type": "integer"
+        },
+        "distance_km": {
+          "type": "float"
+        },
+        "duration_min": {
+          "type": "float"
+        },
+        "max_altitude_ft": {
+          "type": "float"
+        },
+        "track": {
+          "type": "geo_shape"
+        }
+      }
+    }
+  }
+}
