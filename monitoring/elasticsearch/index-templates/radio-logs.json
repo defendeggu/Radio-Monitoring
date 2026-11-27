@@ -4,11 +4,12 @@
     "settings": {
       "number_of_shards": 1,
       "number_of_replicas": 0,
-      "index.lifecycle.name": "logs-ilm-policy"
+      "index.lifecycle.name": "logs-ilm-policy",
+      "index.lifecycle.parse_origination_date": true
     }
   },
   "priority": 200,
-  "version": 1,
+  "version": 2,
   "_meta": {
     "description": "Index template for Filebeat container logs — 7d retention via ILM"
   }

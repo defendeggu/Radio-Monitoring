@@ -4,6 +4,13 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Behoben
+- **Metricbeat-Daten werden gelöscht:** Die täglichen Data Streams `metricbeat-JJJJ.MM.TT` hatten keine Aufbewahrung und wuchsen ohne Grenze (auf einem Host ~4 GB pro Tag vor 5.9.1, bis die Disk voll war). In der Doku stand, `logs-ilm-policy` lösche sie nach 7 Tagen; das stimmte nicht.
+  - Metricbeat schreibt in den Data Stream `metricbeat-radiomoni` (Template gleichen Namens, Priorität 200). Neue ILM-Policy `metricbeat-ilm-policy`: jeden Tag ein neuer Backing-Index, nach 7 Tagen löschen.
+  - `setup-elk-users.sh` löscht die alten Tages-Streams, sobald sie älter als 7 Tage sind, danach ihr Template `metricbeat`. Die Datenansicht `metricbeat-*` und das Dashboard *System – Zustand* bleiben gleich.
+- **90 Tage ab dem Datum der Daten:** Das Alter für ILM zählte ab dem Anlegen des Index. Was der aprs-stats-Abgleich, ein aprs.fi-Import oder `python -m radiomoni.tracks --days N` für ältere Tage schreibt, blieb so noch 90 Tage ab dem Abgleich in Kibana. Alle Templates mit ILM setzen jetzt `index.lifecycle.parse_origination_date`; `setup-elk-users.sh` setzt `index.lifecycle.origination_date` auf den bestehenden Indizes.
+- Update: `./scripts/setup-elk-users.sh`, dann `docker compose up -d` (Metricbeat). Indizes, deren Datum mehr als 90 Tage zurückliegt, löscht ILM danach innerhalb von 10 Minuten.
+
 ## [5.9.1] – 2026-11-27
 
 ### Geändert

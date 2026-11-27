@@ -3,7 +3,7 @@
     "radio-onair-*"
   ],
   "priority": 200,
-  "version": 1,
+  "version": 2,
   "_meta": {
     "managed_by": "radiomoni",
     "description": "RadioMoni radio-onair daily indices (messages decoded by OnAir, on-air.dev)"
@@ -13,6 +13,7 @@
       "number_of_shards": 1,
       "number_of_replicas": 0,
       "index.lifecycle.name": "radio-retention-policy",
+      "index.lifecycle.parse_origination_date": true,
       "refresh_interval": "5s"
     },
     "mappings": {

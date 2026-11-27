@@ -18,7 +18,9 @@ Alle Indizes sind Tagesindizes (`…-YYYY.MM.dd`) mit 1 Shard und 0 Replikas (Si
 `./scripts/setup-elk-users.sh` (Teil von `post-docker-setup.sh`) installiert:
 
 - Index-Templates aus `monitoring/elasticsearch/index-templates/`. Unbekannte Text-Felder werden `keyword` (exakte Suche, Aggregationen), Positionen `geo_point`.
-- ILM-Policy `radio-retention-policy`: nach 7 Tagen warm (read-only, forcemerge), nach 90 Tagen löschen. `logs-ilm-policy` löscht Logs und Metriken nach 7 Tagen.
+- ILM-Policy `radio-retention-policy`: nach 7 Tagen warm (read-only, forcemerge), nach 90 Tagen löschen. `logs-ilm-policy` löscht Logs nach 7 Tagen, `metricbeat-ilm-policy` die Metriken nach 7 Tagen.
+- Das Alter zählt ab dem Datum im Indexnamen (`index.lifecycle.parse_origination_date`), nicht ab dem Tag, an dem der Index angelegt wurde. Daten, die später nachkommen (Abgleich mit aprs-stats, aprs.fi-Import, Tracks älterer Tage), verschwinden also 90 Tage nach ihrem eigenen Datum aus Kibana. In aprs-stats selbst bleiben sie. Für Indizes älterer Versionen setzt das Skript das Datum nachträglich.
+- Metricbeat schreibt in einen einzigen Data Stream `metricbeat-radiomoni`; ILM beginnt jeden Tag einen neuen Backing-Index. Die täglichen Data Streams bis 5.9 (`metricbeat-2026.11.20` …) hatten keine Aufbewahrung; das Skript löscht die, die älter als 7 Tage sind.
 - Metricbeat (`monitoring/metricbeat/metricbeat.yml`) misst Container alle 30 s, Host und Elasticsearch-Cluster alle 30 s, aber keine Werte pro Index; im Dateisystem nur echte Disks (ext4, xfs, btrfs, vfat, zfs). Das eingebaute `modules.d/system.yml` des Images ist durch eine leere Datei ersetzt, damit nichts doppelt gesammelt wird. Das ergibt rund 140 000 Dokumente oder ~100 MB pro Tag.
 - Rollen und Benutzer `radio_api`, `logstash_writer`, `beats_writer`.
 
@@ -106,7 +108,9 @@ All indices are daily indices (`…-YYYY.MM.dd`) with 1 shard and 0 replicas (si
 `./scripts/setup-elk-users.sh` (part of `post-docker-setup.sh`) installs:
 
 - Index templates from `monitoring/elasticsearch/index-templates/`. Unknown text fields become `keyword` (exact search, aggregations), positions `geo_point`.
-- ILM policy `radio-retention-policy`: warm after 7 days (read-only, forcemerge), deleted after 90 days. `logs-ilm-policy` deletes logs and metrics after 7 days.
+- ILM policy `radio-retention-policy`: warm after 7 days (read-only, forcemerge), deleted after 90 days. `logs-ilm-policy` deletes logs after 7 days, `metricbeat-ilm-policy` the metrics after 7 days.
+- The age counts from the date in the index name (`index.lifecycle.parse_origination_date`), not from the day the index was created. Data that arrives later (aprs-stats sync, aprs.fi import, tracks of older days) leaves Kibana 90 days after its own date; aprs-stats itself keeps it. The script sets the date on indices of earlier versions.
+- Metricbeat writes to a single data stream `metricbeat-radiomoni`; ILM starts a new backing index every day. The daily data streams up to 5.9 (`metricbeat-2026.11.20` …) had no retention; the script deletes those older than 7 days.
 - Metricbeat (`monitoring/metricbeat/metricbeat.yml`) measures containers, host and the Elasticsearch cluster every 30 s, without per-index values; file systems only for real disks (ext4, xfs, btrfs, vfat, zfs). The image's built-in `modules.d/system.yml` is replaced by an empty file so nothing is collected twice. About 140 000 documents or ~100 MB a day.
 - Roles and users `radio_api`, `logstash_writer`, `beats_writer`.
 

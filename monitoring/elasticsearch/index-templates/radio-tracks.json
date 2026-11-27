@@ -3,7 +3,7 @@
     "radio-tracks-*"
   ],
   "priority": 200,
-  "version": 1,
+  "version": 2,
   "_meta": {
     "managed_by": "radiomoni",
     "description": "RadioMoni tracks for the maps (one line per aircraft, ship or APRS station and segment)"
@@ -13,6 +13,7 @@
       "number_of_shards": 1,
       "number_of_replicas": 0,
       "index.lifecycle.name": "radio-retention-policy",
+      "index.lifecycle.parse_origination_date": true,
       "refresh_interval": "5s"
     },
     "mappings": {

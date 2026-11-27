@@ -68,17 +68,25 @@ output.elasticsearch:
   hosts: ["http://elasticsearch:9200"]
   username: "${ELASTICSEARCH_USERNAME}"
   password: "${ELASTICSEARCH_PASSWORD}"
-  index: "metricbeat-%{+yyyy.MM.dd}"
+  # One data stream. ILM (metricbeat-ilm-policy, set up by scripts/setup-elk-users.sh) starts a
+  # new backing index every day and deletes it after 7 days. The daily data streams of 5.9 and
+  # earlier ("metricbeat-%{+yyyy.MM.dd}") had no lifecycle: ILM cannot delete the write index of
+  # a data stream, so they grew without limit (~4 GB a day on a busy host before 5.9.1).
+  index: "metricbeat-radiomoni"
 
-# Index Template
-setup.template.name: "metricbeat"
-setup.template.pattern: "metricbeat-*"
-setup.template.overwrite: false
+# Index Template (rewritten on every start, so a changed lifecycle reaches Elasticsearch).
+# Metricbeat creates the data stream under the template's name, so both are metricbeat-radiomoni.
+# Priority above the template "metricbeat" (150, pattern metricbeat-*) of the old daily streams.
+setup.template.name: "metricbeat-radiomoni"
+setup.template.pattern: "metricbeat-radiomoni"
+setup.template.priority: 200
+setup.template.overwrite: true
 setup.template.settings:
   index.number_of_shards: 1
   index.number_of_replicas: 0
+  index.lifecycle.name: "metricbeat-ilm-policy"
 
-# Disable ILM so the custom index name is used without conflicts
+# Metricbeat's own ILM setup stays off: the policy comes from monitoring/elasticsearch/ilm-policies
 setup.ilm.enabled: false
 
 # Kibana Dashboards

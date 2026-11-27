@@ -48,7 +48,7 @@ Pro Aufnahme lassen sich Sprache, `beam_size`, `initial_prompt` und `task` (`tra
 | `MIN_FREE_DISK_MB` | `500` | Unter diesem freien Speicher werden neue Aufnahmen abgelehnt |
 | `RECORDING_LINK_SECRET` | generiert | Schlüssel für die signierten Links auf WAV-Dateien (Play-Button in Kibana). Leer = keine Links. Ein neuer Wert macht alle bisherigen Links ungültig. |
 
-Elasticsearch-Daten werden nach 90 Tagen gelöscht (ILM-Policy `radio-retention-policy`), Container-Logs und Metriken nach 7 Tagen.
+Elasticsearch-Daten werden 90 Tage nach ihrem Datum gelöscht (ILM-Policy `radio-retention-policy`), Container-Logs und Metriken nach 7 Tagen (`logs-ilm-policy`, `metricbeat-ilm-policy`). Details: [elk.md](elk.md#templates-und-aufbewahrung).
 
 ## Reverse Beacon Network (CW-Spots)
 
@@ -195,7 +195,7 @@ Language, `beam_size`, `initial_prompt` and `task` (`transcribe`/`translate`) ca
 | `MIN_FREE_DISK_MB` | `500` | below this free space, new recordings are rejected |
 | `RECORDING_LINK_SECRET` | generated | key for the signed links to WAV files (play button in Kibana). Empty = no links. A new value invalidates all existing links. |
 
-Elasticsearch data is deleted after 90 days (ILM policy `radio-retention-policy`), container logs and metrics after 7 days.
+Elasticsearch data is deleted 90 days after its date (ILM policy `radio-retention-policy`), container logs and metrics after 7 days (`logs-ilm-policy`, `metricbeat-ilm-policy`). Details: [elk.md](elk.md#templates-and-retention).
 
 ### Reverse Beacon Network (CW spots)
 
