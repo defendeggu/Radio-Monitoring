@@ -3,7 +3,7 @@
     "radio-captures-*"
   ],
   "priority": 200,
-  "version": 4,
+  "version": 5,
   "_meta": {
     "managed_by": "radiomoni",
     "description": "RadioMoni radio-captures daily indices"
@@ -13,6 +13,7 @@
       "number_of_shards": 1,
       "number_of_replicas": 0,
       "index.lifecycle.name": "radio-retention-policy",
+      "index.lifecycle.parse_origination_date": true,
       "refresh_interval": "5s",
       "analysis": {
         "analyzer": {

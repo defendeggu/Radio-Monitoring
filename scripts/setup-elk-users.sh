@@ -87,6 +87,40 @@ for old in radio-aprs-template radio-monitoring-performance; do
   [[ "$(es DELETE "/_index_template/$old")" =~ ^(200|404)$ ]] || true
 done
 
+echo "Retention of existing indices"
+# The age for ILM comes from the date in the index name (radio-aprs-2026.08.02), not from the
+# day the index was created: data copied in later (aprs-stats sync, tracks of older days) is
+# deleted 90 days after the day it belongs to. New indices get this from the templates
+# (parse_origination_date); Elasticsearch parses the name only when it creates an index, so
+# indices of earlier versions get the date set here, one call per day.
+days="$(docker exec "$ES_CONTAINER" curl -s -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_cat/indices/radio-*-2*?h=index&expand_wildcards=open,hidden" \
+  | grep -oE '[0-9]{4}\.[0-9]{2}\.[0-9]{2}$' | sort -u || true)"
+set_days=0
+for day in $days; do
+  ms="$(date -u -d "${day//./-}" +%s)000"
+  code="$(es PUT "/radio-*-${day}/_settings" <(printf '{"index.lifecycle.origination_date": %s}' "$ms"))"
+  if [[ "$code" =~ ^2 ]]; then set_days=$((set_days + 1)); else echo "  FAIL origination date $day (HTTP $code)"; FAILED=1; fi
+done
+echo "  ok   age from the index name ($set_days days of indices)"
+
+# Daily Metricbeat data streams of 5.9 and earlier (metricbeat-2026.11.20): they have no lifecycle,
+# Metricbeat now writes to metricbeat-radiomoni. Delete those older than its 7 days retention.
+cutoff="$(date -u -d '-7 days' +%Y.%m.%d)"
+legacy="$(docker exec "$ES_CONTAINER" curl -s -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/_data_stream/metricbeat-20*?filter_path=data_streams.name" \
+  | grep -oE 'metricbeat-[0-9]{4}\.[0-9]{2}\.[0-9]{2}' || true)"
+for ds in $legacy; do
+  [[ "${ds#metricbeat-}" < "$cutoff" ]] || { echo "  keep $ds (less than 7 days old, deleted by a later run)"; continue; }
+  code="$(es DELETE "/_data_stream/$ds")"
+  if [[ "$code" =~ ^2 ]]; then echo "  ok   deleted $ds"; else echo "  FAIL delete $ds (HTTP $code)"; FAILED=1; fi
+  legacy="${legacy//$ds/}"
+done
+# their template, once none of them is left (Metricbeat now loads metricbeat-radiomoni)
+if [[ -z "${legacy//[[:space:]]/}" ]]; then
+  [[ "$(es DELETE /_index_template/metricbeat)" =~ ^(200|404)$ ]] || true
+fi
+
 if [[ $FAILED == 1 ]]; then
   echo "Some steps failed — see above." >&2
   exit 1
