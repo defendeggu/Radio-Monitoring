@@ -4,6 +4,14 @@ Format nach [Keep a Changelog](https://keepachangelog.com/de/1.1.0/), Versionier
 
 ## [Unreleased]
 
+### Geändert
+- **Metricbeat sammelt rund 90 % weniger** (vorher ~1,4 Mio. Dokumente und ~1 GB pro Tag, jetzt ~140 000 und ~100 MB):
+  - Container-Metriken alle 30 statt 15 s.
+  - Keine Werte mehr pro Elasticsearch-Index (`elasticsearch.index`, ein Dokument je Index und Messung); Cluster- und Knotenwerte bleiben.
+  - Im Dateisystem nur echte Disks statt aller ~90 Mounts (Snap-Images, Namespaces).
+  - Das eingebaute `modules.d/system.yml` des Images ist ausgeschaltet; es sammelte CPU, Last, Speicher und Netz zusätzlich alle 10 s.
+  - Das Dashboard *System – Zustand* ist unverändert.
+
 ## [5.9.0] – 2026-11-27
 
 ### Neu

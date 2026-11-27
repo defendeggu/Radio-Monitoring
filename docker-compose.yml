@@ -132,6 +132,7 @@ services:
       - ./monitoring/metricbeat/metricbeat.yml:/usr/share/metricbeat/metricbeat.yml:ro
       # OnAir receiver metrics through the API (nothing while OnAir is off)
       - ./monitoring/metricbeat/onair.yml:/usr/share/metricbeat/modules.d/onair.yml:ro
+      - ./monitoring/metricbeat/no-default-system.yml:/usr/share/metricbeat/modules.d/system.yml:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /sys/fs/cgroup:/hostfs/sys/fs/cgroup:ro
       - /proc:/hostfs/proc:ro

@@ -1,0 +1,4 @@
+# Replaces modules.d/system.yml of the Metricbeat image (enabled there by default). It collected
+# CPU, load, memory and network every 10 s a second time next to the system module in
+# metricbeat.yml, and file systems once more every minute.
+[]

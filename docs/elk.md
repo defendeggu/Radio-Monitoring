@@ -19,6 +19,7 @@ Alle Indizes sind Tagesindizes (`…-YYYY.MM.dd`) mit 1 Shard und 0 Replikas (Si
 
 - Index-Templates aus `monitoring/elasticsearch/index-templates/`. Unbekannte Text-Felder werden `keyword` (exakte Suche, Aggregationen), Positionen `geo_point`.
 - ILM-Policy `radio-retention-policy`: nach 7 Tagen warm (read-only, forcemerge), nach 90 Tagen löschen. `logs-ilm-policy` löscht Logs und Metriken nach 7 Tagen.
+- Metricbeat (`monitoring/metricbeat/metricbeat.yml`) misst Container alle 30 s, Host und Elasticsearch-Cluster alle 30 s, aber keine Werte pro Index; im Dateisystem nur echte Disks (ext4, xfs, btrfs, vfat, zfs). Das eingebaute `modules.d/system.yml` des Images ist durch eine leere Datei ersetzt, damit nichts doppelt gesammelt wird. Das ergibt rund 140 000 Dokumente oder ~100 MB pro Tag.
 - Rollen und Benutzer `radio_api`, `logstash_writer`, `beats_writer`.
 
 Das Skript ist idempotent und gehört nach jedem Update ausgeführt.
@@ -106,6 +107,7 @@ All indices are daily indices (`…-YYYY.MM.dd`) with 1 shard and 0 replicas (si
 
 - Index templates from `monitoring/elasticsearch/index-templates/`. Unknown text fields become `keyword` (exact search, aggregations), positions `geo_point`.
 - ILM policy `radio-retention-policy`: warm after 7 days (read-only, forcemerge), deleted after 90 days. `logs-ilm-policy` deletes logs and metrics after 7 days.
+- Metricbeat (`monitoring/metricbeat/metricbeat.yml`) measures containers, host and the Elasticsearch cluster every 30 s, without per-index values; file systems only for real disks (ext4, xfs, btrfs, vfat, zfs). The image's built-in `modules.d/system.yml` is replaced by an empty file so nothing is collected twice. About 140 000 documents or ~100 MB a day.
 - Roles and users `radio_api`, `logstash_writer`, `beats_writer`.
 
 The script is idempotent and should be run after every update.

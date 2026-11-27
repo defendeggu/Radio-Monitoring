@@ -19,14 +19,14 @@ metricbeat.modules:
     - "memory"
     - "network"
   hosts: ["unix:///var/run/docker.sock"]
-  period: 15s
+  period: 30s     # 15 s gave ~35 % of all documents (~1 GB/day in total)
   enabled: true
 
 # Elasticsearch Cluster Metrics
 - module: elasticsearch
   metricsets:
     - cluster_stats
-    - index
+    # no `index`: one document per index every period was ~36 % of all documents
     - index_summary
     - node
     - node_stats
@@ -92,8 +92,18 @@ logging.level: info
 logging.to_files: false
 logging.to_syslog: false
 
-# Processors
+# Processors (the only top-level `processors:` key: a second one would replace this list)
 processors:
+  # only real disks in system.filesystem: snap images, namespaces and other virtual mounts were
+  # ~90 mount points and ~21 % of all documents
+  - drop_event:
+      when:
+        and:
+          - equals:
+              event.dataset: system.filesystem
+          - not:
+              regexp:
+                system.filesystem.type: "^(ext[234]|xfs|btrfs|vfat|zfs)$"
   - add_cloud_metadata: ~
   - add_docker_metadata: ~
   - add_host_metadata: ~
