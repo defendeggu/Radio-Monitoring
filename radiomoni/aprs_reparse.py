@@ -13,9 +13,9 @@ Works with both storage backends (Elasticsearch: partial updates in place,
 SQLite: the JSON document of each row). Time, frequency, session and raw
 packet stay as they are.
 
-The ILM policy makes older daily indices read-only (warm phase) and the API
-user may not change that; their packets are reported as failed. docs/elk.md
-shows how to lift the write block as the elastic user for the run.
+Up to 5.9 the ILM policy made older daily indices read-only (warm phase); the
+API user may not change that, so their packets are reported as failed.
+./scripts/setup-elk-users.sh lifts those blocks.
 """
 
 import argparse
@@ -76,7 +76,8 @@ def _es(storage: Any, dry_run: bool, set_reception: bool = False) -> tuple[int, 
     blocked = sorted({e.get('update', {}).get('_index', '?') for e in failed
                       if 'cluster_block_exception' in str(e)})
     if blocked:
-        print(f"read-only indices (ILM warm phase): {', '.join(blocked)} — see docs/elk.md")
+        print(f"read-only indices (ILM warm phase up to 5.9): {', '.join(blocked)} — "
+              "run ./scripts/setup-elk-users.sh, then this again")
     return ok, len(failed) if isinstance(errors, list) else int(errors)
 
 

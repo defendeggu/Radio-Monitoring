@@ -18,7 +18,7 @@ Alle Indizes sind Tagesindizes (`…-YYYY.MM.dd`) mit 1 Shard und 0 Replikas (Si
 `./scripts/setup-elk-users.sh` (Teil von `post-docker-setup.sh`) installiert:
 
 - Index-Templates aus `monitoring/elasticsearch/index-templates/`. Unbekannte Text-Felder werden `keyword` (exakte Suche, Aggregationen), Positionen `geo_point`.
-- ILM-Policy `radio-retention-policy`: nach 7 Tagen warm (read-only, forcemerge), nach 90 Tagen löschen. `logs-ilm-policy` löscht Logs nach 7 Tagen, `metricbeat-ilm-policy` die Metriken nach 7 Tagen.
+- ILM-Policy `radio-retention-policy`: nach 7 Tagen warm (tiefere Priorität beim Wiederherstellen, bleibt beschreibbar), nach 90 Tagen löschen. Bis 5.9 wurden Indizes in der Warm-Phase schreibgeschützt und zusammengelegt (forcemerge); dann scheiterte, was später für ältere Tage nachkam (aprs-stats-Abgleich, aprs.fi-Import), und der Abgleich blieb hängen. `setup-elk-users.sh` hebt diesen Schutz auf. `logs-ilm-policy` löscht Logs nach 7 Tagen, `metricbeat-ilm-policy` die Metriken nach 7 Tagen.
 - Das Alter zählt ab dem Datum im Indexnamen (`index.lifecycle.parse_origination_date`), nicht ab dem Tag, an dem der Index angelegt wurde. Daten, die später nachkommen (Abgleich mit aprs-stats, aprs.fi-Import, Tracks älterer Tage), verschwinden also 90 Tage nach ihrem eigenen Datum aus Kibana. In aprs-stats selbst bleiben sie. Für Indizes älterer Versionen setzt das Skript das Datum nachträglich.
 - Metricbeat schreibt in einen einzigen Data Stream `metricbeat-radiomoni`; ILM beginnt jeden Tag einen neuen Backing-Index. Die täglichen Data Streams bis 5.9 (`metricbeat-2026.11.20` …) hatten keine Aufbewahrung; das Skript löscht die, die älter als 7 Tage sind.
 - Metricbeat (`monitoring/metricbeat/metricbeat.yml`) misst Container alle 30 s, Host und Elasticsearch-Cluster alle 30 s, aber keine Werte pro Index; im Dateisystem nur echte Disks (ext4, xfs, btrfs, vfat, zfs). Das eingebaute `modules.d/system.yml` des Images ist durch eine leere Datei ersetzt, damit nichts doppelt gesammelt wird. Das ergibt rund 140 000 Dokumente oder ~100 MB pro Tag.
@@ -34,17 +34,7 @@ Das Skript ist idempotent und gehört nach jedem Update ausgeführt.
 
 **APRS-Symbole:** In der Liste des Dashboards *APRS* (und in Discover auf `radio-aprs-*`) zeigt die Spalte `symbol_id` das APRS-Symbol als Bild, geladen von derselben Adresse (`WEB_PUBLIC_URL`). Die Karte zeichnet die Stationen mit Icons aus dem Kibana-Satz (Auto, Haus, Funkturm …) nach dem Feld `symbol`, denn eigene Bilder zeichnet Kibana Maps nur einfarbig.
 
-**APRS-Pakete neu auslesen:** `docker exec radio-transcription-api python -m radiomoni.aprs_reparse` liest gespeicherte Pakete mit dem aktuellen Parser neu aus. Ältere Tagesindizes setzt die ILM-Richtlinie in der Warm-Phase auf schreibgeschützt, und der API-Benutzer darf das nicht ändern; das Skript nennt diese Indizes. Für sie den Schreibschutz als `elastic` aufheben, das Skript laufen lassen und den Schutz wieder setzen:
-
-```bash
-set -a; . ./.env; set +a
-IDX=radio-aprs-2026.10.23,radio-aprs-2026.10.26        # die Indizes aus der Meldung
-docker exec radio-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" -H 'Content-Type: application/json' \
-  -X PUT "localhost:9200/$IDX/_settings" -d '{"index.blocks.write": false}'
-docker exec radio-transcription-api python -m radiomoni.aprs_reparse
-docker exec radio-elasticsearch curl -s -u "elastic:$ELASTIC_PASSWORD" -H 'Content-Type: application/json' \
-  -X PUT "localhost:9200/$IDX/_settings" -d '{"index.blocks.write": true}'
-```
+**APRS-Pakete neu auslesen:** `docker exec radio-transcription-api python -m radiomoni.aprs_reparse` liest gespeicherte Pakete mit dem aktuellen Parser neu aus. Meldet das Skript schreibgeschützte Indizes (Warm-Phase bis 5.9), zuerst `./scripts/setup-elk-users.sh` ausführen und das Skript dann noch einmal.
 
 Von einem anderen Rechner aus erreichst du Kibana per SSH-Tunnel: `ssh -L 5601:127.0.0.1:5601 user@host`. Alternativ setzt du `KIBANA_BIND=0.0.0.0`, dann ist Kibana im ganzen LAN sichtbar.
 
@@ -108,7 +98,7 @@ All indices are daily indices (`…-YYYY.MM.dd`) with 1 shard and 0 replicas (si
 `./scripts/setup-elk-users.sh` (part of `post-docker-setup.sh`) installs:
 
 - Index templates from `monitoring/elasticsearch/index-templates/`. Unknown text fields become `keyword` (exact search, aggregations), positions `geo_point`.
-- ILM policy `radio-retention-policy`: warm after 7 days (read-only, forcemerge), deleted after 90 days. `logs-ilm-policy` deletes logs after 7 days, `metricbeat-ilm-policy` the metrics after 7 days.
+- ILM policy `radio-retention-policy`: warm after 7 days (lower recovery priority, stays writable), deleted after 90 days. Up to 5.9 the warm phase made indices read-only and force-merged them; data arriving later for older days (aprs-stats sync, aprs.fi import) then failed and the sync got stuck. `setup-elk-users.sh` lifts that block. `logs-ilm-policy` deletes logs after 7 days, `metricbeat-ilm-policy` the metrics after 7 days.
 - The age counts from the date in the index name (`index.lifecycle.parse_origination_date`), not from the day the index was created. Data that arrives later (aprs-stats sync, aprs.fi import, tracks of older days) leaves Kibana 90 days after its own date; aprs-stats itself keeps it. The script sets the date on indices of earlier versions.
 - Metricbeat writes to a single data stream `metricbeat-radiomoni`; ILM starts a new backing index every day. The daily data streams up to 5.9 (`metricbeat-2026.11.20` …) had no retention; the script deletes those older than 7 days.
 - Metricbeat (`monitoring/metricbeat/metricbeat.yml`) measures containers, host and the Elasticsearch cluster every 30 s, without per-index values; file systems only for real disks (ext4, xfs, btrfs, vfat, zfs). The image's built-in `modules.d/system.yml` is replaced by an empty file so nothing is collected twice. About 140 000 documents or ~100 MB a day.
@@ -124,7 +114,7 @@ The script is idempotent and should be run after every update.
 
 **APRS symbols:** in the list of the *APRS* dashboard (and in Discover on `radio-aprs-*`) the column `symbol_id` shows the APRS symbol as an image, loaded from the same address (`WEB_PUBLIC_URL`). The map draws the stations with icons of the Kibana set (car, house, radio tower …) by the field `symbol`, because Kibana Maps draws custom images in one colour only.
 
-**Re-reading APRS packets:** `docker exec radio-transcription-api python -m radiomoni.aprs_reparse` reads stored packets again with the current parser. The ILM policy makes older daily indices read-only in the warm phase, and the API user may not change that; the script names those indices. Lift their write block as `elastic`, run the script and set the block again (commands above).
+**Re-reading APRS packets:** `docker exec radio-transcription-api python -m radiomoni.aprs_reparse` reads stored packets again with the current parser. If the script reports read-only indices (warm phase up to 5.9), run `./scripts/setup-elk-users.sh` first and the script again.
 
 From another computer you can reach Kibana through an SSH tunnel: `ssh -L 5601:127.0.0.1:5601 user@host`. Alternatively set `KIBANA_BIND=0.0.0.0`; Kibana is then visible on the whole LAN.
 
