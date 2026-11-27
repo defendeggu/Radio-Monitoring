@@ -15,10 +15,6 @@
       "warm": {
         "min_age": "7d",
         "actions": {
-          "forcemerge": {
-            "max_num_segments": 1
-          },
-          "readonly": {},
           "set_priority": {
             "priority": 50
           }

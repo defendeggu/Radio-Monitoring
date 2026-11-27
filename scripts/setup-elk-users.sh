@@ -88,6 +88,17 @@ for old in radio-aprs-template radio-monitoring-performance; do
 done
 
 echo "Retention of existing indices"
+# Indices already in the warm phase of 5.9 and earlier keep its cached definition (readonly,
+# forcemerge): Elasticsearch does not refresh it when the running action left the policy.
+# Detach and attach the policy once; ILM then places them by age with the current phases.
+RETENTION_INDICES="radio-*-2*,-radio-logs-*"
+explain="$(docker exec "$ES_CONTAINER" curl -s -u "elastic:${ELASTIC_PASSWORD}" \
+  "http://localhost:9200/${RETENTION_INDICES}/_ilm/explain?filter_path=indices.*.phase_execution.phase_definition.actions")"
+if grep -qE '"(readonly|forcemerge)"' <<<"$explain"; then
+  [[ "$(es POST "/${RETENTION_INDICES}/_ilm/remove")" =~ ^2 ]] || { echo "  FAIL detach radio-retention-policy"; FAILED=1; }
+  put_json PUT "/${RETENTION_INDICES}/_settings?allow_no_indices=true" \
+    '{"index.lifecycle.name": "radio-retention-policy"}' "phases of the current radio-retention-policy"
+fi
 # The age for ILM comes from the date in the index name (radio-aprs-2026.08.02), not from the
 # day the index was created: data copied in later (aprs-stats sync, tracks of older days) is
 # deleted 90 days after the day it belongs to. New indices get this from the templates
@@ -103,6 +114,12 @@ for day in $days; do
   if [[ "$code" =~ ^2 ]]; then set_days=$((set_days + 1)); else echo "  FAIL origination date $day (HTTP $code)"; FAILED=1; fi
 done
 echo "  ok   age from the index name ($set_days days of indices)"
+
+# Up to 5.9 the warm phase made daily indices read-only after 7 days. Data for older days that
+# arrives later (aprs-stats sync, aprs.fi import, aprs_reparse) failed on them, and the aprs-stats
+# sync kept retrying the same packet. The warm phase no longer does that; lift the old blocks.
+put_json PUT "/radio-*-2*/_settings?allow_no_indices=true" '{"index.blocks.write": false}' \
+  "daily indices writable (no read-only warm phase)"
 
 # Daily Metricbeat data streams of 5.9 and earlier (metricbeat-2026.11.20): they have no lifecycle,
 # Metricbeat now writes to metricbeat-radiomoni. Delete those older than its 7 days retention.
